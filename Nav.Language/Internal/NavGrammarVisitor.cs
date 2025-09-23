@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 
@@ -869,6 +869,9 @@ sealed class NavGrammarVisitor: NavGrammarBaseVisitor<SyntaxNode> {
         var node = new SimpleTypeSyntax(CreateExtent(context));
 
         CreateToken(node, context.Identifier(), TextClassification.TypeName);
+        if (context.Questionmark() != null) {
+            CreateToken(node, context.Questionmark(), TextClassification.Punctuation);
+        }
 
         return node;
     }
