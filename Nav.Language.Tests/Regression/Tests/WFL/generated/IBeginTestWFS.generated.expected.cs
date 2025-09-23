@@ -6,6 +6,7 @@
 //     the code is regenerated.
 // </auto-generated>
 //------------------------------------------------------------------------------
+#nullable disable
 #region Using Directives
 using Nav.Language.Tests.Regression.Test1.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Common.WFL;
