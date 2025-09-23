@@ -97,6 +97,10 @@ GreaterThan
     :   '>'
     ;
 
+Questionmark
+    :   '?'
+    ;
+
 Semicolon
     :   ';'
     ;

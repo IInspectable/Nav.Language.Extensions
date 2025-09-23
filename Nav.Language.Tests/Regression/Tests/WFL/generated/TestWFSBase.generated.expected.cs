@@ -49,8 +49,9 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
-        public virtual IINIT_TASK Begin(TestInitParams p1) {
-            var body = BeginLogic(p1, _messageboxOk);
+        public virtual IINIT_TASK Begin(TestInitParams p1,
+                                        int? nullableParam) {
+            var body = BeginLogic(p1, nullableParam, _messageboxOk);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == NoResultsNodeName:
                     return GotoTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterNoResults);
@@ -67,6 +68,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         /// <NavInit>Init1</NavInit>
         #endregion
         protected abstract INavCommandBody BeginLogic(TestInitParams p1,
+                                                      int? nullableParam,
                                                       NS.2.WFL.IBeginMessageboxOkWFS messageboxOk);
 
         #region Nav Annotations
@@ -522,7 +524,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
             return new TaskCall(DoSomethingNodeName, () => wfs.Begin());
         }
 
-        protected INavCommandBody TaskResult(bool par) {
+        protected INavCommandBody TaskResult(bool? par) {
             return InternalTaskResult(par);
         }
 

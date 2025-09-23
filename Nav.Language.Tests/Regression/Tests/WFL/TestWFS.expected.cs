@@ -12,6 +12,7 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 namespace Nav.Language.Tests.Regression.Test1.WFL {	
     public partial class TestWFS {
         protected override INavCommandBody BeginLogic(TestInitParams p1,
+                                                      int? nullableParam,
                                                       NS.2.WFL.IBeginMessageboxOkWFS messageboxOk) {
             throw new NotImplementedException();
         }

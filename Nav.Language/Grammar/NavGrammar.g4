@@ -258,7 +258,7 @@ codeType
     ;
 
 simpleType
-    :   Identifier
+    :   Identifier Questionmark?
     ;
 
 genericType

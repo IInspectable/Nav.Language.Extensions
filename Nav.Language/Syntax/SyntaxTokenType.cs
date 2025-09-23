@@ -1,4 +1,4 @@
-using Pharmatechnik.Nav.Language.Generated;
+﻿using Pharmatechnik.Nav.Language.Generated;
 
 namespace Pharmatechnik.Nav.Language; 
 
@@ -36,6 +36,7 @@ public enum SyntaxTokenType {
     MultiLineComment       = NavTokens.MultiLineComment,
     NewLine                = NavTokens.NewLine,
     Identifier             = NavTokens.Identifier,
+    Questionmark           = NavTokens.Questionmark,
     OpenBrace              = NavTokens.OpenBrace,
     CloseBrace             = NavTokens.CloseBrace,
     OpenParen              = NavTokens.OpenParen,

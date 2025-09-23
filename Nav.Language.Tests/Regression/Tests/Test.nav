@@ -47,10 +47,10 @@ task Test
     [base StandardWFS : IWFServiceBase]
     [params ITestBS testBS, 
             ISozFactory SOZFactory]
-    [result bool]
+    [result bool?]
 {
 
-    init Init1 [params TestInitParams];
+    init Init1 [params TestInitParams, int? nullableParam];
     init Init2 [abstractmethod];
     exit    Exit;
     task Foo;

@@ -35,7 +35,8 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
-        IINIT_TASK Begin(TestInitParams p1);
+        IINIT_TASK Begin(TestInitParams p1,
+                         int? nullableParam);
         #region Nav Annotations
         /// <NavInit>Init2</NavInit>
         #endregion

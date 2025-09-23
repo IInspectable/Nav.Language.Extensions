@@ -1,16 +1,17 @@
-using System;
+﻿using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language; 
 
 [Serializable]
-[SampleSyntax("Identifier")]
+[SampleSyntax("int?")]
 public partial class SimpleTypeSyntax: CodeTypeSyntax {
 
     internal SimpleTypeSyntax(TextExtent extent): base(extent) {
     }
 
-    public SyntaxToken Identifier => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);
+    public SyntaxToken Identifier   => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);
+    public SyntaxToken Questionmark => ChildTokens().FirstOrMissing(SyntaxTokenType.Questionmark);
 
 }
