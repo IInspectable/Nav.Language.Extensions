@@ -9,6 +9,7 @@ writeFileHeader(context) ::=<<
 //     the code is regenerated.
 // \</auto-generated>
 //------------------------------------------------------------------------------
+#nullable disable
 >>
 
 writeUsingDirectives(usings) ::=<<
