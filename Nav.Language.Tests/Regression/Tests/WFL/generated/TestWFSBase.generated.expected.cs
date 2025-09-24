@@ -6,7 +6,7 @@
 //     the code is regenerated.
 // </auto-generated>
 //------------------------------------------------------------------------------
-#nullable disable
+#nullable enable
 #region Using Directives
 using System;
 using Nav.Language.Tests.Regression.Test1.IWFL;
@@ -33,8 +33,8 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         const string MsgAbstractNodeName = "MsgAbstract";
         const string DoSomethingNodeName = "DoSomething";
 
-        readonly NS.2.WFL.IBeginMessageboxConinueWFS _messageboxConinue;
-        readonly NS.2.WFL.IBeginMessageboxOkWFS _messageboxOk;
+        readonly NS.2.WFL.IBeginMessageboxConinueWFS _messageboxConinue = default!;
+        readonly NS.2.WFL.IBeginMessageboxOkWFS _messageboxOk = default!;
 
         public TestWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
 
@@ -536,8 +536,8 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
     #endregion
     public partial class TestWFS: TestWFSBase, ITestWFS, IBeginTestWFS {
 
-        readonly ITestBS _testBS;
-        readonly ISozFactory _SOZFactory;
+        readonly ITestBS _testBS = default!;
+        readonly ISozFactory _SOZFactory = default!;
 
         public TestWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
 

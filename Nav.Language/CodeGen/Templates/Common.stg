@@ -9,7 +9,7 @@ writeFileHeader(context) ::=<<
 //     the code is regenerated.
 // \</auto-generated>
 //------------------------------------------------------------------------------
-#nullable disable
+#nullable enable
 >>
 
 writeUsingDirectives(usings) ::=<<
@@ -36,7 +36,7 @@ writeFieldDeclarationCollapsibleList(parameters) ::=<<
 >>
 
 writeFieldDeclaration(parameter) ::=<<
-readonly <parameter.ParameterType> <FieldPrefix()><parameter.ParameterName>;
+readonly <parameter.ParameterType> <FieldPrefix()><parameter.ParameterName> = default!;
 >>
 
 writeFieldInitList(parameters) ::=<<
