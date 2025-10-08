@@ -20,7 +20,7 @@ taskref MessageboxOk [namespaceprefix NS.2]
 		    [result MessageboxOkResult r] {
 
     init Init1 [params string text, MessageboxIcon icon];
-    init Init2 [params string text, string title, MessageboxIcon icon];
+    init Init2 [params string text, string? title, MessageboxIcon icon];
     exit Ok;
     exit Abbrechen;
 }

@@ -472,7 +472,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         protected INavCommandBody BeginMsgExit(NS.2.WFL.IBeginMessageboxOkWFS wfs,
                                                string text,
-                                               string title,
+                                               string? title,
                                                MessageboxIcon icon) {
             return new TaskCall(MsgExitNodeName, () => wfs.Begin(text, title, icon));
         }
@@ -491,7 +491,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         protected INavCommandBody BeginNoResults(NS.2.WFL.IBeginMessageboxOkWFS wfs,
                                                  string text,
-                                                 string title,
+                                                 string? title,
                                                  MessageboxIcon icon) {
             return new TaskCall(NoResultsNodeName, () => wfs.Begin(text, title, icon));
         }
