@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.3.32922.545
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11104.47 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nav.Language", "Nav.Language\Nav.Language.csproj", "{C38F8EE6-5DC6-40F3-8994-A33069B05FD8}"
 EndProject
@@ -33,6 +33,8 @@ EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Nav.Language.ExtensionShared", "Nav.Language.ExtensionShared\Nav.Language.ExtensionShared.shproj", "{DA1F60B3-96AF-4862-AAB9-90B0AB7B2504}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Extension2022", "Nav.Language.Extension2022\Nav.Language.Extension2022.csproj", "{C88AACD6-6973-430B-A94B-4CC45B37F32E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Extension2026", "Nav.Language.Extension2026\Nav.Language.Extension2026.csproj", "{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -72,6 +74,10 @@ Global
 		{C88AACD6-6973-430B-A94B-4CC45B37F32E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C88AACD6-6973-430B-A94B-4CC45B37F32E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C88AACD6-6973-430B-A94B-4CC45B37F32E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -89,5 +95,7 @@ Global
 		Nav.Language.ExtensionShared\Nav.Language.ExtensionShared.projitems*{c88aacd6-6973-430b-a94b-4cc45b37f32e}*SharedItemsImports = 4
 		Nav.Language.ExtensionShared\Nav.Language.ExtensionShared.projitems*{da1f60b3-96af-4862-aab9-90b0ab7b2504}*SharedItemsImports = 13
 		JetBrains.Annotations\JetBrains.Annotations.projitems*{db6efc93-1185-43b7-a721-8515b59cc3ad}*SharedItemsImports = 5
+		JetBrains.Annotations\JetBrains.Annotations.projitems*{f9bd82fb-2abb-41b6-afa0-24013754a9c8}*SharedItemsImports = 4
+		Nav.Language.ExtensionShared\Nav.Language.ExtensionShared.projitems*{f9bd82fb-2abb-41b6-afa0-24013754a9c8}*SharedItemsImports = 4
 	EndGlobalSection
 EndGlobal

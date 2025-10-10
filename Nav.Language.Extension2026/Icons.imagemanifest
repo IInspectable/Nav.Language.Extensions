@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImageManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.microsoft.com/VisualStudio/ImageManifestSchema/2014">
+  <Symbols>
+    <String Name="Resources" Value="/Pharmatechnik.Nav.Language.Extension.2022;component/Resources/Icons" />
+    <Guid Name="CustomMonikerGuid" Value="{11e9628b-b9e6-45d6-ae8d-b4440be46fa6}" />
+    <ID Name="ModalEdge"    Value="1" />
+    <ID Name="NonModalEdge" Value="2" />
+    <ID Name="GoToEdge"     Value="3" />
+  </Symbols>
+  <Images>
+    <Image Guid="$(CustomMonikerGuid)" ID="$(ModalEdge)">
+      <Source Uri="$(Resources)/ModalEdge.xaml" />
+    </Image>
+    <Image Guid="$(CustomMonikerGuid)" ID="$(NonModalEdge)">
+      <Source Uri="$(Resources)/NonModalEdge.xaml" />
+    </Image>
+    <Image Guid="$(CustomMonikerGuid)" ID="$(GoToEdge)">
+      <Source Uri="$(Resources)/GoToEdge.xaml" />
+    </Image>
+  </Images>
+  <ImageLists />
+</ImageManifest>

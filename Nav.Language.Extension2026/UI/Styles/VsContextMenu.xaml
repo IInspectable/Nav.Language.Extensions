@@ -1,0 +1,98 @@
+﻿<ResourceDictionary xmlns         = "http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x       = "http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:imaging = "clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Imaging"
+                    xmlns:utils   = "clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Utilities"
+                    xmlns:local   = "clr-namespace:Pharmatechnik.Nav.Language.Extension.UI"
+                    xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0">
+
+    <utils:BrushToColorConverter x:Key="BrushToColorConverter" x:Uid="BrushToColorConverter_1" />
+
+    <Style TargetType = "{x:Type local:VsContextMenu}"
+           BasedOn    = "{StaticResource {x:Type ContextMenu}}">
+
+        <Setter Property="FontFamily" Value="{DynamicResource VsFont.EnvironmentFontFamily}" />
+        <Setter Property="FontSize" Value="{DynamicResource VsFont.EnvironmentFontSize}" />
+        <Setter Property="SnapsToDevicePixels" Value="true" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate x:Uid="ControlTemplate_1" TargetType="{x:Type local:VsContextMenu}">
+
+                    <StackPanel>
+
+                        <Border HorizontalAlignment  = "Left"
+                                Padding              = "5,2,5,2" 
+                                TextBlock.Foreground = "{DynamicResource {x:Static platformUi:EnvironmentColors.TitleBarInactiveTextBrushKey}}"
+                                Background           = "{DynamicResource {x:Static platformUi:EnvironmentColors.TitleBarInactiveGradientBeginBrushKey}}">
+
+                            <ContentPresenter Content="{TemplateBinding Header}"/>
+                        </Border>
+
+                        <platformUi:SystemDropShadowChrome Name="Shdw" x:Uid="Shdw" Color="Transparent">
+                            <Grid x:Uid="Grid_1"
+                                  Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuIconBackgroundBrushKey}}">
+
+                                <ScrollViewer Name="PART_ScrollViewer" x:Uid="ScrollViewer_1"
+                                              Style="{DynamicResource {ComponentResourceKey TypeInTargetAssembly={x:Type FrameworkElement}, ResourceId=MenuScrollViewer}}">
+                                    <Grid x:Uid="Grid_2"
+                                          Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+                                          RenderOptions.BitmapScalingMode="{x:Static platformUi:DpiHelper.BitmapScalingMode}"
+                                          RenderOptions.ClearTypeHint="Enabled">
+                                        
+                                        <imaging:ImageThemingUtilities.ImageBackgroundColor>
+                                            <Binding Path="Background" ElementName="IconBackground" Converter="{StaticResource BrushToColorConverter}" />
+                                        </imaging:ImageThemingUtilities.ImageBackgroundColor>
+                                        
+                                        <Border x:Name              = "IconBackground" 
+                                                x:Uid               = "Border_1" 
+                                                Width               = "28"
+                                                Background          = "{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuIconBackgroundBrushKey}}"
+                                                HorizontalAlignment = "Left" />
+                                        
+                                        <ItemsPresenter x:Uid                                    = "ItemsPresenter_1"
+                                                        KeyboardNavigation.TabNavigation         = "Cycle"
+                                                        KeyboardNavigation.DirectionalNavigation = "Cycle" Margin="3"
+                                                        SnapsToDevicePixels                      = "{TemplateBinding UIElement.SnapsToDevicePixels}"
+                                                        Grid.IsSharedSizeScope                   = "true" />
+                                    </Grid>
+                                </ScrollViewer>
+
+                                <Border x:Uid           = "Border_2"
+                                        BorderBrush     = "{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}"
+                                        BorderThickness = "1" />
+                            </Grid>
+                        </platformUi:SystemDropShadowChrome>
+                    </StackPanel>
+
+                    <ControlTemplate.Triggers>
+                        <DataTrigger x:Uid="DataTrigger_1" Value="False">
+                            <DataTrigger.Binding>
+                                <Binding Source="{x:Static platformUi:EnvironmentRenderCapabilities.Current}"
+                                         Path="AreAnimationsAllowed" />
+                            </DataTrigger.Binding>
+                        </DataTrigger>
+                        <MultiDataTrigger x:Uid="MultiDataTrigger_1">
+                            <MultiDataTrigger.Conditions>
+                                <Condition x:Uid="Condition_1" Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="HasDropShadow" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition x:Uid="Condition_2" Value="True">
+                                    <Condition.Binding>
+                                        <Binding Source="{x:Static platformUi:EnvironmentRenderCapabilities.Current}"
+                                                 Path="AreGradientsAllowed" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter x:Uid="Setter_7" TargetName="Shdw" Property="FrameworkElement.Margin"
+                                    Value="0,0,5,5" />
+                            <Setter x:Uid="Setter_8" TargetName="Shdw"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.DropShadowBackgroundColorKey}}"
+                                    Property="platformUi:SystemDropShadowChrome.Color" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

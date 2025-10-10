@@ -35,7 +35,7 @@
   &lt;Assembly Path="C:\Users\mnhaenel\.nuget\packages\microsoft.visualstudio.languageservices\3.0.0\lib\net472\Microsoft.VisualStudio.LanguageServices.dll" /&gt;&#xD;
   &lt;Assembly Path="C:\Users\mnhaenel\.nuget\packages\microsoft.codeanalysis.workspaces.common\3.0.0\lib\netstandard2.0\Microsoft.CodeAnalysis.Workspaces.dll" /&gt;&#xD;
 &lt;/AssemblyExplorer&gt;</s:String>
-	<s:Int64 x:Key="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue">69</s:Int64>
+	<s:Int64 x:Key="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue">72</s:Int64>
 	<s:Int64 x:Key="/Default/Environment/SearchAndNavigation/DefaultOccurrencesGroupingIndex/@EntryValue">9</s:Int64>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=feaddfeb_002Df637_002D4617_002D9064_002D9a3a39cea9ba/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestGeneratedPaths" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
@@ -48,7 +48,7 @@
     &lt;TestId&gt;NUnit3x::6F82F651-4D21-467D-BD83-68C743BC8DF4::.NETFramework,Version=v4.7.2::Nav.Language.Tests.DescendantNodesTests.CountSyntaxNodeTest1&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UpdatesManger/LastUpdateCheck/@EntryValue">09/24/2025 09:26:24</s:String>
+	<s:String x:Key="/Default/Environment/UpdatesManger/LastUpdateCheck/@EntryValue">10/08/2025 12:54:12</s:String>
 	<s:String x:Key="/Default/Housekeeping/Layout/DialogWindows/OptionsDialogView/Position/@EntryValue">[0,0](1280,688)</s:String>
 	<s:String x:Key="/Default/Housekeeping/Layout/DialogWindows/RefactoringWizardWindow/Location/@EntryValue">-640,-337.6</s:String>
 	<s:String x:Key="/Default/Housekeeping/OptionsDialog/SelectedPageId/@EntryValue">ReSpellerSettings</s:String>
