@@ -90,7 +90,7 @@ writeExitTransition(exitTransition) ::=<<
 protected abstract INavCommand <ExitMethodPrefix()><exitTransition.NodeNamePascalcase><LogicMethodSuffix()>(<writeParameterList(exitTransition.TaskResult)>);
 <else>
 <writeNavExitAnnotation(exitTransition.NodeName)>
-private INavCommand <ExitMethodPrefix()><exitTransition.NodeNamePascalcase>(<writeParameterList(exitTransition.TaskResult)>) {
+protected virtual INavCommand <ExitMethodPrefix()><exitTransition.NodeNamePascalcase>(<writeParameterList(exitTransition.TaskResult)>) {
     var body = <ExitMethodPrefix()><exitTransition.NodeNamePascalcase><LogicMethodSuffix()>(<writeParameterExpressionsInline([exitTransition.TaskResult, exitTransition.TaskBeginFields])>);
     <writeTransitionCallBlock(exitTransition, ([ ExitMethodPrefix(), (exitTransition.NodeNamePascalcase), LogicMethodSuffix() ]) )>
 }
