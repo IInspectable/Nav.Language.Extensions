@@ -79,7 +79,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavExit>MsgExit</NavExit>
         #endregion
-        private INavCommand AfterMsgExit(MessageboxOkResult result) {
+        protected virtual INavCommand AfterMsgExit(MessageboxOkResult result) {
             var body = AfterMsgExitLogic(result);
             switch(body) {
                 case ViewTO viewTO:
@@ -101,7 +101,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavExit>NoResults</NavExit>
         #endregion
-        private INavCommand AfterNoResults(MessageboxOkResult result) {
+        protected virtual INavCommand AfterNoResults(MessageboxOkResult result) {
             var body = AfterNoResultsLogic(result);
             switch(body) {
                 case ViewTO viewTO:
@@ -123,7 +123,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavExit>MsgNonModal</NavExit>
         #endregion
-        private INavCommand AfterMsgNonModal(MessageboxOkResult result) {
+        protected virtual INavCommand AfterMsgNonModal(MessageboxOkResult result) {
             var body = AfterMsgNonModalLogic(result);
             switch(body) {
                 case ViewTO viewTO:
@@ -143,7 +143,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavExit>MsgContinue</NavExit>
         #endregion
-        private INavCommand AfterMsgContinue(MessageboxOkResult result) {
+        protected virtual INavCommand AfterMsgContinue(MessageboxOkResult result) {
             var body = AfterMsgContinueLogic(result);
             switch(body) {
                 case ViewTO viewTO:
@@ -168,7 +168,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #region Nav Annotations
         /// <NavExit>DoSomething</NavExit>
         #endregion
-        private INavCommand AfterDoSomething(bool result) {
+        protected virtual INavCommand AfterDoSomething(bool result) {
             var body = AfterDoSomethingLogic(result);
             switch(body) {
                 case ViewTO viewTO:
