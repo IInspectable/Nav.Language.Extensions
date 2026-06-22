@@ -101,7 +101,7 @@ sealed partial class VisualStudioWaitContext: IWaitContext {
                 iTotalSteps: 0,
                 fDisableCancel: !_allowCancel,
                 pfCanceled: out bool _);
-        });
+        }).FileAndForget("nav/waitcontext/updatedialog");
     }
 
     public void UpdateProgress() {

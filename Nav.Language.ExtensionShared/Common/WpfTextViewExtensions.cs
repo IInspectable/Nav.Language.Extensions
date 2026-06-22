@@ -94,7 +94,7 @@ static class WpfTextViewExtensions {
                     return;
 
                 view.VisualElement.Width = view.MaxTextRightCoordinate;
-            });
+            }).FileAndForget("nav/wpftextview/preparesizetofit");
         };
     }
 

@@ -98,7 +98,7 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
                     await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                         
                     Update();
-                });
+                }).FileAndForget("nav/intratextadornment/update");
             }
         }
     }

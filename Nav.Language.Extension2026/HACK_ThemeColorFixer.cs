@@ -49,7 +49,7 @@ internal sealed class HACK_ThemeColorFixer : IWpfTextViewConnectionListener
 
     private void TextFormatMap_ClassificationFormatMappingChanged(object sender, EventArgs e)
     {
-        VsTaskLibraryHelper.CreateAndStartTask(VsTaskLibraryHelper.ServiceInstance, VsTaskRunContext.UIThreadIdlePriority, RefreshThemeColors);
+        _ = VsTaskLibraryHelper.CreateAndStartTask(VsTaskLibraryHelper.ServiceInstance, VsTaskRunContext.UIThreadIdlePriority, RefreshThemeColors);
     }
 
     public void RefreshThemeColors()
@@ -162,7 +162,7 @@ internal sealed class HACK_ThemeColorFixer : IWpfTextViewConnectionListener
         if (!_done)
         {
             _done = true;
-            VsTaskLibraryHelper.CreateAndStartTask(VsTaskLibraryHelper.ServiceInstance, VsTaskRunContext.UIThreadIdlePriority, RefreshThemeColors);
+            _ = VsTaskLibraryHelper.CreateAndStartTask(VsTaskLibraryHelper.ServiceInstance, VsTaskRunContext.UIThreadIdlePriority, RefreshThemeColors);
         }
     }
 

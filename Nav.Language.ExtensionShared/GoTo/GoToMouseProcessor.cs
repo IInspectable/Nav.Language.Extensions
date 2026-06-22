@@ -145,7 +145,7 @@ sealed class GoToMouseProcessor: MouseProcessorBase {
                 _textView,
                 placementRectangle,
                 tagSpan.Tag.Provider);
-        });
+        }).FileAndForget("nav/gotomouseprocessor/navigate");
     }
 
 }

@@ -67,7 +67,7 @@ class ViewCSharpCodeCommandHandler: INavCommandHandler<ViewCodeCommandArgs> {
                 originatingTextView: args.TextView,
                 placementRectangle: placementRectangle,
                 provider: navigateToTagSpan.Tag.Provider);
-        });
+        }).FileAndForget("nav/viewcsharpcode/execute");
     }
 
     TagSpan<GoToTag> GetGoToCodeTagSpanAtCaretPosition(CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot, ViewCodeCommandArgs args) {

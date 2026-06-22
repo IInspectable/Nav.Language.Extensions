@@ -63,7 +63,7 @@ class GoToDefinitionCommandCommandHandler: ICommandHandler<GoToDefinitionCommand
                 originatingTextView: textView,
                 placementRectangle : placementRectangle,
                 provider           : navigateToTagSpan.Tag.Provider);
-        });
+        }).FileAndForget("nav/gotodefinition/execute");
 
         return true;
     }

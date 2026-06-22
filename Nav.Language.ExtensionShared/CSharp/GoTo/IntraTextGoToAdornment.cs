@@ -74,7 +74,7 @@ sealed class IntraTextGoToAdornment: ButtonBase {
                 _textView,
                 placementRectangle,
                 GoToTag.Provider);
-        });
+        }).FileAndForget("nav/intratextgoto/gotolocation");
     }
 
     internal void Update(IntraTextGoToTag goToTag) {
