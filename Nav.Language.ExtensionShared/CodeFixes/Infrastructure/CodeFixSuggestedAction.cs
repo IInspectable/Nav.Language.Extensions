@@ -48,13 +48,13 @@ abstract class CodeFixSuggestedAction: ISuggestedAction {
     public virtual bool HasActionSets => false;
 
     public virtual Task<IEnumerable<SuggestedActionSet>> GetActionSetsAsync(CancellationToken cancellationToken) {
-        return null;
+        return Task.FromResult<IEnumerable<SuggestedActionSet>>(null);
     }
 
     public virtual bool HasPreview => false;
 
     public virtual Task<object> GetPreviewAsync(CancellationToken cancellationToken) {
-        return null;
+        return Task.FromResult<object>(null);
     }
 
     public abstract void Invoke(CancellationToken cancellationToken);
