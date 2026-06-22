@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
     <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Pharmatechnik.Nav.Language.Extension.2022;component/UI/Styles/VSContextMenu.xaml"/>
-        <ResourceDictionary Source="/Pharmatechnik.Nav.Language.Extension.2022;component/UI/Styles/VSMenuItem.xaml"/>
+        <ResourceDictionary Source="/UI/Styles/VsContextMenu.xaml"/>
+        <ResourceDictionary Source="/UI/Styles/VsMenuItem.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 </ResourceDictionary>
