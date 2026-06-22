@@ -52,6 +52,9 @@ sealed class GoToLocationService {
                 var locs = await GetLocationInfosAsync(provider, waitContext.CancellationToken);
                 locationInfos = locs.ToList();
 
+                Logger.Info($"{nameof(GoToLocationInPreviewTabAsync)}: {locationInfos.Count} location(s) resolved. " +
+                            String.Join(" | ", locationInfos.Select((l, i) => $"[{i}] IsValid={l.IsValid}, Display='{l.DisplayName}', Error='{l.ErrorMessage}'")));
+
                 // Es gibt nur eine einzige Location => direkt anspringen, da wir denselben Wait Indicator verwenden wollen.
                 if (locationInfos.Count == 1 && locationInfos[0].IsValid) {
 
@@ -72,39 +75,50 @@ sealed class GoToLocationService {
         }
 
         if (locationInfos.Count == 0) {
+            Logger.Info($"{nameof(GoToLocationInPreviewTabAsync)}: Keine Locations => es passiert nichts.");
             return;
         }
 
         // Es gibt nur eine Location, die aber nicht aufgelöst werden konnte => Fehler anzeigen und tschüss
         if (locationInfos.Count == 1 && !locationInfos[0].IsValid) {
+            Logger.Info($"{nameof(GoToLocationInPreviewTabAsync)}: Einzelne, ungültige Location => Fehlermeldung: '{locationInfos[0].ErrorMessage}'");
             ShowLocationErrorMessage(locationInfos[0]);
             return;
         }
 
         // Wenn wir hier sind, dann gibt es mehrere Locations, für die wir eine Auswahl anzeigen müssen
-        var ctxMenu = new VsContextMenu {
-            Header             = ContextMenuHeader,
-            PlacementTarget    = originatingTextView.VisualElement,
-            PlacementRectangle = placementRectangle, 
-            Placement          = PlacementMode.Bottom,
-            StaysOpen          = false,
-            IsOpen             = true
-        };
+        try {
+            Logger.Info($"{nameof(GoToLocationInPreviewTabAsync)}: Baue Auswahlmenü (VsContextMenu) für {locationInfos.Count} Locations auf.");
 
-        foreach (var locationInfo in locationInfos) {
-               
-            var item = new VsMenuItem {
-                Header    = locationInfo.IsValid? locationInfo.DisplayName:locationInfo.ErrorMessage,
-                IsEnabled = locationInfo.IsValid,
-                Icon = new CrispImage {
-                    Moniker   = locationInfo.ImageMoniker,
-                    Grayscale = !locationInfo.IsValid
-                },
-                //InputGestureText = "<XTPlus.OffenePosten>"
+            var ctxMenu = new VsContextMenu {
+                Header             = ContextMenuHeader,
+                PlacementTarget    = originatingTextView.VisualElement,
+                PlacementRectangle = placementRectangle,
+                Placement          = PlacementMode.Bottom,
+                StaysOpen          = false,
+                IsOpen             = true
             };
-            item.Click += (_, _) => GoToLocationInPreviewTab(locationInfo);
 
-            ctxMenu.Items.Add(item);
+            foreach (var locationInfo in locationInfos) {
+
+                var item = new VsMenuItem {
+                    Header    = locationInfo.IsValid? locationInfo.DisplayName:locationInfo.ErrorMessage,
+                    IsEnabled = locationInfo.IsValid,
+                    Icon = new CrispImage {
+                        Moniker   = locationInfo.ImageMoniker,
+                        Grayscale = !locationInfo.IsValid
+                    },
+                    //InputGestureText = "<XTPlus.OffenePosten>"
+                };
+                item.Click += (_, _) => GoToLocationInPreviewTab(locationInfo);
+
+                ctxMenu.Items.Add(item);
+            }
+
+            Logger.Info($"{nameof(GoToLocationInPreviewTabAsync)}: Auswahlmenü aufgebaut, IsOpen={ctxMenu.IsOpen}, Items={ctxMenu.Items.Count}.");
+        } catch (Exception ex) {
+            Logger.Error(ex, $"{nameof(GoToLocationInPreviewTabAsync)}: Fehler beim Aufbau des Auswahlmenüs.");
+            throw;
         }
     }
 
