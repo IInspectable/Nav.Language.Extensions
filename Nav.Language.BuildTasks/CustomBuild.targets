@@ -22,6 +22,8 @@
     <Deploy Include="$(OutputPath)\System.Memory.dll" />
     <Deploy Include="$(OutputPath)\System.Runtime.CompilerServices.Unsafe.dll" />
     <Deploy Include="$(OutputPath)\nav.exe.config" />
+    <Deploy Include="$(MSBuildThisFileDirectory)..\Nav.Language\Grammar\NavGrammar.g4" />
+    <Deploy Include="$(MSBuildThisFileDirectory)..\Nav.Language\Grammar\NavTokens.g4" />
   </ItemGroup>
   <Target Name="DeployFiles" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
