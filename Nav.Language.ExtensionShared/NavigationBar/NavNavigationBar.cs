@@ -143,14 +143,23 @@ class NavigationBar: SemanticModelServiceDependent,
 
     void OnWorkspaceRegistrationChanged(object sender, EventArgs e) {
 
-        DisconnectFromWorkspace();
+        // Das WorkspaceChanged-Event kann auf einem Hintergrund-Thread ausgelöst werden,
+        // die nachfolgende Aktualisierung muss aber auf dem Main Thread laufen.
+        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
 
-        var newWorkspace = _workspaceRegistration.Workspace;
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-        ConnectToWorkspace(newWorkspace);
+            DisconnectFromWorkspace();
+
+            var newWorkspace = _workspaceRegistration.Workspace;
+
+            ConnectToWorkspace(newWorkspace);
+        }).FileAndForget("nav/navigationbar/workspaceregistrationchanged");
     }
 
     void ConnectToWorkspace([CanBeNull] Workspace workspace) {
+
+        ThreadHelper.ThrowIfNotOnUIThread();
 
         DisconnectFromWorkspace();
 
@@ -189,13 +198,21 @@ class NavigationBar: SemanticModelServiceDependent,
             args.Kind == WorkspaceChangeKind.ProjectChanged   ||
             args.Kind == WorkspaceChangeKind.ProjectReloaded  ||
             args.Kind == WorkspaceChangeKind.ProjectRemoved) {
-            UpdateProjectItems();
+
+            // Das WorkspaceChanged-Event kann auf einem Hintergrund-Thread ausgelöst werden,
+            // UpdateProjectItems muss aber auf dem Main Thread laufen.
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                UpdateProjectItems();
+            }).FileAndForget("nav/navigationbar/workspacechanged");
         }
     }
 
     #endregion
 
     int IVsDropdownBarClient.SetDropdownBar(IVsDropdownBar pDropdownBar) {
+
+        ThreadHelper.ThrowIfNotOnUIThread();
 
         _dropdownBar = pDropdownBar;
 
@@ -309,7 +326,7 @@ class NavigationBar: SemanticModelServiceDependent,
         ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             UpdateNavigationItems();
-        });
+        }).FileAndForget("nav/navigationbar/semanticmodelchanged");
     }
 
     void OnCaretPositionChanged(object sender, CaretPositionChangedEventArgs e) {
@@ -323,10 +340,12 @@ class NavigationBar: SemanticModelServiceDependent,
             #if ShowMemberCombobox
                 SetActiveSelection(MemberComboIndex);
             #endif
-        });
+        }).FileAndForget("nav/navigationbar/caretpositionchanged");
     }
 
     void OnTextViewGotAggregateFocus(object sender, EventArgs e) {
+
+        ThreadHelper.ThrowIfNotOnUIThread();
 
         // Es kann keine Combobox mehr einen Fokus haben
         _focusedCombo = -1;
@@ -345,7 +364,7 @@ class NavigationBar: SemanticModelServiceDependent,
 
             SetActiveSelection(TaskComboIndex);
             SetActiveSelection(ProjectComboIndex);
-        });
+        }).FileAndForget("nav/navigationbar/themechanged");
     }
 
     ImmutableList<NavigationBarItem> GetItems(int iCombo) {
@@ -363,6 +382,9 @@ class NavigationBar: SemanticModelServiceDependent,
     }
 
     void UpdateNavigationItems() {
+
+        ThreadHelper.ThrowIfNotOnUIThread();
+
         using (Logger.LogBlock(nameof(UpdateNavigationItems))) {
 
             UpdateProjectItems();
@@ -378,6 +400,8 @@ class NavigationBar: SemanticModelServiceDependent,
     const int MemberComboIndex  = 2;
 
     void UpdateProjectItems() {
+
+        ThreadHelper.ThrowIfNotOnUIThread();
 
         _projectItems = NavigationBarProjectItemBuilder.Build(SemanticModelService?.CodeGenerationUnitAndSnapshot);
 
