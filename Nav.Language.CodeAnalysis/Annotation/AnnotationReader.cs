@@ -405,7 +405,7 @@ public static class AnnotationReader {
         }
 
         var trivias = node.GetLeadingTrivia()
-                          .Where(t => t.Kind() == SyntaxKind.SingleLineDocumentationCommentTrivia);
+                          .Where(t => t.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia));
 
         foreach (var trivia in trivias) {
 
