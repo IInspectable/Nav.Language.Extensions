@@ -38,7 +38,7 @@ class GoToDefinitionCommandCommandHandler: ICommandHandler<GoToDefinitionCommand
 
     public bool ExecuteCommand(GoToDefinitionCommandArgs args, CommandExecutionContext executionContext) {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             using var tagAggregator = _viewTagAggregatorFactoryService.CreateTagAggregator<GoToTag>(args.TextView);
             var       textView      = args.TextView as IWpfTextView;

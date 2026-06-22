@@ -82,7 +82,7 @@ static class WpfTextViewExtensions {
 
     public static void PrepareSizeToFit(this IWpfTextView view) {
         view.LayoutChanged += (_, _) => {
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+            NavLanguagePackage.Jtf.RunAsync(async () => {
 
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

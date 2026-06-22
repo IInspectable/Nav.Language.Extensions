@@ -145,7 +145,7 @@ class NavigationBar: SemanticModelServiceDependent,
 
         // Das WorkspaceChanged-Event kann auf einem Hintergrund-Thread ausgelöst werden,
         // die nachfolgende Aktualisierung muss aber auf dem Main Thread laufen.
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
@@ -201,7 +201,7 @@ class NavigationBar: SemanticModelServiceDependent,
 
             // Das WorkspaceChanged-Event kann auf einem Hintergrund-Thread ausgelöst werden,
             // UpdateProjectItems muss aber auf dem Main Thread laufen.
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+            NavLanguagePackage.Jtf.RunAsync(async () => {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 UpdateProjectItems();
             }).FileAndForget("nav/navigationbar/workspacechanged");
@@ -323,7 +323,7 @@ class NavigationBar: SemanticModelServiceDependent,
     }
 
     protected override void OnSemanticModelChanged(object sender, SnapshotSpanEventArgs e) {
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             UpdateNavigationItems();
         }).FileAndForget("nav/navigationbar/semanticmodelchanged");
@@ -331,7 +331,7 @@ class NavigationBar: SemanticModelServiceDependent,
 
     void OnCaretPositionChanged(object sender, CaretPositionChangedEventArgs e) {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
@@ -358,7 +358,7 @@ class NavigationBar: SemanticModelServiceDependent,
 
     void OnThemeChanged(ThemeChangedEventArgs e) {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

@@ -36,7 +36,7 @@ class ViewCSharpCodeCommandHandler: INavCommandHandler<ViewCodeCommandArgs> {
 
     public void ExecuteCommand(ViewCodeCommandArgs args, Action nextHandler) {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             var semanticModelService          = SemanticModelService.TryGet(args.SubjectBuffer);
             var codeGenerationUnitAndSnapshot = semanticModelService?.CodeGenerationUnitAndSnapshot;

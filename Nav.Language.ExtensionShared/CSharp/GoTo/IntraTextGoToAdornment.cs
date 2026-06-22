@@ -63,7 +63,7 @@ sealed class IntraTextGoToAdornment: ButtonBase {
         _textView.Caret.MoveTo(targetSpan.End, PositionAffinity.Predecessor);
         _textView.VisualElement.Focus();
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

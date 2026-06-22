@@ -71,7 +71,21 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         LoggerConfig.Initialize(Path.GetTempPath(), "Nav.Language.Extension");
     }
 
+    static JoinableTaskFactory _jtf;
+
+    /// <summary>
+    /// Die <see cref="JoinableTaskFactory"/> dieses Package. Im Gegensatz zu
+    /// <see cref="ThreadHelper.JoinableTaskFactory"/> werden hierüber gestartete Tasks beim
+    /// Herunterfahren der IDE sauber abgewartet bzw. abgebrochen (siehe VSSDK007). Wird für
+    /// Fire-and-forget-Aufrufe (RunAsync) verwendet. Solange das Package noch nicht geladen ist,
+    /// wird auf <see cref="ThreadHelper.JoinableTaskFactory"/> zurückgegriffen.
+    /// </summary>
+    internal static JoinableTaskFactory Jtf => _jtf ?? ThreadHelper.JoinableTaskFactory;
+
     protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress) {
+
+        _jtf = JoinableTaskFactory;
+
         await base.InitializeAsync(cancellationToken, progress).ConfigureAwait(false);
 
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);

@@ -93,7 +93,7 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
 
             if (wasEmpty && _invalidatedSpans.Count > 0) {
                     
-                ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+                NavLanguagePackage.Jtf.RunAsync(async () => {
 
                     await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                         

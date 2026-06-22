@@ -89,7 +89,7 @@ sealed partial class VisualStudioWaitContext: IWaitContext {
 
     void UpdateDialog() {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

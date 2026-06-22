@@ -96,7 +96,7 @@ sealed class GoToMouseProcessor: MouseProcessorBase {
     void UpdateNavigateToTagSpan(ITagSpan<GoToTag> navigateToTagSpan) {
 
         if (navigateToTagSpan.Span == _navigateToTagSpan?.Span) {
-            // Theoretisch könnten sich die Tags dennoch unterscheiden...
+            // Theoretisch kï¿½nnten sich die Tags dennoch unterscheiden...
             _navigateToTagSpan = navigateToTagSpan;
             return;
         }
@@ -124,7 +124,7 @@ sealed class GoToMouseProcessor: MouseProcessorBase {
 
     void NavigateToTagSpan() {
 
-        ThreadHelper.JoinableTaskFactory.RunAsync(async () => {
+        NavLanguagePackage.Jtf.RunAsync(async () => {
 
             if (_navigateToTagSpan == null) {
                 return;
