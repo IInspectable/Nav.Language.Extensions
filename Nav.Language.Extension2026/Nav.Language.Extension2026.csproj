@@ -198,4 +198,36 @@
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
   <Import Project="Additional.VsixItems.targets" />
   <Import Project="CustomBuild.targets" />
+  <!--
+    Behebt CS1762: Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime wird aus dem
+    VS-SDK per Default mit EmbedInteropTypes=true aufgeloest, gleichzeitig aber von anderen
+    SDK-Assemblies (LanguageServices, Shell.15.0, ImageCatalog, Text.UI.Wpf ...) indirekt
+    ohne Einbettung referenziert. Wir schalten das Einbetten fuer genau diese Assembly ab,
+    damit der Konflikt an der Wurzel verschwindet (statt die Warnung nur zu unterdruecken).
+
+    Hintergrund: Es handelt sich um die COM-Interop-Assembly des VS-Imaging-Service
+    (ImageMoniker/KnownMonikers/ImageCatalog ...). Sie ist eine reine Reference-/DesignTime-
+    Assembly; zur Laufzeit liefert VS die Typen, und die DLL wird via ExcludeAssets="runtime"
+    nicht mit ausgeliefert. Bekanntes "merged interops"-Artefakt der 17.x-SDK-Pakete.
+
+    Embedding laesst sich bei PackageReference nicht ueber Metadaten am <PackageReference>
+    steuern, sondern nur ueber ein MSBuild-Target (siehe NuGet-Doku) - genau das hier, nur mit
+    "false". ReferencePathWithRefAssemblies muss mit gesetzt werden, weil Csc diese Liste
+    (nicht ReferencePath) konsumiert.
+
+    Doku:
+      CS1762:                https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-messages/cs1762
+      "merged interops":     https://github.com/dotnet/project-system/issues/7190
+      Embed via PackageRef:  https://github.com/NuGet/Home/wiki/Embed-Interop-Types-with-PackageReference
+  -->
+  <Target Name="DisableEmbedInteropForImagingInterop" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <ReferencePath Condition="'%(FileName)' == 'Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime'">
+        <EmbedInteropTypes>false</EmbedInteropTypes>
+      </ReferencePath>
+      <ReferencePathWithRefAssemblies Condition="'%(FileName)' == 'Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime'">
+        <EmbedInteropTypes>false</EmbedInteropTypes>
+      </ReferencePathWithRefAssemblies>
+    </ItemGroup>
+  </Target>
 </Project>
