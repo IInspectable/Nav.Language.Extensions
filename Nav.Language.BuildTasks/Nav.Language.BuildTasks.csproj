@@ -39,7 +39,12 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="System.Memory">
+    <!-- Dieses Projekt ist ein MSBuild-Task (net472) und laeuft IN MSBuild, nicht im NUnit-Runner.
+         Der MSBuild-17.14-Stack (Build.Utilities.Core, IO.Redist, StringTools, Immutable 9.0.0) ist gegen
+         System.Memory 4.6.x (Assemblyversion 4.0.2.0) kompiliert. Daher hier per VersionOverride auf 4.6.x
+         heben, damit die Compile-Referenz zum tatsaechlichen Laufzeit-Host passt und MSB3277 entfaellt.
+         Der Kern bleibt zentral auf 4.5.5/4.0.1.2 (Roslyn/NUnit), siehe Directory.Packages.props. -->
+    <PackageReference Include="System.Memory" VersionOverride="4.6.0">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
   </ItemGroup>
