@@ -185,8 +185,9 @@
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="NLog" />
-    <PackageReference Include="Rx-Linq" />
-    <PackageReference Include="Rx-PlatformServices" />
+    <PackageReference Include="System.Reactive" />
+    <!-- Vom VS SDK 17.14 verlangt (>= 4.6.0); der Kern laeuft zentral auf 4.5.5. VS liefert zur Laufzeit Redirects. -->
+    <PackageReference Include="System.Memory" VersionOverride="4.6.3" />
     <PackageReference Include="System.Collections.Immutable" ExcludeAssets="runtime">
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

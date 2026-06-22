@@ -19,6 +19,8 @@
   <ItemGroup>
     <PackageReference Include="NUnit" />
     <PackageReference Include="System.Collections.Immutable"/>
+    <!-- Vom VS SDK 17.14 verlangt (>= 4.6.0); der Kern laeuft zentral auf 4.5.5. -->
+    <PackageReference Include="System.Memory" VersionOverride="4.6.3" />
 
   </ItemGroup>
 

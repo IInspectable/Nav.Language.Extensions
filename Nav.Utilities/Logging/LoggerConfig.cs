@@ -21,14 +21,13 @@ public static class LoggerConfig {
             
         LoggingConfiguration loggingConfiguration = new LoggingConfiguration();
             
+        // NLog 6: ArchiveNumbering/ArchiveNumberingMode und ConcurrentWrites wurden entfernt.
+        // Archivdateien werden automatisch aus FileName + ArchiveSuffixFormat gebildet.
         var fileTarget = new FileTarget {
             FileName         = Path.Combine(logFolder, $"{logName}.log.xml"),
-            ArchiveFileName  = Path.Combine(logFolder, $"{logName}.log.xml.{{#####}}"),
-            ArchiveNumbering = ArchiveNumberingMode.Rolling,
             MaxArchiveFiles  = 10,
             ArchiveAboveSize = 10 * MB,
             Layout           = new Log4JXmlEventLayout(),
-            ConcurrentWrites = true,
         };
 
         loggingConfiguration.AddTarget("file", fileTarget);

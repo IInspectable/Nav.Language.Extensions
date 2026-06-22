@@ -7,15 +7,24 @@
   </PropertyGroup>
   <ItemGroup>
 
-    <PackageVersion Include="System.Memory" Version="4.5.4" />
-    <PackageVersion Include="System.Composition" Version="6.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="6.0.0" />
+    <!-- 4.5.5 = Assemblyversion 4.0.1.2, exakt die von Roslyn 4.14 referenzierte (und mind. geforderte) Version.
+         Der Kern (Bibliotheken, CLI, Tests) laeuft darauf, damit Roslyn im redirect-losen NUnit-Console-Runner laedt.
+         Die VS-Extension-Projekte ueberschreiben per VersionOverride auf 4.6.x (vom VS SDK 17.14 verlangt; VS liefert Redirects). -->
+    <PackageVersion Include="System.Memory" Version="4.5.5" />
+    <!-- Exakt auf die von Roslyn 4.14 referenzierten Assembly-Versionen (9.0.0.0) ausgerichtet.
+         Wichtig fuer die Tests: der NUnit-Console-Runner hat keine Binding-Redirects, daher muss die
+         Immutable-Assemblyversion exakt zu Roslyns Referenz passen. VS 2026 / MSBuild liefern zur Laufzeit 10.x mit Redirects. -->
+    <PackageVersion Include="System.Composition" Version="9.0.0" />
+    <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
 
-    <PackageVersion Include="NLog" Version="5.0.4" />
-    <PackageVersion Include="NUnit" Version="3.13.3" />
+    <PackageVersion Include="NLog" Version="6.1.3" />
+    <!-- Log4JXmlEventLayout wurde in NLog 6 aus dem Core in dieses Paket ausgelagert -->
+    <PackageVersion Include="NLog.Targets.Network" Version="6.0.4" />
+    <!-- NUnit bleibt vorerst auf 3.x: NUnit 4 verschiebt die klassischen Asserts (Assert.AreEqual usw.) nach NUnit.Framework.Legacy und wäre eine eigene, umfangreiche Migration. -->
+    <PackageVersion Include="NUnit" Version="3.14.0" />
 
-    <PackageVersion Include="Rx-Linq" Version="2.2.5" />
-    <PackageVersion Include="Rx-PlatformServices" Version="2.2.5" />
+    <!-- Löst die uralten Rx-Linq/Rx-PlatformServices 2.2.5 ab; Namespace System.Reactive.Linq bleibt unverändert -->
+    <PackageVersion Include="System.Reactive" Version="6.1.0" />
 
     <PackageVersion Include="Antlr4" Version="4.6.6" />
     <PackageVersion Include="Antlr4.Runtime" Version="4.6.6" />
@@ -24,29 +33,34 @@
     <PackageVersion Include="StringTemplate4" Version="4.0.8" />
 
     <PackageVersion Include="FluentCommandLineParser" Version="1.4.3" />
-    
-    <!-- This package contains helper functionality for MSBuild extenders Achtung: Komische Versionierung!-->
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.2.0" />
+
+    <!-- This package contains helper functionality for MSBuild extenders Achtung: Komische Versionierung!
+         Auf der 17.14-Linie gehalten (verlangt Immutable >= 9.0.0, passt damit zu Roslyn 4.14); die 18.x-Pakete
+         verlangen Immutable >= 10.0.4 und wuerden die fuer die Tests noetige 9.0.0-Ausrichtung sprengen. -->
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
 
     <!-- ========= Roslyn ============== -->
 
-    <!-- .NET Compiler Platform ("Roslyn").-->
-    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.3.1" />
+    <!-- .NET Compiler Platform ("Roslyn"). Auf die VS-2026-Toolchain (17.14) ausgerichtet. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.14.0" />
     <!-- .NET Compiler Platform ("Roslyn") support for working with Visual Studio text buffers. -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.EditorFeatures.Text" Version="4.3.1" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.EditorFeatures.Text" Version="4.14.0" />
     <!-- .NET Compiler Platform ("Roslyn") support for Visual Studio. -->
-    <PackageVersion Include="Microsoft.VisualStudio.LanguageServices" Version="4.3.1" />
+    <PackageVersion Include="Microsoft.VisualStudio.LanguageServices" Version="4.14.0" />
 
     <!-- ========= Visual Studio extensibility ============== -->
 
     <!-- Visual Studio extensibility packages-->
-    <PackageVersion Include="Microsoft.VisualStudio.SDK" Version="17.3.32804.24" />
+    <PackageVersion Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" />
     <!-- Fehlt irgendwie im VS SDK Paket... -->
-    <PackageVersion Include="Microsoft.VisualStudio.Shell.15.0" Version="17.3.32804.24 " />
+    <PackageVersion Include="Microsoft.VisualStudio.Shell.15.0" Version="17.14.40264" />
 
-    <!-- Contains targets and tools to enable the building of managed VSIX projects -->
-    <PackageVersion Include="Microsoft.VSSDK.BuildTools" Version="17.3.2095" />
+    <!-- Contains targets and tools to enable the building of managed VSIX projects.
+         Die 18.x-Linie scheidet aus: 18.9.595 verlangt die nie veröffentlichte SDK.Analyzers 17.7.122,
+         und der EnableExtension-Deploy-Schritt der 18.x-BuildTools schlägt unter der VS-2026-Experimental-Instance fehl (VSSDK1031).
+         17.14.2142 ist die neueste Version, die sauber baut und deployt. -->
+    <PackageVersion Include="Microsoft.VSSDK.BuildTools" Version="17.14.2142" />
 
-   
+
   </ItemGroup>
 </Project>
