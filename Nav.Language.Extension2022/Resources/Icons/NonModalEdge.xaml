@@ -1,5 +1,0 @@
-﻿<Viewbox Width="16" Height="16" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-    <Canvas Width="16" Height="16" >
-        <Path Stroke="#FF424242" Data="M 1,7.6 L 13,7.6 M 1,10.4 L 13,10.4 M 11,6 L 15,9 L 11,12" />
-    </Canvas>
-</Viewbox>

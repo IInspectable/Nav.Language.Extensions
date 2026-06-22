@@ -18,9 +18,6 @@
 /Nav.Language.Extension2019/bin
 /Nav.Language.Extension2019/obj
 
-/Nav.Language.Extension2022/bin
-/Nav.Language.Extension2022/obj
-
 /Nav.Language.Extension/Templates/ItemTemplates/*.zip
 /Nav.Language.Extension.Tests/bin
 /Nav.Language.Extension.Tests/obj
@@ -51,3 +48,6 @@ TestResult.xml
 
 /Nav.Language.Extension2026/bin/Debug
 /Nav.Language.Extension2026/obj
+
+
+.roslyn-mcp

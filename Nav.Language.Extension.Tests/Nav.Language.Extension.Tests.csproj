@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Nav.Language.Extension2022\Nav.Language.Extension2022.csproj" />
+    <ProjectReference Include="..\Nav.Language.Extension2026\Nav.Language.Extension2026.csproj" />
   </ItemGroup>
 
 </Project>
