@@ -13,10 +13,10 @@ using Pharmatechnik.Nav.Utilities.IO;
 namespace Pharmatechnik.Nav.Language.Server;
 
 /// <summary>
-/// Berechnet die Nav-Diagnostics fuer ein einzelnes Dokument: Syntaxfehler (Lexer/Parser) plus die
+/// Berechnet die Nav-Diagnostics für ein einzelnes Dokument: Syntaxfehler (Lexer/Parser) plus die
 /// semantischen Analyzer-Diagnostics aus dem <see cref="CodeGenerationUnit"/>. Cross-File-Includes
-/// werden ueber den disk-basierten <see cref="SyntaxProvider"/> aufgeloest (Overlay-/Workspace-Modell
-/// folgt in einem spaeteren Milestone).
+/// werden über den disk-basierten <see cref="SyntaxProvider"/> aufgelöst (Overlay-/Workspace-Modell
+/// folgt in einem späteren Milestone).
 /// </summary>
 static class DiagnosticsComputer {
 
