@@ -59,7 +59,8 @@ class NavLanguageServer {
                 DefinitionProvider        = true,
                 ReferencesProvider        = true,
                 DocumentHighlightProvider = true,
-                HoverProvider             = true
+                HoverProvider             = true,
+                FoldingRangeProvider      = true
             }
         };
     }
@@ -310,6 +311,21 @@ class NavLanguageServer {
         return new Lsp.SemanticTokens {
             Data = syntaxTree == null ? Array.Empty<int>() : SemanticTokensBuilder.Encode(syntaxTree)
         };
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentFoldingRangeName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.FoldingRange[] FoldingRange(Lsp.FoldingRangeParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.FoldingRange>();
+        }
+
+        var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
+
+        return syntaxTree == null
+            ? Array.Empty<Lsp.FoldingRange>()
+            : FoldingRangeBuilder.Build(syntaxTree);
     }
 
     [JsonRpcMethod(Lsp.Methods.ShutdownName)]
