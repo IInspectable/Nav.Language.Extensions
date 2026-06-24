@@ -20,7 +20,10 @@ namespace Pharmatechnik.Nav.Language.Server;
 /// </summary>
 class NavLanguageServer {
 
-    readonly JsonRpc _rpc;
+    readonly JsonRpc      _rpc;
+    readonly NavWorkspace _workspace = new();
+
+    string? _rootPath;
 
     public NavLanguageServer(JsonRpc rpc) {
         _rpc = rpc ?? throw new ArgumentNullException(nameof(rpc));
@@ -28,6 +31,8 @@ class NavLanguageServer {
 
     [JsonRpcMethod(Lsp.Methods.InitializeName, UseSingleObjectParameterDeserialization = true)]
     public Lsp.InitializeResult Initialize(Lsp.InitializeParams param) {
+
+        _rootPath = ResolveRootPath(param);
 
         return new Lsp.InitializeResult {
             Capabilities = new Lsp.ServerCapabilities {
@@ -40,8 +45,24 @@ class NavLanguageServer {
     }
 
     [JsonRpcMethod(Lsp.Methods.InitializedName, UseSingleObjectParameterDeserialization = true)]
-    public void Initialized(Lsp.InitializedParams param) {
-        // Aktuell nichts zu tun.
+    public async Task InitializedAsync(Lsp.InitializedParams param) {
+
+        // Workspace selbst entdecken (LSP schiebt keine Dateiliste): alle *.nav unterhalb der rootUri
+        // globben, Cross-File-Modell aufbauen und Diagnostics für jede Datei veröffentlichen.
+        await _workspace.LoadAsync(_rootPath, CancellationToken.None);
+        await _workspace.PublishAllDiagnosticsAsync(PublishAsync, CancellationToken.None);
+    }
+
+    static string? ResolveRootPath(Lsp.InitializeParams param) {
+
+        if (param.RootUri is { IsAbsoluteUri: true } rootUri && rootUri.IsFile) {
+            return rootUri.LocalPath;
+        }
+
+        // RootPath ist zwar deprecated, aber als Fallback für ältere Clients nützlich.
+#pragma warning disable CS0618
+        return string.IsNullOrEmpty(param.RootPath) ? null : param.RootPath;
+#pragma warning restore CS0618
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDidOpenName, UseSingleObjectParameterDeserialization = true)]
