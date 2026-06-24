@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 using StreamJsonRpc;
 
+using Pharmatechnik.Nav.Language.GoTo;
+
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
@@ -47,7 +49,8 @@ class NavLanguageServer {
                     },
                     Full = true
                 },
-                DocumentSymbolProvider = true
+                DocumentSymbolProvider = true,
+                DefinitionProvider     = true
             }
         };
     }
@@ -116,6 +119,28 @@ class NavLanguageServer {
         return unit == null
             ? Array.Empty<Lsp.DocumentSymbol>()
             : DocumentSymbolBuilder.Build(unit);
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentDefinitionName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.Location[] Definition(Lsp.TextDocumentPositionParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.Location>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<Lsp.Location>();
+        }
+
+        // LSP-Position (Zeile/Zeichen) → Offset → Nav→Nav-Ziele (engine-seitig, VS-frei).
+        var offset  = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var targets = NavGoToService.GetGoToLocations(unit, offset);
+
+        return targets.Select(LspMapper.ToLocation)
+                      .OfType<Lsp.Location>()
+                      .ToArray();
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
