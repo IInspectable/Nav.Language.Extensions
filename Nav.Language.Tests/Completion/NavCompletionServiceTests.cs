@@ -54,6 +54,8 @@ public class NavCompletionServiceTests {
 
         Assert.That(Labels(items), Does.Contain("se"));
         Assert.That(items.Single(i => i.Label == "se").Kind, Is.EqualTo(NavCompletionItemKind.ConnectionPoint));
+        // Nach dem Doppelpunkt steht kein Whitespace vor der Edge-Position → keine Edge-Keywords.
+        Assert.That(Labels(items), Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
     }
 
     [Test]
@@ -69,10 +71,29 @@ public class NavCompletionServiceTests {
         Assert.That(labels, Does.Contain("i"));
         Assert.That(labels, Does.Contain("e"));
         Assert.That(labels, Does.Contain("Sub"));
-        // ...und Nav-Keywords (aber keine Edge-Keywords).
+        // ...Nav-Keywords...
         Assert.That(labels, Does.Contain("exit"));
-        Assert.That(items.Where(x => x.Kind == NavCompletionItemKind.Keyword).Select(x => x.Label),
-                    Has.None.EqualTo("-->"));
+        // ...und (da vor der Position ein Whitespace steht) auch die Edge-Keywords.
+        Assert.That(labels, Does.Contain(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
+    public void EdgeContext_OffersOnlyVisibleEdgeKeywords() {
+
+        var unit  = ParseModel(Nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // direkt vor der Edge `-->`
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Sichtbare Edge-Keywords vorhanden, als Keyword-Kategorie.
+        Assert.That(labels, Does.Contain(SyntaxFacts.GoToEdgeKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ModalEdgeKeyword)); // o->
+        Assert.That(items.Single(i => i.Label == SyntaxFacts.ModalEdgeKeyword).Kind,
+                    Is.EqualTo(NavCompletionItemKind.Keyword));
+        // Versteckte Edge-Keywords nicht.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ModalEdgeKeywordAlt)); // *->
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NonModalEdgeKeyword));
     }
 
     [Test]

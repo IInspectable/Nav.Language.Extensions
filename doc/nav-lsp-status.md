@@ -4,10 +4,11 @@ Stand-Dokument für die Weiterarbeit am LSP-Server (Branch `feature/nav-lsp`,
 Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche Plandatei
 `C:\Users\mnhaenel\.claude\plans\mache-dir-mal-ein-enumerated-kazoo.md` (Bewertung + 3-Phasen-Fahrplan).
 
-> **Nächste Session-Aufgabe:** **Completion ausbauen** — `EdgeCompletionSource` (Pfeil-/Edge-Keywords) und
-> `PathCompletionSource` (Dateipfade in `taskref "…"`) als VS-freie Engine-Kerne nachziehen. Der Kern
-> `NavCompletionSource` (Keywords/Knoten/Connection-Points) ist **erledigt**. Alternativ **Rename** oder **Code Actions**.
-> **Completion (Kern)**, **Folding** (`textDocument/foldingRange`), **Hover** (`textDocument/hover`),
+> **Nächste Session-Aufgabe:** **Completion ausbauen** — `PathCompletionSource` (Dateipfade in
+> `taskref "…"`) als VS-freier Engine-Kern nachziehen. `NavCompletionSource` (Keywords/Knoten/
+> Connection-Points) und `EdgeCompletionSource` (Edge-Keywords) sind **erledigt**. Alternativ **Rename**
+> oder **Code Actions**.
+> **Completion (Nav+Edge)**, **Folding** (`textDocument/foldingRange`), **Hover** (`textDocument/hover`),
 > References/documentHighlight und GoTo Definition (Option B) sind **erledigt** — siehe unten.
 
 ---
@@ -49,7 +50,7 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 - **Semantic Tokens** (`textDocument/semanticTokens/full`): reuse der Engine-`TextClassification` (`SemanticTokensBuilder`).
 - **Document Symbols** (`textDocument/documentSymbol`): Outline aus dem semantischen Modell (`DocumentSymbolBuilder`).
 - **Folding** (`textDocument/foldingRange`): rein syntaktisch aus dem `SyntaxTree` (`FoldingRangeBuilder`), analog zum VS-`OutliningTagger`, aber zeilenbasiert. Faltet using-Blöcke (≥2, Kind `imports`), zusammenhängende `taskref "file"`-Include-Läufe (≥2, `imports`), Task-Definitionen/-Deklarationen, Node- und Transition-Blöcke (`region`) sowie mehrzeilige Kommentare (`comment`). Dedup über (startLine,endLine,kind). `FoldingRangeKind` serialisiert dank `StringEnumConverter`/`EnumMember` korrekt zu `comment`/`imports`/`region`.
-- **Completion (Kern)** (`textDocument/completion`): VS-freier Engine-Kern `Nav.Language/Completion/NavCompletionService.GetCompletions(unit, offset)` → `IReadOnlyList<NavCompletionItem>` (neutraler `NavCompletionItemKind`). Portiert die VS-`NavCompletionSource`: nach `task ` die deklarierten Tasks, nach `knoten:` die Exit-Connection-Points, in einer Task-Definition die Knoten (unreferenzierte zuerst), sonst die Nav-Keywords (ohne versteckte/Edge-Keywords). Keine Vorschläge in Kommentaren/Strings/Code-Blöcken (`unit.Syntax.FindToken` + `StringExtensions.IsInQuotation`/`IsInTextBlock`). Zeilen-Helfer (`GetStartOfIdentifier`/`PreviousNonWhitespace`/`GetPreviousIdentifier`) als offset-basierter faithful Port der VS-`TextSnaphotLineExtensions`. Server: `textDocument/completion`-Handler + `CompletionProvider`-Capability (TriggerChar `:`); `SortText` nach Listen-Index erhält die Service-Reihenfolge (sonst sortiert der Client alphabetisch). **Noch offen:** Edge- und Path-Completion (separate Quellen), C#-Code-Block-Completion bleibt VS/Roslyn-only. Tests: `Nav.Language.Tests/Completion/NavCompletionServiceTests.cs` (6) grün net472+net10 (Suite 646).
+- **Completion (Nav + Edge)** (`textDocument/completion`): VS-freier Engine-Kern `Nav.Language/Completion/NavCompletionService.GetCompletions(unit, offset)` → `IReadOnlyList<NavCompletionItem>` (neutraler `NavCompletionItemKind`). Vereint die VS-Quellen `NavCompletionSource` **und** `EdgeCompletionSource` (die VS getrennt mischt): nach `task ` die deklarierten Tasks, nach `knoten:` die Exit-Connection-Points, in einer Task-Definition die Knoten (unreferenzierte zuerst), die Nav-Keywords (ohne versteckte/Edge-Keywords) und — wenn vor der (angefangenen) Edge ein Whitespace/Zeilenanfang steht (`IsEdgeContext`/`GetStartOfEdge` über das Edge-Zeichen-Set) — die sichtbaren Edge-Keywords. Keine Vorschläge in Kommentaren/Strings/Code-Blöcken (`unit.Syntax.FindToken` + `StringExtensions.IsInQuotation`/`IsInTextBlock`). Zeilen-Helfer (`GetStartOfIdentifier`/`PreviousNonWhitespace`/`GetPreviousIdentifier`/`GetStartOfEdge`) als offset-basierter faithful Port der VS-`TextSnaphotLineExtensions`. Server: `textDocument/completion`-Handler + `CompletionProvider`-Capability (TriggerChars `:` und `-`); `SortText` nach Listen-Index erhält die Service-Reihenfolge (sonst sortiert der Client alphabetisch). **Noch offen:** Path-Completion (`taskref "…"`), C#-Code-Block-Completion bleibt VS/Roslyn-only. Tests: `Nav.Language.Tests/Completion/NavCompletionServiceTests.cs` (7) grün net472+net10 (Suite 647).
 - **VS-Code-PoC** (`vscode-nav-lsp`): startet den Server per stdio, registriert Sprache `nav`.
 - Serialisierungs-Fix: Newtonsoft-Serializer camelCased unbenannte LSP-DTO-Properties (sonst PascalCase → Client verwirft z.B. die Semantic-Tokens-Legend).
 

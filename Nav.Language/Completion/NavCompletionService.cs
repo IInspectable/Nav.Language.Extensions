@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 using JetBrains.Annotations;
@@ -14,10 +15,12 @@ namespace Pharmatechnik.Nav.Language.Completion;
 
 /// <summary>
 /// VS-freier Vervollständigungs-Service auf Engine-Ebene — Grundlage für LSP <c>textDocument/completion</c>.
-/// Portiert die Logik der VS-<c>NavCompletionSource</c>: nach <c>task</c> die deklarierten Tasks, nach
-/// <c>knoten:</c> die Exit-Connection-Points, innerhalb einer Task-Definition die Knoten (unreferenzierte
-/// zuerst) und schließlich die Nav-Keywords (ohne versteckte/Edge-Keywords). Keine Vorschläge in
-/// Kommentaren, in Zeichenketten (<c>"…"</c>) oder in Code-Blöcken (<c>[ … ]</c>).
+/// Vereint die Logik der VS-Quellen <c>NavCompletionSource</c> und <c>EdgeCompletionSource</c> (die VS als
+/// getrennte Quellen mischt): nach <c>task</c> die deklarierten Tasks, nach <c>knoten:</c> die
+/// Exit-Connection-Points, innerhalb einer Task-Definition die Knoten (unreferenzierte zuerst), die
+/// Nav-Keywords (ohne versteckte/Edge-Keywords) sowie — wenn vor der (angefangenen) Edge ein Whitespace
+/// bzw. Zeilenanfang steht — die Edge-Keywords. Keine Vorschläge in Kommentaren, in Zeichenketten
+/// (<c>"…"</c>) oder in Code-Blöcken (<c>[ … ]</c>).
 /// </summary>
 public static class NavCompletionService {
 
@@ -38,9 +41,27 @@ public static class NavCompletionService {
         var line      = source.GetTextLineAtPosition(position);
         var lineStart = line.Start;
 
-        var startOfIdentifier      = GetStartOfIdentifier(source, lineStart, position);
-        var previousNonWhitespace  = PreviousNonWhitespaceChar(source, lineStart, startOfIdentifier);
-        var previousIdentifier     = GetPreviousIdentifier(source, lineStart, startOfIdentifier);
+        var items = GetSymbolAndKeywordCompletions(unit, source, lineStart, position);
+
+        // Edge-Keywords (VS-Quelle EdgeCompletionSource): nur anbieten, wenn vor der (evtl. bereits
+        // angefangenen) Edge ein Whitespace oder der Zeilenanfang steht — sonst keine Edge-Mitten.
+        if (IsEdgeContext(source, lineStart, position)) {
+
+            foreach (var keyword in SyntaxFacts.EdgeKeywords
+                                               .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                               .OrderBy(k => k, StringComparer.Ordinal)) {
+                items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            }
+        }
+
+        return items;
+    }
+
+    static List<NavCompletionItem> GetSymbolAndKeywordCompletions(CodeGenerationUnit unit, SourceText source, int lineStart, int position) {
+
+        var startOfIdentifier     = GetStartOfIdentifier(source, lineStart, position);
+        var previousNonWhitespace = PreviousNonWhitespaceChar(source, lineStart, startOfIdentifier);
+        var previousIdentifier    = GetPreviousIdentifier(source, lineStart, startOfIdentifier);
 
         var items = new List<NavCompletionItem>();
 
@@ -103,7 +124,7 @@ public static class NavCompletionService {
             }
         }
 
-        // Nav-Keywords (ohne versteckte und ohne Edge-Keywords).
+        // Nav-Keywords (ohne versteckte und ohne Edge-Keywords — letztere kommen aus dem Edge-Zweig).
         foreach (var keyword in SyntaxFacts.NavKeywords
                                            .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
                                            .OrderBy(k => k, StringComparer.Ordinal)) {
@@ -148,12 +169,12 @@ public static class NavCompletionService {
     }
 
     static NavCompletionItemKind KindOf(ISymbol symbol) => symbol switch {
-        IChoiceNodeSymbol                                          => NavCompletionItemKind.Choice,
-        IGuiNodeSymbol                                             => NavCompletionItemKind.GuiNode,
-        ITaskNodeSymbol or ITaskDeclarationSymbol                  => NavCompletionItemKind.Task,
-        IInitNodeSymbol or IExitNodeSymbol or IEndNodeSymbol       => NavCompletionItemKind.ConnectionPoint,
-        IConnectionPointSymbol                                     => NavCompletionItemKind.ConnectionPoint,
-        _                                                          => NavCompletionItemKind.Node
+        IChoiceNodeSymbol                                     => NavCompletionItemKind.Choice,
+        IGuiNodeSymbol                                        => NavCompletionItemKind.GuiNode,
+        ITaskNodeSymbol or ITaskDeclarationSymbol             => NavCompletionItemKind.Task,
+        IInitNodeSymbol or IExitNodeSymbol or IEndNodeSymbol  => NavCompletionItemKind.ConnectionPoint,
+        IConnectionPointSymbol                                => NavCompletionItemKind.ConnectionPoint,
+        _                                                     => NavCompletionItemKind.Node
     };
 
     #region Zeilen-Helfer (faithful port der VS-TextSnaphotLineExtensions, offset-basiert)
@@ -201,6 +222,25 @@ public static class NavCompletionService {
 
         return source.Substring(TextExtent.FromBounds(wordStart, wordEnd.Value + 1));
     }
+
+    // Startindex der (evtl. angefangenen) Edge, die bei position endet — zeilenbegrenzt über Edge-Zeichen.
+    static int GetStartOfEdge(SourceText source, int lineStart, int position) {
+        while (position > lineStart && IsEdgeChar(source[position - 1])) {
+            position -= 1;
+        }
+
+        return position;
+    }
+
+    // Vor einer Edge muss Whitespace oder der Zeilenanfang stehen (sonst ist es keine Edge-Position).
+    static bool IsEdgeContext(SourceText source, int lineStart, int position) {
+        var start = GetStartOfEdge(source, lineStart, position);
+        return start == lineStart || char.IsWhiteSpace(source[start - 1]);
+    }
+
+    static readonly ImmutableHashSet<char> EdgeChars = SyntaxFacts.EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
+
+    static bool IsEdgeChar(char c) => EdgeChars.Contains(c);
 
     #endregion
 

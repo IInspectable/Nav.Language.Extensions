@@ -63,8 +63,9 @@ class NavLanguageServer {
                 HoverProvider             = true,
                 FoldingRangeProvider      = true,
                 CompletionProvider        = new Lsp.CompletionOptions {
-                    // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points ergänzen.
-                    TriggerCharacters = new[] { ":" },
+                    // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points,
+                    // '-' für den Beginn einer Edge (-->) ergänzen.
+                    TriggerCharacters = new[] { ":", "-" },
                     ResolveProvider   = false
                 }
             }
