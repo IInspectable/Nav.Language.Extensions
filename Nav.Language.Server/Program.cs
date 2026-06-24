@@ -1,6 +1,7 @@
 #region Using Directives
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 using StreamJsonRpc;
@@ -15,6 +16,11 @@ static class Program {
 
         var stdin  = Console.OpenStandardInput();
         var stdout = Console.OpenStandardOutput();
+
+        // stdout ist exklusiv für JSON-RPC reserviert. Versehentliche Console-Ausgaben (z.B. aus der
+        // Engine) nach stderr umleiten, damit sie die LSP-Frames nicht zerstören.
+        Console.SetOut(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+        Console.Error.WriteLine("[nav-lsp] Server gestartet, warte auf JSON-RPC über stdio.");
 
         // LSP nutzt header-delimitierte JSON-RPC-Nachrichten. Die LSP-Protokoll-DTOs
         // (Microsoft.VisualStudio.LanguageServer.Protocol) sind Newtonsoft-annotiert, daher der

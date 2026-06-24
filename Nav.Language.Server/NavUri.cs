@@ -18,8 +18,27 @@ namespace Pharmatechnik.Nav.Language.Server;
 static class NavUri {
 
     /// <summary>Dateipfad der URI (oder null, wenn keine file://-URI).</summary>
-    public static string? ToFilePath(Uri uri) => uri.IsFile ? uri.LocalPath : null;
+    public static string? ToFilePath(Uri uri) {
+
+        if (!uri.IsFile) {
+            return null;
+        }
+
+        var path = uri.LocalPath;
+
+        // VS Code prozent-kodiert den Laufwerks-Doppelpunkt (file:///d%3A/...). System.Uri.LocalPath
+        // liefert dann einen kaputten Pfad "/d:/git/..." (führender Slash, Forward-Slashes) statt
+        // "d:\git\...". Führenden Slash vor "X:" entfernen und Separatoren auf Backslash normalisieren.
+        if (path.Length >= 3 && path[0] == '/' && char.IsLetter(path[1]) && path[2] == ':') {
+            path = path.Substring(1);
+        }
+
+        return path.Replace('/', '\\');
+    }
 
     /// <summary>Normalisierter Schlüsselpfad der URI (oder null, wenn keine file://-URI).</summary>
-    public static string? ToNormalizedPath(Uri uri) => uri.IsFile ? PathHelper.NormalizePath(uri.LocalPath) : null;
+    public static string? ToNormalizedPath(Uri uri) {
+        var path = ToFilePath(uri);
+        return path == null ? null : PathHelper.NormalizePath(path);
+    }
 }
