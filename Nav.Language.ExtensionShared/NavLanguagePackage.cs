@@ -304,10 +304,6 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
 
         var roslynSolution = Workspace.CurrentSolution;
-        if (roslynSolution == null) {
-            Logger.Warn($"{nameof(GetContainingProject)}: No roslyn solution available");
-            return null;
-        }
 
         var project = roslynSolution.Projects.FirstOrDefault(p => p.FilePath?.ToLower() == projectPath.ToLower());
         if (project == null) {

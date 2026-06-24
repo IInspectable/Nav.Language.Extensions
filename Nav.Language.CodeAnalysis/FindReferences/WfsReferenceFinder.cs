@@ -47,7 +47,7 @@ public static partial class WfsReferenceFinder {
 
                         var compilation = await project.GetCompilationAsync(args.Context.CancellationToken).ConfigureAwait(false);
 
-                        var wfsClass = compilation.GetTypeByMetadataName(classInfo.ClassName);
+                        var wfsClass = compilation?.GetTypeByMetadataName(classInfo.ClassName);
                         if (wfsClass == null) {
                             continue;
                         }
@@ -117,12 +117,12 @@ public static partial class WfsReferenceFinder {
 
         bool TryFindTypeSyntax(VariableDeclaratorSyntax variableDeclaratorSyntax, out TypeSyntax typeSyntax) {
 
-            typeSyntax = default;
+            typeSyntax = null;
 
             var node = variableDeclaratorSyntax?.Parent;
 
             while (node != null) {
-                if (node is FieldDeclarationSyntax fds && fds.Declaration.Type != null) {
+                if (node is FieldDeclarationSyntax fds) {
                     typeSyntax = fds.Declaration.Type;
                     return true;
                 }
@@ -253,7 +253,7 @@ public static partial class WfsReferenceFinder {
                     // Sicherstellen, dass die Referenz ein Methodenaufruf darstellt
                     // node.Parent => MemberAccessExpressionSyntax
                     // node.Parent.Parent => InvocationExpressionSyntax
-                    if (syntaxNode?.Parent?.Parent is InvocationExpressionSyntax ies) {
+                    if (syntaxNode.Parent?.Parent is InvocationExpressionSyntax ies) {
                         invocations.Add(ies);
                     }
 
@@ -338,7 +338,11 @@ public static partial class WfsReferenceFinder {
                                                               Microsoft.CodeAnalysis.SyntaxTree syntaxTree,
                                                               CancellationToken cancellationToken) {
 
-        var        document   = solution.GetDocument(syntaxTree);
+        var document = solution.GetDocument(syntaxTree);
+        if (document == null) {
+            return ReferenceItem.NoReferencesFoundTo(definition);
+        }
+
         SourceText sourceText = await document.GetTextAsync(cancellationToken).ConfigureAwait(false);
 
         var textSpan = GetPreviewSpan(sourceText, referenceLocation.Start);

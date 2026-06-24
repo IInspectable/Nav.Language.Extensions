@@ -21,7 +21,7 @@ public class Logger {
     }
 
     public static Logger Create(Type type) {
-        NLog.Logger baseLogger = NLog.LogManager.GetLogger(type.FullName);
+        NLog.Logger baseLogger = NLog.LogManager.GetLogger(type.FullName ?? "");
         return new Logger(baseLogger);
     }
 

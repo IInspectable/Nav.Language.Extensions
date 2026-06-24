@@ -66,6 +66,7 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
 
             Invalidate();
 
+            // ReSharper disable once DuplicatedStatements
             return VSConstants.S_OK;
         }
 

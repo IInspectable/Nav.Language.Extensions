@@ -23,7 +23,7 @@ public static class AnnotationReader {
 
     public static IEnumerable<NavTaskAnnotation> ReadNavTaskAnnotations(Document document) {
 
-        var semanticModel = document.GetSemanticModelAsync().Result;
+        var semanticModel = document.GetSemanticModelAsync().GetAwaiter().GetResult();
         var rootNode      = semanticModel.SyntaxTree.GetRoot();
 
         var classDeclarations = rootNode.DescendantNodesAndSelf()
@@ -414,14 +414,14 @@ public static class AnnotationReader {
             }
 
             var xmlElementSyntaxes = trivia.GetStructure()
-                                           .ChildNodes()
+                                          ?.ChildNodes()
                                            .OfType<XmlElementSyntax>()
-                                           .ToList();
+                                           .ToList() ?? new List<XmlElementSyntax>();
 
             // Wir suchen alle Tags, deren Namen mit Nav beginnen
             foreach (var xmlElementSyntax in xmlElementSyntaxes) {
-                var startTagName = xmlElementSyntax.StartTag?.Name?.ToString();
-                if (startTagName?.StartsWith(CodeGenFacts.AnnotationTagPrefix) == true) {
+                var startTagName = xmlElementSyntax.StartTag.Name.ToString();
+                if (startTagName.StartsWith(CodeGenFacts.AnnotationTagPrefix)) {
                     yield return new NavTag {
                         TagName = startTagName,
                         Content = xmlElementSyntax.Content.ToString()

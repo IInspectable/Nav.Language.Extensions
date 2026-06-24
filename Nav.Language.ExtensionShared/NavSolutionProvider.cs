@@ -158,6 +158,7 @@ partial class NavSolutionProvider {
         }
 
         var creationTime = DateTime.Now;
+        // ReSharper disable once CollectionNeverQueried.Local
         var itemBuilder  = ImmutableArray.CreateBuilder<FileInfo>();
 
         using var taskStatus = taskStatusProvider.CreateTaskStatus("Nav Solution Provider");
