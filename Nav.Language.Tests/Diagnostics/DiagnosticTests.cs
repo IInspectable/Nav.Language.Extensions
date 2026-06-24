@@ -214,7 +214,7 @@ public class DiagnosticTests {
 
     static string GetDiagnosticTestDirectory() {
 
-        return Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory, @"..\..\Diagnostics\Tests"));
+        return TestDataDirectory.Resolve(@"Diagnostics\Tests");
     }
 
     List<string> ParseDiagnostics(string source) {

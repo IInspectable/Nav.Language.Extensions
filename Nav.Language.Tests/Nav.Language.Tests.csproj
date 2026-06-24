@@ -4,11 +4,14 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFrameworks>net472;net10.0</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.Tests</RootNamespace>
     <AssemblyName>Nav.Language.Tests</AssemblyName>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- net472 bleibt flach in bin\Debug\ (bestehender NUnit-Console-Runner-/Run-Tests.bat-Flow
+         unveraendert); net10.0 bekommt den TFM-Unterordner bin\Debug\net10.0\, damit sich die beiden
+         Multi-Target-Builds nicht ueberschreiben (Output-Pfad-Kollision). -->
+    <AppendTargetFrameworkToOutputPath Condition="'$(TargetFramework)' == 'net472'">false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -16,6 +19,20 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <NoWarn>1701;1702;AD0001</NoWarn>
   </PropertyGroup>
+
+  <!-- Nur fuer den .NET-10-Lauf: Test-SDK + NUnit-Adapter fuer `dotnet test`.
+       Der net472-Lauf bleibt unangetastet (laeuft weiter ueber den gebuendelten NUnit-Console-Runner). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <!-- Beim Bau via full-framework MSBuild.exe werden die .NET-Core-Run-Artefakte sonst nicht
+         erzeugt: runtimeconfig.json erzwingen und alle transitiven NuGet-DLLs (Antlr3/4, StringTemplate,
+         testhost ...) ins Output kopieren, damit `dotnet test` ohne Cache-Probing laeuft. -->
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
 
   <ItemGroup>
 

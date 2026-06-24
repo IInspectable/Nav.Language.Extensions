@@ -36,5 +36,5 @@
   &lt;Assembly Path="C:\Users\mnhaenel\.nuget\packages\microsoft.visualstudio.languageservices\3.0.0\lib\net472\Microsoft.VisualStudio.LanguageServices.dll" /&gt;&#xD;
   &lt;Assembly Path="C:\Users\mnhaenel\.nuget\packages\microsoft.codeanalysis.workspaces.common\3.0.0\lib\netstandard2.0\Microsoft.CodeAnalysis.Workspaces.dll" /&gt;&#xD;
 &lt;/AssemblyExplorer&gt;</s:String>
-	<s:Int64 x:Key="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue">42</s:Int64>
+	<s:Int64 x:Key="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue">91</s:Int64>
 </wpf:ResourceDictionary>

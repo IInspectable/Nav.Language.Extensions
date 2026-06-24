@@ -75,7 +75,7 @@ public class RegressionTests {
 
     static string GetRegressiontestDirectory() {
 
-        return Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory, @"..\..\Regression\Tests"));
+        return TestDataDirectory.Resolve(@"Regression\Tests");
     }
 
     public class FileTestCase {
