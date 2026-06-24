@@ -13,7 +13,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Tagging;
 
-using Pharmatechnik.Nav.Language.Extension.Common;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion

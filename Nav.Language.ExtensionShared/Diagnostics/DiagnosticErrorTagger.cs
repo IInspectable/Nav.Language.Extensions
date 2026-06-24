@@ -7,8 +7,6 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
-using Pharmatechnik.Nav.Language.Extension.Common;
-
 #endregion
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 

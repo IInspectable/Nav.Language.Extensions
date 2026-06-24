@@ -309,7 +309,7 @@ sealed partial class NavLanguagePackage: AsyncPackage {
             return null;
         }
 
-        var project = roslynSolution.Projects.FirstOrDefault(p => p.FilePath.ToLower() == projectPath.ToLower());
+        var project = roslynSolution.Projects.FirstOrDefault(p => p.FilePath?.ToLower() == projectPath.ToLower());
         if (project == null) {
             Logger.Warn($"{nameof(GetContainingProject)}: Unable to find a roslyn project for the project '{projectPath.ToLower()}'.\nRoslyn Projects:\n{ProjectPaths(roslynSolution.Projects)}");
             return null;
