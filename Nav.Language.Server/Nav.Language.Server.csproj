@@ -6,9 +6,16 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Pharmatechnik.Nav.Language.Server</RootNamespace>
-    <AssemblyName>Pharmatechnik.Nav.Language.Server</AssemblyName>
+    <!-- Apphost/Assembly heißt nav.lsp → self-contained Publish liefert nav.lsp.exe.
+         RootNamespace bleibt bewusst getrennt, damit der Quellcode/die Namespaces unverändert bleiben. -->
+    <AssemblyName>nav.lsp</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Self-contained Single-File-Publish-Ziel; RID/SelfContained/PublishSingleFile/SatelliteResourceLanguages
+         werden beim Publish per Kommandozeile gesetzt (siehe Publish-Lsp.bat → eine nav.lsp.exe in deploy\lsp).
+         Bewusst KEIN PublishTrimmed: Newtonsoft + StreamJsonRpc + LSP-DTOs sind reflection-lastig (Trimming
+         würde die Serialisierung brechen). Single-File ist nur Bündelung (kein Trimming) und damit unkritisch. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

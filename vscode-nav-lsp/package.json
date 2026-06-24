@@ -40,7 +40,7 @@
         "navLanguageServer.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Absoluter Pfad zur Pharmatechnik.Nav.Language.Server.dll. Leer = Standard-Build-Ausgabe im Repo (bin/Debug/net10.0)."
+          "description": "Pfad zum Nav-LSP-Server. Endung .exe → wird direkt gestartet (z. B. der self-contained Publish nav.lsp.exe); Endung .dll → wird via 'dotnet <dll>' gestartet. Leer = Auto-Erkennung: zuerst deploy/lsp/nav.lsp.exe (self-contained Publish), sonst der Debug-Build Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll via dotnet."
         },
         "navLanguageServer.trace.server": {
           "type": "string",

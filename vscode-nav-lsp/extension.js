@@ -9,18 +9,32 @@ const { LanguageClient, TransportKind, RevealOutputChannelOn } = require('vscode
 let client;
 let log;
 
-function resolveServerDll() {
+// Liefert das Start-Kommando für den Server als { command, args }.
+// - .exe (z.B. der self-contained Publish nav.lsp.exe) wird direkt gestartet.
+// - .dll wird über 'dotnet <dll>' gestartet (framework-dependent Debug-Build).
+function resolveServer() {
 
     const configured = workspace.getConfiguration('navLanguageServer').get('serverPath');
     if (configured && configured.trim().length > 0) {
-        return configured;
+        const p = configured.trim();
+        if (p.toLowerCase().endsWith('.dll')) {
+            return { command: 'dotnet', args: [p], target: p };
+        }
+        return { command: p, args: [], target: p };
     }
 
-    // Standard: Build-Ausgabe im Repo. Die Extension liegt als Schwesterordner von Nav.Language.Server.
-    return path.join(
+    // Die Extension liegt als Schwesterordner von Nav.Language.Server / deploy.
+    // Standard 1: self-contained Publish (deploy\lsp\nav.lsp.exe) — direkt starten, kein 'dotnet' nötig.
+    const publishedExe = path.join(__dirname, '..', 'deploy', 'lsp', 'nav.lsp.exe');
+    if (fs.existsSync(publishedExe)) {
+        return { command: publishedExe, args: [], target: publishedExe };
+    }
+
+    // Standard 2: framework-dependent Debug-Build via 'dotnet'.
+    const debugDll = path.join(
         __dirname, '..',
-        'Nav.Language.Server', 'bin', 'Debug', 'net10.0',
-        'Pharmatechnik.Nav.Language.Server.dll');
+        'Nav.Language.Server', 'bin', 'Debug', 'net10.0', 'nav.lsp.dll');
+    return { command: 'dotnet', args: [debugDll], target: debugDll };
 }
 
 function checkDotnet() {
@@ -39,15 +53,16 @@ function activate(context) {
     log = window.createOutputChannel('Nav Language Server');
     log.appendLine('Aktivierung der Nav-LSP-Extension …');
 
-    const serverDll = resolveServerDll();
-    log.appendLine(`Server-DLL: ${serverDll}`);
-    log.appendLine(`DLL existiert: ${fs.existsSync(serverDll)}`);
-    checkDotnet();
+    const server = resolveServer();
+    log.appendLine(`Server-Kommando: ${server.command} ${server.args.join(' ')}`.trim());
+    log.appendLine(`Ziel existiert: ${fs.existsSync(server.target)}`);
+    // 'dotnet' muss nur im PATH sein, wenn der Server framework-dependent (als .dll) gestartet wird.
+    if (server.command === 'dotnet') {
+        checkDotnet();
+    }
 
-    const serverOptions = {
-        run:   { command: 'dotnet', args: [serverDll], transport: TransportKind.stdio },
-        debug: { command: 'dotnet', args: [serverDll], transport: TransportKind.stdio }
-    };
+    const launch = { command: server.command, args: server.args, transport: TransportKind.stdio };
+    const serverOptions = { run: launch, debug: launch };
 
     const clientOptions = {
         documentSelector: [{ scheme: 'file', language: 'nav' }],

@@ -5,7 +5,8 @@ Minimaler VS-Code-Client, der den Nav-LSP-Server (`Pharmatechnik.Nav.Language.Se
 
 ## Voraussetzungen
 
-- **.NET-10-Runtime** (`dotnet` im PATH)
+- **.NET-10-Runtime** (`dotnet` im PATH) — nur für den framework-dependent Debug-Lauf.
+  Beim self-contained Publish (siehe „Deployment") bringt `nav.lsp.exe` die Runtime selbst mit.
 - **Node.js / npm** (für `npm install`)
 - **VS Code**
 
@@ -17,7 +18,7 @@ Minimaler VS-Code-Client, der den Nav-LSP-Server (`Pharmatechnik.Nav.Language.Se
    MSBuild.exe Nav.Language.Server\Nav.Language.Server.csproj -t:Build -p:Configuration=Debug
    ```
 
-   Ergebnis: `Nav.Language.Server\bin\Debug\net10.0\Pharmatechnik.Nav.Language.Server.dll`.
+   Ergebnis: `Nav.Language.Server\bin\Debug\net10.0\nav.lsp.dll`.
 
 2. Client-Abhängigkeiten installieren:
 
@@ -36,13 +37,19 @@ Minimaler VS-Code-Client, der den Nav-LSP-Server (`Pharmatechnik.Nav.Language.Se
 
 ## Konfiguration
 
-- `navLanguageServer.serverPath`: absoluter Pfad zur Server-DLL. Leer = Standard-Build-Ausgabe
-  (`../Nav.Language.Server/bin/Debug/net10.0/...`). Für eine Release-/anderweitige Ausgabe hier
-  den Pfad setzen.
+- `navLanguageServer.serverPath`: Pfad zum Server. Endung `.exe` → wird direkt gestartet
+  (z. B. der self-contained `nav.lsp.exe`); Endung `.dll` → wird via `dotnet <dll>` gestartet.
+  Leer = Auto-Erkennung: zuerst `../deploy/lsp/nav.lsp.exe` (self-contained Publish), sonst der
+  Debug-Build `../Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
 
-## Hinweis Deployment
+## Deployment (self-contained)
 
-`dotnet publish --self-contained` funktioniert nicht direkt, weil die referenzierte Engine via
-`CodeTaskFactory` nur mit der Full-Framework-`MSBuild.exe` baut. Für ein eigenständiges Paket:
-`MSBuild.exe -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true`. Für den PoC genügt der
-framework-dependent Lauf per `dotnet <dll>`.
+`Publish-Lsp.bat` (Repo-Root) erzeugt einen **self-contained Single-File**-Server unter `deploy\lsp`:
+**genau eine Datei** `deploy\lsp\nav.lsp.exe` (inkl. gebündelter .NET-Runtime, ~39 MB komprimiert — keine
+separate Runtime-Installation, keine losen DLLs, keine Satellite-Ressourcen-Ordner). Die Extension findet
+diese Ausgabe automatisch.
+
+Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `Build.bat`): die referenzierte
+Engine nutzt in `Nav.Language\CustomBuild.targets` die `CodeTaskFactory`, die `dotnet build`/
+`dotnet publish` nicht kennt (MSB4801). Unter der Haube (gekürzt):
+`MSBuild.exe …Nav.Language.Server.csproj -restore -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en`.
