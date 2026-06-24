@@ -4,6 +4,8 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
+using Newtonsoft.Json.Serialization;
+
 using StreamJsonRpc;
 
 #endregion
@@ -28,6 +30,13 @@ static class Program {
 #pragma warning disable CS0618 // JsonMessageFormatter ist als "wird in 3.0 entfernt" markiert.
         var formatter = new JsonMessageFormatter();
 #pragma warning restore CS0618
+
+        // Manche LSP-DTOs (z.B. SemanticTokensOptions) tragen keine expliziten DataMember-Namen und
+        // würden in PascalCase serialisiert ("Legend"/"Full"), was LSP-Clients nicht verstehen.
+        // Unbenannte Properties auf camelCase abbilden, explizit benannte (DataMember) unangetastet lassen.
+        formatter.JsonSerializer.ContractResolver = new DefaultContractResolver {
+            NamingStrategy = new CamelCaseNamingStrategy { OverrideSpecifiedNames = false }
+        };
         var handler = new HeaderDelimitedMessageHandler(stdout, stdin, formatter);
         var rpc     = new JsonRpc(handler);
 

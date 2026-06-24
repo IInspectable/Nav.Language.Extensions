@@ -39,6 +39,13 @@ class NavLanguageServer {
                 TextDocumentSync = new Lsp.TextDocumentSyncOptions {
                     OpenClose = true,
                     Change    = Lsp.TextDocumentSyncKind.Full
+                },
+                SemanticTokensOptions = new Lsp.SemanticTokensOptions {
+                    Legend = new Lsp.SemanticTokensLegend {
+                        TokenTypes     = SemanticTokensBuilder.TokenTypes,
+                        TokenModifiers = SemanticTokensBuilder.TokenModifiers
+                    },
+                    Full = true
                 }
             }
         };
@@ -93,6 +100,21 @@ class NavLanguageServer {
         // Overlay verwerfen — die Wahrheit liegt wieder auf Platte. Diagnostics von Platte neu berechnen.
         _workspace.Close(normalizedPath);
         return PublishDocumentAsync(uri);
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.SemanticTokens SemanticTokensFull(Lsp.SemanticTokensParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return new Lsp.SemanticTokens { Data = Array.Empty<int>() };
+        }
+
+        var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
+
+        return new Lsp.SemanticTokens {
+            Data = syntaxTree == null ? Array.Empty<int>() : SemanticTokensBuilder.Encode(syntaxTree)
+        };
     }
 
     [JsonRpcMethod(Lsp.Methods.ShutdownName)]

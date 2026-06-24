@@ -57,6 +57,11 @@ class NavWorkspace {
     /// <summary>Schließt ein Dokument — die Wahrheit liegt wieder auf Platte.</summary>
     public void Close(string normalizedPath) => _syntaxProvider.RemoveOverlay(normalizedPath);
 
+    /// <summary>Syntaxbaum eines Dokuments (overlay-bewusst) — Grundlage für Semantic Tokens.</summary>
+    public SyntaxTree? GetSyntaxTree(string filePath, CancellationToken cancellationToken) {
+        return _syntaxProvider.GetSyntax(filePath, cancellationToken)?.SyntaxTree;
+    }
+
     /// <summary>Diagnostics für ein einzelnes Dokument (overlay-bewusst).</summary>
     public IReadOnlyList<Diagnostic> GetDiagnostics(string filePath, CancellationToken cancellationToken) {
 
