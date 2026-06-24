@@ -72,9 +72,15 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         var snapshotSpan = new SnapshotSpan(_textSnapshot, start, length);
         var provider     = new NavExitAnnotationLocationInfoProvider(navExitAnnotation);
         var tag = new IntraTextGoToTag(
-            provider    : provider, 
-            imageMoniker: ImageMonikers.GoToDefinition, 
+            provider    : provider,
+            imageMoniker: ImageMonikers.GoToDefinition,
             toolTip     : ToolTipGoToExitDefinition);
+
+        // Zusätzlich zu den Nav-Exit-Zielen die C#-Aufrufstellen der zugehörigen BeginXY-Methode anbieten
+        // (klassenweit, inkl. partial-Deklarationen in anderen Dateien).
+        tag.Provider.Add(new NavExitBeginCallerLocationInfoProvider(
+                             sourceBuffer  : _textSnapshot.TextBuffer,
+                             exitAnnotation: navExitAnnotation));
 
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
