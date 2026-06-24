@@ -1,4 +1,4 @@
-#region Using Directives
+Ôªø#region Using Directives
 
 using System;
 using System.Linq;
@@ -40,6 +40,11 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
         _textBuffer = textBuffer;
 
+        // Direktes Abo auf Buffer-√Ñnderungen: stellt sicher, dass nach einer Workspace-Re-Registration
+        // (z.B. nach einem Build) beim n√§chsten Tippen neu getaggt wird, falls die Roslyn-Workspace-Events
+        // ausbleiben (Self-Heal, analog zu Roslyns TaggerEventSources.OnTextChanged).
+        _textBuffer.Changed += OnTextBufferChanged;
+
         Logger.Info($"{nameof(IntraTextGoToTagger)}.Ctor Begin: {_textBuffer.GetTextDocument()?.FilePath}");
 
         _workspaceRegistration                  =  Workspace.GetWorkspaceRegistration(textBuffer.AsTextContainer());
@@ -76,17 +81,17 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
     void IClassAnnotationChangeListener.OnClassAnnotationsChanged(object sender, ClassAnnotationChangedArgs e) {
 
-        // Die ƒnderung kommt von uns selbst 
+        // Die √Ñnderung kommt von uns selbst 
         if(e.DocumentId == GetDocumentId()) {
             return;
         }
 
         if(_result?.Annotations.Any(taskAnnotation =>
-                                        // Tats‰chlich ist der Taskname nicht eindeutig, was zur Folge haben kann, dass wir 
+                                        // Tats√§chlich ist der Taskname nicht eindeutig, was zur Folge haben kann, dass wir 
                                         // theoretisch das eine oder file zu viel aktualisieren. So what?
                                         taskAnnotation.TaskName == e.TaskAnnotation.TaskName) ==true) {
 
-            Logger.Info($"Das Taggen f¸r die Datei wird getriggert, weil sich die Annotations f¸r den Task '{e.TaskAnnotation.TaskName}' ge‰ndert haben. Dieses Dokument:' {GetDocumentId()}', ge‰ndertes Dokument: '{e.DocumentId}': {_textBuffer.GetTextDocument()?.FilePath}");
+            Logger.Info($"Das Taggen f√ºr die Datei wird getriggert, weil sich die Annotations f√ºr den Task '{e.TaskAnnotation.TaskName}' ge√§ndert haben. Dieses Dokument:' {GetDocumentId()}', ge√§ndertes Dokument: '{e.DocumentId}': {_textBuffer.GetTextDocument()?.FilePath}");
 
             Invalidate();
         }
@@ -129,7 +134,7 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
         if(_workspace != null) {
             // ReSharper disable PossibleNullReferenceException
-            // TODO Fehlt uns irgendein Event? Es scheint manchmal vorzukommen, dass die Tags nach dem Starten von VS nicht verf¸gbar sind...
+            // TODO Fehlt uns irgendein Event? Es scheint manchmal vorzukommen, dass die Tags nach dem Starten von VS nicht verf√ºgbar sind...
             _workspace.WorkspaceChanged += OnWorkspaceChanged;
             _workspace.DocumentOpened   += OnDocumentOpened;
             // ReSharper restore PossibleNullReferenceException
@@ -193,9 +198,18 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
     /// </summary>
     void TrySetResult(BuildTagsResult result) {
 
-        // Der Puffer wurde zwischenzeitlich schon wieder ge‰ndert. Dieses Ergebnis brauchen wir nicht,
+        // Der Puffer wurde zwischenzeitlich schon wieder ge√§ndert. Dieses Ergebnis brauchen wir nicht,
         // da bereits ein neues berechnet wird.
         if (_textBuffer.CurrentSnapshot != result.BuildArgs.Snapshot) {   
+            return;
+        }
+
+        // Der Buffer ist momentan keinem Workspace/Roslyn-Dokument zugeordnet (z.B. w√§hrend einer
+        // Workspace-Re-Registration nach Build/Solution-Reload, oder durch eine Exception beim Bauen).
+        // In diesem √úbergangszustand behalten wir das letzte gute Ergebnis und feuern KEIN (leeres)
+        // TagsChanged, damit die Adornments nicht f√§lschlich verschwinden.
+        if (!result.DocumentResolved) {
+            Logger.Debug($"{nameof(TrySetResult)}: Kein Roslyn-Dokument aufl√∂sbar, behalte vorheriges Ergebnis: {_textBuffer.GetTextDocument()?.FilePath}");
             return;
         }
 
@@ -210,10 +224,10 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(snapshotSpan));
 
             // In der "Praxis" haben wir nur eine einzige NavTaskAnnotation pro file
-            // Da wir ausschlieﬂlich in der WFSBase die Annotations haben (=> DeclaringClassDeclarationSyntax),
-            // m¸ssen wir nur f¸r die abgeleiteten Klassen explizit das Taggen antriggern,
+            // Da wir ausschlie√ülich in der WFSBase die Annotations haben (=> DeclaringClassDeclarationSyntax),
+            // m√ºssen wir nur f√ºr die abgeleiteten Klassen explizit das Taggen antriggern,
             // da diese nicht automatisch ein DocumentChanged Ereignis erhalten, nur weil sich das 
-            // File der Baisklasse ge‰ndert hat.
+            // File der Baisklasse ge√§ndert hat.
             foreach (var navTaskAnnotation in result.Annotations
                                                     .Where(a => a.GetType()              == typeof(NavTaskAnnotation))
                                                     .Where(a => a.ClassDeclarationSyntax ==a.DeclaringClassDeclarationSyntax)) {
@@ -229,28 +243,35 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
     static bool ShouldRaiseTagsChanged(BuildTagsResult prevResult, BuildTagsResult newResult) {
 
-        // Der triviale, aber Standardfall f¸r alle "nicht-WFS" files.
-        if (prevResult?.Tags.Count == 0 && newResult.Tags.Count ==0) {
+        // Der triviale, aber Standardfall f√ºr alle "nicht-WFS" files.
+        // prevResult kann null sein (erstes Ergebnis bzw. nach DisconnectFromWorkspace); dann gibt es
+        // keine alten Tags, ein leeres newResult √§ndert also ebenfalls nichts.
+        if ((prevResult?.Tags.Count ?? 0) == 0 && newResult.Tags.Count ==0) {
 
             Logger.Info($"{nameof(ShouldRaiseTagsChanged)} liefert false, da keine Annotation-Tags in der Datei gefunden wurde ('{newResult.BuildArgs.DocumentId}')");
             return false;
         }
 
-        // Hier kˆnnte man theoretisch noch weiter in die Tags schauen, ob sich diese de facto ge‰ndert haben,
-        // um so unnˆtig UI-Updates zu vermeiden. Wie groﬂ ist der Benefit, wie groﬂ das "Risiko" echte Updates
+        // Hier k√∂nnte man theoretisch noch weiter in die Tags schauen, ob sich diese de facto ge√§ndert haben,
+        // um so unn√∂tig UI-Updates zu vermeiden. Wie gro√ü ist der Benefit, wie gro√ü das "Risiko" echte Updates
         // zu verlieren?
 
         return true;
     }
 
-    // Dieses Event feuern wir um den Observer zu "f¸ttern".
+    // Dieses Event feuern wir um den Observer zu "f√ºttern".
     event EventHandler<EventArgs> RebuildTriggered;
+
+    void OnTextBufferChanged(object sender, TextContentChangedEventArgs e) {
+        Invalidate();
+    }
 
     public void Invalidate() {
         RebuildTriggered?.Invoke(this, EventArgs.Empty);
     }
         
     public void Dispose() {
+        _textBuffer.Changed                     -= OnTextBufferChanged;
         _workspaceRegistration.WorkspaceChanged -= OnWorkspaceRegistrationChanged;
         DisconnectFromWorkspace();
         _parserObs.Dispose();
@@ -268,9 +289,18 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
         return Task.Run(() => {
 
-            var result = BuildTags(args);
-
-            return result;
+            try {
+                return BuildTags(args);
+            } catch (OperationCanceledException) {
+                throw;
+            } catch (Exception ex) {
+                // Eine Exception darf NICHT den √§u√üeren Rx-Stream beenden (sonst ist der Tagger dauerhaft
+                // tot und die Adornments kehren erst nach erneutem √ñffnen zur√ºck). Wir liefern ein "nicht
+                // aufgel√∂stes" Ergebnis (DocumentResolved == false), das in TrySetResult das letzte gute
+                // Ergebnis erh√§lt.
+                Logger.Error(ex, $"{nameof(BuildTags)} ist fehlgeschlagen: {args.DocumentId}");
+                return new BuildTagsResult(args);
+            }
 
         }, cancellationToken);
     }
@@ -282,7 +312,7 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
             var document = buildArgs.Snapshot.GetOpenDocumentInCurrentContextWithChanges();
             if(document == null) {
                 // Wahrscheinlich handelt es sich bei diesem Dokument um ein "externes"
-                Logger.Warn($"{nameof(BuildTags)}: Es steht kein Roslyn Dokument f¸r '{buildArgs.DocumentId}' zur Verf¸gung. Der Vorgang wurde abgebrochen.");
+                Logger.Warn($"{nameof(BuildTags)}: Es steht kein Roslyn Dokument f√ºr '{buildArgs.DocumentId}' zur Verf√ºgung. Der Vorgang wurde abgebrochen.");
                 return new BuildTagsResult(buildArgs);
             }
             
@@ -310,19 +340,26 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
     sealed class BuildTagsResult {
 
         public BuildTagsResult(BuildTagsArgs buildArgs) {
-            BuildArgs   = buildArgs;
-            Annotations = new List<NavTaskAnnotation>();
-            Tags        = new List<ITagSpan<IntraTextGoToTag>>();
+            BuildArgs        = buildArgs;
+            Annotations      = new List<NavTaskAnnotation>();
+            Tags             = new List<ITagSpan<IntraTextGoToTag>>();
+            DocumentResolved = false;
         }
 
         public BuildTagsResult(BuildTagsArgs buildArgs, IList<ITagSpan<IntraTextGoToTag>> tags, IList<NavTaskAnnotation> annotations) {
-            BuildArgs   = buildArgs;
-            Tags        = tags;
-            Annotations = annotations;
+            BuildArgs        = buildArgs;
+            Tags             = tags;
+            Annotations      = annotations;
+            DocumentResolved = true;
         }
 
-        public BuildTagsArgs                     BuildArgs   { get; }
-        public IList<ITagSpan<IntraTextGoToTag>> Tags        { get; }
-        public IList<NavTaskAnnotation>          Annotations { get; }
+        public BuildTagsArgs                     BuildArgs        { get; }
+        public IList<ITagSpan<IntraTextGoToTag>> Tags             { get; }
+        public IList<NavTaskAnnotation>          Annotations      { get; }
+
+        // True, wenn f√ºr den Snapshot ein Roslyn-Dokument aufgel√∂st werden konnte. Bei false befindet
+        // sich der Buffer in einem √úbergangszustand (keinem Workspace zugeordnet); das Ergebnis ist dann
+        // nicht aussagekr√§ftig und darf das letzte gute Ergebnis nicht √ºberschreiben.
+        public bool                              DocumentResolved { get; }
     }
 }
