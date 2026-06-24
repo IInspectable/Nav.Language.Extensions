@@ -64,8 +64,9 @@ class NavLanguageServer {
                 FoldingRangeProvider      = true,
                 CompletionProvider        = new Lsp.CompletionOptions {
                     // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points,
-                    // '-' für den Beginn einer Edge (-->) ergänzen.
-                    TriggerCharacters = new[] { ":", "-" },
+                    // '-' für den Beginn einer Edge (-->), '"' sowie die Pfadtrenner für die
+                    // Pfad-Vervollständigung in taskref (Pfadtrenner aktualisieren Liste + Replace-Range).
+                    TriggerCharacters = new[] { ":", "-", "\"", "/", "\\" },
                     ResolveProvider   = false
                 }
             }
@@ -84,7 +85,10 @@ class NavLanguageServer {
     static string? ResolveRootPath(Lsp.InitializeParams param) {
 
         if (param.RootUri is { IsAbsoluteUri: true } rootUri && rootUri.IsFile) {
-            return rootUri.LocalPath;
+            // NICHT rootUri.LocalPath: VS Code/VS prozent-kodieren den Laufwerks-Doppelpunkt
+            // (file:///d%3A/...), wofür LocalPath einen kaputten Pfad "/d:/..." liefert → Directory.Exists
+            // schlägt fehl → leere Solution → keine Pfad-Vervollständigung. NavUri.ToFilePath behebt das.
+            return NavUri.ToFilePath(rootUri);
         }
 
         // RootPath ist zwar deprecated, aber als Fallback für ältere Clients nützlich.
@@ -348,18 +352,46 @@ class NavLanguageServer {
             return Array.Empty<Lsp.CompletionItem>();
         }
 
-        var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
-        var items  = NavCompletionService.GetCompletions(unit, offset);
+        var sourceText = unit.Syntax.SyntaxTree.SourceText;
+        var offset     = LspMapper.ToOffset(sourceText, param.Position);
+        var items      = NavCompletionService.GetCompletions(unit, offset, _workspace.Solution);
 
         // SortText nach Index, damit die vom Service vorgegebene Reihenfolge (unverbundene Exits /
-        // unreferenzierte Knoten zuerst) im Client erhalten bleibt — sonst sortiert dieser alphabetisch.
+        // unreferenzierte Knoten zuerst, bzw. Elternverzeichnis → Verzeichnisse → Dateien) im Client
+        // erhalten bleibt — sonst sortiert dieser alphabetisch.
         var result = new Lsp.CompletionItem[items.Count];
         for (var i = 0; i < items.Count; i++) {
-            result[i] = new Lsp.CompletionItem {
-                Label    = items[i].Label,
-                Kind     = ToCompletionItemKind(items[i].Kind),
+
+            var item = items[i];
+
+            var lspItem = new Lsp.CompletionItem {
+                Label    = item.Label,
+                Kind     = ToCompletionItemKind(item.Kind),
                 SortText = i.ToString("D4")
             };
+
+            if (item.Detail != null) {
+                lspItem.Detail = item.Detail;
+            }
+
+            // Pfad-Vorschläge ersetzen den gesamten Inhalt zwischen den "" (relativer Pfad ≠ Anzeigename),
+            // daher ein expliziter TextEdit statt des Default-Wortersatzes des Clients. Eingefügt wird der
+            // relative Pfad; GEFILTERT wird aber — wie in VS — über den DATEINAMEN (Label), nicht über den
+            // relativen Pfad: Der Ersetzungsbereich umfasst den gesamten String-Inhalt, sodass der Client den
+            // getippten Text gegen den FilterText matcht. Stünde dort der relative Pfad (z.B. "..\..\Foo\Bar.nav"),
+            // fände das Tippen eines bloßen Dateinamens ("Bar") nichts, weil das führende "..\..\" den Fuzzy-Match
+            // dominiert. Der Dateiname als FilterText findet die Datei zuverlässig allein durch ihren Namen.
+            if (item.ReplacementExtent is { } extent) {
+                lspItem.TextEdit = new Lsp.TextEdit {
+                    NewText = item.InsertText,
+                    Range   = LspMapper.ToRange(sourceText.GetLocation(extent))
+                };
+                lspItem.FilterText = item.Label;
+            } else if (item.InsertText != item.Label) {
+                lspItem.InsertText = item.InsertText;
+            }
+
+            result[i] = lspItem;
         }
 
         return result;
@@ -371,6 +403,8 @@ class NavLanguageServer {
         NavCompletionItemKind.ConnectionPoint => Lsp.CompletionItemKind.Field,
         NavCompletionItemKind.Choice          => Lsp.CompletionItemKind.EnumMember,
         NavCompletionItemKind.GuiNode         => Lsp.CompletionItemKind.Interface,
+        NavCompletionItemKind.File            => Lsp.CompletionItemKind.File,
+        NavCompletionItemKind.Folder          => Lsp.CompletionItemKind.Folder,
         _                                     => Lsp.CompletionItemKind.Variable
     };
 

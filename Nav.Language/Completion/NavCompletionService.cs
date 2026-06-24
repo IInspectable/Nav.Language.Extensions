@@ -3,11 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 
 using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
@@ -30,9 +32,16 @@ public static class NavCompletionService {
     /// an der Position nichts vorgeschlagen werden soll.
     /// </summary>
     [NotNull]
-    public static IReadOnlyList<NavCompletionItem> GetCompletions([NotNull] CodeGenerationUnit unit, int position) {
+    public static IReadOnlyList<NavCompletionItem> GetCompletions([NotNull] CodeGenerationUnit unit, int position, [CanBeNull] NavSolution solution = null) {
 
         var source = unit.Syntax.SyntaxTree.SourceText;
+
+        // Pfad-Vervollständigung läuft INNERHALB von "…" nach `taskref` — die normale Unterdrückung in
+        // Zeichenketten greift hier also bewusst nicht. Liefert null, wenn kein taskref-String-Kontext.
+        var pathItems = GetPathCompletions(source, position, solution);
+        if (pathItems != null) {
+            return pathItems;
+        }
 
         if (!ShouldProvideCompletions(unit, source, position)) {
             return Array.Empty<NavCompletionItem>();
@@ -177,6 +186,71 @@ public static class NavCompletionService {
         _                                                     => NavCompletionItemKind.Node
     };
 
+    #region Pfad-Vervollständigung (Dateiname-basiert über die Solution)
+
+    /// <summary>
+    /// Vervollständigt Dateipfade innerhalb von <c>taskref "…"</c>. Liefert <c>null</c>, wenn die Position
+    /// NICHT in einem solchen String-Kontext liegt (dann übernimmt die Nav-/Edge-Vervollständigung), sonst
+    /// die (ggf. leere) Liste aller von der Solution bekannten Nav-Files. Es wird NICHT das Dateisystem
+    /// durchsucht — die Solution kennt bereits alle <c>*.nav</c> unterhalb des Workspace-Roots. Gefiltert
+    /// wird clientseitig über den <em>Dateinamen</em> (so findet „Messageb" auch ein tief verschachteltes
+    /// „MessageBoxes.nav"); eingefügt wird der zum aktuellen Nav-File <em>relative</em> Pfad.
+    /// </summary>
+    static IReadOnlyList<NavCompletionItem> GetPathCompletions(SourceText source, int position, NavSolution solution) {
+
+        if (position < 0 || position > source.Length) {
+            return null;
+        }
+
+        var line         = source.GetTextLineAtPosition(position);
+        var lineText     = source.Substring(line.ExtentWithoutLineEndings);
+        var linePosition = position - line.Start;
+
+        if (!lineText.IsInQuotation(linePosition)) {
+            return null;
+        }
+
+        var quotedExtent = lineText.QuotedExtent(linePosition);
+        if (quotedExtent.IsMissing) {
+            return null;
+        }
+
+        var previousIdentifier = quotedExtent.Start > 0 ? lineText.GetPreviousIdentifier(quotedExtent.Start - 1) : string.Empty;
+        if (previousIdentifier != SyntaxFacts.TaskrefKeyword) {
+            return null;
+        }
+
+        var items        = new List<NavCompletionItem>();
+        var navDirectory = source.FileInfo?.Directory;
+
+        if (solution != null && navDirectory != null) {
+
+            // Der Ersetzungsbereich ist der gesamte Inhalt zwischen den Anführungszeichen (absolute Offsets).
+            var replacement   = TextExtent.FromBounds(line.Start + quotedExtent.Start, line.Start + quotedExtent.End);
+            var directoryName = navDirectory.FullName + Path.DirectorySeparatorChar;
+            var currentFile   = source.FileInfo?.FullName;
+
+            foreach (var file in solution.SolutionFiles
+                                         .Where(f => !string.Equals(f.FullName, currentFile, StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Name,     StringComparer.OrdinalIgnoreCase)
+                                         .ThenBy(f  => f.FullName, StringComparer.OrdinalIgnoreCase)) {
+
+                var relativePath = PathHelper.GetRelativePath(fromPath: directoryName, toPath: file.FullName);
+
+                items.Add(new NavCompletionItem(
+                              label: file.Name,
+                              kind: NavCompletionItemKind.File,
+                              insertText: relativePath,
+                              replacementExtent: replacement,
+                              detail: relativePath));
+            }
+        }
+
+        return items;
+    }
+
+    #endregion
+
     #region Zeilen-Helfer (faithful port der VS-TextSnaphotLineExtensions, offset-basiert)
 
     // Startindex des Identifiers, der bei position endet — zeilenbegrenzt rückwärts laufend.
@@ -204,7 +278,7 @@ public static class NavCompletionService {
 
     static char? PreviousNonWhitespaceChar(SourceText source, int lineStart, int position) {
         var index = PreviousNonWhitespace(source, lineStart, position);
-        return index.HasValue ? source[index.Value] : (char?) null;
+        return index.HasValue ? source[index.Value] : null;
     }
 
     // Der Identifier-Text, der vor position liegt (oder ""), zeilenbegrenzt.

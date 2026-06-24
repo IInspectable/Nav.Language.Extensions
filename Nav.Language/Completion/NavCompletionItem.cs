@@ -1,3 +1,5 @@
+using Pharmatechnik.Nav.Language.Text;
+
 namespace Pharmatechnik.Nav.Language.Completion;
 
 /// <summary>
@@ -6,25 +8,46 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// <see cref="NavCompletionService"/> vorgegebene Reihenfolge über ein index-basiertes <c>SortText</c>.
 /// </summary>
 public enum NavCompletionItemKind {
+
     Keyword,
     Task,
     ConnectionPoint,
     Choice,
     GuiNode,
-    Node
+    Node,
+    File,
+    Folder
+
 }
 
-/// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie).</summary>
+/// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie + optional Einfügetext/Ersetzungsbereich).</summary>
 public sealed class NavCompletionItem {
 
-    public NavCompletionItem(string label, NavCompletionItemKind kind) {
-        Label = label;
-        Kind  = kind;
+    public NavCompletionItem(string label, NavCompletionItemKind kind, string insertText = null, TextExtent? replacementExtent = null, string detail = null) {
+        Label             = label;
+        Kind              = kind;
+        InsertText        = insertText ?? label;
+        ReplacementExtent = replacementExtent;
+        Detail            = detail;
     }
 
-    /// <summary>Der einzufügende/angezeigte Text (Symbol- bzw. Keyword-Name).</summary>
+    /// <summary>Der angezeigte Text (Symbol-/Keyword-Name bzw. Datei-/Verzeichnisname).</summary>
     public string Label { get; }
 
     /// <summary>Die Kategorie des Vorschlags — bestimmt das Icon im Client.</summary>
     public NavCompletionItemKind Kind { get; }
+
+    /// <summary>Der einzufügende Text — weicht bei Pfad-Vorschlägen vom <see cref="Label"/> ab (relativer Pfad).</summary>
+    public string InsertText { get; }
+
+    /// <summary>Optionaler Zusatztext (vom Client rechts/grau dargestellt) — bei Pfad-Vorschlägen der relative Pfad.</summary>
+    public string Detail { get; }
+
+    /// <summary>
+    /// Der zu ersetzende Bereich (absolute Dokument-Offsets) — gesetzt bei Pfad-Vorschlägen, damit der
+    /// Client den gesamten Inhalt zwischen den Anführungszeichen ersetzt (statt nur das aktuelle Wort).
+    /// <c>null</c>, wenn der Client den Ersetzungsbereich selbst bestimmen soll.
+    /// </summary>
+    public TextExtent? ReplacementExtent { get; }
+
 }

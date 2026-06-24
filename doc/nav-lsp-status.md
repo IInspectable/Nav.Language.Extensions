@@ -4,11 +4,10 @@ Stand-Dokument für die Weiterarbeit am LSP-Server (Branch `feature/nav-lsp`,
 Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche Plandatei
 `C:\Users\mnhaenel\.claude\plans\mache-dir-mal-ein-enumerated-kazoo.md` (Bewertung + 3-Phasen-Fahrplan).
 
-> **Nächste Session-Aufgabe:** **Completion ausbauen** — `PathCompletionSource` (Dateipfade in
-> `taskref "…"`) als VS-freier Engine-Kern nachziehen. `NavCompletionSource` (Keywords/Knoten/
-> Connection-Points) und `EdgeCompletionSource` (Edge-Keywords) sind **erledigt**. Alternativ **Rename**
-> oder **Code Actions**.
-> **Completion (Nav+Edge)**, **Folding** (`textDocument/foldingRange`), **Hover** (`textDocument/hover`),
+> **Nächste Session-Aufgabe:** **Rename** (`textDocument/rename`) oder **Code Actions**
+> (`textDocument/codeAction`) für den LSP-Server. Die Completion ist vollständig (Nav + Edge + Path);
+> nur die C#-Code-Block-Completion (`CodeCompletionSource`) bleibt bewusst VS/Roslyn-only.
+> **Completion (Nav+Edge+Path)**, **Folding** (`textDocument/foldingRange`), **Hover** (`textDocument/hover`),
 > References/documentHighlight und GoTo Definition (Option B) sind **erledigt** — siehe unten.
 
 ---
@@ -29,9 +28,12 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 - **VS-Code-PoC:** `cd vscode-nav-lsp && npm install`, dann Ordner in VS Code öffnen → **F5**.
   **Achtung:** Solange der PoC läuft, ist die Server-DLL gesperrt → vor einem Server-Rebuild den
   Extension-Development-Host **schließen** (der LSP-Client startet den Server sonst automatisch neu).
-- **URI-Test-Fallstrick:** LSP-Clients (VS Code) prozent-kodieren den Laufwerks-Doppelpunkt
+- **URI-Test-Fallstrick:** LSP-Clients (VS Code/VS) prozent-kodieren den Laufwerks-Doppelpunkt
   (`file:///d%3A/...`). `System.Uri.LocalPath` liefert dafür einen kaputten Pfad → siehe `NavUri`.
   Node `url.pathToFileURL` kodiert das **nicht** — Test-Harnesse müssen die `%3A`-Form explizit verwenden.
+  **Jeder** URI→Pfad am Rand MUSS `NavUri.ToFilePath` nutzen, NIE `rootUri.LocalPath` direkt — sonst
+  scheitert bei der `%3A`-Form `Directory.Exists`, die Solution bleibt leer und alle solution-weiten
+  Features (Pfad-Completion, Cross-File-References) liefern nichts. War genau der Bug bei `ResolveRootPath`.
 
 ---
 
@@ -50,7 +52,12 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 - **Semantic Tokens** (`textDocument/semanticTokens/full`): reuse der Engine-`TextClassification` (`SemanticTokensBuilder`).
 - **Document Symbols** (`textDocument/documentSymbol`): Outline aus dem semantischen Modell (`DocumentSymbolBuilder`).
 - **Folding** (`textDocument/foldingRange`): rein syntaktisch aus dem `SyntaxTree` (`FoldingRangeBuilder`), analog zum VS-`OutliningTagger`, aber zeilenbasiert. Faltet using-Blöcke (≥2, Kind `imports`), zusammenhängende `taskref "file"`-Include-Läufe (≥2, `imports`), Task-Definitionen/-Deklarationen, Node- und Transition-Blöcke (`region`) sowie mehrzeilige Kommentare (`comment`). Dedup über (startLine,endLine,kind). `FoldingRangeKind` serialisiert dank `StringEnumConverter`/`EnumMember` korrekt zu `comment`/`imports`/`region`.
-- **Completion (Nav + Edge)** (`textDocument/completion`): VS-freier Engine-Kern `Nav.Language/Completion/NavCompletionService.GetCompletions(unit, offset)` → `IReadOnlyList<NavCompletionItem>` (neutraler `NavCompletionItemKind`). Vereint die VS-Quellen `NavCompletionSource` **und** `EdgeCompletionSource` (die VS getrennt mischt): nach `task ` die deklarierten Tasks, nach `knoten:` die Exit-Connection-Points, in einer Task-Definition die Knoten (unreferenzierte zuerst), die Nav-Keywords (ohne versteckte/Edge-Keywords) und — wenn vor der (angefangenen) Edge ein Whitespace/Zeilenanfang steht (`IsEdgeContext`/`GetStartOfEdge` über das Edge-Zeichen-Set) — die sichtbaren Edge-Keywords. Keine Vorschläge in Kommentaren/Strings/Code-Blöcken (`unit.Syntax.FindToken` + `StringExtensions.IsInQuotation`/`IsInTextBlock`). Zeilen-Helfer (`GetStartOfIdentifier`/`PreviousNonWhitespace`/`GetPreviousIdentifier`/`GetStartOfEdge`) als offset-basierter faithful Port der VS-`TextSnaphotLineExtensions`. Server: `textDocument/completion`-Handler + `CompletionProvider`-Capability (TriggerChars `:` und `-`); `SortText` nach Listen-Index erhält die Service-Reihenfolge (sonst sortiert der Client alphabetisch). **Noch offen:** Path-Completion (`taskref "…"`), C#-Code-Block-Completion bleibt VS/Roslyn-only. Tests: `Nav.Language.Tests/Completion/NavCompletionServiceTests.cs` (7) grün net472+net10 (Suite 647).
+- **Completion (Nav + Edge + Path)** (`textDocument/completion`): VS-freier Engine-Kern `Nav.Language/Completion/NavCompletionService.GetCompletions(unit, offset, solution?)` → `IReadOnlyList<NavCompletionItem>` (neutraler `NavCompletionItemKind`). Vereint die VS-Quellen `NavCompletionSource`, `EdgeCompletionSource` **und** `PathCompletionSource` (die VS getrennt mischt):
+  - **Nav:** nach `task ` die deklarierten Tasks, nach `knoten:` die Exit-Connection-Points, in einer Task-Definition die Knoten (unreferenzierte zuerst), die Nav-Keywords (ohne versteckte/Edge-Keywords).
+  - **Edge:** sichtbare Edge-Keywords, wenn vor der (angefangenen) Edge ein Whitespace/Zeilenanfang steht (`IsEdgeContext`/`GetStartOfEdge` über das Edge-Zeichen-Set).
+  - **Path:** innerhalb von `taskref "…"` werden **alle** der Solution bekannten Nav-Files angeboten (die Discovery globt bereits `**/*.nav` unter dem Workspace-Root — **kein** Dateisystem-Enumerieren, **keine** `..`/Verzeichnis-Navigation). **Anzeige** (`Label`) = Dateiname, **`Detail`** = relativer Pfad; gefiltert wird clientseitig über den **Dateinamen** (`FilterText` = Dateiname, wie in der VS-`PathCompletionSource`, die über die `DisplayText`/`applicableToSpan` filtert), sodass eine Datei allein durch Tippen ihres Namens gefunden wird („Messageb" → tief verschachteltes „MessageBoxes.nav"). **Bewusst nicht** über den relativen Pfad gefiltert: dessen führendes `..\\..\\` dominiert sonst den Fuzzy-Match des Clients, sodass das Tippen eines bloßen Dateinamens **nichts** findet (das war der Bug — „No suggestions" trotz vorhandener Items). Eingefügt wird der zum aktuellen Nav-File relative Pfad (`PathHelper.GetRelativePath`) per **`TextEdit`**, dessen Range den gesamten Inhalt zwischen den `"` abdeckt. Die aktuell editierte Datei wird ausgeschlossen. Läuft **vor** der Quote-Unterdrückung (Path lebt ja IN den Quotes); `null`-Rückgabe von `GetPathCompletions` heißt „kein taskref-String-Kontext" → Nav/Edge übernehmen. Item trägt `InsertText` (relativer Pfad) + `ReplacementExtent` + `Detail`, Kind `File`. **Bewusste Abweichung vom VS-Port:** die VS-`PathCompletionSource` navigiert verzeichnisweise; hier ist es eine flache Suche über die Solution (Wunsch: Datei allein per Name finden). End-to-End gegen den laufenden Server per stdio-Smoke-Test verifiziert.
+  - Keine Nav/Edge-Vorschläge in Kommentaren/Strings/Code-Blöcken (`unit.Syntax.FindToken` + `StringExtensions.IsInQuotation`/`IsInTextBlock`). Zeilen-Helfer (`GetStartOfIdentifier`/`PreviousNonWhitespace`/`GetPreviousIdentifier`/`GetStartOfEdge`) als offset-basierter faithful Port der VS-`TextSnaphotLineExtensions`.
+  - Server: `textDocument/completion`-Handler (übergibt `_workspace.Solution`) + `CompletionProvider`-Capability (TriggerChars `:` `-` `"` `/` `\`); `SortText` nach Listen-Index erhält die Reihenfolge; Path-Items bekommen einen expliziten `TextEdit` (Range = `ReplacementExtent`, NewText = relativer Pfad) statt des Default-Wortersatzes, `FilterText` = **Dateiname** (Filtern allein per Name; der relative Pfad als FilterText würde wegen des führenden `..\\..\\` jeden bloßen Dateinamen-Match verhindern), `Detail` = relativer Pfad. **Noch offen:** C#-Code-Block-Completion (`CodeCompletionSource`) bleibt VS/Roslyn-only. Tests: `Nav.Language.Tests/Completion/NavCompletionServiceTests.cs` (7) + `NavCompletionPathTests.cs` (5) grün net472+net10 (Suite 652).
 - **VS-Code-PoC** (`vscode-nav-lsp`): startet den Server per stdio, registriert Sprache `nav`.
 - Serialisierungs-Fix: Newtonsoft-Serializer camelCased unbenannte LSP-DTO-Properties (sonst PascalCase → Client verwirft z.B. die Semantic-Tokens-Legend).
 
