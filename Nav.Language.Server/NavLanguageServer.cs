@@ -10,6 +10,7 @@ using StreamJsonRpc;
 
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.References;
 using Pharmatechnik.Nav.Language.FindReferences;
@@ -60,7 +61,12 @@ class NavLanguageServer {
                 ReferencesProvider        = true,
                 DocumentHighlightProvider = true,
                 HoverProvider             = true,
-                FoldingRangeProvider      = true
+                FoldingRangeProvider      = true,
+                CompletionProvider        = new Lsp.CompletionOptions {
+                    // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points ergänzen.
+                    TriggerCharacters = new[] { ":" },
+                    ResolveProvider   = false
+                }
             }
         };
     }
@@ -327,6 +333,45 @@ class NavLanguageServer {
             ? Array.Empty<Lsp.FoldingRange>()
             : FoldingRangeBuilder.Build(syntaxTree);
     }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentCompletionName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.CompletionItem[] Completion(Lsp.CompletionParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.CompletionItem>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<Lsp.CompletionItem>();
+        }
+
+        var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var items  = NavCompletionService.GetCompletions(unit, offset);
+
+        // SortText nach Index, damit die vom Service vorgegebene Reihenfolge (unverbundene Exits /
+        // unreferenzierte Knoten zuerst) im Client erhalten bleibt — sonst sortiert dieser alphabetisch.
+        var result = new Lsp.CompletionItem[items.Count];
+        for (var i = 0; i < items.Count; i++) {
+            result[i] = new Lsp.CompletionItem {
+                Label    = items[i].Label,
+                Kind     = ToCompletionItemKind(items[i].Kind),
+                SortText = i.ToString("D4")
+            };
+        }
+
+        return result;
+    }
+
+    static Lsp.CompletionItemKind ToCompletionItemKind(NavCompletionItemKind kind) => kind switch {
+        NavCompletionItemKind.Keyword         => Lsp.CompletionItemKind.Keyword,
+        NavCompletionItemKind.Task            => Lsp.CompletionItemKind.Class,
+        NavCompletionItemKind.ConnectionPoint => Lsp.CompletionItemKind.Field,
+        NavCompletionItemKind.Choice          => Lsp.CompletionItemKind.EnumMember,
+        NavCompletionItemKind.GuiNode         => Lsp.CompletionItemKind.Interface,
+        _                                     => Lsp.CompletionItemKind.Variable
+    };
 
     [JsonRpcMethod(Lsp.Methods.ShutdownName)]
     public object? Shutdown() => null;
