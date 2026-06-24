@@ -35,6 +35,9 @@ class NavWorkspace {
 
     public int FileCount => _solution.SolutionFiles.Length;
 
+    /// <summary>Die geladene Solution (alle *.nav) — Grundlage für solution-weite Referenzsuche.</summary>
+    public NavSolution Solution => _solution;
+
     public async Task LoadAsync(string? rootPath, CancellationToken cancellationToken) {
 
         if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) {

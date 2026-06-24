@@ -1,0 +1,40 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Nav",
+    "scopeName": "source.nav",
+    "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#edges" },
+        { "include": "#keywords" }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.nav",
+                    "begin": "//",
+                    "end": "$"
+                },
+                {
+                    "name": "comment.block.nav",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double.nav",
+            "begin": "\"",
+            "end": "\""
+        },
+        "edges": {
+            "name": "keyword.operator.edge.nav",
+            "match": "-->|o->|==>"
+        },
+        "keywords": {
+            "name": "keyword.control.nav",
+            "match": "\\b(task|taskref|init|end|choice|dialog|view|exit|on|if|else|spontaneous|spont|do|result|params|base|namespaceprefix|using|code|generateto|notimplemented|abstractmethod|donotinject)\\b"
+        }
+    }
+}

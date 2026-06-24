@@ -23,7 +23,15 @@
         ],
         "extensions": [
           ".nav"
-        ]
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nav",
+        "scopeName": "source.nav",
+        "path": "./syntaxes/nav.tmLanguage.json"
       }
     ],
     "configuration": {

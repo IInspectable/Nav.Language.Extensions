@@ -4,10 +4,14 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 using StreamJsonRpc;
 
 using Pharmatechnik.Nav.Language.GoTo;
+using Pharmatechnik.Nav.Language.References;
+using Pharmatechnik.Nav.Language.FindReferences;
+using Pharmatechnik.Nav.Utilities.IO;
 
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 
@@ -49,8 +53,10 @@ class NavLanguageServer {
                     },
                     Full = true
                 },
-                DocumentSymbolProvider = true,
-                DefinitionProvider     = true
+                DocumentSymbolProvider    = true,
+                DefinitionProvider        = true,
+                ReferencesProvider        = true,
+                DocumentHighlightProvider = true
             }
         };
     }
@@ -141,6 +147,74 @@ class NavLanguageServer {
         return targets.Select(LspMapper.ToLocation)
                       .OfType<Lsp.Location>()
                       .ToArray();
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentReferencesName, UseSingleObjectParameterDeserialization = true)]
+    public async Task<Lsp.Location[]> References(Lsp.ReferenceParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.Location>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<Lsp.Location>();
+        }
+
+        var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var origin = NavReferenceService.FindSymbol(unit, offset);
+        if (origin == null) {
+            return Array.Empty<Lsp.Location>();
+        }
+
+        // Solution-weite Referenzsuche über die Engine-API; der Collector sammelt nur die Locations.
+        var includeDeclaration = param.Context?.IncludeDeclaration ?? true;
+        var collector          = new ReferenceCollector(includeDeclaration, CancellationToken.None);
+        var args               = new FindReferencesArgs(origin, unit, _workspace.Solution, collector);
+
+        await ReferenceFinder.FindReferencesAsync(args);
+
+        return collector.Locations
+                        .Select(LspMapper.ToLocation)
+                        .OfType<Lsp.Location>()
+                        .ToArray();
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentHighlightName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.DocumentHighlight[] DocumentHighlight(Lsp.TextDocumentPositionParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.DocumentHighlight>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<Lsp.DocumentHighlight>();
+        }
+
+        var offset  = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var symbols = NavReferenceService.GetHighlightSymbols(unit, offset);
+
+        // documentHighlight ist per Definition dateilokal; das erste Symbol ist die Deklaration (Write).
+        var normalizedFile = PathHelper.NormalizePath(filePath);
+        var highlights     = new List<Lsp.DocumentHighlight>();
+
+        for (var i = 0; i < symbols.Count; i++) {
+
+            var location = symbols[i].Location;
+            if (PathHelper.NormalizePath(location.FilePath) != normalizedFile) {
+                continue;
+            }
+
+            highlights.Add(new Lsp.DocumentHighlight {
+                Range = LspMapper.ToRange(location),
+                Kind  = i == 0 ? Lsp.DocumentHighlightKind.Write : Lsp.DocumentHighlightKind.Read
+            });
+        }
+
+        return highlights.ToArray();
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]

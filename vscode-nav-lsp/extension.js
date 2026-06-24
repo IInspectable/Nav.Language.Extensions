@@ -43,7 +43,6 @@ function activate(context) {
     log.appendLine(`Server-DLL: ${serverDll}`);
     log.appendLine(`DLL existiert: ${fs.existsSync(serverDll)}`);
     checkDotnet();
-    log.show(true);
 
     const serverOptions = {
         run:   { command: 'dotnet', args: [serverDll], transport: TransportKind.stdio },
@@ -53,7 +52,9 @@ function activate(context) {
     const clientOptions = {
         documentSelector: [{ scheme: 'file', language: 'nav' }],
         outputChannel: log,
-        revealOutputChannelOn: RevealOutputChannelOn.Info
+        // Das Panel NICHT automatisch in den Vordergrund holen: ein Fokuswechsel weg vom Editor
+        // löscht in VS Code die Occurrence-Highlights (documentHighlight). Kanal bei Bedarf manuell öffnen.
+        revealOutputChannelOn: RevealOutputChannelOn.Never
     };
 
     client = new LanguageClient('navLanguageServer', 'Nav Language Server', serverOptions, clientOptions);

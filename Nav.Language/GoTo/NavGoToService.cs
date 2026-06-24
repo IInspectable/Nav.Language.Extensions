@@ -5,8 +5,6 @@ using System.Linq;
 
 using JetBrains.Annotations;
 
-using Pharmatechnik.Nav.Language.Text;
-
 #endregion
 
 namespace Pharmatechnik.Nav.Language.GoTo;
@@ -28,8 +26,7 @@ public static class NavGoToService {
     [NotNull]
     public static IReadOnlyList<Location> GetGoToLocations([NotNull] CodeGenerationUnit unit, int position) {
 
-        var extent  = TextExtent.FromBounds(position, position);
-        var symbols = unit.Symbols[extent, includeOverlapping: true];
+        var symbols  = SymbolPosition.SymbolsAt(unit, position);
         var resolver = new GoToTargetResolver();
 
         var seen    = new HashSet<(string, int)>();
