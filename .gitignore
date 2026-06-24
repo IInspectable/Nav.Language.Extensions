@@ -33,6 +33,9 @@
 /Nav.Cli/bin
 /Nav.Cli/obj
 
+/Nav.Language.Server/bin
+/Nav.Language.Server/obj
+
 /Nav.Language.Tests/bin
 /Nav.Language.Tests/obj
 /Nav.Language.Tests/Regression/Tests/**/*.cs

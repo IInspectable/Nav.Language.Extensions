@@ -1,0 +1,35 @@
+#region Using Directives
+
+using System;
+using System.Threading.Tasks;
+
+using StreamJsonRpc;
+
+#endregion
+
+namespace Pharmatechnik.Nav.Language.Server;
+
+static class Program {
+
+    static async Task Main(string[] args) {
+
+        var stdin  = Console.OpenStandardInput();
+        var stdout = Console.OpenStandardOutput();
+
+        // LSP nutzt header-delimitierte JSON-RPC-Nachrichten. Die LSP-Protokoll-DTOs
+        // (Microsoft.VisualStudio.LanguageServer.Protocol) sind Newtonsoft-annotiert, daher der
+        // JsonMessageFormatter (Newtonsoft) statt des System.Text.Json-Formatters.
+#pragma warning disable CS0618 // JsonMessageFormatter ist als "wird in 3.0 entfernt" markiert.
+        var formatter = new JsonMessageFormatter();
+#pragma warning restore CS0618
+        var handler = new HeaderDelimitedMessageHandler(stdout, stdin, formatter);
+        var rpc     = new JsonRpc(handler);
+
+        var server = new NavLanguageServer(rpc);
+        rpc.AddLocalRpcTarget(server);
+
+        rpc.StartListening();
+
+        await rpc.Completion;
+    }
+}

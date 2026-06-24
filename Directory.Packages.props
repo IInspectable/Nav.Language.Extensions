@@ -38,6 +38,11 @@
 
     <PackageVersion Include="StringTemplate4" Version="4.0.8" />
 
+    <!-- ========= LSP-Server (Nav.Language.Server, .NET 10) ============== -->
+    <!-- JSON-RPC-Transport (wie von VS selbst genutzt) + LSP-Protokoll-DTOs. -->
+    <PackageVersion Include="StreamJsonRpc" Version="2.22.11" />
+    <PackageVersion Include="Microsoft.VisualStudio.LanguageServer.Protocol" Version="17.2.8" />
+
     <PackageVersion Include="FluentCommandLineParser" Version="1.4.3" />
 
     <!-- This package contains helper functionality for MSBuild extenders Achtung: Komische Versionierung!
