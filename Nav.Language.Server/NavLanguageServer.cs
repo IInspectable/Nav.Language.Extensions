@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using StreamJsonRpc;
 
 using Pharmatechnik.Nav.Language.GoTo;
+using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.References;
 using Pharmatechnik.Nav.Language.FindReferences;
@@ -238,16 +239,16 @@ class NavLanguageServer {
             return null;
         }
 
-        // Die klassifizierte Signatur als Nav-Codeblock; VS Code rendert sie monospace.
-        var signature = string.Concat(info.DisplayParts.Select(p => p.Text));
-        if (string.IsNullOrWhiteSpace(signature)) {
+        var content = BuildHoverContent(info);
+        if (content == null) {
             return null;
         }
 
         var hover = new Lsp.Hover {
+            // Die Signatur als Nav-Codeblock; VS Code rendert sie monospace.
             Contents = new Lsp.MarkupContent {
                 Kind  = Lsp.MarkupKind.Markdown,
-                Value = $"```nav\n{signature}\n```"
+                Value = $"```nav\n{content}\n```"
             }
         };
 
@@ -256,6 +257,44 @@ class NavLanguageServer {
         }
 
         return hover;
+    }
+
+    /// <summary>
+    /// Baut den Hover-Text: die Signatur des Symbols und — bei Choices/Edges — darunter die Liste der
+    /// erreichbaren Knoten (je Zeile „Verb Zielsignatur"), wie die VS-QuickInfo sie zeigt. Null, wenn
+    /// nichts Anzeigbares übrig bleibt.
+    /// </summary>
+    static string? BuildHoverContent(NavHoverInfo info) {
+
+        var signature = string.Concat(info.DisplayParts.Select(p => p.Text));
+        var hasHeader = !string.IsNullOrWhiteSpace(signature);
+
+        var sb = new System.Text.StringBuilder();
+        if (hasHeader) {
+            sb.Append(signature);
+        }
+
+        foreach (var call in info.Calls) {
+
+            var target = string.Concat(call.Node.ToDisplayParts().Select(p => p.Text));
+            if (string.IsNullOrWhiteSpace(target)) {
+                continue;
+            }
+
+            if (sb.Length > 0) {
+                sb.Append('\n');
+            }
+
+            // Unter einer Signatur (Choice) eingerückt; ohne Header (Edge-Mode) bündig.
+            if (hasHeader) {
+                sb.Append("    ");
+            }
+
+            // Das getippte Pfeil-Token (-->, o->, *->, ==>) statt des ausgeschriebenen Verbs.
+            sb.Append(call.EdgeMode.Name).Append(' ').Append(target);
+        }
+
+        return sb.Length == 0 ? null : sb.ToString();
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
