@@ -36,6 +36,10 @@
 /Nav.Language.Server/bin
 /Nav.Language.Server/obj
 
+/vscode-nav-lsp/node_modules
+/vscode-nav-lsp/*.vsix
+/vscode-nav-lsp/package-lock.json
+
 /Nav.Language.Tests/bin
 /Nav.Language.Tests/obj
 /Nav.Language.Tests/Regression/Tests/**/*.cs

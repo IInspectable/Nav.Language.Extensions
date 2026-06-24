@@ -1,0 +1,53 @@
+{
+  "name": "nav-lsp-poc",
+  "displayName": "Nav Language (LSP PoC)",
+  "description": "Proof of Concept: VS-Code-Client fuer den Nav-LSP-Server",
+  "version": "0.0.1",
+  "publisher": "pharmatechnik",
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:nav"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "nav",
+        "aliases": [
+          "Nav"
+        ],
+        "extensions": [
+          ".nav"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Nav Language Server",
+      "properties": {
+        "navLanguageServer.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absoluter Pfad zur Pharmatechnik.Nav.Language.Server.dll. Leer = Standard-Build-Ausgabe im Repo (bin/Debug/net10.0)."
+        },
+        "navLanguageServer.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "verbose",
+          "description": "LSP-Verkehr zwischen VS Code und dem Nav-Server protokollieren (Diagnose)."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
