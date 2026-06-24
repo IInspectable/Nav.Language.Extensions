@@ -17,19 +17,19 @@ static class LspMapper {
 
     public static Lsp.Diagnostic ToLsp(NavDiagnostic diagnostic) {
 
-        var location = diagnostic.Location;
-
         return new Lsp.Diagnostic {
-            Range = new Lsp.Range {
-                Start = new Lsp.Position { Line = location.StartLine, Character = location.StartCharacter },
-                End   = new Lsp.Position { Line = location.EndLine,   Character = location.EndCharacter }
-            },
+            Range    = ToRange(diagnostic.Location),
             Severity = ToLsp(diagnostic.Severity),
             Code     = diagnostic.Descriptor.Id,
             Source   = "nav",
             Message  = diagnostic.Message
         };
     }
+
+    public static Lsp.Range ToRange(Location location) => new() {
+        Start = new Lsp.Position { Line = location.StartLine, Character = location.StartCharacter },
+        End   = new Lsp.Position { Line = location.EndLine,   Character = location.EndCharacter }
+    };
 
     static Lsp.DiagnosticSeverity ToLsp(NavSeverity severity) => severity switch {
         NavSeverity.Error      => Lsp.DiagnosticSeverity.Error,

@@ -46,7 +46,8 @@ class NavLanguageServer {
                         TokenModifiers = SemanticTokensBuilder.TokenModifiers
                     },
                     Full = true
-                }
+                },
+                DocumentSymbolProvider = true
             }
         };
     }
@@ -100,6 +101,21 @@ class NavLanguageServer {
         // Overlay verwerfen — die Wahrheit liegt wieder auf Platte. Diagnostics von Platte neu berechnen.
         _workspace.Close(normalizedPath);
         return PublishDocumentAsync(uri);
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.DocumentSymbol[] DocumentSymbols(Lsp.DocumentSymbolParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.DocumentSymbol>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+
+        return unit == null
+            ? Array.Empty<Lsp.DocumentSymbol>()
+            : DocumentSymbolBuilder.Build(unit);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]

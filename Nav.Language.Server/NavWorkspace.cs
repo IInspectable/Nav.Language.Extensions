@@ -62,6 +62,11 @@ class NavWorkspace {
         return _syntaxProvider.GetSyntax(filePath, cancellationToken)?.SyntaxTree;
     }
 
+    /// <summary>Semantisches Modell eines Dokuments (overlay-bewusst) — Grundlage für Document Symbols.</summary>
+    public CodeGenerationUnit? GetCodeGenerationUnit(string filePath, CancellationToken cancellationToken) {
+        return _semanticModelProvider.GetSemanticModel(filePath, cancellationToken);
+    }
+
     /// <summary>Diagnostics für ein einzelnes Dokument (overlay-bewusst).</summary>
     public IReadOnlyList<Diagnostic> GetDiagnostics(string filePath, CancellationToken cancellationToken) {
 
