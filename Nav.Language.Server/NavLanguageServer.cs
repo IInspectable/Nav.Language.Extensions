@@ -67,7 +67,7 @@ class NavLanguageServer {
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDidOpenName, UseSingleObjectParameterDeserialization = true)]
     public Task DidOpenAsync(Lsp.DidOpenTextDocumentParams param) {
-        return PublishDiagnosticsAsync(param.TextDocument.Uri, param.TextDocument.Text);
+        return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, param.TextDocument.Text);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDidChangeName, UseSingleObjectParameterDeserialization = true)]
@@ -78,13 +78,21 @@ class NavLanguageServer {
             ? param.ContentChanges[^1].Text
             : string.Empty;
 
-        return PublishDiagnosticsAsync(param.TextDocument.Uri, text);
+        return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, text);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDidCloseName, UseSingleObjectParameterDeserialization = true)]
     public Task DidCloseAsync(Lsp.DidCloseTextDocumentParams param) {
-        // Diagnostics für das geschlossene Dokument leeren.
-        return PublishAsync(param.TextDocument.Uri, Array.Empty<Lsp.Diagnostic>());
+
+        var uri            = param.TextDocument.Uri;
+        var normalizedPath = NavUri.ToNormalizedPath(uri);
+        if (normalizedPath == null) {
+            return Task.CompletedTask;
+        }
+
+        // Overlay verwerfen — die Wahrheit liegt wieder auf Platte. Diagnostics von Platte neu berechnen.
+        _workspace.Close(normalizedPath);
+        return PublishDocumentAsync(uri);
     }
 
     [JsonRpcMethod(Lsp.Methods.ShutdownName)]
@@ -95,10 +103,25 @@ class NavLanguageServer {
         Environment.Exit(0);
     }
 
-    Task PublishDiagnosticsAsync(Uri uri, string text) {
+    Task UpdateOverlayAndPublishAsync(Uri uri, string text) {
 
-        var filePath       = uri.IsFile ? uri.LocalPath : uri.ToString();
-        var navDiagnostics = DiagnosticsComputer.Compute(filePath, text, CancellationToken.None);
+        var normalizedPath = NavUri.ToNormalizedPath(uri);
+        if (normalizedPath == null) {
+            return Task.CompletedTask;
+        }
+
+        _workspace.OpenOrUpdate(normalizedPath, text);
+        return PublishDocumentAsync(uri);
+    }
+
+    Task PublishDocumentAsync(Uri uri) {
+
+        var filePath = NavUri.ToFilePath(uri);
+        if (filePath == null) {
+            return Task.CompletedTask;
+        }
+
+        var navDiagnostics = _workspace.GetDiagnostics(filePath, CancellationToken.None);
         var lspDiagnostics = navDiagnostics.Select(LspMapper.ToLsp).ToArray();
 
         return PublishAsync(uri, lspDiagnostics);

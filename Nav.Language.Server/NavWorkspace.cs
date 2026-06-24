@@ -1,6 +1,7 @@
 #region Using Directives
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,14 +16,22 @@ using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 namespace Pharmatechnik.Nav.Language.Server;
 
 /// <summary>
-/// Hält den aktuellen Nav-Workspace (alle *.nav-Dateien unterhalb der rootUri) und veröffentlicht
-/// Diagnostics für sämtliche Dateien. Cross-File-Auflösung samt Caching liefert der
-/// <see cref="CachedSyntaxProvider"/> der <see cref="NavSolution"/>. Das Overlay-Modell
-/// (offenes Dokument schlägt Platte) folgt in Milestone 2.3.
+/// Hält den Nav-Workspace (alle *.nav unterhalb der rootUri) samt Overlay für offene Dokumente.
+/// Ein einziger <see cref="OverlaySyntaxProvider"/> versorgt sowohl den Workspace-Scan als auch die
+/// Diagnostics offener Dokumente — dadurch wirken ungespeicherte Edits korrekt auch auf
+/// Cross-File-Diagnostics ("offenes Dokument schlägt Platte").
 /// </summary>
 class NavWorkspace {
 
+    readonly OverlaySyntaxProvider  _syntaxProvider;
+    readonly ISemanticModelProvider _semanticModelProvider;
+
     NavSolution _solution = NavSolution.Empty;
+
+    public NavWorkspace() {
+        _syntaxProvider        = new OverlaySyntaxProvider();
+        _semanticModelProvider = new SemanticModelProvider(_syntaxProvider);
+    }
 
     public int FileCount => _solution.SolutionFiles.Length;
 
@@ -33,9 +42,32 @@ class NavWorkspace {
             return;
         }
 
-        _solution = await NavSolution.FromDirectoryAsync(new DirectoryInfo(rootPath), cancellationToken);
+        var directory = new DirectoryInfo(rootPath);
+
+        // Dateiliste über die Standard-Discovery ermitteln, dann die Solution mit unserem
+        // Overlay-Provider neu aufsetzen, damit Scan und offene Dokumente denselben Cache teilen.
+        var discovered = await NavSolution.FromDirectoryAsync(directory, cancellationToken);
+
+        _solution = new NavSolution(directory, discovered.SolutionFiles, _syntaxProvider, _semanticModelProvider);
     }
 
+    /// <summary>Öffnet/aktualisiert ein Dokument im Overlay (Schlüssel = normalisierter Pfad).</summary>
+    public void OpenOrUpdate(string normalizedPath, string text) => _syntaxProvider.SetOverlay(normalizedPath, text);
+
+    /// <summary>Schließt ein Dokument — die Wahrheit liegt wieder auf Platte.</summary>
+    public void Close(string normalizedPath) => _syntaxProvider.RemoveOverlay(normalizedPath);
+
+    /// <summary>Diagnostics für ein einzelnes Dokument (overlay-bewusst).</summary>
+    public IReadOnlyList<Diagnostic> GetDiagnostics(string filePath, CancellationToken cancellationToken) {
+
+        var unit = _semanticModelProvider.GetSemanticModel(filePath, cancellationToken);
+
+        return unit == null
+            ? Array.Empty<Diagnostic>()
+            : DiagnosticsComputer.FromUnit(unit, filePath);
+    }
+
+    /// <summary>Publiziert Diagnostics für sämtliche Workspace-Dateien.</summary>
     public Task PublishAllDiagnosticsAsync(Func<Uri, Lsp.Diagnostic[], Task> publishAsync, CancellationToken cancellationToken) {
 
         return _solution.ProcessCodeGenerationUnitsAsync(
