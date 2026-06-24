@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using StreamJsonRpc;
 
 using Pharmatechnik.Nav.Language.GoTo;
+using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.References;
 using Pharmatechnik.Nav.Language.FindReferences;
 using Pharmatechnik.Nav.Utilities.IO;
@@ -56,7 +57,8 @@ class NavLanguageServer {
                 DocumentSymbolProvider    = true,
                 DefinitionProvider        = true,
                 ReferencesProvider        = true,
-                DocumentHighlightProvider = true
+                DocumentHighlightProvider = true,
+                HoverProvider             = true
             }
         };
     }
@@ -215,6 +217,45 @@ class NavLanguageServer {
         }
 
         return highlights.ToArray();
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentHoverName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.Hover? Hover(Lsp.TextDocumentPositionParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return null;
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return null;
+        }
+
+        var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var info   = NavHoverService.GetHover(unit, offset);
+        if (info == null) {
+            return null;
+        }
+
+        // Die klassifizierte Signatur als Nav-Codeblock; VS Code rendert sie monospace.
+        var signature = string.Concat(info.DisplayParts.Select(p => p.Text));
+        if (string.IsNullOrWhiteSpace(signature)) {
+            return null;
+        }
+
+        var hover = new Lsp.Hover {
+            Contents = new Lsp.MarkupContent {
+                Kind  = Lsp.MarkupKind.Markdown,
+                Value = $"```nav\n{signature}\n```"
+            }
+        };
+
+        if (info.Location != null) {
+            hover.Range = LspMapper.ToRange(info.Location);
+        }
+
+        return hover;
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
