@@ -37,6 +37,7 @@
 /Nav.Language.Server/obj
 
 /vscode-nav-lsp/node_modules
+/vscode-nav-lsp/server
 /vscode-nav-lsp/*.vsix
 /vscode-nav-lsp/package-lock.json
 

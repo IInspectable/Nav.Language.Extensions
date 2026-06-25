@@ -1,0 +1,17 @@
+# Steuert, was in das VSIX wandert. node_modules (vscode-languageclient) und server/ MÜSSEN drin bleiben —
+# die Extension wird NICHT gebündelt/getreeshakt und der Server ist eingebettet.
+
+.vscode/**
+.gitignore
+.vscodeignore
+package-lock.json
+**/*.map
+**/.eslintrc.*
+
+# node_modules schlanker machen (Laufzeit-Code bleibt, nur Ballast raus):
+node_modules/**/test/**
+node_modules/**/tests/**
+node_modules/**/example/**
+node_modules/**/examples/**
+node_modules/**/*.md
+node_modules/**/.bin/**

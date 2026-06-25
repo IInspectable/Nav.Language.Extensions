@@ -1,7 +1,7 @@
-# Nav Language — VS-Code-LSP-PoC
+# Nav Language — VS-Code-Client
 
-Minimaler VS-Code-Client, der den Nav-LSP-Server (`Pharmatechnik.Nav.Language.Server`)
-über stdio startet und `.nav`-Dateien mit Diagnostics versorgt.
+VS-Code-Client, der den Nav-LSP-Server (`nav.lsp`) über stdio startet und `.nav`-Dateien mit
+Diagnostics, Hover, Completion, GoTo/References, Rename, Code Actions u. a. versorgt.
 
 ## Voraussetzungen
 
@@ -39,8 +39,21 @@ Minimaler VS-Code-Client, der den Nav-LSP-Server (`Pharmatechnik.Nav.Language.Se
 
 - `navLanguageServer.serverPath`: Pfad zum Server. Endung `.exe` → wird direkt gestartet
   (z. B. der self-contained `nav.lsp.exe`); Endung `.dll` → wird via `dotnet <dll>` gestartet.
-  Leer = Auto-Erkennung: zuerst `../deploy/lsp/nav.lsp.exe` (self-contained Publish), sonst der
-  Debug-Build `../Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
+  Leer = Auto-Erkennung: zuerst der eingebettete `server/nav.lsp.exe` (paketiertes VSIX), dann
+  `../deploy/lsp/nav.lsp.exe` (Repo, self-contained Publish), sonst der Debug-Build
+  `../Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
+
+## Paketieren & Installieren (VSIX)
+
+`Package-VsCode.bat` (Repo-Root) erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**:
+es baut den Server (`Publish-Lsp.bat`), bettet `nav.lsp.exe` als `vscode-nav-lsp/server/nav.lsp.exe`
+in die Extension ein und paketiert plattform-spezifisch via `npx @vscode/vsce package --target win32-x64`.
+
+Ergebnis: `deploy\vscode\nav-language-1.0.0-win32-x64.vsix` (~40 MB, bringt Server + .NET-Runtime mit —
+kein separates `dotnet`, keine Pfad-Konfiguration nötig). Voraussetzung: **Node/npm im PATH**.
+
+Installieren in VS Code: **Extensions ▸ … ▸ „Install from VSIX…"** → die obige Datei wählen. Danach eine
+`.nav`-Datei öffnen; der Server startet aus dem eingebetteten `server/nav.lsp.exe`.
 
 ## Deployment (self-contained)
 

@@ -1,9 +1,13 @@
 {
-  "name": "nav-lsp-poc",
-  "displayName": "Nav Language (LSP PoC)",
-  "description": "Proof of Concept: VS-Code-Client fuer den Nav-LSP-Server",
-  "version": "0.0.1",
+  "name": "nav-language",
+  "displayName": "Nav Language",
+  "description": "VS-Code-Client für den Nav-LSP-Server",
+  "version": "1.0.0",
   "publisher": "pharmatechnik",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pharmatechnik/Nav.Language.Extensions.git"
+  },
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -40,7 +44,7 @@
         "navLanguageServer.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Pfad zum Nav-LSP-Server. Endung .exe → wird direkt gestartet (z. B. der self-contained Publish nav.lsp.exe); Endung .dll → wird via 'dotnet <dll>' gestartet. Leer = Auto-Erkennung: zuerst deploy/lsp/nav.lsp.exe (self-contained Publish), sonst der Debug-Build Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll via dotnet."
+          "description": "Pfad zum Nav-LSP-Server. Endung .exe → wird direkt gestartet (z. B. der self-contained Publish nav.lsp.exe); Endung .dll → wird via 'dotnet <dll>' gestartet. Leer = Auto-Erkennung: zuerst der in die Extension eingebettete server/nav.lsp.exe (paketiertes VSIX), dann deploy/lsp/nav.lsp.exe (Repo, self-contained Publish), sonst der Debug-Build Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll via dotnet."
         },
         "navLanguageServer.trace.server": {
           "type": "string",

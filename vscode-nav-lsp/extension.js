@@ -23,7 +23,14 @@ function resolveServer() {
         return { command: p, args: [], target: p };
     }
 
-    // Die Extension liegt als Schwesterordner von Nav.Language.Server / deploy.
+    // Standard 0 (paketiert): in die Extension eingebetteter Server (server\nav.lsp.exe neben extension.js).
+    // Greift im installierten VSIX, wo es KEINEN Schwesterordner deploy\lsp gibt — direkt starten.
+    const bundledExe = path.join(__dirname, 'server', 'nav.lsp.exe');
+    if (fs.existsSync(bundledExe)) {
+        return { command: bundledExe, args: [], target: bundledExe };
+    }
+
+    // Die Extension liegt im Repo als Schwesterordner von Nav.Language.Server / deploy (F5-Dev).
     // Standard 1: self-contained Publish (deploy\lsp\nav.lsp.exe) — direkt starten, kein 'dotnet' nötig.
     const publishedExe = path.join(__dirname, '..', 'deploy', 'lsp', 'nav.lsp.exe');
     if (fs.existsSync(publishedExe)) {
