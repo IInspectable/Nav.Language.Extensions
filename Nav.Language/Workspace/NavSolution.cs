@@ -38,7 +38,17 @@ public class NavSolution {
 
     public static NavSolution Empty = new(null, ImmutableArray<FileInfo>.Empty);
 
-    public static string SearchFilter => "*.nav";
+    public const string FileExtension = ".nav";
+
+    public static string SearchFilter => "*" + FileExtension;
+
+    /// <summary>
+    /// Prüft die EXAKTE Dateiendung <c>.nav</c>. Nötig, weil Windows-<see cref="Directory.EnumerateFiles(string,string)"/>
+    /// bei einem 3-Zeichen-Suchmuster wie <c>*.nav</c> aus Alt-8.3-Gründen AUCH Dateien mit längerer, gleich
+    /// beginnender Endung liefert (z.B. <c>.navignore</c>) — die dürfen nicht als Nav-Datei behandelt werden.
+    /// </summary>
+    public static bool HasNavExtension(string path) =>
+        string.Equals(Path.GetExtension(path), FileExtension, StringComparison.OrdinalIgnoreCase);
 
     public static Task<NavSolution> FromDirectoryAsync(DirectoryInfo directory, CancellationToken cancellationToken) {
 
@@ -54,6 +64,11 @@ public class NavSolution {
 
             if (cancellationToken.IsCancellationRequested) {
                 return Task.FromResult(Empty);
+            }
+
+            // Windows *.nav matcht auch .navignore & Co. (3-Zeichen-Endung) — exakt filtern.
+            if (!HasNavExtension(file)) {
+                continue;
             }
 
             var fileInfo = new FileInfo(file);
@@ -92,9 +107,14 @@ public class NavSolution {
             //    dass hier bereits erste Treffer ermittelt werden.
             if (navDir != null) {
 
-                foreach (var fileName in Directory.EnumerateFiles(navDir.FullName, "*.nav")) {
+                foreach (var fileName in Directory.EnumerateFiles(navDir.FullName, SearchFilter)) {
 
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    // s. HasNavExtension: *.nav matcht unter Windows auch .navignore & Co.
+                    if (!HasNavExtension(fileName)) {
+                        continue;
+                    }
 
                     await ProcessFile(fileName);
                 }

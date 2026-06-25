@@ -21,7 +21,8 @@ sealed class SyntaxAnalyzerProgram {
         var logger   = new ConsoleLogger(fullPaths: cl.FullPaths, noWarnings: cl.NoWarnings, verbose: cl.Verbose);
         var pipeline = new SyntaxAnalyzerPipeline(logger, syntaxProviderFactory);
 
-        var navFiles  = Directory.EnumerateFiles(cl.Directory, "*.nav", SearchOption.AllDirectories);
+        var navFiles  = Directory.EnumerateFiles(cl.Directory, NavSolution.SearchFilter, SearchOption.AllDirectories)
+                                 .Where(NavSolution.HasNavExtension); // *.nav matcht unter Windows auch .navignore & Co.
         var fileSpecs = navFiles.Select(file => new FileSpec(identity: PathHelper.GetRelativePath(cl.Directory, file), fileName: file));
         var analyzer  = new CodeNotImplementedAnalyzer(cl.Pattern);
 

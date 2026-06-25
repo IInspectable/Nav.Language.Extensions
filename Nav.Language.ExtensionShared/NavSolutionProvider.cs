@@ -173,8 +173,13 @@ partial class NavSolutionProvider {
                 return NavSolutionSnapshot.Empty;
             }
 
+            // Windows *.nav matcht auch .navignore & Co. (3-Zeichen-Endung) — exakt filtern.
+            if (!NavSolution.HasNavExtension(file)) {
+                continue;
+            }
+
             var fileInfo = new FileInfo(file);
-                    
+
             itemBuilder.Add(fileInfo);
 
         }

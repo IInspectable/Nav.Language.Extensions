@@ -90,7 +90,12 @@ class NavCodeGenerator {
 
             var ignore = NavIgnore.Load(cl.Directory);
 
-            foreach (var file in Directory.EnumerateFiles(cl.Directory, "*.nav", SearchOption.AllDirectories)) {
+            foreach (var file in Directory.EnumerateFiles(cl.Directory, NavSolution.SearchFilter, SearchOption.AllDirectories)) {
+
+                // Windows *.nav matcht auch .navignore & Co. (3-Zeichen-Endung) — exakt filtern.
+                if (!NavSolution.HasNavExtension(file)) {
+                    continue;
+                }
 
                 if (ignore.IsIgnored(file)) {
                     logger.LogVerbose($"Übersprungen (.navignore): {file}");
