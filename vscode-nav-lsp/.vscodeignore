@@ -4,6 +4,7 @@
 .vscode/**
 .gitignore
 .vscodeignore
+Development.md
 package-lock.json
 **/*.map
 **/.eslintrc.*
