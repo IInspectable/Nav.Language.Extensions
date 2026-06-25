@@ -1,0 +1,28 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="Build.bat" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+    <File Path="Version.props" />
+    <File Path="_build/GobalAssemblyInfo.cs" />
+    <File Path="_build/WriteThisAssemblyFile.targets" />
+  </Folder>
+  <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
+  <Project Path="Nav.Cli/Nav.Cli.csproj" />
+  <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
+  <Project Path="Nav.Language.CodeAnalysis/Nav.Language.CodeAnalysis.csproj" />
+  <Project Path="Nav.Language.Extension.Tests/Nav.Language.Extension.Tests.csproj" />
+  <Project Path="Nav.Language.Extension2026/Nav.Language.Extension2026.csproj" Id="f9bd82fb-2abb-41b6-afa0-24013754a9c8" />
+  <Project Path="Nav.Language.ExtensionShared/Nav.Language.ExtensionShared.shproj" />
+  <Project Path="Nav.Language.Lsp/Nav.Language.Lsp.csproj" />
+  <Project Path="Nav.Language.Mcp/Nav.Language.Mcp.csproj" />
+  <Project Path="Nav.Language.Tests/Nav.Language.Tests.csproj" />
+  <Project Path="Nav.Language/Nav.Language.csproj" />
+  <Project Path="Nav.Utilities/Nav.Utilities.csproj" />
+</Solution>

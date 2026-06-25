@@ -17,7 +17,7 @@ if not defined msbuild (
     exit /b 1
 )
 
-"%msbuild%" Nav.Language.Extensions.sln -t:restore -m
-"%msbuild%" Nav.Language.Extensions.sln -p:Configuration="%config%" -v:n -m
+"%msbuild%" Nav.Language.Extensions.slnx -t:restore -m
+"%msbuild%" Nav.Language.Extensions.slnx -p:Configuration="%config%" -v:n -m
 
 endlocal
