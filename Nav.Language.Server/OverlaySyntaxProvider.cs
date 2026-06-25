@@ -1,6 +1,7 @@
 #region Using Directives
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 
@@ -61,7 +62,19 @@ class OverlaySyntaxProvider: ISyntaxProvider {
         _cache.TryRemove(normalizedPath, out _);
     }
 
+    /// <summary>
+    /// Invalidiert NUR den (Platten-)Syntax-Cache einer Datei — ohne das Overlay anzutasten. Für externe
+    /// Datei-Änderungen (<c>workspace/didChangeWatchedFiles</c>): der nächste <see cref="GetSyntax"/> liest
+    /// die Datei frisch von Platte (bzw. liefert <c>null</c>, falls sie gelöscht wurde).
+    /// </summary>
+    public void InvalidateCache(string normalizedPath) {
+        _cache.TryRemove(normalizedPath, out _);
+    }
+
     public bool IsOpen(string normalizedPath) => _overlay.ContainsKey(normalizedPath);
+
+    /// <summary>Die normalisierten Pfade aller aktuell offenen Dokumente (Overlay-Schlüssel).</summary>
+    public IEnumerable<string> OpenDocuments => _overlay.Keys;
 
     public void Dispose() { }
 }

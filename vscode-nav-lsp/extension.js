@@ -85,7 +85,12 @@ function activate(context) {
         outputChannel: log,
         // Das Panel NICHT automatisch in den Vordergrund holen: ein Fokuswechsel weg vom Editor
         // löscht in VS Code die Occurrence-Highlights (documentHighlight). Kanal bei Bedarf manuell öffnen.
-        revealOutputChannelOn: RevealOutputChannelOn.Never
+        revealOutputChannelOn: RevealOutputChannelOn.Never,
+        synchronize: {
+            // Externe Änderungen an *.nav-Dateien (auch geschlossenen) an den Server melden
+            // (workspace/didChangeWatchedFiles) — damit inkludierende Dateien neu diagnostiziert werden.
+            fileEvents: workspace.createFileSystemWatcher('**/*.nav')
+        }
     };
 
     client = new LanguageClient('navLanguageServer', 'Nav Language Server', serverOptions, clientOptions);

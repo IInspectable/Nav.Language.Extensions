@@ -147,6 +147,58 @@ class NavLanguageServer {
         return PublishDocumentAndDependentsAsync(uri);
     }
 
+    [JsonRpcMethod(Lsp.Methods.WorkspaceDidChangeWatchedFilesName, UseSingleObjectParameterDeserialization = true)]
+    public async Task DidChangeWatchedFilesAsync(Lsp.DidChangeWatchedFilesParams param) {
+
+        if (param.Changes == null) {
+            return;
+        }
+
+        var anyCreated = false;
+
+        foreach (var change in param.Changes) {
+
+            var uri            = change.Uri;
+            var normalizedPath = NavUri.ToNormalizedPath(uri);
+            var filePath       = NavUri.ToFilePath(uri);
+            if (normalizedPath == null || filePath == null) {
+                continue;
+            }
+
+            // Offene Dokumente: das Overlay schlägt die Platte (LSP-Prinzip). Den Disk-Event ignorieren —
+            // beim Schließen (didClose) wird ohnehin von Platte neu gelesen.
+            if (_workspace.IsOpen(normalizedPath)) {
+                continue;
+            }
+
+            // Der gecachte Platten-Syntax ist nun veraltet → invalidieren, damit frisch gelesen wird.
+            _workspace.InvalidateDiskCache(normalizedPath);
+
+            switch (change.FileChangeType) {
+                case Lsp.FileChangeType.Created:
+                    _workspace.AddSolutionFile(filePath);
+                    anyCreated = true;
+                    break;
+                case Lsp.FileChangeType.Deleted:
+                    _workspace.RemoveSolutionFile(normalizedPath);
+                    break;
+            }
+
+            // Die geänderte/gelöschte Datei selbst neu diagnostizieren (gelöscht → leere Diagnostics =
+            // löscht die Anzeige beim Client) und die (transitiv) inkludierenden Dateien gleich mit.
+            await PublishDocumentAsync(uri);
+            await _workspace.PublishDependentsAsync(filePath, PublishAsync, CancellationToken.None);
+        }
+
+        // Neu angelegte Dateien können von Dateien inkludiert werden, deren bisher fehlgeschlagene
+        // taskref-Direktive KEINE Graph-Kante hinterlassen hat (unaufgelöste Includes werden nicht
+        // verzeichnet). Solche Inkludierer findet der Abhängigkeitsgraph nicht — daher beim Anlegen einmalig
+        // (gebündelt für den ganzen Batch) die gesamte Solution neu diagnostizieren.
+        if (anyCreated) {
+            await _workspace.PublishAllDiagnosticsAsync(PublishAsync, CancellationToken.None);
+        }
+    }
+
     [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
     public Lsp.DocumentSymbol[] DocumentSymbols(Lsp.DocumentSymbolParams param) {
 

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -65,6 +66,59 @@ class NavWorkspace {
 
     /// <summary>Schließt ein Dokument — die Wahrheit liegt wieder auf Platte.</summary>
     public void Close(string normalizedPath) => _syntaxProvider.RemoveOverlay(normalizedPath);
+
+    /// <summary>Ist das Dokument aktuell offen (Overlay vorhanden)? Dann schlägt das Overlay die Platte.</summary>
+    public bool IsOpen(string normalizedPath) => _syntaxProvider.IsOpen(normalizedPath);
+
+    /// <summary>
+    /// Invalidiert den Platten-Syntax-Cache einer extern geänderten Datei (das Overlay bleibt unberührt) —
+    /// der nächste Zugriff liest sie frisch von Platte.
+    /// </summary>
+    public void InvalidateDiskCache(string normalizedPath) => _syntaxProvider.InvalidateCache(normalizedPath);
+
+    /// <summary>
+    /// Nimmt eine neu angelegte Datei in die Solution auf (damit sie an solution-weiten Features teilnimmt).
+    /// Re-globt NICHT, sondern erweitert die bestehende Dateiliste; ohne Workspace-Root passiert nichts.
+    /// </summary>
+    public void AddSolutionFile(string filePath) {
+
+        if (_solution.SolutionDirectory == null) {
+            return;
+        }
+
+        var normalized = PathHelper.NormalizePath(filePath);
+        if (normalized == null) {
+            return;
+        }
+
+        if (_solution.SolutionFiles.Any(f => string.Equals(PathHelper.NormalizePath(f.FullName), normalized, StringComparison.OrdinalIgnoreCase))) {
+            return; // schon bekannt
+        }
+
+        var files = _solution.SolutionFiles.Add(new FileInfo(filePath));
+        _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
+    }
+
+    /// <summary>
+    /// Entfernt eine gelöschte Datei aus der Solution und aus dem Abhängigkeitsgraphen. Kanten ANDERER Dateien,
+    /// die sie inkludierten, bleiben erhalten (werden beim Neudiagnostizieren der Inkludierer aufgefrischt).
+    /// </summary>
+    public void RemoveSolutionFile(string normalizedPath) {
+
+        _dependencies.Remove(normalizedPath);
+
+        if (_solution.SolutionDirectory == null) {
+            return;
+        }
+
+        var files = _solution.SolutionFiles
+                             .Where(f => !string.Equals(PathHelper.NormalizePath(f.FullName), normalizedPath, StringComparison.OrdinalIgnoreCase))
+                             .ToImmutableArray();
+
+        if (files.Length != _solution.SolutionFiles.Length) {
+            _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
+        }
+    }
 
     /// <summary>Syntaxbaum eines Dokuments (overlay-bewusst) — Grundlage für Semantic Tokens.</summary>
     public SyntaxTree? GetSyntaxTree(string filePath, CancellationToken cancellationToken) {

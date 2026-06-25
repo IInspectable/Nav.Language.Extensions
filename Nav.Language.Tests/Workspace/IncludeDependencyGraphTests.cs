@@ -89,6 +89,21 @@ public class IncludeDependencyGraphTests {
     }
 
     [Test]
+    public void Remove_DropsOwnEdges_ButKeepsEdgesPointingToFile() {
+
+        var graph = new IncludeDependencyGraph();
+        graph.SetIncludes(B, new[] { A }); // b -> a
+        graph.SetIncludes(C, new[] { B }); // c -> b
+
+        graph.Remove(B); // b gelöscht: b's eigene Kante (b->a) fällt weg, c->b bleibt
+
+        // a wird nicht mehr von b inkludiert (Kante weg) → keine Abhängigen mehr.
+        Assert.That(graph.GetDependentsClosure(A), Is.Empty);
+        // b wird weiterhin von c inkludiert → c bleibt Abhängiger von b.
+        Assert.That(graph.GetDependentsClosure(B), Is.EquivalentTo(new[] { Key(C) }));
+    }
+
+    [Test]
     public void SetIncludes_ReplacesPreviousEdges() {
 
         var graph = new IncludeDependencyGraph();

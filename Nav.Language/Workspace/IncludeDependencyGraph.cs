@@ -54,6 +54,19 @@ public sealed class IncludeDependencyGraph {
     }
 
     /// <summary>
+    /// Entfernt die Vorwärtskanten einer Datei (z.B. wenn die Datei gelöscht wurde). Kanten ANDERER Dateien,
+    /// die auf <paramref name="filePath"/> zeigen, bleiben erhalten — sie werden aufgefrischt, sobald die
+    /// jeweils inkludierende Datei neu berechnet wird.
+    /// </summary>
+    public void Remove(string filePath) {
+
+        var key = PathHelper.NormalizePath(filePath);
+        if (key != null) {
+            _includes.TryRemove(key, out _);
+        }
+    }
+
+    /// <summary>
     /// Liefert alle Dateien, die <paramref name="filePath"/> transitiv inkludieren (ohne die Datei selbst).
     /// Reverse-BFS über eine Momentaufnahme der Vorwärtskanten; Zyklen sind über das visited-Set abgefangen.
     /// </summary>
