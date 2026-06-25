@@ -4,21 +4,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Liefert die LSP-relevanten Nav-Diagnostics eines Dokuments aus einem bereits gebauten semantischen
-/// Modell: Syntaxfehler (Lexer/Parser) plus die semantischen Analyzer-Diagnostics, gefiltert auf das
-/// betreffende Dokument und stabil sortiert.
+/// Liefert die relevanten Nav-Diagnostics eines Dokuments aus einem bereits gebauten semantischen Modell:
+/// Syntaxfehler (Lexer/Parser) plus die semantischen Analyzer-Diagnostics, gefiltert auf das betreffende
+/// Dokument und stabil sortiert. VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Schale.
 /// </summary>
-static class DiagnosticsComputer {
+public static class DiagnosticsComputer {
 
-    public static IReadOnlyList<Diagnostic> FromUnit(CodeGenerationUnit unit, string? filePath) {
+    public static IReadOnlyList<Diagnostic> FromUnit(CodeGenerationUnit unit, string filePath) {
 
         var diagnostics = unit.Syntax.SyntaxTree.Diagnostics.Concat(unit.Diagnostics);
 
@@ -31,7 +30,7 @@ static class DiagnosticsComputer {
               .ToList();
     }
 
-    static bool BelongsToDocument(Diagnostic diagnostic, string? normalizedPath) {
+    static bool BelongsToDocument(Diagnostic diagnostic, string normalizedPath) {
 
         var locationPath = diagnostic.Location.NormalizedFilePath;
 

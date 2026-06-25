@@ -2,13 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Pharmatechnik.Nav.Utilities.IO;
 
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 
@@ -17,15 +14,13 @@ using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
 namespace Pharmatechnik.Nav.Language.Server;
 
 /// <summary>
-/// Hält den Nav-Workspace (alle *.nav unterhalb der rootUri) samt Overlay für offene Dokumente.
-/// Ein einziger <see cref="OverlaySyntaxProvider"/> versorgt sowohl den Workspace-Scan als auch die
-/// Diagnostics offener Dokumente — dadurch wirken ungespeicherte Edits korrekt auch auf
-/// Cross-File-Diagnostics ("offenes Dokument schlägt Platte").
+/// LSP-Schale über dem gemeinsamen <see cref="NavWorkspaceCore"/> (Solution + Overlay + Diagnostics). Ergänzt
+/// die LSP-spezifischen Belange, die der Kern bewusst NICHT kennt: das Push-Modell (<c>publishDiagnostics</c>),
+/// die dependency-aware Re-Diagnose über den <see cref="IncludeDependencyGraph"/> und die <c>.navignore</c>-Stummschaltung.
 /// </summary>
 class NavWorkspace {
 
-    readonly OverlaySyntaxProvider  _syntaxProvider;
-    readonly ISemanticModelProvider _semanticModelProvider;
+    readonly NavWorkspaceCore _core = new();
 
     // Include-Abhängigkeiten (Inkludierer → inkludierte Dateien) für die dependency-aware Re-Diagnose.
     // Beim Solution-Scan (PublishAllDiagnosticsAsync) komplett befüllt und bei jeder Unit-Berechnung
@@ -36,33 +31,18 @@ class NavWorkspace {
     // auflösbar und navigierbar), publizieren aber keine Diagnostics (leeres Array → löscht ggf. Angezeigtes).
     NavIgnore _ignore = NavIgnore.Empty;
 
-    NavSolution _solution = NavSolution.Empty;
-
-    public NavWorkspace() {
-        _syntaxProvider        = new OverlaySyntaxProvider();
-        _semanticModelProvider = new SemanticModelProvider(_syntaxProvider);
-    }
-
-    public int FileCount => _solution.SolutionFiles.Length;
+    public int FileCount => _core.FileCount;
 
     /// <summary>Die geladene Solution (alle *.nav) — Grundlage für solution-weite Referenzsuche.</summary>
-    public NavSolution Solution => _solution;
+    public NavSolution Solution => _core.Solution;
 
     public async Task LoadAsync(string? rootPath, CancellationToken cancellationToken) {
 
-        if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) {
-            _solution = NavSolution.Empty;
-            return;
-        }
+        await _core.LoadAsync(rootPath, cancellationToken);
 
-        var directory = new DirectoryInfo(rootPath);
-
-        // Dateiliste über die Standard-Discovery ermitteln, dann die Solution mit unserem
-        // Overlay-Provider neu aufsetzen, damit Scan und offene Dokumente denselben Cache teilen.
-        var discovered = await NavSolution.FromDirectoryAsync(directory, cancellationToken);
-
-        _solution = new NavSolution(directory, discovered.SolutionFiles, _syntaxProvider, _semanticModelProvider);
-        _ignore   = NavIgnore.Load(rootPath);
+        _ignore = _core.SolutionDirectory == null
+            ? NavIgnore.Empty
+            : NavIgnore.Load(_core.SolutionDirectory.FullName);
     }
 
     /// <summary>Ist die Datei durch eine <c>.navignore</c>-Regel von Diagnostics ausgenommen?</summary>
@@ -73,88 +53,54 @@ class NavWorkspace {
     /// Solution-Dateiliste bleibt unberührt; nur das Ignore-Urteil ändert sich.
     /// </summary>
     public void ReloadIgnore() {
-
-        if (_solution.SolutionDirectory == null) {
-            _ignore = NavIgnore.Empty;
-            return;
-        }
-
-        _ignore = NavIgnore.Load(_solution.SolutionDirectory.FullName);
+        _ignore = _core.SolutionDirectory == null
+            ? NavIgnore.Empty
+            : NavIgnore.Load(_core.SolutionDirectory.FullName);
     }
 
     /// <summary>Öffnet/aktualisiert ein Dokument im Overlay (Schlüssel = normalisierter Pfad).</summary>
-    public void OpenOrUpdate(string normalizedPath, string text) => _syntaxProvider.SetOverlay(normalizedPath, text);
+    public void OpenOrUpdate(string normalizedPath, string text) => _core.OpenOrUpdate(normalizedPath, text);
 
     /// <summary>Schließt ein Dokument — die Wahrheit liegt wieder auf Platte.</summary>
-    public void Close(string normalizedPath) => _syntaxProvider.RemoveOverlay(normalizedPath);
+    public void Close(string normalizedPath) => _core.Close(normalizedPath);
 
     /// <summary>Ist das Dokument aktuell offen (Overlay vorhanden)? Dann schlägt das Overlay die Platte.</summary>
-    public bool IsOpen(string normalizedPath) => _syntaxProvider.IsOpen(normalizedPath);
+    public bool IsOpen(string normalizedPath) => _core.IsOpen(normalizedPath);
 
     /// <summary>
     /// Invalidiert den Platten-Syntax-Cache einer extern geänderten Datei (das Overlay bleibt unberührt) —
     /// der nächste Zugriff liest sie frisch von Platte.
     /// </summary>
-    public void InvalidateDiskCache(string normalizedPath) => _syntaxProvider.InvalidateCache(normalizedPath);
+    public void InvalidateDiskCache(string normalizedPath) => _core.InvalidateCache(normalizedPath);
 
     /// <summary>
     /// Nimmt eine neu angelegte Datei in die Solution auf (damit sie an solution-weiten Features teilnimmt).
-    /// Re-globt NICHT, sondern erweitert die bestehende Dateiliste; ohne Workspace-Root passiert nichts.
     /// </summary>
-    public void AddSolutionFile(string filePath) {
-
-        if (_solution.SolutionDirectory == null) {
-            return;
-        }
-
-        var normalized = PathHelper.NormalizePath(filePath);
-        if (normalized == null) {
-            return;
-        }
-
-        if (_solution.SolutionFiles.Any(f => string.Equals(PathHelper.NormalizePath(f.FullName), normalized, StringComparison.OrdinalIgnoreCase))) {
-            return; // schon bekannt
-        }
-
-        var files = _solution.SolutionFiles.Add(new FileInfo(filePath));
-        _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
-    }
+    public void AddSolutionFile(string filePath) => _core.AddSolutionFile(filePath);
 
     /// <summary>
     /// Entfernt eine gelöschte Datei aus der Solution und aus dem Abhängigkeitsgraphen. Kanten ANDERER Dateien,
     /// die sie inkludierten, bleiben erhalten (werden beim Neudiagnostizieren der Inkludierer aufgefrischt).
     /// </summary>
     public void RemoveSolutionFile(string normalizedPath) {
-
         _dependencies.Remove(normalizedPath);
-
-        if (_solution.SolutionDirectory == null) {
-            return;
-        }
-
-        var files = _solution.SolutionFiles
-                             .Where(f => !string.Equals(PathHelper.NormalizePath(f.FullName), normalizedPath, StringComparison.OrdinalIgnoreCase))
-                             .ToImmutableArray();
-
-        if (files.Length != _solution.SolutionFiles.Length) {
-            _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
-        }
+        _core.RemoveSolutionFile(normalizedPath);
     }
 
     /// <summary>Syntaxbaum eines Dokuments (overlay-bewusst) — Grundlage für Semantic Tokens.</summary>
     public SyntaxTree? GetSyntaxTree(string filePath, CancellationToken cancellationToken) {
-        return _syntaxProvider.GetSyntax(filePath, cancellationToken)?.SyntaxTree;
+        return _core.GetSyntaxTree(filePath, cancellationToken);
     }
 
     /// <summary>Semantisches Modell eines Dokuments (overlay-bewusst) — Grundlage für Document Symbols.</summary>
     public CodeGenerationUnit? GetCodeGenerationUnit(string filePath, CancellationToken cancellationToken) {
-        return _semanticModelProvider.GetSemanticModel(filePath, cancellationToken);
+        return _core.GetCodeGenerationUnit(filePath, cancellationToken);
     }
 
-    /// <summary>Diagnostics für ein einzelnes Dokument (overlay-bewusst).</summary>
+    /// <summary>Diagnostics für ein einzelnes Dokument (overlay-bewusst, mit <c>.navignore</c>-Stummschaltung).</summary>
     public IReadOnlyList<Diagnostic> GetDiagnostics(string filePath, CancellationToken cancellationToken) {
 
-        var unit = _semanticModelProvider.GetSemanticModel(filePath, cancellationToken);
+        var unit = _core.GetCodeGenerationUnit(filePath, cancellationToken);
         if (unit == null) {
             return Array.Empty<Diagnostic>();
         }
@@ -201,7 +147,7 @@ class NavWorkspace {
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var unit = _semanticModelProvider.GetSemanticModel(dependentKey, cancellationToken);
+            var unit = _core.GetCodeGenerationUnit(dependentKey, cancellationToken);
             if (unit == null) {
                 continue;
             }
@@ -229,7 +175,7 @@ class NavWorkspace {
     /// <summary>Publiziert Diagnostics für sämtliche Workspace-Dateien.</summary>
     public Task PublishAllDiagnosticsAsync(Func<Uri, Lsp.Diagnostic[], Task> publishAsync, CancellationToken cancellationToken) {
 
-        return _solution.ProcessCodeGenerationUnitsAsync(
+        return _core.Solution.ProcessCodeGenerationUnitsAsync(
             asyncAction: async unit => {
 
                 var fullPath = unit.Syntax.SyntaxTree.SourceText.FileInfo?.FullName;

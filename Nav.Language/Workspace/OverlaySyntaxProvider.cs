@@ -1,24 +1,26 @@
 #region Using Directives
 
-using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Overlay-fähiger Syntax-Provider nach dem LSP-Prinzip „offenes Dokument schlägt Platte".
 /// Für offene Dokumente wird der vom Client gelieferte (ggf. ungespeicherte) Inhalt geparst, für alle
 /// übrigen Dateien liest der innere Provider von Platte. Zugleich dient der Provider als Workspace-Cache
 /// (Schlüssel = normalisierter Pfad) mit expliziter Invalidierung bei Overlay-Änderungen.
+/// VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Schale (der MCP-Server setzt keine Overlays,
+/// nutzt aber Cache + Invalidierung).
 /// </summary>
-class OverlaySyntaxProvider: ISyntaxProvider {
+public class OverlaySyntaxProvider: ISyntaxProvider {
 
     readonly ISyntaxProvider _diskProvider;
 
@@ -35,7 +37,7 @@ class OverlaySyntaxProvider: ISyntaxProvider {
     public CodeGenerationUnitSyntax GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         var normalizedPath = PathHelper.NormalizePath(filePath)
-                          ?? throw new ArgumentNullException(nameof(filePath));
+                          ?? throw new System.ArgumentNullException(nameof(filePath));
 
         if (_cache.TryGetValue(normalizedPath, out var cached)) {
             return cached!;
