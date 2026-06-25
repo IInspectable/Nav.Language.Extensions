@@ -39,7 +39,7 @@
 	<s:Int64 x:Key="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue">163</s:Int64>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fcfcc803_002D1961_002D441e_002Dbabb_002Dcc505bf858d2/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="NavGoToServiceTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;NUnit3x::6F82F651-4D21-467D-BD83-68C743BC8DF4::.NETFramework,Version=v4.7.2::Nav.Language.Tests.GoTo.NavGoToServiceTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;NUnit3x::599C34BB-D378-59B5-7EF7-2368ADCA2B22::.NETFramework,Version=v4.7.2::Nav.Language.Tests.Symbols.NavSymbolSearchTests&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UpdatesManger/LastUpdateCheck/@EntryValue">06/25/2026 20:20:00</s:String>
