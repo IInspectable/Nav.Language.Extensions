@@ -13,6 +13,8 @@ using Newtonsoft.Json.Linq;
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.Rename;
+using Pharmatechnik.Nav.Language.CodeFixes;
+using Pharmatechnik.Nav.Language.CodeActions;
 using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.References;
@@ -66,6 +68,11 @@ class NavLanguageServer {
                 HoverProvider             = true,
                 FoldingRangeProvider      = true,
                 RenameProvider            = true,
+                CodeActionProvider        = new Lsp.CodeActionOptions {
+                    // QuickFix (ErrorFix/StyleFix) + Refactor (Introduce Choice). Die Aktionen liefern
+                    // ihre WorkspaceEdit direkt mit — kein codeAction/resolve nötig.
+                    CodeActionKinds = new[] { Lsp.CodeActionKind.QuickFix, Lsp.CodeActionKind.Refactor }
+                },
                 CodeLensProvider          = new Lsp.CodeLensOptions {
                     // Die Marken liefern wir leer (nur Position); Beschriftung + Klick-Command erst
                     // träge über codeLens/resolve, weil die solution-weite Referenzsuche teuer ist.
@@ -308,6 +315,91 @@ class NavLanguageServer {
         var newLine = sourceText.Text.Contains("\r\n") ? "\r\n" : "\n";
         return new TextEditorSettings(tabSize: 4, newLine: newLine);
     }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentCodeActionName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.CodeAction[] CodeAction(Lsp.CodeActionParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.CodeAction>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<Lsp.CodeAction>();
+        }
+
+        var sourceText = unit.Syntax.SyntaxTree.SourceText;
+        var settings   = EditorSettingsFor(sourceText);
+
+        // LSP-Range (Selektion oder reiner Caret) auf einen Engine-Offset-Bereich abbilden. Ein leerer
+        // Bereich wird im Service auf den Token-Extent ausgedehnt, damit die Provider auch beim bloßen
+        // Caret greifen.
+        var start = LspMapper.ToOffset(sourceText, param.Range.Start);
+        var end   = LspMapper.ToOffset(sourceText, param.Range.End);
+        var range = TextExtent.FromBounds(Math.Min(start, end), Math.Max(start, end));
+
+        var actions = NavCodeActionService.GetCodeActions(unit, range, settings, CancellationToken.None);
+
+        var result    = new List<Lsp.CodeAction>();
+        var seenTitles = new HashSet<string>();
+        foreach (var action in actions) {
+
+            // Doppelte Titel zusammenfassen (wie die VS-SuggestedActionsSource): es bleibt der erste Treffer.
+            if (!seenTitles.Add(action.Title)) {
+                continue;
+            }
+
+            var edit = ToWorkspaceEdit(param.TextDocument.Uri, sourceText, action.TextChanges);
+            if (edit == null) {
+                continue;
+            }
+
+            result.Add(new Lsp.CodeAction {
+                Title = action.Title,
+                Kind  = ToCodeActionKind(action.Category),
+                Edit  = edit
+            });
+        }
+
+        return result.ToArray();
+    }
+
+    /// <summary>
+    /// Baut aus offset-basierten Engine-<see cref="TextChange"/> eine dateilokale <see cref="Lsp.WorkspaceEdit"/>
+    /// gegen die exakt vom Client gesendete URI-Form (file:///d%3A/… bleibt erhalten). <c>null</c>, wenn nichts
+    /// zu ändern ist.
+    /// </summary>
+    static Lsp.WorkspaceEdit? ToWorkspaceEdit(Uri uri, SourceText sourceText, IReadOnlyList<TextChange> changes) {
+
+        var edits = new List<Lsp.TextEdit>();
+        foreach (var change in changes) {
+
+            if (change.IsEmpty || change.Extent.End > sourceText.Length) {
+                continue;
+            }
+
+            edits.Add(new Lsp.TextEdit {
+                Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
+                NewText = change.ReplacementText
+            });
+        }
+
+        if (edits.Count == 0) {
+            return null;
+        }
+
+        return new Lsp.WorkspaceEdit {
+            Changes = new Dictionary<string, Lsp.TextEdit[]> {
+                [uri.OriginalString] = edits.ToArray()
+            }
+        };
+    }
+
+    static Lsp.CodeActionKind ToCodeActionKind(CodeFixCategory category) => category switch {
+        CodeFixCategory.Refactoring => Lsp.CodeActionKind.Refactor,
+        _                           => Lsp.CodeActionKind.QuickFix
+    };
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentHoverName, UseSingleObjectParameterDeserialization = true)]
     public Lsp.Hover? Hover(Lsp.TextDocumentPositionParams param) {
