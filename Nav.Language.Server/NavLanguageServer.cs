@@ -126,7 +126,9 @@ class NavLanguageServer {
             ? param.ContentChanges[^1].Text
             : string.Empty;
 
-        return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, text);
+        // Bei einer echten Änderung zusätzlich die (transitiv) inkludierenden Dateien neu diagnostizieren —
+        // deren Cross-File-Diagnostics können sich ändern, obwohl sie selbst nicht editiert wurden.
+        return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, text, publishDependents: true);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDidCloseName, UseSingleObjectParameterDeserialization = true)]
@@ -139,8 +141,10 @@ class NavLanguageServer {
         }
 
         // Overlay verwerfen — die Wahrheit liegt wieder auf Platte. Diagnostics von Platte neu berechnen.
+        // Der Inhalt fällt vom (ggf. ungespeicherten) Overlay auf die Platte zurück, deshalb können sich
+        // auch hier die Diagnostics der inkludierenden Dateien ändern.
         _workspace.Close(normalizedPath);
-        return PublishDocumentAsync(uri);
+        return PublishDocumentAndDependentsAsync(uri);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
@@ -653,7 +657,7 @@ class NavLanguageServer {
         Environment.Exit(0);
     }
 
-    Task UpdateOverlayAndPublishAsync(Uri uri, string text) {
+    Task UpdateOverlayAndPublishAsync(Uri uri, string text, bool publishDependents = false) {
 
         var normalizedPath = NavUri.ToNormalizedPath(uri);
         if (normalizedPath == null) {
@@ -661,7 +665,25 @@ class NavLanguageServer {
         }
 
         _workspace.OpenOrUpdate(normalizedPath, text);
-        return PublishDocumentAsync(uri);
+
+        return publishDependents
+            ? PublishDocumentAndDependentsAsync(uri)
+            : PublishDocumentAsync(uri);
+    }
+
+    /// <summary>
+    /// Publiziert die Diagnostics des Dokuments und anschließend die der (transitiv) inkludierenden Dateien.
+    /// </summary>
+    async Task PublishDocumentAndDependentsAsync(Uri uri) {
+
+        await PublishDocumentAsync(uri);
+
+        var filePath = NavUri.ToFilePath(uri);
+        if (filePath == null) {
+            return;
+        }
+
+        await _workspace.PublishDependentsAsync(filePath, PublishAsync, CancellationToken.None);
     }
 
     Task PublishDocumentAsync(Uri uri) {
