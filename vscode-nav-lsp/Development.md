@@ -38,12 +38,26 @@ nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Statu
 - Eine `.nav`-Datei öffnen → Fehler/Warnungen erscheinen als Squiggles und im Problems-Panel.
   Beim Tippen aktualisieren sich die Diagnostics (Overlay), beim Schließen gilt wieder der Platteninhalt.
 
+## Bündeln (esbuild)
+
+Die Extension wird mit **esbuild** zu einer einzigen Datei `dist/extension.js` gebündelt — `vscode-languageclient`
+samt Abhängigkeiten landet inline, `node_modules` wandert NICHT ins VSIX (sonst Hunderte loser JS-Dateien und die
+vsce-Warnung „you should bundle your extension"). Das `dist/`-Verzeichnis ist ein Build-Artefakt (in `.gitignore`).
+
+- `npm run esbuild` — Dev-Build mit Sourcemap.
+- `npm run esbuild-watch` — Watch-Build für die Entwicklung.
+- `npm run vscode:prepublish` — Minify-Build; läuft automatisch bei `vsce package` (siehe unten).
+
+Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hintergrund) ausführen, damit
+`dist/extension.js` existiert — `package.json` zeigt mit `"main": "./dist/extension.js"` darauf.
+
 ## Server-Auflösung (`extension.js`)
 
-`resolveServer()` sucht in dieser Reihenfolge:
+`resolveServer(extRoot)` leitet alle Pfade von `context.extensionPath` (der Extension-Wurzel) ab — NICHT von
+`__dirname`, das nach dem Bündeln ins `dist/`-Verzeichnis zeigt. Gesucht wird in dieser Reihenfolge:
 
 1. Konfigurierter Pfad (`navLanguageServer.serverPath`) — `.exe` direkt, `.dll` via `dotnet`.
-2. **Eingebettet:** `server/nav.lsp.exe` neben `extension.js` (greift im installierten VSIX).
+2. **Eingebettet:** `server/nav.lsp.exe` in der Extension-Wurzel (greift im installierten VSIX).
 3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (self-contained Publish).
 4. **Repo (F5):** `../Nav.Language.Lsp/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
 

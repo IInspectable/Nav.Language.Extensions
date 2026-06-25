@@ -12,7 +12,10 @@ let log;
 // Liefert das Start-Kommando für den Server als { command, args }.
 // - .exe (z.B. der self-contained Publish nav.lsp.exe) wird direkt gestartet.
 // - .dll wird über 'dotnet <dll>' gestartet (framework-dependent Debug-Build).
-function resolveServer() {
+// `extRoot` ist das Wurzelverzeichnis der Extension (context.extensionPath). Alle Pfade leiten sich davon
+// ab — NICHT von __dirname: nach dem esbuild-Bündeln liegt der Code unter dist/, __dirname zeigte dann ins
+// dist-Verzeichnis statt auf die Extension-Wurzel mit dem eingebetteten server/-Ordner.
+function resolveServer(extRoot) {
 
     const configured = workspace.getConfiguration('navLanguageServer').get('serverPath');
     if (configured && configured.trim().length > 0) {
@@ -23,23 +26,23 @@ function resolveServer() {
         return { command: p, args: [], target: p };
     }
 
-    // Standard 0 (paketiert): in die Extension eingebetteter Server (server\nav.lsp.exe neben extension.js).
+    // Standard 0 (paketiert): in die Extension eingebetteter Server (server\nav.lsp.exe in der Wurzel).
     // Greift im installierten VSIX, wo es KEINEN Schwesterordner deploy\lsp gibt — direkt starten.
-    const bundledExe = path.join(__dirname, 'server', 'nav.lsp.exe');
+    const bundledExe = path.join(extRoot, 'server', 'nav.lsp.exe');
     if (fs.existsSync(bundledExe)) {
         return { command: bundledExe, args: [], target: bundledExe };
     }
 
     // Die Extension liegt im Repo als Schwesterordner von Nav.Language.Lsp / deploy (F5-Dev).
     // Standard 1: self-contained Publish (deploy\lsp\nav.lsp.exe) — direkt starten, kein 'dotnet' nötig.
-    const publishedExe = path.join(__dirname, '..', 'deploy', 'lsp', 'nav.lsp.exe');
+    const publishedExe = path.join(extRoot, '..', 'deploy', 'lsp', 'nav.lsp.exe');
     if (fs.existsSync(publishedExe)) {
         return { command: publishedExe, args: [], target: publishedExe };
     }
 
     // Standard 2: framework-dependent Debug-Build via 'dotnet'.
     const debugDll = path.join(
-        __dirname, '..',
+        extRoot, '..',
         'Nav.Language.Lsp', 'bin', 'Debug', 'net10.0', 'nav.lsp.dll');
     return { command: 'dotnet', args: [debugDll], target: debugDll };
 }
@@ -60,7 +63,7 @@ function activate(context) {
     log = window.createOutputChannel('Nav Language Server');
     log.appendLine('Aktivierung der Nav-LSP-Extension …');
 
-    const server = resolveServer();
+    const server = resolveServer(context.extensionPath);
     log.appendLine(`Server-Kommando: ${server.command} ${server.args.join(' ')}`.trim());
     log.appendLine(`Ziel existiert: ${fs.existsSync(server.target)}`);
     // 'dotnet' muss nur im PATH sein, wenn der Server framework-dependent (als .dll) gestartet wird.
