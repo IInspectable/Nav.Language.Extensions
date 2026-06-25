@@ -57,6 +57,8 @@
 !/Nav.Language.Tests/Regression/**/*.expected.cs
 
 /.vs
+# Persönliche ReSharper-Settings (maschinenlokal: absolute Pfade, Test-Session-State, Cache-Keys)
+/**/*.DotSettings.user
 /**/*.generated.cs
 /**/*.nuget.cache
 /**/*.nuget.g.props
