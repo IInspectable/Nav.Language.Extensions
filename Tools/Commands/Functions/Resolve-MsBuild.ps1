@@ -7,10 +7,11 @@
     gibt den Pfad zu MSBuild.exe zurück. Bei Misserfolg wird ein freundlicher Hinweis
     ausgegeben und `$null` zurückgegeben (die aufrufenden Commands brechen dann ab).
 
-    Build und LSP-Publish laufen bewusst über diese MSBuild.exe und NICHT über
-    `dotnet build`/`dotnet publish`: die Engine nutzt in Nav.Language\CustomBuild.targets
-    die CodeTaskFactory, die der dotnet-CLI-Build nicht kennt. Interner Helper (Verb-Noun
-    ohne .FUNCTIONALITY → kein n-Command).
+    `n build` läuft über diese MSBuild.exe, weil die Solution die VS-Extension
+    (Nav.Language.Extension2026, VSIX/VSSDK.BuildTools) enthält, die nur Full-Framework-
+    MSBuild.exe baut. Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut/publisht dagegen mit
+    dem dotnet-SDK (`n publishlsp` nutzt `dotnet publish`). Interner Helper (Verb-Noun ohne
+    .FUNCTIONALITY → kein n-Command).
 #>
 function Resolve-MsBuild {
     [CmdletBinding()]

@@ -4,9 +4,9 @@
 
 .DESCRIPTION
     Erzeugt deploy\lsp\nav.lsp.exe samt gebündelter .NET-Runtime (keine separate
-    Runtime-Installation nötig). Läuft bewusst über die Full-Framework-MSBuild.exe (wie
-    Invoke-Build): die Engine nutzt in Nav.Language\CustomBuild.targets die CodeTaskFactory,
-    die `dotnet publish` nicht kennt.
+    Runtime-Installation nötig). Läuft über `dotnet publish` (der CodeTaskFactory-Blocker in
+    Nav.Language\CustomBuild.targets ist durch den file-based dotnet-Generator ersetzt, daher
+    baut/publisht die Engine jetzt mit dem dotnet-SDK).
 
     Flags: PublishSingleFile + IncludeNativeLibrariesForSelfExtract → alles in eine exe;
     EnableCompressionInSingleFile → kleinere exe; SatelliteResourceLanguages=en → keine
@@ -29,9 +29,6 @@ function Publish-Lsp {
     $root = Resolve-Root
     if (-not $root) { return }
 
-    $msbuild = Resolve-MsBuild
-    if (-not $msbuild) { return }
-
     $rid = 'win-x64'
     $publishDir = Join-Path $root 'deploy\lsp'
     $project = Join-Path $root 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'
@@ -40,12 +37,11 @@ function Publish-Lsp {
     # Zielverzeichnis vorher leeren — der self-contained Publish räumt Altbestand nicht selbst auf.
     if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
 
-    & $msbuild $project -restore -t:Publish `
-        -p:Configuration=$Configuration -p:RuntimeIdentifier=$rid -p:SelfContained=true `
+    & dotnet publish $project -c $Configuration -r $rid --self-contained true `
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en `
         -p:DebugType=embedded `
-        "-p:PublishDir=$publishDir/" -v:m -m
+        -o $publishDir -v:m
     if ($LASTEXITCODE) { throw "Publish fehlgeschlagen (Exit $LASTEXITCODE)." }
 
     $exe = Join-Path $publishDir 'nav.lsp.exe'

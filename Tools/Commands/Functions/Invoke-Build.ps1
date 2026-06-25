@@ -7,8 +7,9 @@
     eigentlichen Build (`-p:Configuration=<Configuration> -v:n -m`). Der Repo-/Worktree-Root
     wird zur Aufruf-Zeit aufgelöst (Resolve-Root), daher von jedem Ort im Repo aufrufbar.
 
-    Bewusst MSBuild.exe statt `dotnet build` (CodeTaskFactory in der Engine, siehe
-    Resolve-MsBuild).
+    Bewusst MSBuild.exe statt `dotnet build`: die Solution enthält die VS-Extension
+    (Nav.Language.Extension2026, VSIX/VSSDK.BuildTools), die nur Full-Framework-MSBuild.exe
+    baut. Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut inzwischen auch mit `dotnet build`.
 
 .PARAMETER Configuration
     Build-Konfiguration. Default: Debug.

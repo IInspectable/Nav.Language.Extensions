@@ -7,78 +7,20 @@
   <ItemGroup>
     <AvailableItemName Include="ExportStringTemplates" />
   </ItemGroup>
-  <UsingTask TaskName="GenerateStringTemplateExport" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-    <ParameterGroup>
-      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
-      <OutputFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
-    </ParameterGroup>
-    <Task>
-      <Reference Include="..\_build\StringTemplate4.4.0.8\lib\net35-client\Antlr4.StringTemplate.dll" />
-      <Reference Include="..\_build\Antlr3.Runtime.3.5.1\lib\net40-client\Antlr3.Runtime.dll" />
-      <Using Namespace="System" />
-      <Code Type="Fragment" Language="cs"><![CDATA[
-             const string templateText= @"
-
-Begin(namespace, className, data) ::=<<// ReSharper disable once CheckNamespace
-namespace <namespace> {
-    public static partial class <className> {
-        <data:writeProperty(); separator=""\r\n"">
-    }
-}
->>
-
-writeProperty(kvp)  ::=<<
-/// \<summary>
-/// <kvp.Value>
-/// \</summary>
-public const string <kvp.Key> = ""<kvp.Value>"";
->>
-";
-
-         var generatedFileNames = new List<string>();
-
-         foreach(var file in Files) {
-
-             var fullName   = file.GetMetadata("FullPath");
-             var fileName   = file.GetMetadata("FileName");
-             var @namespace = file.GetMetadata("CustomToolNamespace");
-             var targetPath = Path.ChangeExtension(fullName,"generated.cs");
-             var className  = fileName;
-
-             generatedFileNames.Add(targetPath);
-
-             var templateGroup = new Antlr4.StringTemplate.TemplateGroupFile(fullName);
-
-             var data = new Dictionary<string, string>();
-             foreach(var templateName in templateGroup.GetTemplateNames()) {
-
-                 var name    = templateName.Substring(1, 1).ToUpperInvariant() + templateName.Substring(2);
-                 var st      = templateGroup.GetInstanceOf(name);
-
-                 data[name] = st.Render();
-             }
-
-             var group = new Antlr4.StringTemplate.TemplateGroupString(templateText);
-             var template = group.GetInstanceOf("Begin");
-             template.Add("className"  , className);
-             template.Add("namespace"  , @namespace);
-             template.Add("data"       , data.ToList());
-
-             File.WriteAllText(targetPath, template.Render(), Encoding.UTF8);
-         }
-         OutputFiles = generatedFileNames.Select(name => new TaskItem(name)).ToArray();
-         ]]></Code>
-    </Task>
-  </UsingTask>
-  <Target Name="GenerateStringTemplateExport" BeforeTargets="PrepareForBuild">
-    <GenerateStringTemplateExport Files="@(ExportStringTemplates)" />
-    <ItemGroup>
-      <EmbeddedResource Include="@(ExportStringTemplates)" />
-    </ItemGroup>
-    <Message Text="Include @(ExportStringTemplates -&gt; '%(RelativeDir)%(filename).generated.cs')" Importance="High" />
-    <ItemGroup>
-      <Compile Remove="@(ExportStringTemplates -&gt; '%(RelativeDir)%(filename).generated.cs')" />
-      <Compile Include="@(ExportStringTemplates -&gt; '%(RelativeDir)%(filename).generated.cs')" />
-    </ItemGroup>
+  <!-- Die .stg wird als EmbeddedResource eingebettet (zur Laufzeit via Resources.CodeGenFacts
+       erneut gerendert). Die generierte .cs ist eingecheckt und wird bereits vom SDK-Default-Glob
+       als Compile erfasst - daher hier KEIN zusätzliches <Compile Include> (sonst Duplikat). -->
+  <ItemGroup>
+    <EmbeddedResource Include="@(ExportStringTemplates)" />
+  </ItemGroup>
+  <!-- Erzeugt aus der .stg die <name>.generated.cs via file-based dotnet-Generator. Ersetzt den
+       früheren CodeTaskFactory-Inline-Task (CodeTaskFactory existiert in .NET-Core-MSBuild nicht
+       → MSB4801), damit die Engine auch mit `dotnet build` baut. Inputs/Outputs: läuft nur, wenn
+       sich die .stg geändert hat (vermeidet `dotnet run`-Startkosten bei jedem Build). -->
+  <Target Name="GenerateStringTemplateExport" BeforeTargets="PrepareForBuild"
+          Inputs="@(ExportStringTemplates)"
+          Outputs="@(ExportStringTemplates-&gt;'%(RelativeDir)%(Filename).generated.cs')">
+    <Message Text="Generiere @(ExportStringTemplates -&gt; '%(RelativeDir)%(Filename).generated.cs')" Importance="High" />
+    <Exec Command="dotnet run --file &quot;$(MSBuildThisFileDirectory)..\_build\CodeGen\GenerateCodeGenFacts.cs&quot; -- &quot;%(ExportStringTemplates.FullPath)&quot; &quot;%(ExportStringTemplates.RootDir)%(ExportStringTemplates.Directory)%(ExportStringTemplates.Filename).generated.cs&quot; &quot;%(ExportStringTemplates.CustomToolNamespace)&quot; &quot;%(ExportStringTemplates.Filename)&quot;" />
   </Target>
 </Project>

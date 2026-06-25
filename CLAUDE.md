@@ -47,9 +47,13 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 
 ## Build / Test — Fallstricke zuerst
 
-- **Die Engine baut NUR mit Full-Framework `MSBuild.exe`, NICHT mit `dotnet build`.** Grund: die
-  `CodeTaskFactory` in `Nav.Language\CustomBuild.targets` (StringTemplate-Export). `dotnet build` →
-  Fehler MSB4801. Das gilt auch für Server-Publish (läuft über `MSBuild.exe -t:Publish`).
+- **Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut mit `dotnet build`/`dotnet publish`.** Der
+  StringTemplate-Export in `Nav.Language\CustomBuild.targets` läuft über einen file-based
+  dotnet-Generator (`_build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
+  der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). `n publishlsp` nutzt
+  `dotnet publish`.
+- **Die ganze Solution (`n build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
+  VS-Extension (`Nav.Language.Extension2026`, VSIX/`VSSDK.BuildTools`), die `dotnet build` nicht baut.
 - **Bevorzugt das `n`-Command-System** (PowerShell-Dispatcher, Alias `n`) statt MSBuild von Hand —
   es löst MSBuild via `vswhere` und den Repo-Root via `git rev-parse` selbst auf (funktioniert auch
   aus jedem Worktree). Setup: `Tools\Commands\Import-NavCommands.ps1` im `$PROFILE` dot-sourcen.
@@ -72,14 +76,15 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 ### Tests im Detail
 
 - **net472:** `n test` (NUnit-Console-Runner unter `_build\nunit.consolerunner\`).
-- **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0 --no-build`.
+- **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` (baut bei Bedarf
+  selbst; `--no-build` nur als Beschleunigung, wenn vorher schon gebaut wurde).
 - `Nav.Language.Tests` ist multi-target (`net472;net10.0`) — neue Engine-Tests müssen auf **beiden**
   TFMs grün sein. Test-Framework ist **NUnit**.
 - LSP-Features zusätzlich gern per stdio-Smoke gegen die laufende `nav.lsp` verifizieren.
 
 ### LSP-Server lokal (Debug)
 
-- Bauen: `MSBuild.exe Nav.Language.Lsp\Nav.Language.Lsp.csproj -t:Build -p:Configuration=Debug` →
+- Bauen: `dotnet build Nav.Language.Lsp\Nav.Language.Lsp.csproj -c Debug` →
   `Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll`.
 - Starten (framework-dependent): `dotnet Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll`.
 - VS-Code-Client (`vscode-nav-lsp`): `npm install`, `npm run esbuild`, Ordner in VS Code öffnen → F5.
