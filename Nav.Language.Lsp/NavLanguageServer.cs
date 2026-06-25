@@ -21,11 +21,11 @@ using Pharmatechnik.Nav.Language.References;
 using Pharmatechnik.Nav.Language.FindReferences;
 using Pharmatechnik.Nav.Utilities.IO;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// LSP-Server für die Nav-Sprache. Erste Ausbaustufe: Lebenszyklus (initialize/shutdown/exit),
@@ -43,19 +43,19 @@ class NavLanguageServer {
         _rpc = rpc ?? throw new ArgumentNullException(nameof(rpc));
     }
 
-    [JsonRpcMethod(Lsp.Methods.InitializeName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.InitializeResult Initialize(Lsp.InitializeParams param) {
+    [JsonRpcMethod(Protocol.Methods.InitializeName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.InitializeResult Initialize(Protocol.InitializeParams param) {
 
         _rootPath = ResolveRootPath(param);
 
-        return new Lsp.InitializeResult {
-            Capabilities = new Lsp.ServerCapabilities {
-                TextDocumentSync = new Lsp.TextDocumentSyncOptions {
+        return new Protocol.InitializeResult {
+            Capabilities = new Protocol.ServerCapabilities {
+                TextDocumentSync = new Protocol.TextDocumentSyncOptions {
                     OpenClose = true,
-                    Change    = Lsp.TextDocumentSyncKind.Full
+                    Change    = Protocol.TextDocumentSyncKind.Full
                 },
-                SemanticTokensOptions = new Lsp.SemanticTokensOptions {
-                    Legend = new Lsp.SemanticTokensLegend {
+                SemanticTokensOptions = new Protocol.SemanticTokensOptions {
+                    Legend = new Protocol.SemanticTokensLegend {
                         TokenTypes     = SemanticTokensBuilder.TokenTypes,
                         TokenModifiers = SemanticTokensBuilder.TokenModifiers
                     },
@@ -68,17 +68,17 @@ class NavLanguageServer {
                 HoverProvider             = true,
                 FoldingRangeProvider      = true,
                 RenameProvider            = true,
-                CodeActionProvider        = new Lsp.CodeActionOptions {
+                CodeActionProvider        = new Protocol.CodeActionOptions {
                     // QuickFix (ErrorFix/StyleFix) + Refactor (Introduce Choice). Die Aktionen liefern
                     // ihre WorkspaceEdit direkt mit — kein codeAction/resolve nötig.
-                    CodeActionKinds = new[] { Lsp.CodeActionKind.QuickFix, Lsp.CodeActionKind.Refactor }
+                    CodeActionKinds = new[] { Protocol.CodeActionKind.QuickFix, Protocol.CodeActionKind.Refactor }
                 },
-                CodeLensProvider          = new Lsp.CodeLensOptions {
+                CodeLensProvider          = new Protocol.CodeLensOptions {
                     // Die Marken liefern wir leer (nur Position); Beschriftung + Klick-Command erst
                     // träge über codeLens/resolve, weil die solution-weite Referenzsuche teuer ist.
                     ResolveProvider = true
                 },
-                CompletionProvider        = new Lsp.CompletionOptions {
+                CompletionProvider        = new Protocol.CompletionOptions {
                     // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points,
                     // '-' für den Beginn einer Edge (-->), '"' sowie die Pfadtrenner für die
                     // Pfad-Vervollständigung in taskref (Pfadtrenner aktualisieren Liste + Replace-Range).
@@ -89,8 +89,8 @@ class NavLanguageServer {
         };
     }
 
-    [JsonRpcMethod(Lsp.Methods.InitializedName, UseSingleObjectParameterDeserialization = true)]
-    public async Task InitializedAsync(Lsp.InitializedParams param) {
+    [JsonRpcMethod(Protocol.Methods.InitializedName, UseSingleObjectParameterDeserialization = true)]
+    public async Task InitializedAsync(Protocol.InitializedParams param) {
 
         // Workspace selbst entdecken (LSP schiebt keine Dateiliste): alle *.nav unterhalb der rootUri
         // globben, Cross-File-Modell aufbauen und Diagnostics für jede Datei veröffentlichen.
@@ -98,7 +98,7 @@ class NavLanguageServer {
         await _workspace.PublishAllDiagnosticsAsync(PublishAsync, CancellationToken.None);
     }
 
-    static string? ResolveRootPath(Lsp.InitializeParams param) {
+    static string? ResolveRootPath(Protocol.InitializeParams param) {
 
         if (param.RootUri is { IsAbsoluteUri: true } rootUri && rootUri.IsFile) {
             // NICHT rootUri.LocalPath: VS Code/VS prozent-kodieren den Laufwerks-Doppelpunkt
@@ -113,13 +113,13 @@ class NavLanguageServer {
 #pragma warning restore CS0618
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDidOpenName, UseSingleObjectParameterDeserialization = true)]
-    public Task DidOpenAsync(Lsp.DidOpenTextDocumentParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDidOpenName, UseSingleObjectParameterDeserialization = true)]
+    public Task DidOpenAsync(Protocol.DidOpenTextDocumentParams param) {
         return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, param.TextDocument.Text);
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDidChangeName, UseSingleObjectParameterDeserialization = true)]
-    public Task DidChangeAsync(Lsp.DidChangeTextDocumentParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDidChangeName, UseSingleObjectParameterDeserialization = true)]
+    public Task DidChangeAsync(Protocol.DidChangeTextDocumentParams param) {
 
         // Full-Sync: die letzte Änderung enthält den vollständigen Dokumentinhalt.
         var text = param.ContentChanges.Length > 0
@@ -131,8 +131,8 @@ class NavLanguageServer {
         return UpdateOverlayAndPublishAsync(param.TextDocument.Uri, text, publishDependents: true);
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDidCloseName, UseSingleObjectParameterDeserialization = true)]
-    public Task DidCloseAsync(Lsp.DidCloseTextDocumentParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDidCloseName, UseSingleObjectParameterDeserialization = true)]
+    public Task DidCloseAsync(Protocol.DidCloseTextDocumentParams param) {
 
         var uri            = param.TextDocument.Uri;
         var normalizedPath = NavUri.ToNormalizedPath(uri);
@@ -147,8 +147,8 @@ class NavLanguageServer {
         return PublishDocumentAndDependentsAsync(uri);
     }
 
-    [JsonRpcMethod(Lsp.Methods.WorkspaceDidChangeWatchedFilesName, UseSingleObjectParameterDeserialization = true)]
-    public async Task DidChangeWatchedFilesAsync(Lsp.DidChangeWatchedFilesParams param) {
+    [JsonRpcMethod(Protocol.Methods.WorkspaceDidChangeWatchedFilesName, UseSingleObjectParameterDeserialization = true)]
+    public async Task DidChangeWatchedFilesAsync(Protocol.DidChangeWatchedFilesParams param) {
 
         if (param.Changes == null) {
             return;
@@ -183,11 +183,11 @@ class NavLanguageServer {
             _workspace.InvalidateDiskCache(normalizedPath);
 
             switch (change.FileChangeType) {
-                case Lsp.FileChangeType.Created:
+                case Protocol.FileChangeType.Created:
                     _workspace.AddSolutionFile(filePath);
                     anyCreated = true;
                     break;
-                case Lsp.FileChangeType.Deleted:
+                case Protocol.FileChangeType.Deleted:
                     _workspace.RemoveSolutionFile(normalizedPath);
                     break;
             }
@@ -219,32 +219,32 @@ class NavLanguageServer {
     static bool IsNavIgnoreFile(string filePath) =>
         string.Equals(System.IO.Path.GetFileName(filePath), ".navignore", StringComparison.OrdinalIgnoreCase);
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.DocumentSymbol[] DocumentSymbols(Lsp.DocumentSymbolParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.DocumentSymbol[] DocumentSymbols(Protocol.DocumentSymbolParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.DocumentSymbol>();
+            return Array.Empty<Protocol.DocumentSymbol>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
 
         return unit == null
-            ? Array.Empty<Lsp.DocumentSymbol>()
+            ? Array.Empty<Protocol.DocumentSymbol>()
             : DocumentSymbolBuilder.Build(unit);
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDefinitionName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.Location[] Definition(Lsp.TextDocumentPositionParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDefinitionName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.Location[] Definition(Protocol.TextDocumentPositionParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.Location>();
+            return Array.Empty<Protocol.Location>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
         if (unit == null) {
-            return Array.Empty<Lsp.Location>();
+            return Array.Empty<Protocol.Location>();
         }
 
         // LSP-Position (Zeile/Zeichen) → Offset → Nav→Nav-Ziele (engine-seitig, VS-frei).
@@ -252,27 +252,27 @@ class NavLanguageServer {
         var targets = NavGoToService.GetGoToLocations(unit, offset);
 
         return targets.Select(LspMapper.ToLocation)
-                      .OfType<Lsp.Location>()
+                      .OfType<Protocol.Location>()
                       .ToArray();
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentReferencesName, UseSingleObjectParameterDeserialization = true)]
-    public async Task<Lsp.Location[]> References(Lsp.ReferenceParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentReferencesName, UseSingleObjectParameterDeserialization = true)]
+    public async Task<Protocol.Location[]> References(Protocol.ReferenceParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.Location>();
+            return Array.Empty<Protocol.Location>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
         if (unit == null) {
-            return Array.Empty<Lsp.Location>();
+            return Array.Empty<Protocol.Location>();
         }
 
         var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
         var origin = NavReferenceService.FindSymbol(unit, offset);
         if (origin == null) {
-            return Array.Empty<Lsp.Location>();
+            return Array.Empty<Protocol.Location>();
         }
 
         // Solution-weite Referenzsuche über die Engine-API; der Collector sammelt nur die Locations.
@@ -284,21 +284,21 @@ class NavLanguageServer {
 
         return collector.Locations
                         .Select(LspMapper.ToLocation)
-                        .OfType<Lsp.Location>()
+                        .OfType<Protocol.Location>()
                         .ToArray();
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentHighlightName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.DocumentHighlight[] DocumentHighlight(Lsp.TextDocumentPositionParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentDocumentHighlightName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.DocumentHighlight[] DocumentHighlight(Protocol.TextDocumentPositionParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.DocumentHighlight>();
+            return Array.Empty<Protocol.DocumentHighlight>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
         if (unit == null) {
-            return Array.Empty<Lsp.DocumentHighlight>();
+            return Array.Empty<Protocol.DocumentHighlight>();
         }
 
         var offset  = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
@@ -306,7 +306,7 @@ class NavLanguageServer {
 
         // documentHighlight ist per Definition dateilokal; das erste Symbol ist die Deklaration (Write).
         var normalizedFile = PathHelper.NormalizePath(filePath);
-        var highlights     = new List<Lsp.DocumentHighlight>();
+        var highlights     = new List<Protocol.DocumentHighlight>();
 
         for (var i = 0; i < symbols.Count; i++) {
 
@@ -315,17 +315,17 @@ class NavLanguageServer {
                 continue;
             }
 
-            highlights.Add(new Lsp.DocumentHighlight {
+            highlights.Add(new Protocol.DocumentHighlight {
                 Range = LspMapper.ToRange(location),
-                Kind  = i == 0 ? Lsp.DocumentHighlightKind.Write : Lsp.DocumentHighlightKind.Read
+                Kind  = i == 0 ? Protocol.DocumentHighlightKind.Write : Protocol.DocumentHighlightKind.Read
             });
         }
 
         return highlights.ToArray();
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentRenameName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.WorkspaceEdit? Rename(Lsp.RenameParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentRenameName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.WorkspaceEdit? Rename(Protocol.RenameParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
@@ -357,14 +357,14 @@ class NavLanguageServer {
         }
 
         // Der Rename ist — wie in VS — dateilokal: alle TextChanges beziehen sich auf dieses Dokument.
-        var edits = new List<Lsp.TextEdit>();
+        var edits = new List<Protocol.TextEdit>();
         foreach (var change in renameFix.GetTextChanges(newName)) {
 
             if (change.IsEmpty || change.Extent.End > sourceText.Length) {
                 continue;
             }
 
-            edits.Add(new Lsp.TextEdit {
+            edits.Add(new Protocol.TextEdit {
                 Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
                 NewText = change.ReplacementText
             });
@@ -375,8 +375,8 @@ class NavLanguageServer {
             return null;
         }
 
-        return new Lsp.WorkspaceEdit {
-            Changes = new Dictionary<string, Lsp.TextEdit[]> {
+        return new Protocol.WorkspaceEdit {
+            Changes = new Dictionary<string, Protocol.TextEdit[]> {
                 // Exakt die vom Client gesendete URI-Form zurückspiegeln (file:///d%3A/… bleibt erhalten).
                 [param.TextDocument.Uri.OriginalString] = edits.ToArray()
             }
@@ -392,17 +392,17 @@ class NavLanguageServer {
         return new TextEditorSettings(tabSize: 4, newLine: newLine);
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentCodeActionName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.CodeAction[] CodeAction(Lsp.CodeActionParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentCodeActionName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.CodeAction[] CodeAction(Protocol.CodeActionParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.CodeAction>();
+            return Array.Empty<Protocol.CodeAction>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
         if (unit == null) {
-            return Array.Empty<Lsp.CodeAction>();
+            return Array.Empty<Protocol.CodeAction>();
         }
 
         var sourceText = unit.Syntax.SyntaxTree.SourceText;
@@ -417,7 +417,7 @@ class NavLanguageServer {
 
         var actions = NavCodeActionService.GetCodeActions(unit, range, settings, CancellationToken.None);
 
-        var result    = new List<Lsp.CodeAction>();
+        var result    = new List<Protocol.CodeAction>();
         var seenTitles = new HashSet<string>();
         foreach (var action in actions) {
 
@@ -431,7 +431,7 @@ class NavLanguageServer {
                 continue;
             }
 
-            result.Add(new Lsp.CodeAction {
+            result.Add(new Protocol.CodeAction {
                 Title = action.Title,
                 Kind  = ToCodeActionKind(action.Category),
                 Edit  = edit
@@ -442,20 +442,20 @@ class NavLanguageServer {
     }
 
     /// <summary>
-    /// Baut aus offset-basierten Engine-<see cref="TextChange"/> eine dateilokale <see cref="Lsp.WorkspaceEdit"/>
+    /// Baut aus offset-basierten Engine-<see cref="TextChange"/> eine dateilokale <see cref="Protocol.WorkspaceEdit"/>
     /// gegen die exakt vom Client gesendete URI-Form (file:///d%3A/… bleibt erhalten). <c>null</c>, wenn nichts
     /// zu ändern ist.
     /// </summary>
-    static Lsp.WorkspaceEdit? ToWorkspaceEdit(Uri uri, SourceText sourceText, IReadOnlyList<TextChange> changes) {
+    static Protocol.WorkspaceEdit? ToWorkspaceEdit(Uri uri, SourceText sourceText, IReadOnlyList<TextChange> changes) {
 
-        var edits = new List<Lsp.TextEdit>();
+        var edits = new List<Protocol.TextEdit>();
         foreach (var change in changes) {
 
             if (change.IsEmpty || change.Extent.End > sourceText.Length) {
                 continue;
             }
 
-            edits.Add(new Lsp.TextEdit {
+            edits.Add(new Protocol.TextEdit {
                 Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
                 NewText = change.ReplacementText
             });
@@ -465,20 +465,20 @@ class NavLanguageServer {
             return null;
         }
 
-        return new Lsp.WorkspaceEdit {
-            Changes = new Dictionary<string, Lsp.TextEdit[]> {
+        return new Protocol.WorkspaceEdit {
+            Changes = new Dictionary<string, Protocol.TextEdit[]> {
                 [uri.OriginalString] = edits.ToArray()
             }
         };
     }
 
-    static Lsp.CodeActionKind ToCodeActionKind(CodeFixCategory category) => category switch {
-        CodeFixCategory.Refactoring => Lsp.CodeActionKind.Refactor,
-        _                           => Lsp.CodeActionKind.QuickFix
+    static Protocol.CodeActionKind ToCodeActionKind(CodeFixCategory category) => category switch {
+        CodeFixCategory.Refactoring => Protocol.CodeActionKind.Refactor,
+        _                           => Protocol.CodeActionKind.QuickFix
     };
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentHoverName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.Hover? Hover(Lsp.TextDocumentPositionParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentHoverName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.Hover? Hover(Protocol.TextDocumentPositionParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
@@ -501,10 +501,10 @@ class NavLanguageServer {
             return null;
         }
 
-        var hover = new Lsp.Hover {
+        var hover = new Protocol.Hover {
             // Die Signatur als Nav-Codeblock; VS Code rendert sie monospace.
-            Contents = new Lsp.MarkupContent {
-                Kind  = Lsp.MarkupKind.Markdown,
+            Contents = new Protocol.MarkupContent {
+                Kind  = Protocol.MarkupKind.Markdown,
                 Value = $"```nav\n{content}\n```"
             }
         };
@@ -554,54 +554,54 @@ class NavLanguageServer {
         return sb.Length == 0 ? null : sb.ToString();
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.SemanticTokens SemanticTokensFull(Lsp.SemanticTokensParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentSemanticTokensFullName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.SemanticTokens SemanticTokensFull(Protocol.SemanticTokensParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return new Lsp.SemanticTokens { Data = Array.Empty<int>() };
+            return new Protocol.SemanticTokens { Data = Array.Empty<int>() };
         }
 
         var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
 
-        return new Lsp.SemanticTokens {
+        return new Protocol.SemanticTokens {
             Data = syntaxTree == null ? Array.Empty<int>() : SemanticTokensBuilder.Encode(syntaxTree)
         };
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentFoldingRangeName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.FoldingRange[] FoldingRange(Lsp.FoldingRangeParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentFoldingRangeName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.FoldingRange[] FoldingRange(Protocol.FoldingRangeParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.FoldingRange>();
+            return Array.Empty<Protocol.FoldingRange>();
         }
 
         var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
 
         return syntaxTree == null
-            ? Array.Empty<Lsp.FoldingRange>()
+            ? Array.Empty<Protocol.FoldingRange>()
             : FoldingRangeBuilder.Build(syntaxTree);
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentCodeLensName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.CodeLens[] CodeLens(Lsp.CodeLensParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentCodeLensName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.CodeLens[] CodeLens(Protocol.CodeLensParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.CodeLens>();
+            return Array.Empty<Protocol.CodeLens>();
         }
 
         // Nur Positionen — rein syntaktisch und ohne Referenzsuche (die folgt träge in resolve).
         var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
 
         return syntaxTree == null
-            ? Array.Empty<Lsp.CodeLens>()
+            ? Array.Empty<Protocol.CodeLens>()
             : CodeLensBuilder.Build(syntaxTree, param.TextDocument.Uri);
     }
 
-    [JsonRpcMethod(Lsp.Methods.CodeLensResolveName, UseSingleObjectParameterDeserialization = true)]
-    public async Task<Lsp.CodeLens> CodeLensResolve(Lsp.CodeLens codeLens) {
+    [JsonRpcMethod(Protocol.Methods.CodeLensResolveName, UseSingleObjectParameterDeserialization = true)]
+    public async Task<Protocol.CodeLens> CodeLensResolve(Protocol.CodeLens codeLens) {
 
         // Data kommt über die Leitung als JObject zurück (Newtonsoft) → Dokument + Offset herauslesen.
         var data = (codeLens.Data as JObject)?.ToObject<CodeLensData>();
@@ -632,12 +632,12 @@ class NavLanguageServer {
 
         var locations = collector.Locations
                                  .Select(LspMapper.ToLocation)
-                                 .OfType<Lsp.Location>()
+                                 .OfType<Protocol.Location>()
                                  .ToArray();
 
         var count = locations.Length;
 
-        codeLens.Command = new Lsp.Command {
+        codeLens.Command = new Protocol.Command {
             Title = count == 1 ? "1 Verweis" : $"{count} Verweise"
         };
 
@@ -652,17 +652,17 @@ class NavLanguageServer {
         return codeLens;
     }
 
-    [JsonRpcMethod(Lsp.Methods.TextDocumentCompletionName, UseSingleObjectParameterDeserialization = true)]
-    public Lsp.CompletionItem[] Completion(Lsp.CompletionParams param) {
+    [JsonRpcMethod(Protocol.Methods.TextDocumentCompletionName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.CompletionItem[] Completion(Protocol.CompletionParams param) {
 
         var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
         if (filePath == null) {
-            return Array.Empty<Lsp.CompletionItem>();
+            return Array.Empty<Protocol.CompletionItem>();
         }
 
         var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
         if (unit == null) {
-            return Array.Empty<Lsp.CompletionItem>();
+            return Array.Empty<Protocol.CompletionItem>();
         }
 
         var sourceText = unit.Syntax.SyntaxTree.SourceText;
@@ -672,12 +672,12 @@ class NavLanguageServer {
         // SortText nach Index, damit die vom Service vorgegebene Reihenfolge (unverbundene Exits /
         // unreferenzierte Knoten zuerst, bzw. Elternverzeichnis → Verzeichnisse → Dateien) im Client
         // erhalten bleibt — sonst sortiert dieser alphabetisch.
-        var result = new Lsp.CompletionItem[items.Count];
+        var result = new Protocol.CompletionItem[items.Count];
         for (var i = 0; i < items.Count; i++) {
 
             var item = items[i];
 
-            var lspItem = new Lsp.CompletionItem {
+            var lspItem = new Protocol.CompletionItem {
                 Label    = item.Label,
                 Kind     = ToCompletionItemKind(item.Kind),
                 SortText = i.ToString("D4")
@@ -695,7 +695,7 @@ class NavLanguageServer {
             // fände das Tippen eines bloßen Dateinamens ("Bar") nichts, weil das führende "..\..\" den Fuzzy-Match
             // dominiert. Der Dateiname als FilterText findet die Datei zuverlässig allein durch ihren Namen.
             if (item.ReplacementExtent is { } extent) {
-                lspItem.TextEdit = new Lsp.TextEdit {
+                lspItem.TextEdit = new Protocol.TextEdit {
                     NewText = item.InsertText,
                     Range   = LspMapper.ToRange(sourceText.GetLocation(extent))
                 };
@@ -710,21 +710,21 @@ class NavLanguageServer {
         return result;
     }
 
-    static Lsp.CompletionItemKind ToCompletionItemKind(NavCompletionItemKind kind) => kind switch {
-        NavCompletionItemKind.Keyword         => Lsp.CompletionItemKind.Keyword,
-        NavCompletionItemKind.Task            => Lsp.CompletionItemKind.Class,
-        NavCompletionItemKind.ConnectionPoint => Lsp.CompletionItemKind.Field,
-        NavCompletionItemKind.Choice          => Lsp.CompletionItemKind.EnumMember,
-        NavCompletionItemKind.GuiNode         => Lsp.CompletionItemKind.Interface,
-        NavCompletionItemKind.File            => Lsp.CompletionItemKind.File,
-        NavCompletionItemKind.Folder          => Lsp.CompletionItemKind.Folder,
-        _                                     => Lsp.CompletionItemKind.Variable
+    static Protocol.CompletionItemKind ToCompletionItemKind(NavCompletionItemKind kind) => kind switch {
+        NavCompletionItemKind.Keyword         => Protocol.CompletionItemKind.Keyword,
+        NavCompletionItemKind.Task            => Protocol.CompletionItemKind.Class,
+        NavCompletionItemKind.ConnectionPoint => Protocol.CompletionItemKind.Field,
+        NavCompletionItemKind.Choice          => Protocol.CompletionItemKind.EnumMember,
+        NavCompletionItemKind.GuiNode         => Protocol.CompletionItemKind.Interface,
+        NavCompletionItemKind.File            => Protocol.CompletionItemKind.File,
+        NavCompletionItemKind.Folder          => Protocol.CompletionItemKind.Folder,
+        _                                     => Protocol.CompletionItemKind.Variable
     };
 
-    [JsonRpcMethod(Lsp.Methods.ShutdownName)]
+    [JsonRpcMethod(Protocol.Methods.ShutdownName)]
     public object? Shutdown() => null;
 
-    [JsonRpcMethod(Lsp.Methods.ExitName)]
+    [JsonRpcMethod(Protocol.Methods.ExitName)]
     public void Exit() {
         Environment.Exit(0);
     }
@@ -771,13 +771,13 @@ class NavLanguageServer {
         return PublishAsync(uri, lspDiagnostics);
     }
 
-    Task PublishAsync(Uri uri, Lsp.Diagnostic[] diagnostics) {
+    Task PublishAsync(Uri uri, Protocol.Diagnostic[] diagnostics) {
 
-        var publishParams = new Lsp.PublishDiagnosticParams {
+        var publishParams = new Protocol.PublishDiagnosticParams {
             Uri         = uri,
             Diagnostics = diagnostics
         };
 
-        return _rpc.NotifyWithParameterObjectAsync(Lsp.Methods.TextDocumentPublishDiagnosticsName, publishParams);
+        return _rpc.NotifyWithParameterObjectAsync(Protocol.Methods.TextDocumentPublishDiagnosticsName, publishParams);
     }
 }

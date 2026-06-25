@@ -7,11 +7,11 @@ using Pharmatechnik.Nav.Language.Text;
 using NavDiagnostic = Pharmatechnik.Nav.Language.Diagnostic;
 using NavSeverity = Pharmatechnik.Nav.Language.DiagnosticSeverity;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Bildet Engine-Diagnostics auf die LSP-Protokoll-DTOs ab. Die Nav-<see cref="NavDiagnostic.Location"/>
@@ -19,9 +19,9 @@ namespace Pharmatechnik.Nav.Language.Server;
 /// </summary>
 static class LspMapper {
 
-    public static Lsp.Diagnostic ToLsp(NavDiagnostic diagnostic) {
+    public static Protocol.Diagnostic ToLsp(NavDiagnostic diagnostic) {
 
-        return new Lsp.Diagnostic {
+        return new Protocol.Diagnostic {
             Range    = ToRange(diagnostic.Location),
             Severity = ToLsp(diagnostic.Severity),
             Code     = diagnostic.Descriptor.Id,
@@ -30,34 +30,34 @@ static class LspMapper {
         };
     }
 
-    public static Lsp.Range ToRange(Location location) => new() {
-        Start = new Lsp.Position { Line = location.StartLine, Character = location.StartCharacter },
-        End   = new Lsp.Position { Line = location.EndLine,   Character = location.EndCharacter }
+    public static Protocol.Range ToRange(Location location) => new() {
+        Start = new Protocol.Position { Line = location.StartLine, Character = location.StartCharacter },
+        End   = new Protocol.Position { Line = location.EndLine,   Character = location.EndCharacter }
     };
 
     /// <summary>
-    /// Bildet eine Engine-<see cref="Location"/> auf eine LSP-<see cref="Lsp.Location"/> ab. Der
+    /// Bildet eine Engine-<see cref="Location"/> auf eine LSP-<see cref="Protocol.Location"/> ab. Der
     /// Ziel-Pfad (auch cross-file) wird zu einer <c>file://</c>-URI; null, wenn die Location keinen
     /// Dateipfad trägt.
     /// </summary>
-    public static Lsp.Location? ToLocation(Location location) {
+    public static Protocol.Location? ToLocation(Location location) {
 
         if (string.IsNullOrEmpty(location?.FilePath)) {
             return null;
         }
 
-        return new Lsp.Location {
+        return new Protocol.Location {
             Uri   = new Uri(location.FilePath),
             Range = ToRange(location)
         };
     }
 
     /// <summary>
-    /// Rechnet eine LSP-<see cref="Lsp.Position"/> (Zeile/Zeichen, 0-basiert) in einen 0-basierten
+    /// Rechnet eine LSP-<see cref="Protocol.Position"/> (Zeile/Zeichen, 0-basiert) in einen 0-basierten
     /// Zeichen-Offset innerhalb des <paramref name="sourceText"/> um. Zeile und Zeichen werden auf
     /// gültige Grenzen geklemmt, damit Anfragen am Dokumentrand nicht werfen.
     /// </summary>
-    public static int ToOffset(SourceText sourceText, Lsp.Position position) {
+    public static int ToOffset(SourceText sourceText, Protocol.Position position) {
 
         var lines = sourceText.TextLines;
         if (lines.Count == 0) {
@@ -72,10 +72,10 @@ static class LspMapper {
         return Math.Min(offset, line.End);
     }
 
-    static Lsp.DiagnosticSeverity ToLsp(NavSeverity severity) => severity switch {
-        NavSeverity.Error      => Lsp.DiagnosticSeverity.Error,
-        NavSeverity.Warning    => Lsp.DiagnosticSeverity.Warning,
-        NavSeverity.Suggestion => Lsp.DiagnosticSeverity.Information,
-        _                      => Lsp.DiagnosticSeverity.Information
+    static Protocol.DiagnosticSeverity ToLsp(NavSeverity severity) => severity switch {
+        NavSeverity.Error      => Protocol.DiagnosticSeverity.Error,
+        NavSeverity.Warning    => Protocol.DiagnosticSeverity.Warning,
+        NavSeverity.Suggestion => Protocol.DiagnosticSeverity.Information,
+        _                      => Protocol.DiagnosticSeverity.Information
     };
 }

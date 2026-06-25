@@ -18,10 +18,10 @@ nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Statu
 1. Server bauen (Full-Framework-MSBuild):
 
    ```
-   MSBuild.exe Nav.Language.Server\Nav.Language.Server.csproj -t:Build -p:Configuration=Debug
+   MSBuild.exe Nav.Language.Lsp\Nav.Language.Lsp.csproj -t:Build -p:Configuration=Debug
    ```
 
-   Ergebnis: `Nav.Language.Server\bin\Debug\net10.0\nav.lsp.dll`.
+   Ergebnis: `Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll`.
 
 2. Client-Abhängigkeiten installieren:
 
@@ -45,7 +45,7 @@ nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Statu
 1. Konfigurierter Pfad (`navLanguageServer.serverPath`) — `.exe` direkt, `.dll` via `dotnet`.
 2. **Eingebettet:** `server/nav.lsp.exe` neben `extension.js` (greift im installierten VSIX).
 3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (self-contained Publish).
-4. **Repo (F5):** `../Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
+4. **Repo (F5):** `../Nav.Language.Lsp/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
 
 ## Server publizieren (self-contained)
 
@@ -55,7 +55,7 @@ separate Runtime-Installation, keine losen DLLs, keine Satellite-Ressourcen-Ordn
 diese Ausgabe im F5-Workflow automatisch.
 
 Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `Build.bat`). Unter der Haube (gekürzt):
-`MSBuild.exe …Nav.Language.Server.csproj -restore -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en`.
+`MSBuild.exe …Nav.Language.Lsp.csproj -restore -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en`.
 
 ## VSIX paketieren & installieren
 

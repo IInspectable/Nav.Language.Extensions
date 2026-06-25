@@ -34,7 +34,7 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Nav.Language.ExtensionShare
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Extension2026", "Nav.Language.Extension2026\Nav.Language.Extension2026.csproj", "{F9BD82FB-2ABB-41B6-AFA0-24013754A9C8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Server", "Nav.Language.Server\Nav.Language.Server.csproj", "{CEA9A200-6659-4001-957F-10CD17239842}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Lsp", "Nav.Language.Lsp\Nav.Language.Lsp.csproj", "{CEA9A200-6659-4001-957F-10CD17239842}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Mcp", "Nav.Language.Mcp\Nav.Language.Mcp.csproj", "{82B7D208-4722-4AF8-BA6E-22F4745870E8}"
 EndProject

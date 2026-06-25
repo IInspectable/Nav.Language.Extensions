@@ -5,11 +5,11 @@ using System.Linq;
 
 using Pharmatechnik.Nav.Language.Text;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Baut die zusammenklappbaren Bereiche (<c>textDocument/foldingRange</c>) rein syntaktisch aus dem
@@ -19,17 +19,17 @@ namespace Pharmatechnik.Nav.Language.Server;
 /// </summary>
 static class FoldingRangeBuilder {
 
-    public static Lsp.FoldingRange[] Build(SyntaxTree syntaxTree) {
+    public static Protocol.FoldingRange[] Build(SyntaxTree syntaxTree) {
 
         var source = syntaxTree.SourceText;
         var root   = syntaxTree.Root;
 
         // Dedup über (startLine,endLine,kind): ein Task-Body, der nur aus einem Block besteht, würde
         // sonst denselben Bereich doppelt liefern.
-        var seen   = new HashSet<(int, int, Lsp.FoldingRangeKind?)>();
-        var result = new List<Lsp.FoldingRange>();
+        var seen   = new HashSet<(int, int, Protocol.FoldingRangeKind?)>();
+        var result = new List<Protocol.FoldingRange>();
 
-        void Add(int startOffset, int endOffset, Lsp.FoldingRangeKind? kind) {
+        void Add(int startOffset, int endOffset, Protocol.FoldingRangeKind? kind) {
 
             if (endOffset <= startOffset) {
                 return;
@@ -47,14 +47,14 @@ static class FoldingRangeBuilder {
                 return;
             }
 
-            result.Add(new Lsp.FoldingRange {
+            result.Add(new Protocol.FoldingRange {
                 StartLine = startLine,
                 EndLine   = endLine,
                 Kind      = kind
             });
         }
 
-        void AddNode(SyntaxNode node, Lsp.FoldingRangeKind? kind) {
+        void AddNode(SyntaxNode node, Protocol.FoldingRangeKind? kind) {
             if (node != null && !node.Extent.IsEmptyOrMissing) {
                 Add(node.Extent.Start, node.Extent.End, kind);
             }
@@ -64,24 +64,24 @@ static class FoldingRangeBuilder {
         AddIncludeBlocks(root, Add);
 
         foreach (var task in root.DescendantNodes<TaskDefinitionSyntax>()) {
-            AddNode(task, Lsp.FoldingRangeKind.Region);
+            AddNode(task, Protocol.FoldingRangeKind.Region);
         }
 
         foreach (var taskRef in root.DescendantNodes<TaskDeclarationSyntax>()) {
-            AddNode(taskRef, Lsp.FoldingRangeKind.Region);
+            AddNode(taskRef, Protocol.FoldingRangeKind.Region);
         }
 
         foreach (var block in root.DescendantNodes<NodeDeclarationBlockSyntax>()) {
-            AddNode(block, Lsp.FoldingRangeKind.Region);
+            AddNode(block, Protocol.FoldingRangeKind.Region);
         }
 
         foreach (var block in root.DescendantNodes<TransitionDefinitionBlockSyntax>()) {
-            AddNode(block, Lsp.FoldingRangeKind.Region);
+            AddNode(block, Protocol.FoldingRangeKind.Region);
         }
 
         foreach (var comment in syntaxTree.Tokens.OfType(SyntaxTokenType.MultiLineComment)) {
             if (!comment.Extent.IsEmptyOrMissing) {
-                Add(comment.Extent.Start, comment.Extent.End, Lsp.FoldingRangeKind.Comment);
+                Add(comment.Extent.Start, comment.Extent.End, Protocol.FoldingRangeKind.Comment);
             }
         }
 
@@ -89,7 +89,7 @@ static class FoldingRangeBuilder {
     }
 
     /// <summary>Faltet einen zusammenhängenden Block von ≥2 using-Direktiven (Import-Region).</summary>
-    static void AddUsingBlock(SyntaxNode root, System.Action<int, int, Lsp.FoldingRangeKind?> add) {
+    static void AddUsingBlock(SyntaxNode root, System.Action<int, int, Protocol.FoldingRangeKind?> add) {
 
         var usings = root.DescendantNodes<CodeUsingDeclarationSyntax>().ToList();
         if (usings.Count < 2) {
@@ -99,14 +99,14 @@ static class FoldingRangeBuilder {
         var first = usings[0];
         var last  = usings[usings.Count - 1];
 
-        add(first.Extent.Start, last.Extent.End, Lsp.FoldingRangeKind.Imports);
+        add(first.Extent.Start, last.Extent.End, Protocol.FoldingRangeKind.Imports);
     }
 
     /// <summary>
     /// Faltet zusammenhängende Läufe von <c>taskref "datei"</c>-Includes (≥2) zu je einer Import-Region —
     /// ein Lauf endet, sobald ein anderer Top-Level-Knoten dazwischenliegt.
     /// </summary>
-    static void AddIncludeBlocks(SyntaxNode root, System.Action<int, int, Lsp.FoldingRangeKind?> add) {
+    static void AddIncludeBlocks(SyntaxNode root, System.Action<int, int, Protocol.FoldingRangeKind?> add) {
 
         var relevant = root.DescendantNodes<TaskDefinitionSyntax>().Cast<SyntaxNode>()
                            .Concat(root.DescendantNodes<TaskDeclarationSyntax>())
@@ -118,7 +118,7 @@ static class FoldingRangeBuilder {
 
         void Flush() {
             if (first != null && first != last) {
-                add(first.Extent.Start, last!.Extent.End, Lsp.FoldingRangeKind.Imports);
+                add(first.Extent.Start, last!.Extent.End, Protocol.FoldingRangeKind.Imports);
             }
 
             first = last = null;

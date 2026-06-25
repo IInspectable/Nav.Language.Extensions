@@ -8,7 +8,7 @@ using Pharmatechnik.Nav.Language.FindReferences;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Sammelnder <see cref="IFindReferencesContext"/> für den LSP-Server: nimmt die von der Engine

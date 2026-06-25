@@ -6,7 +6,7 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// URI-Normalisierung am LSP-Rand. LSP nutzt prozent-kodierte <c>file://</c>-URIs (RFC 3986); unter

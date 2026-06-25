@@ -7,11 +7,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// LSP-Schale über dem gemeinsamen <see cref="NavWorkspaceCore"/> (Solution + Overlay + Diagnostics). Ergänzt
@@ -140,7 +140,7 @@ class NavWorkspace {
     /// (sonst blieben Geister-Diagnostics am Client stehen).
     /// </summary>
     public async Task PublishDependentsAsync(string changedFilePath,
-                                             Func<Uri, Lsp.Diagnostic[], Task> publishAsync,
+                                             Func<Uri, Protocol.Diagnostic[], Task> publishAsync,
                                              CancellationToken cancellationToken) {
 
         foreach (var dependentKey in _dependencies.GetDependentsClosure(changedFilePath)) {
@@ -163,7 +163,7 @@ class NavWorkspace {
             // Ist der Inkludierer selbst ignoriert, ein leeres Array publizieren (statt zu überspringen),
             // damit zuvor angezeigte Diagnostics gelöscht werden.
             var lspDiagnostics = _ignore.IsIgnored(fullPath)
-                ? Array.Empty<Lsp.Diagnostic>()
+                ? Array.Empty<Protocol.Diagnostic>()
                 : DiagnosticsComputer.FromUnit(unit, fullPath)
                                      .Select(LspMapper.ToLsp)
                                      .ToArray();
@@ -173,7 +173,7 @@ class NavWorkspace {
     }
 
     /// <summary>Publiziert Diagnostics für sämtliche Workspace-Dateien.</summary>
-    public Task PublishAllDiagnosticsAsync(Func<Uri, Lsp.Diagnostic[], Task> publishAsync, CancellationToken cancellationToken) {
+    public Task PublishAllDiagnosticsAsync(Func<Uri, Protocol.Diagnostic[], Task> publishAsync, CancellationToken cancellationToken) {
 
         return _core.Solution.ProcessCodeGenerationUnitsAsync(
             asyncAction: async unit => {
@@ -189,7 +189,7 @@ class NavWorkspace {
 
                 // .navignore-Treffer: leeres Array publizieren (Datei bleibt für include/Navigation geladen).
                 var lspDiagnostics = _ignore.IsIgnored(fullPath)
-                    ? Array.Empty<Lsp.Diagnostic>()
+                    ? Array.Empty<Protocol.Diagnostic>()
                     : DiagnosticsComputer.FromUnit(unit, fullPath).Select(LspMapper.ToLsp).ToArray();
 
                 await publishAsync(new Uri(fullPath), lspDiagnostics);

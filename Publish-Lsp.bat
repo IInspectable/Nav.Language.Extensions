@@ -34,7 +34,7 @@ REM EnableCompressionInSingleFile        -> die exe komprimieren (deutlich klein
 REM SatelliteResourceLanguages=en        -> die lokalisierten Satellite-Ressourcen (cs/de/es/.../zh-Hant)
 REM                                         weglassen; der Server braucht sie nicht.
 REM DebugType=embedded                    -> keine separate .pdb-Datei (Symbole liegen im Assembly).
-"%msbuild%" "%~dp0Nav.Language.Server\Nav.Language.Server.csproj" -restore -t:Publish ^
+"%msbuild%" "%~dp0Nav.Language.Lsp\Nav.Language.Lsp.csproj" -restore -t:Publish ^
     -p:Configuration=%config% -p:RuntimeIdentifier=%rid% -p:SelfContained=true ^
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
     -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en ^

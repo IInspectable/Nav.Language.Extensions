@@ -4,11 +4,11 @@ using System.Linq;
 
 using Pharmatechnik.Nav.Language;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Baut den hierarchischen Dokument-Outline (Strg+Shift+O, Breadcrumbs) aus dem semantischen Modell:
@@ -17,22 +17,22 @@ namespace Pharmatechnik.Nav.Language.Server;
 /// </summary>
 static class DocumentSymbolBuilder {
 
-    public static Lsp.DocumentSymbol[] Build(CodeGenerationUnit unit) {
+    public static Protocol.DocumentSymbol[] Build(CodeGenerationUnit unit) {
         return unit.TaskDefinitions.Select(ToSymbol).ToArray();
     }
 
-    static Lsp.DocumentSymbol ToSymbol(ITaskDefinitionSymbol task) {
-        return new Lsp.DocumentSymbol {
+    static Protocol.DocumentSymbol ToSymbol(ITaskDefinitionSymbol task) {
+        return new Protocol.DocumentSymbol {
             Name           = task.Name,
-            Kind           = Lsp.SymbolKind.Class,
+            Kind           = Protocol.SymbolKind.Class,
             Range          = LspMapper.ToRange(task.Syntax.GetLocation()),
             SelectionRange = LspMapper.ToRange(task.Location),
             Children       = task.NodeDeclarations.Select(ToSymbol).ToArray()
         };
     }
 
-    static Lsp.DocumentSymbol ToSymbol(INodeSymbol node) {
-        return new Lsp.DocumentSymbol {
+    static Protocol.DocumentSymbol ToSymbol(INodeSymbol node) {
+        return new Protocol.DocumentSymbol {
             Name           = string.IsNullOrEmpty(node.Name) ? "<node>" : node.Name,
             Detail         = NodeDetail(node),
             Kind           = NodeKind(node),
@@ -41,11 +41,11 @@ static class DocumentSymbolBuilder {
         };
     }
 
-    static Lsp.SymbolKind NodeKind(INodeSymbol node) => node switch {
-        IInitNodeSymbol   => Lsp.SymbolKind.Constant,
-        IChoiceNodeSymbol => Lsp.SymbolKind.EnumMember,
-        IGuiNodeSymbol    => Lsp.SymbolKind.Interface,
-        _                 => Lsp.SymbolKind.Field
+    static Protocol.SymbolKind NodeKind(INodeSymbol node) => node switch {
+        IInitNodeSymbol   => Protocol.SymbolKind.Constant,
+        IChoiceNodeSymbol => Protocol.SymbolKind.EnumMember,
+        IGuiNodeSymbol    => Protocol.SymbolKind.Interface,
+        _                 => Protocol.SymbolKind.Field
     };
 
     static string NodeDetail(INodeSymbol node) => node switch {

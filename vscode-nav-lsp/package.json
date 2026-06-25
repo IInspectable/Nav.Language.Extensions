@@ -44,7 +44,7 @@
         "navLanguageServer.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Pfad zum Nav-LSP-Server. Endung .exe → wird direkt gestartet (z. B. der self-contained Publish nav.lsp.exe); Endung .dll → wird via 'dotnet <dll>' gestartet. Leer = Auto-Erkennung: zuerst der in die Extension eingebettete server/nav.lsp.exe (paketiertes VSIX), dann deploy/lsp/nav.lsp.exe (Repo, self-contained Publish), sonst der Debug-Build Nav.Language.Server/bin/Debug/net10.0/nav.lsp.dll via dotnet."
+          "description": "Pfad zum Nav-LSP-Server. Endung .exe → wird direkt gestartet (z. B. der self-contained Publish nav.lsp.exe); Endung .dll → wird via 'dotnet <dll>' gestartet. Leer = Auto-Erkennung: zuerst der in die Extension eingebettete server/nav.lsp.exe (paketiertes VSIX), dann deploy/lsp/nav.lsp.exe (Repo, self-contained Publish), sonst der Debug-Build Nav.Language.Lsp/bin/Debug/net10.0/nav.lsp.dll via dotnet."
         },
         "navLanguageServer.trace.server": {
           "type": "string",

@@ -30,7 +30,7 @@ function resolveServer() {
         return { command: bundledExe, args: [], target: bundledExe };
     }
 
-    // Die Extension liegt im Repo als Schwesterordner von Nav.Language.Server / deploy (F5-Dev).
+    // Die Extension liegt im Repo als Schwesterordner von Nav.Language.Lsp / deploy (F5-Dev).
     // Standard 1: self-contained Publish (deploy\lsp\nav.lsp.exe) — direkt starten, kein 'dotnet' nötig.
     const publishedExe = path.join(__dirname, '..', 'deploy', 'lsp', 'nav.lsp.exe');
     if (fs.existsSync(publishedExe)) {
@@ -40,7 +40,7 @@ function resolveServer() {
     // Standard 2: framework-dependent Debug-Build via 'dotnet'.
     const debugDll = path.join(
         __dirname, '..',
-        'Nav.Language.Server', 'bin', 'Debug', 'net10.0', 'nav.lsp.dll');
+        'Nav.Language.Lsp', 'bin', 'Debug', 'net10.0', 'nav.lsp.dll');
     return { command: 'dotnet', args: [debugDll], target: debugDll };
 }
 

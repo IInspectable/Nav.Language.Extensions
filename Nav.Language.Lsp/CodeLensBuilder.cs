@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 
-using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
+using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Baut die CodeLens-Marken (<c>textDocument/codeLens</c>) rein syntaktisch aus dem
@@ -18,11 +18,11 @@ namespace Pharmatechnik.Nav.Language.Server;
 /// </summary>
 static class CodeLensBuilder {
 
-    public static Lsp.CodeLens[] Build(SyntaxTree syntaxTree, Uri documentUri) {
+    public static Protocol.CodeLens[] Build(SyntaxTree syntaxTree, Uri documentUri) {
 
         var source = syntaxTree.SourceText;
         var uri    = documentUri.OriginalString;
-        var result = new List<Lsp.CodeLens>();
+        var result = new List<Protocol.CodeLens>();
 
         void AddFor(SyntaxToken identifier) {
             // Anker ist stets der Bezeichner; fehlt er (z. B. anonyme end-Knoten: nur 'end;'), keine Lens.
@@ -30,7 +30,7 @@ static class CodeLensBuilder {
                 return;
             }
 
-            result.Add(new Lsp.CodeLens {
+            result.Add(new Protocol.CodeLens {
                 Range = LspMapper.ToRange(source.GetLocation(identifier.Extent)),
                 // Genug, um in resolve das Symbol wiederzufinden: Dokument + Offset des Bezeichners.
                 // OriginalString bewahrt die exakte (ggf. %3A-kodierte) Wire-Form der VS-Code-URI.

@@ -8,7 +8,7 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 /// <summary>
 /// Erzeugt LSP-Semantic-Tokens aus der bereits vorhandenen Token-Klassifizierung der Engine

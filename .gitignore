@@ -33,8 +33,8 @@
 /Nav.Cli/bin
 /Nav.Cli/obj
 
-/Nav.Language.Server/bin
-/Nav.Language.Server/obj
+/Nav.Language.Lsp/bin
+/Nav.Language.Lsp/obj
 
 /Nav.Language.Mcp/bin
 /Nav.Language.Mcp/obj

@@ -10,7 +10,7 @@ using StreamJsonRpc;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Server;
+namespace Pharmatechnik.Nav.Language.Lsp;
 
 static class Program {
 
