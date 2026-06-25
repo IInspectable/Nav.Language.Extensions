@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Language.Rename;
 using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.References;
@@ -64,6 +65,7 @@ class NavLanguageServer {
                 DocumentHighlightProvider = true,
                 HoverProvider             = true,
                 FoldingRangeProvider      = true,
+                RenameProvider            = true,
                 CodeLensProvider          = new Lsp.CodeLensOptions {
                     // Die Marken liefern wir leer (nur Position); Beschriftung + Klick-Command erst
                     // träge über codeLens/resolve, weil die solution-weite Referenzsuche teuer ist.
@@ -237,6 +239,74 @@ class NavLanguageServer {
         }
 
         return highlights.ToArray();
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentRenameName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.WorkspaceEdit? Rename(Lsp.RenameParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return null;
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return null;
+        }
+
+        var sourceText = unit.Syntax.SyntaxTree.SourceText;
+        var offset     = LspMapper.ToOffset(sourceText, param.Position);
+        var settings   = EditorSettingsFor(sourceText);
+
+        var renameFix = NavRenameService.GetRenameFix(unit, offset, settings);
+        if (renameFix == null) {
+            // Caret steht auf keinem umbenennbaren Symbol (Keyword, Whitespace, …).
+            throw new LocalRpcException("You must rename an identifier.");
+        }
+
+        // Den neuen Namen prüfen (Identifier gültig? Name bereits vergeben?) und die Meldung als
+        // JSON-RPC-Fehler melden — VS Code zeigt sie direkt am Rename-Eingabefeld an. (Eine clientseitige
+        // Vorab-Validierung über prepareRename gibt es nicht: das LSP-Protokoll-Paket 17.2.8 kennt es nicht.)
+        var newName           = param.NewName?.Trim() ?? string.Empty;
+        var validationMessage = renameFix.ValidateSymbolName(newName);
+        if (!string.IsNullOrEmpty(validationMessage)) {
+            throw new LocalRpcException(validationMessage);
+        }
+
+        // Der Rename ist — wie in VS — dateilokal: alle TextChanges beziehen sich auf dieses Dokument.
+        var edits = new List<Lsp.TextEdit>();
+        foreach (var change in renameFix.GetTextChanges(newName)) {
+
+            if (change.IsEmpty || change.Extent.End > sourceText.Length) {
+                continue;
+            }
+
+            edits.Add(new Lsp.TextEdit {
+                Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
+                NewText = change.ReplacementText
+            });
+        }
+
+        if (edits.Count == 0) {
+            // z.B. neuer Name == alter Name → nichts zu tun.
+            return null;
+        }
+
+        return new Lsp.WorkspaceEdit {
+            Changes = new Dictionary<string, Lsp.TextEdit[]> {
+                // Exakt die vom Client gesendete URI-Form zurückspiegeln (file:///d%3A/… bleibt erhalten).
+                [param.TextDocument.Uri.OriginalString] = edits.ToArray()
+            }
+        };
+    }
+
+    /// <summary>
+    /// Editor-Einstellungen für die Refactoring-Engine. TabSize 4 (wie der VS-Default); der Zeilenumbruch
+    /// wird aus dem Dokument erkannt (CRLF vs. LF), damit neu komponierte mehrzeilige Kanten zum Dokument passen.
+    /// </summary>
+    static TextEditorSettings EditorSettingsFor(SourceText sourceText) {
+        var newLine = sourceText.Text.Contains("\r\n") ? "\r\n" : "\n";
+        return new TextEditorSettings(tabSize: 4, newLine: newLine);
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentHoverName, UseSingleObjectParameterDeserialization = true)]
