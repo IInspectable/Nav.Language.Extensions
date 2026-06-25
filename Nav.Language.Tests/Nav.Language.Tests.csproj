@@ -8,8 +8,8 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.Tests</RootNamespace>
     <AssemblyName>Nav.Language.Tests</AssemblyName>
-    <!-- net472 bleibt flach in bin\Debug\ (bestehender NUnit-Console-Runner-/Run-Tests.bat-Flow
-         unveraendert); net10.0 bekommt den TFM-Unterordner bin\Debug\net10.0\, damit sich die beiden
+    <!-- net472 bleibt flach in bin\Debug\ (bestehender NUnit-Console-Runner-Flow via `n test`
+         unverändert); net10.0 bekommt den TFM-Unterordner bin\Debug\net10.0\, damit sich die beiden
          Multi-Target-Builds nicht ueberschreiben (Output-Pfad-Kollision). -->
     <AppendTargetFrameworkToOutputPath Condition="'$(TargetFramework)' == 'net472'">false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>

@@ -63,18 +63,18 @@ Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hinter
 
 ## Server publizieren (self-contained)
 
-`Publish-Lsp.bat` (Repo-Root) erzeugt einen **self-contained Single-File**-Server unter `deploy\lsp`:
+`n publishlsp` erzeugt einen **self-contained Single-File**-Server unter `deploy\lsp`:
 **genau eine Datei** `deploy\lsp\nav.lsp.exe` (inkl. gebündelter .NET-Runtime, ~39 MB komprimiert — keine
 separate Runtime-Installation, keine losen DLLs, keine Satellite-Ressourcen-Ordner). Die Extension findet
 diese Ausgabe im F5-Workflow automatisch.
 
-Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `Build.bat`). Unter der Haube (gekürzt):
+Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `n build`). Unter der Haube (gekürzt):
 `MSBuild.exe …Nav.Language.Lsp.csproj -restore -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en`.
 
 ## VSIX paketieren & installieren
 
-`Package-VsCode.bat` (Repo-Root) erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**:
-es baut den Server (`Publish-Lsp.bat`), bettet `nav.lsp.exe` als `vscode-nav-lsp/server/nav.lsp.exe`
+`n packagevscode` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**:
+es baut den Server (`n publishlsp`), bettet `nav.lsp.exe` als `vscode-nav-lsp/server/nav.lsp.exe`
 in die Extension ein und paketiert plattform-spezifisch via `npx @vscode/vsce package --target win32-x64`.
 
 Ergebnis: `deploy\vscode\nav-language-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
