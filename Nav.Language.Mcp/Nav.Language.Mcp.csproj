@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pharmatechnik.Nav.Language.Mcp</RootNamespace>
+    <!-- Apphost/Assembly heißt nav.mcp → self-contained Publish liefert nav.mcp.exe (analog nav.lsp.exe).
+         RootNamespace bleibt bewusst getrennt, damit der Quellcode/die Namespaces unverändert bleiben. -->
+    <AssemblyName>nav.mcp</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Self-contained Single-File-Publish-Ziel (analog zum LSP-Server); RID/SelfContained/PublishSingleFile
+         werden beim Publish per Kommandozeile gesetzt. Kein PublishTrimmed: das MCP-SDK serialisiert reflection-
+         basiert (System.Text.Json-SourceGen ausgenommen) — Single-File ist nur Bündelung, kein Trimming. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
+    <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Offizielles C#-MCP-SDK (Hosting + DI + stdio-Transport + [McpServerTool]-Discovery). -->
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>

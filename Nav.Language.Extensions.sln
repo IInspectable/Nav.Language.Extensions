@@ -36,6 +36,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Extension2026"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Server", "Nav.Language.Server\Nav.Language.Server.csproj", "{CEA9A200-6659-4001-957F-10CD17239842}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nav.Language.Mcp", "Nav.Language.Mcp\Nav.Language.Mcp.csproj", "{82B7D208-4722-4AF8-BA6E-22F4745870E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -154,6 +156,18 @@ Global
 		{CEA9A200-6659-4001-957F-10CD17239842}.Release|x64.Build.0 = Release|Any CPU
 		{CEA9A200-6659-4001-957F-10CD17239842}.Release|x86.ActiveCfg = Release|Any CPU
 		{CEA9A200-6659-4001-957F-10CD17239842}.Release|x86.Build.0 = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|x64.Build.0 = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Debug|x86.Build.0 = Debug|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|x64.ActiveCfg = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|x64.Build.0 = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|x86.ActiveCfg = Release|Any CPU
+		{82B7D208-4722-4AF8-BA6E-22F4745870E8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

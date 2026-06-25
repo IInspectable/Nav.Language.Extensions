@@ -36,6 +36,9 @@
 /Nav.Language.Server/bin
 /Nav.Language.Server/obj
 
+/Nav.Language.Mcp/bin
+/Nav.Language.Mcp/obj
+
 /vscode-nav-lsp/node_modules
 /vscode-nav-lsp/server
 /vscode-nav-lsp/*.vsix

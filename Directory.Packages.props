@@ -48,6 +48,12 @@
          Greift dank CentralPackageTransitivePinningEnabled ohne direkten PackageReference. -->
     <PackageVersion Include="MessagePack" Version="2.5.301" />
 
+    <!-- ========= MCP-Server (Nav.Language.Mcp, .NET 10) ============== -->
+    <!-- Offizielles C#-MCP-SDK (Hosting + DI + stdio-Transport + [McpServerTool]-Discovery). Microsoft.Extensions.Hosting
+         für Host.CreateApplicationBuilder; 9.0er-Linie passend zu den übrigen 9.0.0-Paketen des Repos. -->
+    <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+
     <PackageVersion Include="FluentCommandLineParser" Version="1.4.3" />
 
     <!-- This package contains helper functionality for MSBuild extenders Achtung: Komische Versionierung!
