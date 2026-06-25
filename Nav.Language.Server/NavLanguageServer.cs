@@ -154,7 +154,8 @@ class NavLanguageServer {
             return;
         }
 
-        var anyCreated = false;
+        var anyCreated      = false;
+        var anyIgnoreChanged = false;
 
         foreach (var change in param.Changes) {
 
@@ -162,6 +163,13 @@ class NavLanguageServer {
             var normalizedPath = NavUri.ToNormalizedPath(uri);
             var filePath       = NavUri.ToFilePath(uri);
             if (normalizedPath == null || filePath == null) {
+                continue;
+            }
+
+            // .navignore angelegt/geändert/gelöscht: nicht als Nav-Dokument behandeln, sondern nur merken —
+            // die Ignore-Regeln werden danach einmal gebündelt neu geladen und alle Diagnostics neu publiziert.
+            if (IsNavIgnoreFile(filePath)) {
+                anyIgnoreChanged = true;
                 continue;
             }
 
@@ -190,6 +198,15 @@ class NavLanguageServer {
             await _workspace.PublishDependentsAsync(filePath, PublishAsync, CancellationToken.None);
         }
 
+        // Eine geänderte .navignore betrifft potenziell beliebig viele Dateien (neu ignoriert → Diagnostics
+        // löschen; nicht mehr ignoriert → Diagnostics wieder anzeigen). Regeln neu laden und die gesamte
+        // Solution einmal neu diagnostizieren — deckt beide Richtungen ab.
+        if (anyIgnoreChanged) {
+            _workspace.ReloadIgnore();
+            await _workspace.PublishAllDiagnosticsAsync(PublishAsync, CancellationToken.None);
+            return;
+        }
+
         // Neu angelegte Dateien können von Dateien inkludiert werden, deren bisher fehlgeschlagene
         // taskref-Direktive KEINE Graph-Kante hinterlassen hat (unaufgelöste Includes werden nicht
         // verzeichnet). Solche Inkludierer findet der Abhängigkeitsgraph nicht — daher beim Anlegen einmalig
@@ -198,6 +215,9 @@ class NavLanguageServer {
             await _workspace.PublishAllDiagnosticsAsync(PublishAsync, CancellationToken.None);
         }
     }
+
+    static bool IsNavIgnoreFile(string filePath) =>
+        string.Equals(System.IO.Path.GetFileName(filePath), ".navignore", StringComparison.OrdinalIgnoreCase);
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentDocumentSymbolName, UseSingleObjectParameterDeserialization = true)]
     public Lsp.DocumentSymbol[] DocumentSymbols(Lsp.DocumentSymbolParams param) {

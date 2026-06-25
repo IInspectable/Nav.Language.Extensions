@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Utilities.IO;
 
 using Lsp = Microsoft.VisualStudio.LanguageServer.Protocol;
@@ -32,6 +31,10 @@ class NavWorkspace {
     // Beim Solution-Scan (PublishAllDiagnosticsAsync) komplett befüllt und bei jeder Unit-Berechnung
     // aufgefrischt, sodass ein didChange auch die (transitiv) inkludierenden Dateien neu diagnostizieren kann.
     readonly IncludeDependencyGraph _dependencies = new();
+
+    // Hierarchische .navignore-Treffer: ignorierte Dateien bleiben in der Solution (weiterhin als include-Ziel
+    // auflösbar und navigierbar), publizieren aber keine Diagnostics (leeres Array → löscht ggf. Angezeigtes).
+    NavIgnore _ignore = NavIgnore.Empty;
 
     NavSolution _solution = NavSolution.Empty;
 
@@ -59,6 +62,24 @@ class NavWorkspace {
         var discovered = await NavSolution.FromDirectoryAsync(directory, cancellationToken);
 
         _solution = new NavSolution(directory, discovered.SolutionFiles, _syntaxProvider, _semanticModelProvider);
+        _ignore   = NavIgnore.Load(rootPath);
+    }
+
+    /// <summary>Ist die Datei durch eine <c>.navignore</c>-Regel von Diagnostics ausgenommen?</summary>
+    public bool IsIgnored(string filePath) => _ignore.IsIgnored(filePath);
+
+    /// <summary>
+    /// Lädt die <c>.navignore</c>-Regeln neu (nach einer Änderung an einer <c>.navignore</c>-Datei). Die
+    /// Solution-Dateiliste bleibt unberührt; nur das Ignore-Urteil ändert sich.
+    /// </summary>
+    public void ReloadIgnore() {
+
+        if (_solution.SolutionDirectory == null) {
+            _ignore = NavIgnore.Empty;
+            return;
+        }
+
+        _ignore = NavIgnore.Load(_solution.SolutionDirectory.FullName);
     }
 
     /// <summary>Öffnet/aktualisiert ein Dokument im Overlay (Schlüssel = normalisierter Pfad).</summary>
@@ -139,8 +160,14 @@ class NavWorkspace {
         }
 
         // Beim Diagnostizieren zugleich die Include-Kanten der Datei auffrischen (frei, da die Unit ohnehin
-        // gebaut wurde) — so bleibt der Graph für jede berührte Datei aktuell.
+        // gebaut wurde) — so bleibt der Graph für jede berührte Datei aktuell. Bewusst VOR dem Ignore-Gate,
+        // damit ignorierte Dateien weiter als include-Ziel im Graphen stehen.
         RecordIncludes(unit);
+
+        // .navignore-Treffer: keine Diagnostics (Datei bleibt geladen/auflösbar).
+        if (_ignore.IsIgnored(filePath)) {
+            return Array.Empty<Diagnostic>();
+        }
 
         return DiagnosticsComputer.FromUnit(unit, filePath);
     }
@@ -187,9 +214,13 @@ class NavWorkspace {
             // Kanten der inkludierenden Datei gleich mit auffrischen.
             RecordIncludes(unit);
 
-            var lspDiagnostics = DiagnosticsComputer.FromUnit(unit, fullPath)
-                                                    .Select(LspMapper.ToLsp)
-                                                    .ToArray();
+            // Ist der Inkludierer selbst ignoriert, ein leeres Array publizieren (statt zu überspringen),
+            // damit zuvor angezeigte Diagnostics gelöscht werden.
+            var lspDiagnostics = _ignore.IsIgnored(fullPath)
+                ? Array.Empty<Lsp.Diagnostic>()
+                : DiagnosticsComputer.FromUnit(unit, fullPath)
+                                     .Select(LspMapper.ToLsp)
+                                     .ToArray();
 
             await publishAsync(new Uri(fullPath), lspDiagnostics);
         }
@@ -210,8 +241,10 @@ class NavWorkspace {
                 // ein späteres didChange deren Re-Diagnose anstoßen kann.
                 RecordIncludes(unit);
 
-                var navDiagnostics = DiagnosticsComputer.FromUnit(unit, fullPath);
-                var lspDiagnostics = navDiagnostics.Select(LspMapper.ToLsp).ToArray();
+                // .navignore-Treffer: leeres Array publizieren (Datei bleibt für include/Navigation geladen).
+                var lspDiagnostics = _ignore.IsIgnored(fullPath)
+                    ? Array.Empty<Lsp.Diagnostic>()
+                    : DiagnosticsComputer.FromUnit(unit, fullPath).Select(LspMapper.ToLsp).ToArray();
 
                 await publishAsync(new Uri(fullPath), lspDiagnostics);
             },

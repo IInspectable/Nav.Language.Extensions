@@ -25,7 +25,7 @@ class NavCodeGenerator {
 
         try {
 
-            var fileSpecs = CollectFiles(cl);
+            var fileSpecs = CollectFiles(cl, logger);
             var pipeline  = CreatePipeline(cl, logger);
 
             return pipeline.Run(fileSpecs) ? 0 : 1;
@@ -81,20 +81,51 @@ class NavCodeGenerator {
         }
     }
 
-    static IEnumerable<FileSpec> CollectFiles(CommandLine cl) {
+    static IEnumerable<FileSpec> CollectFiles(CommandLine cl, ConsoleLogger logger) {
 
-        var dirFileSpecs = Enumerable.Empty<FileSpec>();
+        var result = new List<FileSpec>();
+
+        // /d:-Modus: Das Verzeichnis ist zugleich die .navignore-Scangrenze.
         if (cl.Directory != null) {
-            var navFiles = Directory.EnumerateFiles(cl.Directory, "*.nav", SearchOption.AllDirectories);
-            dirFileSpecs = navFiles.Select(file => new FileSpec(identity: PathHelper.GetRelativePath(cl.Directory, file), fileName: file));
+
+            var ignore = NavIgnore.Load(cl.Directory);
+
+            foreach (var file in Directory.EnumerateFiles(cl.Directory, "*.nav", SearchOption.AllDirectories)) {
+
+                if (ignore.IsIgnored(file)) {
+                    logger.LogVerbose($"Übersprungen (.navignore): {file}");
+                    continue;
+                }
+
+                result.Add(new FileSpec(identity: PathHelper.GetRelativePath(cl.Directory, file), fileName: file));
+            }
         }
 
-        var srcFileSpecs = Enumerable.Empty<FileSpec>();
+        // /s:-Modus: Einzeldateien ohne gemeinsame Wurzel — pro Datei die .navignore-Vorfahren auswerten.
         if (cl.Sources != null) {
-            srcFileSpecs = cl.Sources.Select(FileSpec.FromFile);
+
+            var ignoreByDir = new Dictionary<string, NavIgnore>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var source in cl.Sources) {
+
+                var fullPath = PathHelper.GetFullPathNoThrow(source);
+                var dir      = Path.GetDirectoryName(fullPath) ?? fullPath;
+
+                if (!ignoreByDir.TryGetValue(dir, out var ignore)) {
+                    ignore           = NavIgnore.LoadForAncestors(dir);
+                    ignoreByDir[dir] = ignore;
+                }
+
+                if (ignore.IsIgnored(fullPath)) {
+                    logger.LogInfo($"Übersprungen (.navignore): {source}");
+                    continue;
+                }
+
+                result.Add(FileSpec.FromFile(source));
+            }
         }
 
-        return dirFileSpecs.Concat(srcFileSpecs);
+        return result;
     }
 
 }

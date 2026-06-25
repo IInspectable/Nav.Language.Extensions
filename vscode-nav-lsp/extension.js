@@ -96,7 +96,12 @@ function activate(context) {
         synchronize: {
             // Externe Änderungen an *.nav-Dateien (auch geschlossenen) an den Server melden
             // (workspace/didChangeWatchedFiles) — damit inkludierende Dateien neu diagnostiziert werden.
-            fileEvents: workspace.createFileSystemWatcher('**/*.nav')
+            // Zusätzlich .navignore beobachten: Ändern sich die Ignore-Regeln, lädt der Server sie neu und
+            // publiziert alle Diagnostics erneut (neu ignoriert → löschen, nicht mehr ignoriert → anzeigen).
+            fileEvents: [
+                workspace.createFileSystemWatcher('**/*.nav'),
+                workspace.createFileSystemWatcher('**/.navignore')
+            ]
         }
     };
 
