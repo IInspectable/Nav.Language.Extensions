@@ -37,7 +37,12 @@ Protokoll/UI hinzu, nie eigene Sprachlogik.
   `Microsoft.VisualStudio.LanguageServer.Protocol`. Stdio, JSON-RPC. Übersetzt nur LSP-DTOs ↔
   Engine-Kerne. Statusdokument: `doc/nav-lsp-status.md` (Pflichtlektüre für LSP-Arbeit).
 - **`Nav.Language.Mcp`** (net10.0, Assembly **`nav.mcp`**) — MCP-Server (stdio), teilt die
-  Workspace-Host-Schicht mit dem LSP. Tools in `Nav.Language.Mcp/Tools/`.
+  Workspace-Host-Schicht mit dem LSP. Tools in `Nav.Language.Mcp/Tools/`: `nav_validate`,
+  `nav_outline`, `nav_workspace`, `nav_goto`, `nav_references`, `nav_rename`, `nav_code_actions`.
+  **Name-basiert** (ein Agent hat keinen Cursor — Symbole werden über ihren Namen adressiert, aufgelöst
+  via `Nav.Language/Symbols/NavSymbolSearch`, dann in die positions-basierten Engine-Kerne gespeist);
+  die mutierenden Tools (`nav_rename`, `nav_code_actions`) sind **read-only** und liefern nur das
+  Edit-Set. Statusdokument: `doc/nav-mcp-status.md`.
 - **`Nav.Cli`** (net472, Assembly **`nav.exe`**) — Kommandozeilen-Codegenerator/Analyzer.
 - **`Nav.Language.BuildTasks`** — MSBuild-Task + `Pharmatechnik.Nav.Language.targets`, übersetzt
   `.nav` beim Build zu C#.
