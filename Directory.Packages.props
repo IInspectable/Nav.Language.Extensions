@@ -42,6 +42,11 @@
     <!-- JSON-RPC-Transport (wie von VS selbst genutzt) + LSP-Protokoll-DTOs. -->
     <PackageVersion Include="StreamJsonRpc" Version="2.22.11" />
     <PackageVersion Include="Microsoft.VisualStudio.LanguageServer.Protocol" Version="17.2.8" />
+    <!-- Transitiv über StreamJsonRpc 2.22.11 (zieht MessagePack 2.5.192). 2.5.192 ist von GHSA-hv8m-jj95-wg3x
+         betroffen (NU1903, LZ4-Out-of-Bounds-Read bei deserialisierten Untrusted-Daten). Auf die gepatchte
+         2.5.301 hochgepinnt (gleiche 2.x-Linie, erfüllt die >=2.5.192-Anforderung von StreamJsonRpc → kompatibel).
+         Greift dank CentralPackageTransitivePinningEnabled ohne direkten PackageReference. -->
+    <PackageVersion Include="MessagePack" Version="2.5.301" />
 
     <PackageVersion Include="FluentCommandLineParser" Version="1.4.3" />
 
