@@ -13,7 +13,15 @@ set "root=%~dp0"
 set "extdir=%root%vscode-nav-lsp"
 set "serverexe=%root%deploy\lsp\nav.lsp.exe"
 set "vsixdir=%root%deploy\vscode"
-set "vsixname=nav-language-1.0.0-win32-x64.vsix"
+
+REM Versionsnummer aus Version.props (ProductVersion) ziehen - eine Quelle der Wahrheit fuer das ganze Repo.
+set "version="
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content -Raw '%root%Version.props')).SelectSingleNode('//ProductVersion').InnerText.Trim()"`) do set "version=%%v"
+if not defined version (
+    echo Konnte ProductVersion nicht aus Version.props lesen.
+    exit /b 1
+)
+set "vsixname=nav-language-%version%-win32-x64.vsix"
 
 REM 1) Server frisch self-contained publizieren (deploy\lsp\nav.lsp.exe).
 call "%root%Publish-Lsp.bat" %config%
@@ -51,10 +59,11 @@ if errorlevel 1 (
 )
 
 REM 4) VSIX paketieren (plattform-spezifisch win32-x64, passend zum win-x64 self-contained Server).
-REM    'echo y' beantwortet etwaige vsce-Bestaetigungsprompts nicht-interaktiv.
+REM    Version aus Version.props explizit setzen; --no-update-package-json/--no-git-tag-version halten
+REM    das versionierte package.json und git unangetastet, --skip-license unterdrueckt die LICENSE-Warnung.
 if not exist "%vsixdir%" mkdir "%vsixdir%"
 pushd "%extdir%"
-echo y | call npx @vscode/vsce package --target win32-x64 --out "%vsixdir%\%vsixname%"
+call npx @vscode/vsce package %version% --no-git-tag-version --no-update-package-json --skip-license --target win32-x64 --out "%vsixdir%\%vsixname%"
 if errorlevel 1 (
     echo.
     echo vsce package fehlgeschlagen.

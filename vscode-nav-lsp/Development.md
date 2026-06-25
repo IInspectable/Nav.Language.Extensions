@@ -63,8 +63,10 @@ Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `Build.ba
 es baut den Server (`Publish-Lsp.bat`), bettet `nav.lsp.exe` als `vscode-nav-lsp/server/nav.lsp.exe`
 in die Extension ein und paketiert plattform-spezifisch via `npx @vscode/vsce package --target win32-x64`.
 
-Ergebnis: `deploy\vscode\nav-language-1.0.0-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
-kein separates `dotnet`, keine Pfad-Konfiguration nötig). Voraussetzung: **Node/npm im PATH**.
+Ergebnis: `deploy\vscode\nav-language-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
+kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` zieht das Skript aus
+`Version.props` (`ProductVersion`) im Repo-Root — eine Quelle der Wahrheit; `package.json` wird beim
+Paketieren nicht verändert. Voraussetzung: **Node/npm im PATH**.
 
 Installieren in VS Code: **Extensions ▸ ⋯ ▸ „Install from VSIX…"** → die obige Datei wählen. Danach eine
 `.nav`-Datei öffnen; der Server startet aus dem eingebetteten `server/nav.lsp.exe`.

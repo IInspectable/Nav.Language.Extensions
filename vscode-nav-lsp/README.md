@@ -29,7 +29,7 @@ gleiche Sprachintelligenz bereit wie die Visual-Studio-Erweiterung.
 ## Installation
 
 1. `.vsix` über **Extensions ▸ ⋯ ▸ „Install from VSIX…"** installieren (oder
-   `code --install-extension nav-language-1.0.0-win32-x64.vsix`).
+   `code --install-extension nav-language-<version>-win32-x64.vsix`).
 2. Eine `.nav`-Datei öffnen — die Extension aktiviert sich automatisch und startet den Server.
 
 ## Konfiguration

@@ -2,7 +2,7 @@
   "name": "nav-language",
   "displayName": "Nav Language",
   "description": "VS-Code-Client für den Nav-LSP-Server",
-  "version": "1.0.0",
+  "version": "5.18.0",
   "publisher": "pharmatechnik",
   "repository": {
     "type": "git",

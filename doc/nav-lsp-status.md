@@ -252,7 +252,9 @@ diesen Kern auf und ergänzen nur UI/Codegen; der LSP-Server nutzt ihn direkt f�
   einem Aufruf ein fertiges, self-contained VSIX: ruft `Publish-Lsp.bat` (frischer Server-Build), bettet
   `nav.lsp.exe` als `vscode-nav-lsp\server\nav.lsp.exe` in die Extension ein (relativ zu `__dirname` aufgelöst —
   im installierten VSIX gibt es **keinen** Schwesterordner `deploy\lsp`) und paketiert plattform-spezifisch via
-  `npx @vscode/vsce package --target win32-x64 --out deploy\vscode\nav-language-1.0.0-win32-x64.vsix`.
+  `npx @vscode/vsce package <version> --no-update-package-json --no-git-tag-version --skip-license --target win32-x64 --out deploy\vscode\nav-language-<version>-win32-x64.vsix`.
+  Die `<version>` stammt aus `Version.props` (`ProductVersion`, derzeit 5.18.0) — eine Quelle der Wahrheit;
+  `package.json` wird beim Paketieren nicht angefasst.
   `extension.js#resolveServer`: neue Reihenfolge **konfigurierter Pfad → eingebettet `./server` → Repo
   `..\deploy\lsp` (F5) → Debug-DLL via `dotnet` (F5)**. Extension auf fertige Identität umbenannt
   (`name=nav-language`, `displayName=Nav Language`, `v1.0.0`, `repository`-Feld gegen den interaktiven
