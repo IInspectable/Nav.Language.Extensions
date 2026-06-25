@@ -1,5 +1,7 @@
 ﻿#region Using Directives
 
+using System.Collections.Generic;
+
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
 
@@ -68,6 +70,25 @@ public sealed class NavEditDto {
             EndColumn = location.EndCharacter   + 1,
             NewText   = change.ReplacementText
         };
+    }
+
+    /// <summary>
+    /// Bildet eine Folge offset-basierter Engine-<see cref="TextChange"/> auf 1-basierte Edits ab. Leere
+    /// Änderungen und solche außerhalb des Textes werden übersprungen (wie der LSP-Server).
+    /// </summary>
+    public static List<NavEditDto> FromChanges(SourceText sourceText, IEnumerable<TextChange> changes) {
+
+        var edits = new List<NavEditDto>();
+
+        foreach (var change in changes) {
+            if (change.IsEmpty || change.Extent.End > sourceText.Length) {
+                continue;
+            }
+
+            edits.Add(From(sourceText, change));
+        }
+
+        return edits;
     }
 
 }
