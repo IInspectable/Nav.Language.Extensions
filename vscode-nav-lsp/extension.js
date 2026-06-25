@@ -3,7 +3,7 @@
 const path = require('path');
 const fs = require('fs');
 const cp = require('child_process');
-const { workspace, window } = require('vscode');
+const { workspace, window, commands, Uri, Position, Range, Location } = require('vscode');
 const { LanguageClient, TransportKind, RevealOutputChannelOn } = require('vscode-languageclient/node');
 
 let client;
@@ -60,6 +60,22 @@ function activate(context) {
     if (server.command === 'dotnet') {
         checkDotnet();
     }
+
+    // Klick-Ziel der CodeLens „N Verweise". Der Server kann editor.action.showReferences nicht direkt
+    // ansteuern, weil dessen Argumente echte vscode-Typen sein müssen, die der LanguageClient für freie
+    // Command-Argumente nicht konvertiert. Daher wandelt dieser Command die JSON-Argumente (URI-String,
+    // LSP-Position, LSP-Locations) in vscode.Uri/Position/Location um und reicht sie weiter.
+    context.subscriptions.push(
+        commands.registerCommand('nav.showReferences', (uriStr, position, locations) => {
+            const uri = Uri.parse(uriStr);
+            const pos = new Position(position.line, position.character);
+            const locs = (locations || []).map(l => new Location(
+                Uri.parse(typeof l.uri === 'string' ? l.uri : String(l.uri)),
+                new Range(
+                    l.range.start.line, l.range.start.character,
+                    l.range.end.line, l.range.end.character)));
+            return commands.executeCommand('editor.action.showReferences', uri, pos, locs);
+        }));
 
     const launch = { command: server.command, args: server.args, transport: TransportKind.stdio };
     const serverOptions = { run: launch, debug: launch };

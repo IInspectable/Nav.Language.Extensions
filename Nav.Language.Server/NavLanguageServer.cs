@@ -8,6 +8,8 @@ using System.Collections.Generic;
 
 using StreamJsonRpc;
 
+using Newtonsoft.Json.Linq;
+
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.Completion;
@@ -62,6 +64,11 @@ class NavLanguageServer {
                 DocumentHighlightProvider = true,
                 HoverProvider             = true,
                 FoldingRangeProvider      = true,
+                CodeLensProvider          = new Lsp.CodeLensOptions {
+                    // Die Marken liefern wir leer (nur Position); Beschriftung + Klick-Command erst
+                    // träge über codeLens/resolve, weil die solution-weite Referenzsuche teuer ist.
+                    ResolveProvider = true
+                },
                 CompletionProvider        = new Lsp.CompletionOptions {
                     // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points,
                     // '-' für den Beginn einer Edge (-->), '"' sowie die Pfadtrenner für die
@@ -337,6 +344,74 @@ class NavLanguageServer {
         return syntaxTree == null
             ? Array.Empty<Lsp.FoldingRange>()
             : FoldingRangeBuilder.Build(syntaxTree);
+    }
+
+    [JsonRpcMethod(Lsp.Methods.TextDocumentCodeLensName, UseSingleObjectParameterDeserialization = true)]
+    public Lsp.CodeLens[] CodeLens(Lsp.CodeLensParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<Lsp.CodeLens>();
+        }
+
+        // Nur Positionen — rein syntaktisch und ohne Referenzsuche (die folgt träge in resolve).
+        var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
+
+        return syntaxTree == null
+            ? Array.Empty<Lsp.CodeLens>()
+            : CodeLensBuilder.Build(syntaxTree, param.TextDocument.Uri);
+    }
+
+    [JsonRpcMethod(Lsp.Methods.CodeLensResolveName, UseSingleObjectParameterDeserialization = true)]
+    public async Task<Lsp.CodeLens> CodeLensResolve(Lsp.CodeLens codeLens) {
+
+        // Data kommt über die Leitung als JObject zurück (Newtonsoft) → Dokument + Offset herauslesen.
+        var data = (codeLens.Data as JObject)?.ToObject<CodeLensData>();
+        if (data == null || string.IsNullOrEmpty(data.Uri)) {
+            return codeLens;
+        }
+
+        var filePath = NavUri.ToFilePath(new Uri(data.Uri));
+        if (filePath == null) {
+            return codeLens;
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return codeLens;
+        }
+
+        var origin = NavReferenceService.FindSymbol(unit, data.Offset);
+        if (origin == null) {
+            return codeLens;
+        }
+
+        // Solution-weite Referenzsuche (ohne die Deklaration selbst) — wie der References-Handler.
+        var collector = new ReferenceCollector(includeDeclaration: false, CancellationToken.None);
+        var args      = new FindReferencesArgs(origin, unit, _workspace.Solution, collector);
+
+        await ReferenceFinder.FindReferencesAsync(args);
+
+        var locations = collector.Locations
+                                 .Select(LspMapper.ToLocation)
+                                 .OfType<Lsp.Location>()
+                                 .ToArray();
+
+        var count = locations.Length;
+
+        codeLens.Command = new Lsp.Command {
+            Title = count == 1 ? "1 Verweis" : $"{count} Verweise"
+        };
+
+        // Beim Klick das Peek-Fenster öffnen. editor.action.showReferences erwartet echte vscode-Typen,
+        // die der LanguageClient für freie Command-Argumente NICHT konvertiert — daher der Umweg über den
+        // extension-seitigen Command nav.showReferences, der die JSON-Argumente umwandelt und weiterreicht.
+        if (count > 0) {
+            codeLens.Command.CommandIdentifier = "nav.showReferences";
+            codeLens.Command.Arguments = new object[] { data.Uri, codeLens.Range.Start, locations };
+        }
+
+        return codeLens;
     }
 
     [JsonRpcMethod(Lsp.Methods.TextDocumentCompletionName, UseSingleObjectParameterDeserialization = true)]
