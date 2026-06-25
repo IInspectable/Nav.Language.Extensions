@@ -1,6 +1,9 @@
 #region Using Directives
 
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Mcp.Tools;
@@ -20,12 +23,63 @@ public sealed class NavMcpWorkspace {
 
     readonly NavWorkspaceCore _core = new();
 
+    // Solution-Discovery (globt alle *.nav unter Root) wird nur für solution-weite Tools benötigt und daher
+    // lazy + thread-safe einmalig ausgeführt — per-File-Tools (Validate, Outline) brauchen sie nicht.
+    readonly SemaphoreSlim _loadGate = new(1, 1);
+    bool                   _solutionLoaded;
+
     public NavMcpWorkspace(string root) {
         Root = root;
     }
 
-    /// <summary>Workspace-Wurzel (für künftige solution-weite Tools wie find-references/workspace-symbols).</summary>
+    /// <summary>Workspace-Wurzel (Discovery-Basis für solution-weite Tools wie find-references/workspace).</summary>
     public string Root { get; }
+
+    /// <summary>Die geladene Solution (alle <c>*.nav</c>) — erst nach <see cref="EnsureSolutionLoadedAsync"/> befüllt.</summary>
+    public NavSolution Solution => _core.Solution;
+
+    /// <summary>Anzahl der Dateien in der geladenen Solution.</summary>
+    public int FileCount => _core.FileCount;
+
+    /// <summary>Wurzelverzeichnis der geladenen Solution (oder <c>null</c>).</summary>
+    public DirectoryInfo? SolutionDirectory => _core.SolutionDirectory;
+
+    /// <summary>
+    /// Lädt die Solution (alle <c>*.nav</c> unter <see cref="Root"/>) genau einmal. Idempotent und thread-safe;
+    /// solution-weite Tools rufen das vor dem Zugriff auf <see cref="Solution"/>.
+    /// </summary>
+    public async Task EnsureSolutionLoadedAsync(CancellationToken cancellationToken = default) {
+
+        if (_solutionLoaded) {
+            return;
+        }
+
+        await _loadGate.WaitAsync(cancellationToken);
+        try {
+            if (_solutionLoaded) {
+                return;
+            }
+
+            await _core.LoadAsync(Root, cancellationToken);
+            _solutionLoaded = true;
+        } finally {
+            _loadGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Liefert das frisch von Platte gelesene semantische Modell einer Datei (der Cache der Datei wird vorher
+    /// invalidiert — der Agent hat sie evtl. gerade editiert; MCP hält keine Overlays) samt normalisiertem Pfad.
+    /// <c>null</c>, wenn die Datei nicht gefunden/nicht parsebar ist.
+    /// </summary>
+    public CodeGenerationUnit? GetFreshUnit(string path, out string normalizedPath) {
+
+        normalizedPath = PathHelper.NormalizePath(path) ?? path;
+
+        _core.InvalidateCache(normalizedPath);
+
+        return _core.GetCodeGenerationUnit(normalizedPath);
+    }
 
     /// <summary>
     /// Validiert eine einzelne <c>.nav</c>-Datei und liefert ihre Diagnostics (inkl. Cross-File-Diagnostics aus
@@ -34,12 +88,7 @@ public sealed class NavMcpWorkspace {
     /// </summary>
     public NavValidateResult Validate(string path) {
 
-        var normalizedPath = PathHelper.NormalizePath(path) ?? path;
-
-        // Frisch von Platte: der Agent hat die Datei evtl. gerade editiert (MCP hält keine Overlays).
-        _core.InvalidateCache(normalizedPath);
-
-        var unit = _core.GetCodeGenerationUnit(normalizedPath);
+        var unit = GetFreshUnit(path, out var normalizedPath);
         if (unit == null) {
             return NavValidateResult.NotFound(path);
         }
