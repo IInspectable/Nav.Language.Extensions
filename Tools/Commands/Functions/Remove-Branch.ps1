@@ -123,7 +123,7 @@ function Remove-Branch {
     if (-not $merged -and -not $Force) {
         Write-Host ""
         Write-Host "  Branch '$Branch' ist nicht in master gemergt." -ForegroundColor Red
-        Write-Host "  Löschen nur mit -Force möglich (n rmbranch '$Branch' -Force)." -ForegroundColor Yellow
+        Write-Host "  Löschen nur mit -Force möglich (nav rmbranch '$Branch' -Force)." -ForegroundColor Yellow
         Write-Host ""
         return
     }

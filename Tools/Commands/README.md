@@ -1,8 +1,8 @@
 # NavCommands
 
 Deklaratives PowerShell-Command-System für `Nav.Language.Extensions` — ein Dispatcher mit
-Alias **`n`**, der seine Sub-Commands generisch aus den Dateien in `Functions/` ableitet.
-Jede Funktion mit einer `.FUNCTIONALITY <token>`-Help wird automatisch zu `n <token>` —
+Alias **`nav`**, der seine Sub-Commands generisch aus den Dateien in `Functions/` ableitet.
+Jede Funktion mit einer `.FUNCTIONALITY <token>`-Help wird automatisch zu `nav <token>` —
 inklusive Tab-Completion, interaktivem Auswahlmenü und Übersicht. Keine zentrale Registry:
 Eine neue Funktion mit `.FUNCTIONALITY` genügt.
 
@@ -14,18 +14,18 @@ Im PowerShell-Profil (`$PROFILE`) dot-sourcen:
 . "C:\ws\git\Nav.Language.Extensions\Tools\Commands\Import-NavCommands.ps1"
 ```
 
-Danach steht der Alias `n` in jeder Session bereit. Die Commands lösen ihren Repo-/Worktree-Root
+Danach steht der Alias `nav` in jeder Session bereit. Die Commands lösen ihren Repo-/Worktree-Root
 zur Aufruf-Zeit selbst auf (`git rev-parse --show-toplevel`) — sie funktionieren also aus jedem
 Unterordner und treffen bei mehreren Worktrees automatisch den, in dem man gerade steht.
 
 ## Benutzung
 
 ```powershell
-n                       # interaktives Menü (↑/↓ · Enter · Esc)
-n help                  # statische Übersicht aller Commands
-n <TAB>                 # Tab-Completion der Tokens
-n build                 # Command ausführen
-n build -Configuration Release   # benannte Parameter/Switches werden durchgereicht
+nav                     # interaktives Menü (↑/↓ · Enter · Esc)
+nav help                # statische Übersicht aller Commands
+nav <TAB>               # Tab-Completion der Tokens
+nav build               # Command ausführen
+nav build -Configuration Release   # benannte Parameter/Switches werden durchgereicht
 ```
 
 ## Commands
@@ -52,11 +52,11 @@ Die Tabelle ist nur eine Lese-Hilfe — Quelle der Wahrheit sind die `.FUNCTIONA
 
 ## Navigation
 
-Eigenständige Shortcut-Funktionen (kein `n`-Dispatcher, kein Token):
+Eigenständige Shortcut-Funktionen (kein `nav`-Dispatcher, kein Token):
 
 | Funktion | Zweck                                                                       |
 |----------|-----------------------------------------------------------------------------|
-| `ns:`    | In den Root eines Worktrees wechseln. Bei mehreren erscheint ein Pfeiltasten-Menü; optionaler Branch-Filter (`ns: lsp`). |
+| `nav:`   | In den Root eines Worktrees wechseln. Bei mehreren erscheint ein Pfeiltasten-Menü; optionaler Branch-Filter (`nav: lsp`). |
 
 ## Versionierung
 
@@ -77,7 +77,7 @@ Aufruf aus dem zu löschenden Worktree werden hart abgewiesen.
 
 1. Neue Datei `Functions/Verb-Noun.ps1` mit einer Funktion `Verb-Noun`.
 2. Comment-based Help mit `.SYNOPSIS` (erscheint in der Übersicht) und `.FUNCTIONALITY <token>`
-   (macht sie als `n <token>` aufrufbar).
+   (macht sie als `nav <token>` aufrufbar).
 3. Root via `Resolve-Root` auflösen. Fertig — Übersicht und Tab-Completion ziehen automatisch nach.
 
 Funktionen **ohne** `.FUNCTIONALITY` mit Bindestrich-Namen (Verb-Noun) gelten als interne Helper

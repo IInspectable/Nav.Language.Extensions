@@ -9,7 +9,7 @@
          deploy\Build Tools (Build-Task-DLL + Targets + Grammatiken) und deploy\Vsix
          (VS-2026-Extension) automatisch. **Bewusst Debug:** die Release-Config der Solution ist
          unvollständig (Nav.Cli ohne NDESK_OPTIONS-Define, VS-Extension ohne AllowUnsafeBlocks) und
-         baut nicht durch — die Build Tools werden wie bei `n deploy` aus dem Debug-Build geliefert.
+         baut nicht durch — die Build Tools werden wie bei `nav deploy` aus dem Debug-Build geliefert.
       1b. CLI (nav.exe) self-contained als Single-File nach deploy\Build Tools ergänzen (Publish-Cli).
           Muss nach dem Solution-Build laufen, da DeployFiles das Verzeichnis vorher leert.
       2. VS-Code-Extension publizieren (Publish-VsCode): LSP self-contained einbetten + VSIX nach

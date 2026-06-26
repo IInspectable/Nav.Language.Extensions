@@ -6,12 +6,12 @@
     Parst alle *.ps1 im Functions-Ordner per AST und liefert je Top-Level-Funktion ein
     Objekt { Name; Token; Synopsis; Kind }:
 
-      * .FUNCTIONALITY gesetzt        → Kind 'Repo' (Token = .FUNCTIONALITY, Aufruf: n <Token>)
-      * kein Token, kein Bindestrich  → Kind 'Nav'  (Navigation, z. B. ws:, iot:)
+      * .FUNCTIONALITY gesetzt        → Kind 'Repo' (Token = .FUNCTIONALITY, Aufruf: nav <Token>)
+      * kein Token, kein Bindestrich  → Kind 'Nav'  (Navigation, z. B. nav:)
       * kein Token, mit Bindestrich   → interner Helper (Verb-Noun) → wird ausgelassen
 
     Einzige Quelle der Wahrheit für die Befehlsübersicht (Show-Commands) und den
-    n-Dispatcher (Invoke-NavCommand). Ein neuer Repo-Command erscheint automatisch in
+    nav-Dispatcher (Invoke-NavCommand). Ein neuer Repo-Command erscheint automatisch in
     Übersicht und Tab-Completion, sobald seine Funktion eine `.FUNCTIONALITY <token>`-Help
     enthält — ohne weitere Pflege.
 #>

@@ -31,7 +31,7 @@ function Install-Extension {
     $vsix = Join-Path $root "Nav.Language.Extension2026\bin\$Configuration\Pharmatechnik.Nav.Language.Extension.2026.vsix"
     if (-not (Test-Path $vsix)) {
         Write-Host "VSIX nicht gefunden: '$vsix'" -ForegroundColor Red
-        Write-Host "  Zuerst die Extension bauen (z. B. 'n build')." -ForegroundColor Yellow
+        Write-Host "  Zuerst die Extension bauen (z. B. 'nav build')." -ForegroundColor Yellow
         return
     }
 

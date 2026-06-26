@@ -45,7 +45,7 @@ function Invoke-Test {
     }
 
     if (-not $assemblies) {
-        Write-Host "Keine Test-Assemblies gefunden — zuerst 'n build' ausführen." -ForegroundColor Yellow
+        Write-Host "Keine Test-Assemblies gefunden — zuerst 'nav build' ausführen." -ForegroundColor Yellow
         return
     }
 

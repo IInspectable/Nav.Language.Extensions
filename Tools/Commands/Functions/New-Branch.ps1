@@ -7,7 +7,7 @@
     Haupt-Repos (`<Parent>\Nav.Language.Extensions-<branch-mit-bindestrichen>`).
 
     Branch-Typ: Ein Name ohne Slash bekommt das Default-Präfix `feature/`
-    (`n newbranch nav-cleanup` ⇒ Branch `feature/nav-cleanup`). `-Type bugfix|hotfix`
+    (`nav newbranch nav-cleanup` ⇒ Branch `feature/nav-cleanup`). `-Type bugfix|hotfix`
     überschreibt das Präfix. Ein Name mit Slash (`foo/bar`) wird verbatim als Branch
     genommen (Slash gewinnt, `-Type` wird dann ignoriert).
 

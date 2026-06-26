@@ -3,7 +3,7 @@
     Interner Helfer: veröffentlicht die Nav-CLI self-contained als Single-File nach deploy\Build Tools.
 
 .DESCRIPTION
-    Kein eigener n-Command (keine .FUNCTIONALITY) — wird von `n publish` (Invoke-Publish) NACH dem
+    Kein eigener nav-Command (keine .FUNCTIONALITY) — wird von `nav publish` (Invoke-Publish) NACH dem
     Solution-Build aufgerufen. Spiegelbild des LSP-/MCP-Publishs, nur mit anderem Ziel: Der
     Solution-Build (DeployFiles-Target) leert deploy\Build Tools und legt Task-DLL, Targets und
     Grammatik hinein; dieser Schritt ergänzt die self-contained nav.exe (trägt .NET-Runtime + Engine

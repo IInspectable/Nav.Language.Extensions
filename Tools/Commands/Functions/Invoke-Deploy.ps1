@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Publiziert das Repo (n publish) und kopiert die Build Tools in das XTplus-Zielverzeichnis.
+    Publiziert das Repo (nav publish) und kopiert die Build Tools in das XTplus-Zielverzeichnis.
 
 .DESCRIPTION
     Ruft zuerst Invoke-Publish (voller Publish-Lauf: Solution bauen + alle Deliverables unter

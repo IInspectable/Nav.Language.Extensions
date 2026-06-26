@@ -13,7 +13,7 @@
     daher nur ein Platzhalter (0.0.0) und keine zweite Quelle, die gepflegt werden müsste.
 
     Liefert die neue Version als String. Interner Helper (Verb-Noun ohne .FUNCTIONALITY →
-    kein n-Command); genutzt von Invoke-IncreaseBuild/Minor/Major.
+    kein nav-Command); genutzt von Invoke-IncreaseBuild/Minor/Major.
 
 .PARAMETER Root
     Repo-Root.

@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    Dispatcher für die Nav-Repo-Commands — Alias `n`.
+    Dispatcher für die Nav-Repo-Commands — Alias `nav`.
 
 .DESCRIPTION
-    `n <command>` führt den passenden Repo-Command aus (z. B. `n build`, `n test`); der
+    `nav <command>` führt den passenden Repo-Command aus (z. B. `nav build`, `nav test`); der
     Sub-Command (Token) wird generisch über Get-NavCommandInfo aufgelöst. Restliche
     Argumente werden über $args unverändert an die Zielfunktion durchgereicht
-    (`n build -Configuration Release`, `n newbranch foo -Force`).
+    (`nav build -Configuration Release`, `nav newbranch foo -Force`).
 
     Bewusst KEINE advanced function (kein [CmdletBinding], keine [Parameter]-/[ArgumentCompleter]-
     Attribute): nur dann befüllt PowerShell $args mit den nicht an $Command gebundenen
@@ -16,7 +16,7 @@
     ersten positionalen Parameter). Die Tab-Completion hängt deshalb an Register-ArgumentCompleter
     (am Dateiende) statt an einem Parameter-Attribut.
 
-    Ohne Argument (`n` + Enter) erscheint eine interaktive Auswahlliste (Pfeiltasten-Menü) der
+    Ohne Argument (`nav` + Enter) erscheint eine interaktive Auswahlliste (Pfeiltasten-Menü) der
     Repo-Commands. Ohne echte Konsole (Input umgeleitet) wird stattdessen die statische Übersicht
     (Show-Commands) ausgegeben.
 
@@ -29,7 +29,7 @@ function Invoke-NavCommand {
     )
 
     if (-not $Command) {
-        # Bare `n` → interaktive Auswahlliste der Repo-Commands.
+        # Bare `nav` → interaktive Auswahlliste der Repo-Commands.
         $repo = @(Get-NavCommandInfo | Where-Object { $_.Kind -eq 'Repo' } | Sort-Object Token)
         # Token-Spalte dynamisch an den längsten Token ausrichten (Tokens variabler Länge).
         $tokenWidth = ($repo.Token | Measure-Object -Maximum -Property Length).Maximum
@@ -58,7 +58,7 @@ function Invoke-NavCommand {
     & $info.Name @args
 }
 
-Set-Alias n Invoke-NavCommand
+Set-Alias nav Invoke-NavCommand
 
 # Tab-Completion für den Sub-Command. Per Register-ArgumentCompleter statt Inline-Attribut,
 # damit Invoke-NavCommand eine einfache Funktion bleibt und $args verfügbar ist (s. o.).

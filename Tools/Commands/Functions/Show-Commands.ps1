@@ -6,12 +6,12 @@
     Ermittelt die Befehle generisch über Get-NavCommandInfo (parst die Functions-Dateien
     per AST) und gibt sie in zwei Gruppen aus:
 
-      * Repo-Commands → Aufruf über den n-Dispatcher (`n <token>`)
-      * Navigation    → eigenständige Funktionen (z. B. ws:, iot:)
+      * Repo-Commands → Aufruf über den nav-Dispatcher (`nav <token>`)
+      * Navigation    → eigenständige Funktionen (z. B. nav:)
 
     Dadurch erscheint jeder neue Repo-Command automatisch, sobald seine Funktion eine
-    `.FUNCTIONALITY <token>`-Help enthält — ohne diese Liste zu pflegen. Aufruf über `n` (ohne
-    Argument: Auswahlliste) oder `n help`.
+    `.FUNCTIONALITY <token>`-Help enthält — ohne diese Liste zu pflegen. Aufruf über `nav` (ohne
+    Argument: Auswahlliste) oder `nav help`.
 
 .FUNCTIONALITY
     help
@@ -22,7 +22,7 @@ function Show-Commands {
 
     $all  = @(Get-NavCommandInfo)
     $repo = @($all | Where-Object { $_.Kind -eq 'Repo' } | ForEach-Object {
-            [pscustomobject]@{ Name = $_.Name; Aufruf = "n $($_.Token)"; Synopsis = $_.Synopsis }
+            [pscustomobject]@{ Name = $_.Name; Aufruf = "nav $($_.Token)"; Synopsis = $_.Synopsis }
         })
     $nav  = @($all | Where-Object { $_.Kind -eq 'Nav' } | ForEach-Object {
             [pscustomobject]@{ Name = $_.Name; Aufruf = ''; Synopsis = $_.Synopsis }

@@ -3,7 +3,7 @@
     Interner Helfer: veröffentlicht den Nav-MCP-Server self-contained als Single-File nach deploy\mcp.
 
 .DESCRIPTION
-    Kein eigener n-Command (keine .FUNCTIONALITY) — wird von `n publish` (Invoke-Publish) aufgerufen.
+    Kein eigener nav-Command (keine .FUNCTIONALITY) — wird von `nav publish` (Invoke-Publish) aufgerufen.
     Spiegelbild des LSP-Publishs: erzeugt deploy\mcp\nav.mcp.exe samt gebündelter .NET-Runtime
     (keine separate Runtime-Installation nötig). Läuft über `dotnet publish`.
 

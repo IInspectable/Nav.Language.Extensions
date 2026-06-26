@@ -7,7 +7,7 @@
     (z. B. "feature/nav-lsp") bzw. "(detached)" bei losem HEAD und Windows-Pfad. Da
     "git worktree list" aus jedem Worktree dieselbe Gesamtliste liefert, genügt ein
     beliebiger Anker im Repo. Interner Helper für New-Branch/Remove-Branch (Verb-Noun
-    ohne .FUNCTIONALITY → kein n-Command).
+    ohne .FUNCTIONALITY → kein nav-Command).
 
 .PARAMETER Root
     Anker-Pfad im Repo. Default: aus dem eigenen Speicherort abgeleitet.

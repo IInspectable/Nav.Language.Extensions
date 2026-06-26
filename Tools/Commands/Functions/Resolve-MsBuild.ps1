@@ -7,11 +7,11 @@
     gibt den Pfad zu MSBuild.exe zurück. Bei Misserfolg wird ein freundlicher Hinweis
     ausgegeben und `$null` zurückgegeben (die aufrufenden Commands brechen dann ab).
 
-    `n build` läuft über diese MSBuild.exe, weil die Solution die VS-Extension
+    `nav build` läuft über diese MSBuild.exe, weil die Solution die VS-Extension
     (Nav.Language.Extension2026, VSIX/VSSDK.BuildTools) enthält, die nur Full-Framework-
     MSBuild.exe baut. Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut/publisht dagegen mit
-    dem dotnet-SDK (die Single-File-Publishes in `n publish` nutzen `dotnet publish`). Interner Helper (Verb-Noun ohne
-    .FUNCTIONALITY → kein n-Command).
+    dem dotnet-SDK (die Single-File-Publishes in `nav publish` nutzen `dotnet publish`). Interner Helper (Verb-Noun ohne
+    .FUNCTIONALITY → kein nav-Command).
 #>
 function Resolve-MsBuild {
     [CmdletBinding()]

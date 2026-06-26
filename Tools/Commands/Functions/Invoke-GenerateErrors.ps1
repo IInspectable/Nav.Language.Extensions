@@ -7,7 +7,7 @@
     DiagnosticDescriptors (Semantic und DeadCode) und gibt eine Markdown-Tabelle
     (Id/Category/Severity/Message) auf die Pipeline aus — z. B. zum Umleiten in eine Datei:
 
-        n generateerrors > doc\diagnostics.md
+        nav generateerrors > doc\diagnostics.md
 
     Der Repo-Root wird zur Aufruf-Zeit aufgelöst (Resolve-Root). Hinweis: Add-Type sperrt die
     geladene DLL für die restliche PowerShell-Sitzung.
@@ -32,7 +32,7 @@ function Invoke-GenerateErrors {
     $dll = Join-Path $root "Nav.Language\bin\$Configuration\Pharmatechnik.Nav.Language.dll"
     if (-not (Test-Path $dll)) {
         Write-Host "Nav.Language.dll nicht gefunden: '$dll'" -ForegroundColor Red
-        Write-Host "  Zuerst bauen (z. B. 'n build')." -ForegroundColor Yellow
+        Write-Host "  Zuerst bauen (z. B. 'nav build')." -ForegroundColor Yellow
         return
     }
 

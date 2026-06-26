@@ -4,7 +4,7 @@
     und paketiert daraus ein VSIX nach deploy\vscode.
 
 .DESCRIPTION
-    Kein eigener n-Command (keine .FUNCTIONALITY) — wird von `n publish` (Invoke-Publish)
+    Kein eigener nav-Command (keine .FUNCTIONALITY) — wird von `nav publish` (Invoke-Publish)
     aufgerufen. Ablauf:
       1. Version aus Version.props (ProductVersion) lesen — eine Quelle der Wahrheit.
       2. LSP-Server self-contained als Single-File direkt nach vscode-nav-lsp\server\nav.lsp.exe

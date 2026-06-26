@@ -18,11 +18,11 @@
     Zusätzliche, unverändert an den Build-Aufruf durchgereichte MSBuild-Argumente.
 
 .EXAMPLE
-    n build
+    nav build
     Baut die gesamte Solution in Debug.
 
 .EXAMPLE
-    n build -Configuration Release
+    nav build -Configuration Release
     Baut die gesamte Solution in Release.
 
 .FUNCTIONALITY

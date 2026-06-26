@@ -6,18 +6,18 @@
     Listet die Git-Worktrees des Repos und wechselt per Set-Location in den gewählten.
     Bei mehreren Worktrees erscheint ein Pfeiltasten-Menü (Show-SelectionMenu, ↑/↓ · Enter ·
     Esc); ein optionales Branch-Argument filtert direkt (Teilstring, case-insensitiv,
-    z. B. "ns: lsp"). Genau ein Treffer springt ohne Menü; kein Treffer meldet sich
+    z. B. "nav: lsp"). Genau ein Treffer springt ohne Menü; kein Treffer meldet sich
     freundlich (kein Stacktrace).
 
     Navigations-Command: kein `.FUNCTIONALITY`-Token und kein Bindestrich im Namen, daher
     klassifiziert Get-NavCommandInfo die Funktion als 'Nav' und sie erscheint in der
-    Übersicht (`n help`) unter "Navigation". Datenquelle ist der Helper Get-Worktree, der
+    Übersicht (`nav help`) unter "Navigation". Datenquelle ist der Helper Get-Worktree, der
     aus jedem Worktree dieselbe Gesamtliste liefert.
 
 .PARAMETER Branch
     Optionaler Filter auf den Worktree-Branch (Teilstring, case-insensitiv).
 #>
-function ns: {
+function nav: {
     [CmdletBinding()]
     param([string] $Branch)
 
