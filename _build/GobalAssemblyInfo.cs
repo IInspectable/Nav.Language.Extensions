@@ -15,6 +15,11 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription(MyAssembly.ProductName)]
 [assembly: AssemblyFileVersion(MyAssembly.ProductVersion)]
 
-namespace System.Runtime.CompilerServices; 
+// IsExternalInit ist ab .NET 5 in der Runtime eingebaut. Auf netstandard2.0/net472 fehlt der Typ
+// und wird hier als Polyfill für record/init bereitgestellt. Auf net10 (z.B. nav.exe nach Retarget)
+// würde die eigene Definition mit dem eingebauten Typ kollidieren (CS0436) — daher ausklammern.
+#if !NET5_0_OR_GREATER
+namespace System.Runtime.CompilerServices;
 
 internal static class IsExternalInit {}
+#endif
