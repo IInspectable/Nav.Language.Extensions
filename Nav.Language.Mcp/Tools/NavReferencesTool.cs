@@ -1,5 +1,6 @@
 #region Using Directives
 
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
@@ -20,11 +21,20 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 [McpServerToolType]
 public static class NavReferencesTool {
 
+    /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
+    const int DefaultLimit = 200;
+
+    /// <summary>Obergrenze für die Seitengröße — schützt vor übergroßen Antworten (Token-Limit).</summary>
+    const int MaxLimit = 1000;
+
     [McpServerTool(Name = "nav_references")]
     [Description("Finds all references to a task or node across the whole workspace (solution-wide), including " +
                  "the declaration itself (marked isDeclaration). Returns 1-based file/line/column per occurrence. " +
                  "Use this before renaming or removing a symbol to see where it is used. If the name is ambiguous, " +
-                 "returns candidates — pass 'kind' and/or 'task' to disambiguate.")]
+                 "returns candidates — pass 'kind' and/or 'task' to disambiguate. Heavily-referenced symbols are " +
+                 "paged: at most 'limit' locations are returned (default 200, max 1000); 'truncated' = true means " +
+                 "there are more — narrow via 'filter' or page with 'offset'. 'count' is the total, 'matchCount' " +
+                 "the number matching the filter.")]
     public static async Task<NavReferencesResult> References(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file the name lives in.")]
@@ -36,6 +46,14 @@ public static class NavReferencesTool {
         [Description("Optional symbol kind to disambiguate when a task and a node share the same name: " +
                      "'task' vs. 'node', or a specific kind like 'gui'. See the candidates' 'kind' values.")]
         string? kind = null,
+        [Description("Optional case-insensitive substring matched against each occurrence's file path; only " +
+                     "matching locations are returned. Use it to scope a heavily-referenced symbol to a subfolder " +
+                     "or file.")]
+        string? filter = null,
+        [Description("Max number of locations to return (default 200, capped at 1000). Combine with 'offset' to page.")]
+        int limit = DefaultLimit,
+        [Description("Number of (filtered) locations to skip before returning — for paging.")]
+        int offset = 0,
         CancellationToken cancellationToken = default) {
 
         var result = new NavReferencesResult { Path = path, Name = name };
@@ -74,10 +92,26 @@ public static class NavReferencesTool {
 
         await ReferenceFinder.FindReferencesAsync(args);
 
-        result.Locations = collector.Results
-                                    .Select(item => NavLocationDto.From(item.Location, item.IsDeclaration))
-                                    .ToList();
-        result.Count = result.Locations.Count;
+        var all = collector.Results
+                           .Select(item => NavLocationDto.From(item.Location, item.IsDeclaration))
+                           .ToList();
+
+        var matched = all.Where(loc => string.IsNullOrEmpty(filter) ||
+                                       loc.File.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                         .ToList();
+
+        var safeOffset = Math.Max(0, offset);
+        var safeLimit  = limit <= 0 ? DefaultLimit : Math.Min(limit, MaxLimit);
+
+        var page = matched.Skip(safeOffset).Take(safeLimit).ToList();
+
+        result.Count      = all.Count;
+        result.MatchCount = matched.Count;
+        result.Returned   = page.Count;
+        result.Offset     = safeOffset;
+        result.Limit      = safeLimit;
+        result.Truncated  = safeOffset + page.Count < matched.Count;
+        result.Locations  = page;
         return result;
     }
 }
