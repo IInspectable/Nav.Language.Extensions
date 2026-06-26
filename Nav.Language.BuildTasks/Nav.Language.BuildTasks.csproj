@@ -31,15 +31,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Nur Build-Reihenfolge, KEINE Assembly-Referenz: der net472-Task darf die nav.exe nicht laden
-         (wird in Schritt 3 eine net10-self-contained-exe). Der /g:-Switch-Kontrakt liegt lokal in
-         CodeGenerationOptions.cs. So bleibt die bisherige Deploy-Mechanik (nav.exe im gemeinsamen bin)
-         bis zur Umstellung auf den separaten Publish-Step erhalten. -->
+    <!-- Nur Build-Reihenfolge, KEINE Assembly-Referenz: der net472-Task darf die net10-nav.exe nicht
+         laden. Der /g:-Switch-Kontrakt liegt lokal in CodeGenerationOptions.cs.
+         SkipGetTargetFrameworkProperties unterdrückt den TFM-Kompatibilitätscheck (net472 -> net10),
+         der bei ReferenceOutputAssembly=false ohnehin irrelevant ist. -->
     <ProjectReference Include="..\Nav.Cli\Nav.Cli.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <Private>false</Private>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
     </ProjectReference>
-    <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
   </ItemGroup>
 
   <ItemGroup>

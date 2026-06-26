@@ -7,21 +7,15 @@
   <PropertyGroup>
     <DeployDirectory>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)\..\deploy\Build Tools))</DeployDirectory>
   </PropertyGroup>
-  <!-- Es ist einfacher die Files explizit anzugeben...-->
+  <!-- Es ist einfacher die Files explizit anzugeben...
+       Verschlankt: der net472-Task braucht zur Laufzeit nur Microsoft.Build.* + sich selbst und
+       startet nav.exe als externen Prozess. nav.exe ist eine self-contained Single-File (trägt Runtime
+       + Engine selbst) und wird vom separaten Publish-Step (Publish-Cli.ps1 / n publish) NACH dem
+       Solution-Build hier hineingelegt. Die früheren Engine-/Framework-DLLs (Antlr, NLog, Nav.Language,
+       Immutable, Memory, Unsafe) und nav.exe.config entfallen damit ersatzlos. -->
   <ItemGroup>
-    <Deploy Include="$(OutputPath)\Antlr3.Runtime.dll" />
-    <Deploy Include="$(OutputPath)\Antlr4.Runtime.dll" />
-    <Deploy Include="$(OutputPath)\Antlr4.StringTemplate.dll" />
-    <Deploy Include="$(OutputPath)\nav.exe" />
-    <Deploy Include="$(OutputPath)\NLog.dll" />
     <Deploy Include="$(OutputPath)\Pharmatechnik.Nav.Language.BuildTasks.dll" />
-    <Deploy Include="$(OutputPath)\Pharmatechnik.Nav.Language.dll" />
     <Deploy Include="$(OutputPath)\Pharmatechnik.Nav.Language.targets" />
-    <Deploy Include="$(OutputPath)\Pharmatechnik.Nav.Utilities.dll" />
-    <Deploy Include="$(OutputPath)\System.Collections.Immutable.dll" />
-    <Deploy Include="$(OutputPath)\System.Memory.dll" />
-    <Deploy Include="$(OutputPath)\System.Runtime.CompilerServices.Unsafe.dll" />
-    <Deploy Include="$(OutputPath)\nav.exe.config" />
     <Deploy Include="$(MSBuildThisFileDirectory)..\Nav.Language\Grammar\NavGrammar.g4" />
     <Deploy Include="$(MSBuildThisFileDirectory)..\Nav.Language\Grammar\NavTokens.g4" />
   </ItemGroup>

@@ -3,15 +3,23 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
+    <!-- Apphost/Assembly heißt nav → self-contained Single-File-Publish liefert nav.exe.
+         SelfContained/PublishSingleFile/RID werden beim Publish per Kommandozeile gesetzt
+         (siehe Publish-Cli.ps1 / n publish) — analog LSP/MCP. Damit trägt nav.exe ihre Runtime
+         + Engine selbst und der net472-Binding-Redirect-Konflikt entfällt komplett. -->
     <AssemblyName>nav</AssemblyName>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Eingebundene NDesk-Options.cs nutzt Legacy-Serialisierung/CAS (Exception-Serialisierungs-Ctor,
+         GetObjectData, SecurityPermission). Auf net10 nur veraltet, nicht funktional relevant — die
+         Warnungen für die unveränderte Fremddatei unterdrücken. -->
+    <NoWarn>$(NoWarn);SYSLIB0003;SYSLIB0051;CS0672</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>..\Nav.Language.BuildTasks\bin\Debug\</OutputPath>
     <DefineConstants>TRACE;DEBUG;NDESK_OPTIONS</DefineConstants>
   </PropertyGroup>
 
@@ -31,10 +39,6 @@
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
   </ItemGroup>
   
-  <ItemGroup>
-    <PackageReference Include="System.Collections.Immutable" />
-  </ItemGroup>
-
   <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="CustomBuild.targets" />
 
