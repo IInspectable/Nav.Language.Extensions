@@ -38,8 +38,10 @@ Protokoll/UI hinzu, nie eigene Sprachlogik.
   Engine-Kerne. Statusdokument: `doc/nav-lsp-status.md` (Pflichtlektüre für LSP-Arbeit).
 - **`Nav.Language.Mcp`** (net10.0, Assembly **`nav.mcp`**) — MCP-Server (stdio), teilt die
   Workspace-Host-Schicht mit dem LSP. Tools in `Nav.Language.Mcp/Tools/`: `nav_validate`,
-  `nav_outline`, `nav_workspace`, `nav_find_symbol`, `nav_goto`, `nav_references`, `nav_rename`,
-  `nav_code_actions`. **Name-basiert** (ein Agent hat keinen Cursor — Symbole werden über ihren Namen
+  `nav_diagnostics`, `nav_outline`, `nav_workspace`, `nav_find_symbol`, `nav_goto`, `nav_references`,
+  `nav_rename`, `nav_code_actions`. `nav_diagnostics` ist das workspace-weite Gegenstück zu
+  `nav_validate` (Pull-Äquivalent zum LSP-Diagnostics-Push): aggregiert Diagnostics über alle bzw. per
+  `filter`/`severity` eingegrenzten `.nav`, gepaged. **Name-basiert** (ein Agent hat keinen Cursor — Symbole werden über ihren Namen
   adressiert, aufgelöst via `Nav.Language/Symbols/NavSymbolSearch`, dann in die positions-basierten
   Engine-Kerne gespeist). `nav_find_symbol` ist der Einstieg, wenn die Datei noch unbekannt ist: solution-
   weite Präfix-Suche nach Definitionen, deren Pfad dann an die übrigen (datei-gebundenen) Tools geht;

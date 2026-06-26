@@ -26,6 +26,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | Tool | Engine-Kern | Zweck |
 |---|---|---|
 | `nav_validate` | `DiagnosticsComputer` | Datei validieren → Diagnostics (inkl. Cross-File). |
+| `nav_diagnostics` | `DiagnosticsComputer` (Fan-out) | **Workspace-weit:** alle (bzw. gefilterten) `.nav` validieren → aggregierte Diagnostics + Severity-Summary, gefiltert/gepaged. |
 | `nav_outline` | `unit.TaskDefinitions` | Struktur: Tasks + Knoten (Art, Position). |
 | `nav_workspace` | `NavSolution` | Alle `.nav`-Dateien der Solution (relativ + absolut), gefiltert/gepaged. |
 | `nav_find_symbol` | `NavSymbolSearch.FindDefinitionsByPrefix` | Solution-weite Präfix-Suche nach Task-/Knoten-**Definitionen** (ohne Datei vorab). |
@@ -45,8 +46,9 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   `nav_references`). Typischer Fluss: `nav_find_symbol "Login"` → Datei(en) → `nav_goto`/`nav_references`/
   `nav_outline` mit dem gefundenen Pfad.
 - **Paging gegen das Token-Limit.** List-liefernde Tools (`nav_workspace`, `nav_references`,
-  `nav_find_symbol`) pagen: `limit` (Default 100, Max **200**) + `offset`, dazu `matchCount`/`returned`/
-  `truncated` im Result. Die Obergrenze ist bewusst niedrig — selbst eine voll gefüllte Seite muss sicher
+  `nav_find_symbol`, `nav_diagnostics`) pagen: `limit` (Default 100, Max **200**) + `offset`, dazu
+  `matchCount`/`returned`/`truncated` im Result (`nav_diagnostics` paged über die **Diagnostics**, nicht
+  die Dateien; `count` = Gesamtzahl vor Paging, `summary` bleibt vollständig). Die Obergrenze ist bewusst niedrig — selbst eine voll gefüllte Seite muss sicher
   unter dem MCP-Tool-Result-Limit (~25k Tokens) bleiben; ein zu hoher Max-Wert lief trotz Paging ins Limit
   (`nav_workspace`-Einträge tragen relativen + absoluten Pfad, ~240 Zeichen). `nav_workspace`/
   `nav_references` haben zusätzlich `filter` (Substring auf Pfad), `nav_find_symbol` filtert über den `prefix`.
@@ -63,6 +65,16 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
     Filterung liegt im MCP-Layer (`NavNameResolution.Resolve` → `KindMatches`), nicht in der Engine.
     Greift der Filter ins Leere, bleiben die ursprünglichen Kandidaten erhalten (kein falsches
     „nicht gefunden").
+- **`nav_diagnostics` = Pull-Äquivalent zum LSP-Push.** Der LSP veröffentlicht beim `initialized`
+  workspace-weit Diagnostics für **jede** `.nav` (Push, `textDocument/publishDiagnostics`, Schleife
+  `NavWorkspace.PublishAllDiagnosticsAsync` → `ProcessCodeGenerationUnitsAsync` + `DiagnosticsComputer`);
+  VS Code aggregiert das in der „Problems"-Ansicht. Der MCP hat keinen Push-Kanal — `nav_diagnostics`
+  bietet dieselbe Aggregation **on demand**. Bewusst **keine** gemeinsame Extraktion: der MCP iteriert
+  selbst (eigene `filter`/`severity`/Paging-Logik) und teilt nur `DiagnosticsComputer.FromUnit`. Anders
+  als der cache-getriebene LSP-Push liest `nav_diagnostics` **fresh pro Datei** (`GetFileDiagnostics` →
+  `GetFreshUnit`, dieselbe Semantik wie `nav_validate`) — korrekt auch nach Agent-Edits; ein voller
+  Sweep ohne `filter` ist bewusst teuer, `filter` ist die Mitigation. Optionaler `severity`-Filter
+  (`error`/`warning`/`suggestion`); kein `task`-Feld pro Diagnose (spätere Erweiterung).
 - **Mutierende Tools sind read-only.** `nav_rename` und `nav_code_actions` schreiben **NICHTS** auf
   Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn, newText}`)
   zurück, das der Agent selbst anwendet.
@@ -79,7 +91,10 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   JSON-RPC: `initialize` → `notifications/initialized` → `tools/list` → `tools/call`). Abgedeckt:
   Outline, Workspace, FindSymbol (Präfix, kind-Filter), GoTo (same/cross-file), References (same/cross-file), Mehrdeutigkeit +
   Disambiguierung (`task`- **und** `kind`-Achse), Rename (scoped/Task, file-local), Invalid-Name-Fehler,
-  Remove-Unused-Nodes.
+  Remove-Unused-Nodes. **`nav_diagnostics`** gegen `Nav.Language.Tests/Diagnostics/Tests` verifiziert:
+  voller Sweep (Summary-Konsistenz `error+warning+suggestion == count`), `severity`-Filter, `filter` +
+  Paging/`truncated`, plus Quer-Check `nav_validate` einer Einzeldatei == gefiltertes `nav_diagnostics`
+  (identische Counts/Codes).
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
 - **Publish:** `n publish` veröffentlicht den MCP-Server als **self-contained Single-File**

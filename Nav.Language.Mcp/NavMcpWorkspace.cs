@@ -1,5 +1,6 @@
 #region Using Directives
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -88,15 +89,30 @@ public sealed class NavMcpWorkspace {
     /// </summary>
     public NavValidateResult Validate(string path) {
 
-        var unit = GetFreshUnit(path, out var normalizedPath);
-        if (unit == null) {
+        var diagnostics = GetFileDiagnostics(path);
+        if (diagnostics == null) {
             return NavValidateResult.NotFound(path);
         }
 
-        var diagnostics = DiagnosticsComputer.FromUnit(unit, normalizedPath)
-                                             .Select(diagnostic => NavDiagnosticDto.From(diagnostic, normalizedPath))
-                                             .ToList();
-
         return NavValidateResult.From(path, diagnostics);
+    }
+
+    /// <summary>
+    /// Frisch von Platte gelesene Diagnostics einer einzelnen <c>.nav</c>-Datei als KI-DTOs (1-basierte
+    /// Zeilen/Spalten). Wie <see cref="Validate"/> wird der Cache der Datei vorher invalidiert (Fresh-pro-Datei),
+    /// sodass eine gerade geschriebene Änderung sofort sichtbar ist. <c>null</c>, wenn die Datei nicht
+    /// gefunden/nicht parsebar ist. Gemeinsame Basis von <c>nav_validate</c> (Einzeldatei) und
+    /// <c>nav_diagnostics</c> (workspace-weiter Sweep).
+    /// </summary>
+    public List<NavDiagnosticDto>? GetFileDiagnostics(string path) {
+
+        var unit = GetFreshUnit(path, out var normalizedPath);
+        if (unit == null) {
+            return null;
+        }
+
+        return DiagnosticsComputer.FromUnit(unit, normalizedPath)
+                                  .Select(diagnostic => NavDiagnosticDto.From(diagnostic, normalizedPath))
+                                  .ToList();
     }
 }
