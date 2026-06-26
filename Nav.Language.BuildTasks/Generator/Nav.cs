@@ -42,8 +42,9 @@ namespace Pharmatechnik.Nav.Language.BuildTasks {
            
         }
 
-        public bool UseSyntaxCache { get; set; }
-        public bool FullPaths { get; set; }
+        public bool UseSyntaxCache  { get; set; }
+        public bool FullPaths       { get; set; }
+        public bool NullableContext { get; set; }
 
         public ITaskItem   ProjectRootDirectory { get; set; }
         public ITaskItem   IwflRootDirectory    { get; set; }
@@ -66,6 +67,7 @@ namespace Pharmatechnik.Nav.Language.BuildTasks {
             clb.AppendSwitchIfPresent(Strict,         "/t");
             clb.AppendSwitchIfPresent(UseSyntaxCache, "/c");
             clb.AppendSwitchIfPresent(FullPaths,      "/fullpaths");
+            clb.AppendSwitchIfPresent(NullableContext, "/n");
             clb.AppendSwitch("/v");
             clb.AppendSwitchIfNotNull("/g:", GetGetCodeGenerationArg());
             clb.AppendSwitchIfNotNull("/r:", ProjectRootDirectory);

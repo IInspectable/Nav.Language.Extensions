@@ -37,6 +37,7 @@ sealed record CommandLine {
     public bool         Verbose              { get; private set; }
     public bool         FullPaths            { get; private set; }
     public bool         NoWarnings           { get; private set; }
+    public bool         NullableContext      { get; private set; }
     public string       ProjectRootDirectory { get; private set; }
     public string       IwflRootDirectory    { get; private set; }
     public string       WflRootDirectory     { get; private set; }
@@ -60,6 +61,7 @@ sealed record CommandLine {
             { "nowarnings"          , "Unterdrückt Warnmeldungen in der Logausgabe.", v => cla.NoWarnings = v != null },
             { "v|verbose"           , "Schreibt ausführliche Meldungen in die Logausgabe.", v => cla.Verbose = v != null },
             { "fullpaths"           , "Wenn angegeben, werden in die Logausgaben ganze Pfade geschrieben.", v => cla.FullPaths = v != null },
+            { "n|nullable"          , "Schreibt '#nullable enable' in die generierten Dateien (Nullable-Referenztyp-Kontext). Standardgemäß aus.", v => cla.NullableContext = v != null },
             { "i=|iwflroot"         , "Gibt ein alternatives IWFL Wurzelverzeichnis an.", v => cla.IwflRootDirectory = v },
             { "w=|wflroot"          , "Gibt ein alternatives WFL Wurzelverzeichnis an.", v => cla.WflRootDirectory = v },
             { "r=|projectroot"      , "Gibt das Project Wurzelverzeichnis an.", v => cla.ProjectRootDirectory = v },

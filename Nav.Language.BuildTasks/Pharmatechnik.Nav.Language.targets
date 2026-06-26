@@ -15,6 +15,7 @@
     <NavGenerateIwflClasses  Condition="'$(NavGenerateIwflClasses)'  == ''">true</NavGenerateIwflClasses>
     <NavUseSyntaxCache       Condition="'$(NavUseSyntaxCache)'       == ''">false</NavUseSyntaxCache>
     <NavFullPaths            Condition="'$(NavFullPaths)'            == ''">$(BuildingInsideVisualStudio)</NavFullPaths>
+    <NavNullableContext      Condition="'$(NavNullableContext)'      == ''">false</NavNullableContext>
     <NavProjectRootDirectory Condition="'$(NavProjectRootDirectory)' == ''"></NavProjectRootDirectory>
     <NavIwflRootDirectory    Condition="'$(NavIwflRootDirectory)'    == ''"></NavIwflRootDirectory>
     <NavWflRootDirectory     Condition="'$(NavWflRootDirectory)'     == ''"></NavWflRootDirectory>
@@ -35,8 +36,9 @@
          ProjectRootDirectory = "$(NavProjectRootDirectory)"
          IwflRootDirectory    = "$(NavIwflRootDirectory)"
          WflRootDirectory     = "$(NavWflRootDirectory)"
-         UseSyntaxCache       = "$(NavUseSyntaxCache)" 
-         FullPaths            = "$(NavFullPaths)" />
+         UseSyntaxCache       = "$(NavUseSyntaxCache)"
+         FullPaths            = "$(NavFullPaths)"
+         NullableContext      = "$(NavNullableContext)" />
   </Target>
   
 </Project>

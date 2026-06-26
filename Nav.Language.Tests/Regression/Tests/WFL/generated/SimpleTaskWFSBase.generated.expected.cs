@@ -6,7 +6,6 @@
 //     the code is regenerated.
 // </auto-generated>
 //------------------------------------------------------------------------------
-#nullable enable
 #region Using Directives
 using System;
 using Nav.Language.Tests.Regression.Test1.IWFL;

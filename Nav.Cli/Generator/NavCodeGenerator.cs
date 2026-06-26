@@ -48,6 +48,7 @@ class NavCodeGenerator {
             GenerateToClasses    = (cl.GenerationOptions & CodeGenerationOptions.ToClasses)   != 0,
             GenerateWflClasses   = (cl.GenerationOptions & CodeGenerationOptions.WflClasses)  != 0,
             GenerateIwflClasses  = (cl.GenerationOptions & CodeGenerationOptions.IwflClasses) != 0,
+            NullableContext      = cl.NullableContext,
             ProjectRootDirectory = cl.ProjectRootDirectory,
             IwflRootDirectory    = cl.IwflRootDirectory,
             WflRootDirectory     = cl.WflRootDirectory,

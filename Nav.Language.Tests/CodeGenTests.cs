@@ -57,6 +57,43 @@ public class CodeGenTests {
     }
 
     [Test]
+    public void NullableContextDisabledByDefault() {
+
+        var codeGenResult = GenerateTaskA(GenerationOptions.Default);
+
+        // Default: aus → keine '#nullable'-Direktive in der generierten Datei. Dadurch erbt sie
+        // den Nullable-Kontext des Consumer-Projekts (in der Praxis aus), statt non-nullable
+        // Referenztyp-Annotationen in Consumer-Builds zu propagieren (CS8604/CS8625).
+        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Not.Contain("#nullable"));
+    }
+
+    [Test]
+    public void NullableContextEnabledWhenOptedIn() {
+
+        var codeGenResult = GenerateTaskA(GenerationOptions.Default with { NullableContext = true });
+
+        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable disable"));
+        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Contain("#nullable enable"));
+    }
+
+    static CodeGenerationResult GenerateTaskA(GenerationOptions options) {
+
+        var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));
+        var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
+
+        var codeGenerator = new CodeGenerator(options);
+        var results       = codeGenerator.Generate(codeGenerationUnit);
+
+        Assert.That(results.Length, Is.EqualTo(1));
+
+        return results[0];
+    }
+
+    [Test]
     public void SimpleCodegenOnlyIwflTest() {
 
         var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));

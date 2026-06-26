@@ -17,6 +17,12 @@ public record GenerationOptions {
     public bool GenerateWflClasses  { get; init; }
     public bool GenerateIwflClasses { get; init; }
 
+    // Schreibt '#nullable enable' in die generierten Dateien. Default: aus.
+    // Bewusst opt-in, da der Nullable-Kontext non-nullable Referenztyp-Parameter
+    // in die generierten Signaturen propagiert und damit Consumer-Builds brechen kann,
+    // die mit möglicherweise-null aufrufen (CS8604/CS8625).
+    public bool NullableContext     { get; init; }
+
     public string ProjectRootDirectory { get; init; }
     public string IwflRootDirectory    { get; init; }
     public string WflRootDirectory     { get; init; }
