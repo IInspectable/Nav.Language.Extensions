@@ -39,8 +39,15 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   (`nav_references(path, name)`), nicht Zeile/Spalte. Die VS-freie Engine-Brücke
   `Nav.Language/Symbols/NavSymbolSearch.FindByName` löst einen Namen zu Symbol(en) auf; deren
   `Location.Start` wird in die unveränderten, positions-basierten Engine-Services eingespeist — als
-  läge der Caret dort. **Mehrdeutige Namen** (gleicher Knotenname in mehreren Tasks) liefern statt
-  eines Ergebnisses die **Kandidaten** (`candidates`); der optionale `task`-Parameter grenzt ein.
+  läge der Caret dort. **Mehrdeutige Namen** liefern statt eines Ergebnisses die **Kandidaten**
+  (`candidates`, je mit `kind` + enthaltender `task`); **zwei** optionale Disambiguatoren grenzen ein:
+  - **`task`** — grenzt *in eine Task-Definition hinein* ein (Task + ihre Knoten); löst „gleicher
+    Knotenname in mehreren Tasks".
+  - **`kind`** — filtert nach Symbol-Art (`task` vs. `node`, oder eine konkrete Art wie `gui`); löst den
+    Fall, den `task` **nicht** kann: eine Task **und** ein gleichnamiger Knoten in eben dieser Task. Die
+    Filterung liegt im MCP-Layer (`NavNameResolution.Resolve` → `KindMatches`), nicht in der Engine.
+    Greift der Filter ins Leere, bleiben die ursprünglichen Kandidaten erhalten (kein falsches
+    „nicht gefunden").
 - **Mutierende Tools sind read-only.** `nav_rename` und `nav_code_actions` schreiben **NICHTS** auf
   Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn, newText}`)
   zurück, das der Agent selbst anwendet.
@@ -55,7 +62,8 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 - **MCP-Tools:** per **stdio-Smoke** gegen die laufende `nav.mcp` verifiziert (newline-delimited
   JSON-RPC: `initialize` → `notifications/initialized` → `tools/list` → `tools/call`). Abgedeckt:
   Outline, Workspace, GoTo (same/cross-file), References (same/cross-file), Mehrdeutigkeit +
-  Disambiguierung, Rename (scoped/Task, file-local), Invalid-Name-Fehler, Remove-Unused-Nodes.
+  Disambiguierung (`task`- **und** `kind`-Achse), Rename (scoped/Task, file-local), Invalid-Name-Fehler,
+  Remove-Unused-Nodes.
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
 
