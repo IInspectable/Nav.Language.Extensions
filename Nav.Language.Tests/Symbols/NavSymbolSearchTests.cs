@@ -87,6 +87,51 @@ public class NavSymbolSearchTests {
         Assert.That(NavSymbolSearch.FindByName(unit, ""),   Is.Empty);
     }
 
+    [Test]
+    public void FindDefinitionsByPrefix_TaskNamePrefix_MatchesTaskDefinition() {
+
+        var unit = ParseModel(TwoTasks);
+
+        var results = NavSymbolSearch.FindDefinitionsByPrefix(unit, "A");
+
+        Assert.That(results.Count,   Is.EqualTo(1));
+        Assert.That(results[0].Name, Is.EqualTo("A"));
+        Assert.That(results[0],      Is.InstanceOf<ITaskDefinitionSymbol>());
+    }
+
+    [Test]
+    public void FindDefinitionsByPrefix_IsCaseInsensitive() {
+
+        var unit = ParseModel(TwoTasks);
+
+        // Knotenname I1 ist in Task A und B definiert — kleingeschriebener Präfix muss beide finden.
+        var results = NavSymbolSearch.FindDefinitionsByPrefix(unit, "i1");
+
+        Assert.That(results.Count,                      Is.EqualTo(2));
+        Assert.That(results.All(r => r is INodeSymbol), Is.True);
+        Assert.That(results.Select(r => ((INodeSymbol)r).ContainingTask.Name),
+                    Is.EquivalentTo(new[] { "A", "B" }));
+    }
+
+    [Test]
+    public void FindDefinitionsByPrefix_EmptyPrefix_MatchesAllDefinitions() {
+
+        var unit = ParseModel(TwoTasks);
+
+        var results = NavSymbolSearch.FindDefinitionsByPrefix(unit, "");
+
+        // 2 Task-Definitionen (A, B) + je init I1 und exit done = 6 Definitionen.
+        Assert.That(results.Count, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void FindDefinitionsByPrefix_UnknownPrefix_ReturnsEmpty() {
+
+        var unit = ParseModel(TwoTasks);
+
+        Assert.That(NavSymbolSearch.FindDefinitionsByPrefix(unit, "DoesNotExist"), Is.Empty);
+    }
+
     #region Helpers
 
     static int IndexOfToken(string source, string anchor, string leading) {

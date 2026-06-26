@@ -56,7 +56,7 @@ static class NavNameResolution {
 
     // „node" ist eine grobe Sammelart (jeder Knoten); sonst exakt gegen die NavSymbolKind-Kennung
     // ("task", "gui", "init", "choice", …), wie sie auch der Kandidat meldet.
-    static bool KindMatches(ISymbol symbol, string kind) =>
+    public static bool KindMatches(ISymbol symbol, string kind) =>
         string.Equals(kind, "node", StringComparison.OrdinalIgnoreCase)
             ? symbol is INodeSymbol
             : string.Equals(NavSymbolKind.Of(symbol), kind, StringComparison.OrdinalIgnoreCase);

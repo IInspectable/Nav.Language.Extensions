@@ -86,4 +86,48 @@ public static class NavSymbolSearch {
         return results;
     }
 
+    /// <summary>
+    /// Liefert alle <b>Definitions</b>-Symbole in <paramref name="unit"/>, deren Name mit
+    /// <paramref name="prefix"/> beginnt (groß-/kleinschreibungsignorierend; leerer Präfix matcht alle).
+    /// „Definition" meint die lokalen Task-Definitionen und deren Knoten — NICHT die (auch inkludierten)
+    /// <c>taskref</c>-Deklarationen. Grundlage der solution-weiten Symbolsuche (MCP <c>nav_find_symbol</c>):
+    /// findet, WO ein Name DEFINIERT ist, ohne die Datei vorher zu kennen. Mehrere Treffer gleichen Namens
+    /// (z.B. ein Knotenname in mehreren Tasks) werden alle zurückgegeben; Duplikate an derselben Stelle
+    /// (Datei + Startoffset) werden entfernt.
+    /// </summary>
+    [NotNull]
+    public static IReadOnlyList<ISymbol> FindDefinitionsByPrefix([NotNull] CodeGenerationUnit unit, string prefix) {
+
+        if (unit == null) {
+            throw new ArgumentNullException(nameof(unit));
+        }
+
+        prefix = prefix ?? string.Empty;
+
+        var seen    = new HashSet<(string, int)>();
+        var results = new List<ISymbol>();
+
+        void TryAdd(ISymbol symbol) {
+            if (symbol?.Location == null || symbol.Name == null ||
+                !symbol.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
+                return;
+            }
+
+            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
+                results.Add(symbol);
+            }
+        }
+
+        // Nur Definitionen: lokale Task-Definitionen und deren Knoten. Die taskref-Deklarationen
+        // (unit.TaskDeclarations) bleiben außen vor — Verwendungsstellen liefert nav_references.
+        foreach (var task in unit.TaskDefinitions) {
+            TryAdd(task);
+            foreach (var node in task.NodeDeclarations) {
+                TryAdd(node);
+            }
+        }
+
+        return results;
+    }
+
 }

@@ -63,3 +63,38 @@ public sealed class NavReferencesResult {
 
     public List<NavSymbolRef> Candidates { get; set; } = new();
 }
+
+/// <summary>
+/// Ergebnis von <c>nav_find_symbol</c>: solution-weite Treffer einer Präfix-Symbolsuche. Liefert NUR
+/// Definitionen (Task-Definitionen + deren Knoten), damit der Agent — ausgehend von bloß einem Namen —
+/// die Datei(en) findet, in denen ein Symbol DEFINIERT ist, und von dort mit <c>nav_goto</c> /
+/// <c>nav_references</c> / <c>nav_outline</c> weiterarbeiten kann.
+/// </summary>
+public sealed class NavFindSymbolResult {
+
+    /// <summary>Der gesuchte Namenspräfix (echo).</summary>
+    public string Prefix { get; set; } = "";
+
+    public string? Error { get; set; }
+
+    /// <summary>Gesamtzahl der passenden Definitionen (vor Paging).</summary>
+    public int MatchCount { get; set; }
+
+    /// <summary>Anzahl der in dieser Seite tatsächlich zurückgegebenen Treffer (= <c>Symbols.Count</c>).</summary>
+    public int Returned { get; set; }
+
+    /// <summary>Übersprungene Treffer (Paging-Offset).</summary>
+    public int Offset { get; set; }
+
+    /// <summary>Maximale Seitengröße dieser Antwort.</summary>
+    public int Limit { get; set; }
+
+    /// <summary>
+    /// <c>true</c>, wenn jenseits dieser Seite weitere Treffer existieren — dann <c>offset</c> erhöhen oder
+    /// den <c>prefix</c> verschärfen.
+    /// </summary>
+    public bool Truncated { get; set; }
+
+    /// <summary>Die gefundenen Definitionen (Name, Art, enthaltende Task, 1-basierte Position).</summary>
+    public List<NavSymbolRef> Symbols { get; set; } = new();
+}
