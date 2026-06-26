@@ -24,7 +24,7 @@ public static class NavReferencesTool {
     [Description("Finds all references to a task or node across the whole workspace (solution-wide), including " +
                  "the declaration itself (marked isDeclaration). Returns 1-based file/line/column per occurrence. " +
                  "Use this before renaming or removing a symbol to see where it is used. If the name is ambiguous, " +
-                 "returns candidates — pass 'task' to disambiguate.")]
+                 "returns candidates — pass 'kind' and/or 'task' to disambiguate.")]
     public static async Task<NavReferencesResult> References(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file the name lives in.")]
@@ -33,6 +33,9 @@ public static class NavReferencesTool {
         string name,
         [Description("Optional task name to scope a node lookup (disambiguation).")]
         string? task = null,
+        [Description("Optional symbol kind to disambiguate when a task and a node share the same name: " +
+                     "'task' vs. 'node', or a specific kind like 'gui'. See the candidates' 'kind' values.")]
+        string? kind = null,
         CancellationToken cancellationToken = default) {
 
         var result = new NavReferencesResult { Path = path, Name = name };
@@ -46,7 +49,7 @@ public static class NavReferencesTool {
             return result;
         }
 
-        var status = NavNameResolution.Resolve(unit, name, task, out var symbol, out var candidates);
+        var status = NavNameResolution.Resolve(unit, name, task, kind, out var symbol, out var candidates);
 
         if (status == NavNameResolution.Status.NotFound) {
             result.Error = NavNameResolution.NotFoundMessage(name, path);

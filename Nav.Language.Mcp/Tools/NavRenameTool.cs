@@ -22,7 +22,7 @@ public static class NavRenameTool {
                  "Does NOT modify any file — apply the returned edits yourself. The rename is file-local (same "     +
                  "behaviour as the VS rename): references in other files are not changed. An invalid new name "      +
                  "(keyword, already taken, …) is reported in 'error'. If the name is ambiguous, returns candidates " +
-                 "— pass 'task' to disambiguate.")]
+                 "— pass 'kind' and/or 'task' to disambiguate.")]
     public static NavRenameResult Rename(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file.")]
@@ -31,7 +31,10 @@ public static class NavRenameTool {
         string name,
         [Description("The new name.")] string newName,
         [Description("Optional task name to scope a node lookup (disambiguation).")]
-        string? task = null) {
+        string? task = null,
+        [Description("Optional symbol kind to disambiguate when a task and a node share the same name: " +
+                     "'task' vs. 'node', or a specific kind like 'gui'. See the candidates' 'kind' values.")]
+        string? kind = null) {
 
         var result = new NavRenameResult { Path = path, Name = name, NewName = newName };
 
@@ -41,7 +44,7 @@ public static class NavRenameTool {
             return result;
         }
 
-        var status = NavNameResolution.Resolve(unit, name, task, out var symbol, out var candidates);
+        var status = NavNameResolution.Resolve(unit, name, task, kind, out var symbol, out var candidates);
 
         if (status == NavNameResolution.Status.NotFound) {
             result.Error = NavNameResolution.NotFoundMessage(name, path);

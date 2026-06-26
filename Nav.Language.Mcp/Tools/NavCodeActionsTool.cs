@@ -24,8 +24,8 @@ public static class NavCodeActionsTool {
     [Description("Returns the code actions (quick fixes / refactorings) applicable at a task or node, each with " +
                  "its ready-to-apply edits (1-based ranges + new text). Does NOT modify any file — pick one and " +
                  "apply its edits yourself. Examples: remove an unused node/task/include, add a missing exit "    +
-                 "transition, introduce a choice. If the name is ambiguous, returns candidates — pass 'task' to " +
-                 "disambiguate.")]
+                 "transition, introduce a choice. If the name is ambiguous, returns candidates — pass 'kind' " +
+                 "and/or 'task' to disambiguate.")]
     public static NavCodeActionsResult CodeActions(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file.")]
@@ -34,6 +34,9 @@ public static class NavCodeActionsTool {
         string name,
         [Description("Optional task name to scope a node lookup (disambiguation).")]
         string? task = null,
+        [Description("Optional symbol kind to disambiguate when a task and a node share the same name: " +
+                     "'task' vs. 'node', or a specific kind like 'gui'. See the candidates' 'kind' values.")]
+        string? kind = null,
         CancellationToken cancellationToken = default) {
 
         var result = new NavCodeActionsResult { Path = path, Name = name };
@@ -44,7 +47,7 @@ public static class NavCodeActionsTool {
             return result;
         }
 
-        var status = NavNameResolution.Resolve(unit, name, task, out var symbol, out var candidates);
+        var status = NavNameResolution.Resolve(unit, name, task, kind, out var symbol, out var candidates);
 
         if (status == NavNameResolution.Status.NotFound) {
             result.Error = NavNameResolution.NotFoundMessage(name, path);
