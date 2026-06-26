@@ -21,23 +21,26 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 public static class NavWorkspaceTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
-    const int DefaultLimit = 200;
+    const int DefaultLimit = 100;
 
-    /// <summary>Obergrenze für die Seitengröße — schützt vor übergroßen Antworten (Token-Limit).</summary>
-    const int MaxLimit = 1000;
+    /// <summary>
+    /// Obergrenze für die Seitengröße — so gewählt, dass selbst eine voll gefüllte Seite (jeder Eintrag trägt
+    /// relativen + absoluten Pfad, ~240 Zeichen) sicher unter dem Tool-Result-Token-Limit (~25k Tokens) bleibt.
+    /// </summary>
+    const int MaxLimit = 200;
 
     [McpServerTool(Name = "nav_workspace")]
     [Description("Lists Nav (.nav) files in the workspace (recursively below the workspace root), with their " +
                  "relative and absolute paths. Use this to discover the project's .nav files and to get absolute " +
                  "paths to pass to the other nav_* tools. Large workspaces are paged: at most 'limit' files are " +
-                 "returned (default 200, max 1000); 'truncated' = true means there are more — narrow via 'filter' " +
+                 "returned (default 100, max 200); 'truncated' = true means there are more — narrow via 'filter' " +
                  "or page with 'offset'. 'fileCount' is the total, 'matchCount' the number matching the filter.")]
     public static async Task<NavWorkspaceResult> Workspace(
         NavMcpWorkspace workspace,
         [Description("Optional case-insensitive substring matched against the relative path; only matching files " +
                      "are returned. Use it to narrow large workspaces (a subfolder or a name fragment).")]
         string? filter = null,
-        [Description("Max number of files to return (default 200, capped at 1000). Combine with 'offset' to page.")]
+        [Description("Max number of files to return (default 100, capped at 200). Combine with 'offset' to page.")]
         int limit = DefaultLimit,
         [Description("Number of (filtered) files to skip before returning — for paging.")]
         int offset = 0,
