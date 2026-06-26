@@ -37,7 +37,7 @@ n build -Configuration Release   # benannte Parameter/Switches werden durchgerei
 | `incbuild`       | Invoke-IncreaseBuild   | Build-Nummer hochzählen (X.Y.Z → X.Y.Z+1).                          |
 | `incminor`       | Invoke-IncreaseMinor   | Minor-Version hochzählen (X.Y.Z → X.Y+1.0).                         |
 | `incmajor`       | Invoke-IncreaseMajor   | Major-Version hochzählen (X.Y.Z → X+1.0.0).                         |
-| `publish`        | Invoke-Publish         | Release bauen und alles unter `deploy\` bereitstellen: Build Tools, VS-Code-Extension (mit LSP), MCP-Single-File. |
+| `publish`        | Invoke-Publish         | Solution (Debug) bauen und alles unter `deploy\` bereitstellen: Build Tools, VS-Code-Extension (mit LSP), MCP-Single-File. |
 | `install`        | Install-Extension      | VS-2026-Extension (VSIX) in Visual Studio installieren.              |
 | `deploy`         | Invoke-Deploy          | Bauen und Build Tools ins XTplus-Verzeichnis kopieren.              |
 | `snapshot`       | Invoke-Snapshot        | Regression-Snapshots (`.expected.cs`) neu erzeugen.                 |

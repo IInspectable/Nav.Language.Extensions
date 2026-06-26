@@ -12,12 +12,12 @@
     lokalisierten Satellite-Ressourcen; DebugType=embedded → keine separate .pdb.
 
 .PARAMETER Configuration
-    Build-Konfiguration. Default: Release.
+    Build-Konfiguration. Default: Debug.
 #>
 function Publish-Mcp {
     [CmdletBinding()]
     param(
-        [string] $Configuration = 'Release'
+        [string] $Configuration = 'Debug'
     )
 
     $ErrorActionPreference = 'Stop'

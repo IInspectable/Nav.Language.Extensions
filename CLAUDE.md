@@ -69,7 +69,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 |---|---|
 | `n build` | Solution bauen (Restore + Build, MSBuild.exe). `-Configuration Release` wird durchgereicht. |
 | `n test` | Tests via gebündeltem NUnit-Console-Runner (net472). |
-| `n publish` | Release bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
+| `n publish` | Solution (Debug) bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
 | `n install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
 | `n snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
 | `n incbuild` / `incminor` / `incmajor` | Version in `Version.props` hochzählen. |

@@ -20,12 +20,12 @@
     Server-Publish. Der Repo-Root wird zur Aufruf-Zeit aufgelöst (Resolve-Root).
 
 .PARAMETER Configuration
-    Build-Konfiguration für den Server-Publish. Default: Release.
+    Build-Konfiguration für den Server-Publish. Default: Debug.
 #>
 function Publish-VsCode {
     [CmdletBinding()]
     param(
-        [string] $Configuration = 'Release'
+        [string] $Configuration = 'Debug'
     )
 
     $ErrorActionPreference = 'Stop'
