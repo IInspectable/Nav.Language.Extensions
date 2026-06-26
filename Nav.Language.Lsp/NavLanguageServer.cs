@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Language.CallHierarchy;
 using Pharmatechnik.Nav.Language.Rename;
 using Pharmatechnik.Nav.Language.CodeFixes;
 using Pharmatechnik.Nav.Language.CodeActions;
@@ -49,7 +50,9 @@ class NavLanguageServer {
         _rootPath = ResolveRootPath(param);
 
         return new Protocol.InitializeResult {
-            Capabilities = new Protocol.ServerCapabilities {
+            // NavServerCapabilities ergänzt callHierarchyProvider, das das Protokoll-Paket 17.2.8 nicht kennt.
+            Capabilities = new NavServerCapabilities {
+                CallHierarchyProvider = true,
                 TextDocumentSync = new Protocol.TextDocumentSyncOptions {
                     OpenClose = true,
                     Change    = Protocol.TextDocumentSyncKind.Full
@@ -650,6 +653,103 @@ class NavLanguageServer {
         }
 
         return codeLens;
+    }
+
+    [JsonRpcMethod("textDocument/prepareCallHierarchy", UseSingleObjectParameterDeserialization = true)]
+    public CallHierarchyItem[] PrepareCallHierarchy(CallHierarchyPrepareParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return Array.Empty<CallHierarchyItem>();
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        if (unit == null) {
+            return Array.Empty<CallHierarchyItem>();
+        }
+
+        var offset = LspMapper.ToOffset(unit.Syntax.SyntaxTree.SourceText, param.Position);
+        var task   = NavCallHierarchyService.PrepareCallHierarchy(unit, offset);
+        if (task == null) {
+            return Array.Empty<CallHierarchyItem>();
+        }
+
+        var item = CallHierarchyBuilder.FromDefinition(task);
+        return item == null ? Array.Empty<CallHierarchyItem>() : new[] { item };
+    }
+
+    [JsonRpcMethod("callHierarchy/incomingCalls", UseSingleObjectParameterDeserialization = true)]
+    public async Task<CallHierarchyIncomingCall[]> CallHierarchyIncomingCalls(CallHierarchyIncomingCallsParams param) {
+
+        var task = ResolveCallHierarchyTask(param.Item);
+        if (task == null) {
+            return Array.Empty<CallHierarchyIncomingCall>();
+        }
+
+        var calls  = await NavCallHierarchyService.GetIncomingCallsAsync(task, _workspace.Solution, CancellationToken.None);
+        var result = new List<CallHierarchyIncomingCall>();
+
+        foreach (var call in calls) {
+
+            var from = CallHierarchyBuilder.FromDefinition(call.Caller);
+            if (from == null) {
+                continue;
+            }
+
+            result.Add(new CallHierarchyIncomingCall {
+                From       = from,
+                FromRanges = call.CallSites.Select(LspMapper.ToRange).ToArray()
+            });
+        }
+
+        return result.ToArray();
+    }
+
+    [JsonRpcMethod("callHierarchy/outgoingCalls", UseSingleObjectParameterDeserialization = true)]
+    public CallHierarchyOutgoingCall[] CallHierarchyOutgoingCalls(CallHierarchyOutgoingCallsParams param) {
+
+        var task = ResolveCallHierarchyTask(param.Item);
+        if (task == null) {
+            return Array.Empty<CallHierarchyOutgoingCall>();
+        }
+
+        var result = new List<CallHierarchyOutgoingCall>();
+
+        foreach (var call in NavCallHierarchyService.GetOutgoingCalls(task)) {
+
+            var to = CallHierarchyBuilder.FromDeclaration(call.Target);
+            if (to == null) {
+                continue;
+            }
+
+            result.Add(new CallHierarchyOutgoingCall {
+                To         = to,
+                FromRanges = call.CallSites.Select(LspMapper.ToRange).ToArray()
+            });
+        }
+
+        return result.ToArray();
+    }
+
+    /// <summary>
+    /// Findet die Task-Definition zu einem zurückgereichten <see cref="CallHierarchyItem"/> wieder:
+    /// <see cref="CallHierarchyItem.Data"/> kommt als <c>JObject</c> ({Uri, Offset}) zurück (wie bei CodeLens),
+    /// daraus Dokument laden und an der Bezeichner-Position die Task auflösen.
+    /// </summary>
+    ITaskDefinitionSymbol? ResolveCallHierarchyTask(CallHierarchyItem? item) {
+
+        var data = (item?.Data as JObject)?.ToObject<CallHierarchyItemData>();
+        if (data == null || string.IsNullOrEmpty(data.Uri)) {
+            return null;
+        }
+
+        var filePath = NavUri.ToFilePath(new Uri(data.Uri));
+        if (filePath == null) {
+            return null;
+        }
+
+        var unit = _workspace.GetCodeGenerationUnit(filePath, CancellationToken.None);
+        return unit == null ? null : NavCallHierarchyService.PrepareCallHierarchy(unit, data.Offset);
     }
 
     [JsonRpcMethod(Protocol.Methods.TextDocumentCompletionName, UseSingleObjectParameterDeserialization = true)]
