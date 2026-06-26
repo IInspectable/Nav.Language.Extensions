@@ -82,6 +82,11 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   Remove-Unused-Nodes.
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
+- **Publish:** `n publish` veröffentlicht den MCP-Server als **self-contained Single-File**
+  `deploy\mcp\nav.mcp.exe` (`win-x64`, **genau eine Datei**, inkl. gebündelter .NET-Runtime — keine
+  separate Runtime, keine losen DLLs). Flags analog zum LSP-Publish (`PublishSingleFile`,
+  `IncludeNativeLibrariesForSelfExtract`, `EnableCompressionInSingleFile`, `SatelliteResourceLanguages=en`,
+  `DebugType=embedded`). Start: `deploy\mcp\nav.mcp.exe <workspace-root>`.
 
 ## 5. Bekannte Grenzen / offene Punkte
 

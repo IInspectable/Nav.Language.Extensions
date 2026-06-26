@@ -37,8 +37,7 @@ n build -Configuration Release   # benannte Parameter/Switches werden durchgerei
 | `incbuild`       | Invoke-IncreaseBuild   | Build-Nummer hochzählen (X.Y.Z → X.Y.Z+1).                          |
 | `incminor`       | Invoke-IncreaseMinor   | Minor-Version hochzählen (X.Y.Z → X.Y+1.0).                         |
 | `incmajor`       | Invoke-IncreaseMajor   | Major-Version hochzählen (X.Y.Z → X+1.0.0).                         |
-| `publishlsp`     | Publish-Lsp            | LSP-Server self-contained nach `deploy\lsp` veröffentlichen.        |
-| `packagevscode`  | Invoke-PackageVsCode   | LSP bauen, einbetten und VSIX nach `deploy\vscode` paketieren.       |
+| `publish`        | Invoke-Publish         | Release bauen und alles unter `deploy\` bereitstellen: Build Tools, VS-Code-Extension (mit LSP), MCP-Single-File. |
 | `install`        | Install-Extension      | VS-2026-Extension (VSIX) in Visual Studio installieren.              |
 | `deploy`         | Invoke-Deploy          | Bauen und Build Tools ins XTplus-Verzeichnis kopieren.              |
 | `snapshot`       | Invoke-Snapshot        | Regression-Snapshots (`.expected.cs`) neu erzeugen.                 |
@@ -56,7 +55,7 @@ Die Tabelle ist nur eine Lese-Hilfe — Quelle der Wahrheit sind die `.FUNCTIONA
 `Version.props` (`<ProductVersion>`) ist die **einzige Quelle der Wahrheit**. `incbuild`/`incminor`/`incmajor`
 ändern ausschließlich diese Datei. Die `version` in `vscode-nav-lsp\package.json` ist nur ein Platzhalter
 (`0.0.0`) und wird **nicht** gepflegt: Das VSIX bekommt seine Version beim Paketieren ohnehin aus
-`Version.props` — `packagevscode` ruft `vsce package <version> --no-update-package-json`.
+`Version.props` — `publish` ruft `vsce package <version> --no-update-package-json`.
 
 ## Branching (Worktree-basiert)
 

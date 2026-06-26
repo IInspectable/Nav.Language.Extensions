@@ -58,24 +58,21 @@ Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hinter
 
 1. Konfigurierter Pfad (`navLanguageServer.serverPath`) — `.exe` direkt, `.dll` via `dotnet`.
 2. **Eingebettet:** `server/nav.lsp.exe` in der Extension-Wurzel (greift im installierten VSIX).
-3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (self-contained Publish).
+3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (nur falls dorthin manuell publiziert — `n publish`
+   legt den Server nicht mehr dort ab, sondern direkt in `server/`).
 4. **Repo (F5):** `../Nav.Language.Lsp/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
-
-## Server publizieren (self-contained)
-
-`n publishlsp` erzeugt einen **self-contained Single-File**-Server unter `deploy\lsp`:
-**genau eine Datei** `deploy\lsp\nav.lsp.exe` (inkl. gebündelter .NET-Runtime, ~39 MB komprimiert — keine
-separate Runtime-Installation, keine losen DLLs, keine Satellite-Ressourcen-Ordner). Die Extension findet
-diese Ausgabe im F5-Workflow automatisch.
-
-Der Publish läuft bewusst über die Full-Framework-`MSBuild.exe` (wie `n build`). Unter der Haube (gekürzt):
-`MSBuild.exe …Nav.Language.Lsp.csproj -restore -t:Publish -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en`.
 
 ## VSIX paketieren & installieren
 
-`n packagevscode` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**:
-es baut den Server (`n publishlsp`), bettet `nav.lsp.exe` als `vscode-nav-lsp/server/nav.lsp.exe`
-in die Extension ein und paketiert plattform-spezifisch via `npx @vscode/vsce package --target win32-x64`.
+`n publish` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**: es publiziert den LSP-Server
+als **self-contained Single-File** (`win-x64`, **genau eine Datei**, inkl. gebündelter .NET-Runtime,
+~39 MB komprimiert — keine separate Runtime, keine losen DLLs, keine Satellite-Ordner) **direkt** als
+`vscode-nav-lsp/server/nav.lsp.exe` in die Extension und paketiert plattform-spezifisch via
+`npx @vscode/vsce package --target win32-x64`. Ein eigenständiges `deploy\lsp` entsteht dabei nicht mehr.
+
+Unter der Haube (gekürzt): `dotnet publish …Nav.Language.Lsp.csproj -r win-x64 --self-contained true
+-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+-p:SatelliteResourceLanguages=en -p:DebugType=embedded -o …\vscode-nav-lsp\server`.
 
 Ergebnis: `deploy\vscode\nav-language-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
 kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` zieht das Skript aus

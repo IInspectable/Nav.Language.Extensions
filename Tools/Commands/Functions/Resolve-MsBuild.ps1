@@ -10,7 +10,7 @@
     `n build` läuft über diese MSBuild.exe, weil die Solution die VS-Extension
     (Nav.Language.Extension2026, VSIX/VSSDK.BuildTools) enthält, die nur Full-Framework-
     MSBuild.exe baut. Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut/publisht dagegen mit
-    dem dotnet-SDK (`n publishlsp` nutzt `dotnet publish`). Interner Helper (Verb-Noun ohne
+    dem dotnet-SDK (die Single-File-Publishes in `n publish` nutzen `dotnet publish`). Interner Helper (Verb-Noun ohne
     .FUNCTIONALITY → kein n-Command).
 #>
 function Resolve-MsBuild {

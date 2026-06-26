@@ -57,8 +57,8 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 - **Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut mit `dotnet build`/`dotnet publish`.** Der
   StringTemplate-Export in `Nav.Language\CustomBuild.targets` läuft über einen file-based
   dotnet-Generator (`_build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
-  der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). `n publishlsp` nutzt
-  `dotnet publish`.
+  der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). Die Single-File-Publishes
+  (LSP/MCP) in `n publish` nutzen `dotnet publish`.
 - **Die ganze Solution (`n build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
   VS-Extension (`Nav.Language.Extension2026`, VSIX/`VSSDK.BuildTools`), die `dotnet build` nicht baut.
 - **Bevorzugt das `n`-Command-System** (PowerShell-Dispatcher, Alias `n`) statt MSBuild von Hand —
@@ -69,8 +69,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 |---|---|
 | `n build` | Solution bauen (Restore + Build, MSBuild.exe). `-Configuration Release` wird durchgereicht. |
 | `n test` | Tests via gebündeltem NUnit-Console-Runner (net472). |
-| `n publishlsp` | LSP-Server self-contained als Single-File `deploy\lsp\nav.lsp.exe`. |
-| `n packagevscode` | LSP bauen, einbetten, plattform-spezifisches VSIX nach `deploy\vscode`. |
+| `n publish` | Release bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
 | `n install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
 | `n snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
 | `n incbuild` / `incminor` / `incmajor` | Version in `Version.props` hochzählen. |

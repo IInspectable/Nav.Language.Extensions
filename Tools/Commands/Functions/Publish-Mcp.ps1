@@ -1,12 +1,11 @@
 <#
 .SYNOPSIS
-    Veröffentlicht den Nav-LSP-Server self-contained nach deploy\lsp.
+    Interner Helfer: veröffentlicht den Nav-MCP-Server self-contained als Single-File nach deploy\mcp.
 
 .DESCRIPTION
-    Erzeugt deploy\lsp\nav.lsp.exe samt gebündelter .NET-Runtime (keine separate
-    Runtime-Installation nötig). Läuft über `dotnet publish` (der CodeTaskFactory-Blocker in
-    Nav.Language\CustomBuild.targets ist durch den file-based dotnet-Generator ersetzt, daher
-    baut/publisht die Engine jetzt mit dem dotnet-SDK).
+    Kein eigener n-Command (keine .FUNCTIONALITY) — wird von `n publish` (Invoke-Publish) aufgerufen.
+    Spiegelbild des LSP-Publishs: erzeugt deploy\mcp\nav.mcp.exe samt gebündelter .NET-Runtime
+    (keine separate Runtime-Installation nötig). Läuft über `dotnet publish`.
 
     Flags: PublishSingleFile + IncludeNativeLibrariesForSelfExtract → alles in eine exe;
     EnableCompressionInSingleFile → kleinere exe; SatelliteResourceLanguages=en → keine
@@ -14,11 +13,8 @@
 
 .PARAMETER Configuration
     Build-Konfiguration. Default: Release.
-
-.FUNCTIONALITY
-    publishlsp
 #>
-function Publish-Lsp {
+function Publish-Mcp {
     [CmdletBinding()]
     param(
         [string] $Configuration = 'Release'
@@ -30,9 +26,9 @@ function Publish-Lsp {
     if (-not $root) { return }
 
     $rid = 'win-x64'
-    $publishDir = Join-Path $root 'deploy\lsp'
-    $project = Join-Path $root 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'
-    if (-not (Test-Path $project)) { throw "LSP-Projekt nicht gefunden: '$project'." }
+    $publishDir = Join-Path $root 'deploy\mcp'
+    $project = Join-Path $root 'Nav.Language.Mcp\Nav.Language.Mcp.csproj'
+    if (-not (Test-Path $project)) { throw "MCP-Projekt nicht gefunden: '$project'." }
 
     # Zielverzeichnis vorher leeren — der self-contained Publish räumt Altbestand nicht selbst auf.
     if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
@@ -44,8 +40,8 @@ function Publish-Lsp {
         -o $publishDir -v:m
     if ($LASTEXITCODE) { throw "Publish fehlgeschlagen (Exit $LASTEXITCODE)." }
 
-    $exe = Join-Path $publishDir 'nav.lsp.exe'
+    $exe = Join-Path $publishDir 'nav.mcp.exe'
     Write-Host ""
-    Write-Host "Self-contained LSP-Server veröffentlicht nach: $publishDir" -ForegroundColor Green
+    Write-Host "Self-contained MCP-Server veröffentlicht nach: $publishDir" -ForegroundColor Green
     Write-Host "Finale ausführbare Datei: $exe" -ForegroundColor DarkGray
 }

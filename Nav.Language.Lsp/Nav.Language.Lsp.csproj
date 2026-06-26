@@ -12,7 +12,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <!-- Self-contained Single-File-Publish-Ziel; RID/SelfContained/PublishSingleFile/SatelliteResourceLanguages
-         werden beim Publish per Kommandozeile gesetzt (siehe `n publishlsp` → eine nav.lsp.exe in deploy\lsp).
+         werden beim Publish per Kommandozeile gesetzt (siehe `n publish` → eine nav.lsp.exe, eingebettet in die VS-Code-Extension).
          Bewusst KEIN PublishTrimmed: Newtonsoft + StreamJsonRpc + LSP-DTOs sind reflection-lastig (Trimming
          würde die Serialisierung brechen). Single-File ist nur Bündelung (kein Trimming) und damit unkritisch. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
