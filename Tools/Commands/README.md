@@ -50,6 +50,14 @@ n build -Configuration Release   # benannte Parameter/Switches werden durchgerei
 Die Tabelle ist nur eine Lese-Hilfe — Quelle der Wahrheit sind die `.FUNCTIONALITY`-Tokens in
 `Functions/`. Detail-Hilfe je Command via `Get-Help <Funktion> -Full`, z. B. `Get-Help New-Branch -Full`.
 
+## Navigation
+
+Eigenständige Shortcut-Funktionen (kein `n`-Dispatcher, kein Token):
+
+| Funktion | Zweck                                                                       |
+|----------|-----------------------------------------------------------------------------|
+| `ns:`    | In den Root eines Worktrees wechseln. Bei mehreren erscheint ein Pfeiltasten-Menü; optionaler Branch-Filter (`ns: lsp`). |
+
 ## Versionierung
 
 `Version.props` (`<ProductVersion>`) ist die **einzige Quelle der Wahrheit**. `incbuild`/`incminor`/`incmajor`
