@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-    Baut das Repo und kopiert die Build Tools in das XTplus-Zielverzeichnis.
+    Publiziert das Repo (n publish) und kopiert die Build Tools in das XTplus-Zielverzeichnis.
 
 .DESCRIPTION
-    Ruft zuerst Invoke-Build (gesamte Solution) und kopiert anschließend den Inhalt von
-    `deploy\Build Tools` in das Zielverzeichnis (Default: das bisherige XTplus-Nav-Skript-
-    Verzeichnis). Der Repo-Root wird zur Aufruf-Zeit aufgelöst (Resolve-Root).
+    Ruft zuerst Invoke-Publish (voller Publish-Lauf: Solution bauen + alle Deliverables unter
+    `deploy\` bereitstellen) und kopiert anschließend den Inhalt von `deploy\Build Tools` in das
+    Zielverzeichnis (Default: das bisherige XTplus-Nav-Skript-Verzeichnis). Der Repo-Root wird zur
+    Aufruf-Zeit aufgelöst (Resolve-Root).
 
 .PARAMETER Target
     Zielverzeichnis für die Build Tools. Default: C:\ws\XTplus\z_Nav3\build\Script\Nav.
@@ -28,7 +29,7 @@ function Invoke-Deploy {
     $root = Resolve-Root
     if (-not $root) { return }
 
-    Invoke-Build -Configuration $Configuration
+    Invoke-Publish -Configuration $Configuration
 
     $source = Join-Path $root 'deploy\Build Tools'
     if (-not (Test-Path $source)) { throw "Quelle nicht gefunden: '$source'." }
