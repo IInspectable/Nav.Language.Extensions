@@ -36,6 +36,14 @@ function Invoke-Publish {
     $root = Resolve-Root
     if (-not $root) { return }
 
+    # 0) deploy\ komplett leeren — garantiert einen sauberen Stand ohne Altlasten aus früheren
+    #    Publishes (die Einzel-Targets leeren nur ihr jeweiliges Unterverzeichnis).
+    $deploy = Join-Path $root 'deploy'
+    if (Test-Path $deploy) {
+        Write-Host "Leere deploy\ ..." -ForegroundColor DarkGray
+        Remove-Item -Path $deploy -Recurse -Force
+    }
+
     # 1) Solution bauen — füllt deploy\Build Tools (Task-DLL/Targets/Grammatik) und deploy\Vsix
     #    per Post-Build-Targets. ACHTUNG: leert deploy\Build Tools vorher.
     Invoke-Build -Configuration $Configuration
