@@ -2,6 +2,8 @@
 
 using System;
 
+using Newtonsoft.Json;
+
 using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
@@ -36,6 +38,13 @@ sealed class CallHierarchyOutgoingCallsParams {
 sealed class CallHierarchyItem {
     public string              Name           { get; set; } = "";
     public Protocol.SymbolKind Kind           { get; set; }
+
+    // WICHTIG: ohne diesen Konverter serialisiert Newtonsoft System.Uri als OriginalString — bei einer aus
+    // einem Windows-Pfad gebauten Uri also "D:\...\x.nav" (Backslashes), KEINE file://-URI. Der VS-Code-Client
+    // (vscode-languageclient) parst die Item-Uri per Uri.parse: "D:\..." wird als Schema "d" fehlinterpretiert,
+    // die "from"/"to"-Knoten erhalten eine kaputte Uri und werden beim Rendern verworfen (leere Aufrufliste).
+    // Derselbe DocumentUriConverter, den auch Protocol.Location.Uri trägt, schreibt die korrekte file://-Form.
+    [JsonConverter(typeof(Protocol.DocumentUriConverter))]
     public Uri                 Uri            { get; set; } = null!;
     public Protocol.Range      Range          { get; set; } = null!;
     public Protocol.Range      SelectionRange { get; set; } = null!;
