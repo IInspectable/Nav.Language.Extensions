@@ -8,5 +8,4 @@ Erzeugen von C# Code zu beeinflussen.
 
 | Branch | Status |
 |--------|---------|
-|**master**|[![Build status](https://ci.appveyor.com/api/projects/status/maxn6321magmhlo9/branch/master?svg=true)](https://ci.appveyor.com/project/IInspectable/nav-language-extensions/branch/master)|
-|**vs2022**|[![Build status](https://ci.appveyor.com/api/projects/status/maxn6321magmhlo9/branch/vs2022?svg=true)](https://ci.appveyor.com/project/IInspectable/nav-language-extensions/branch/vs2022)|
+|**master**|[![Build](https://github.com/IInspectable/Nav.Language.Extensions/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/IInspectable/Nav.Language.Extensions/actions/workflows/build.yml)|

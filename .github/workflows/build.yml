@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Test (Windows / VS 2022)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # net10-Teil (Engine/LSP/MCP/CLI/Tests) braucht das .NET-10-SDK.
+      # Der net472-/VSIX-Teil baut über die auf dem Runner vorinstallierte VS-2022-MSBuild.exe.
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Baut die gesamte Solution via Full-Framework-MSBuild.exe (Restore + Build, Debug).
+      # Wiederverwendung der bestehenden n-Command-Logik (löst MSBuild via vswhere und den
+      # Repo-Root via git selbst auf). Die DeployFiles-Targets befüllen dabei deploy\.
+      - name: Build (MSBuild via n build)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . "$env:GITHUB_WORKSPACE\Tools\Commands\Import-NavCommands.ps1"
+          Invoke-Build -Configuration Debug
+
+      # net472-Tests über den im Repo eingecheckten NUnit-Console-Runner
+      # (Nav.Language.Tests + Nav.Language.Extension.Tests).
+      - name: Test net472 (NUnit console via n test)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . "$env:GITHUB_WORKSPACE\Tools\Commands\Import-NavCommands.ps1"
+          Invoke-Test -Configuration Debug
+
+      # net10-Tests über dotnet test (Nav.Language.Tests net10 + Nav.Language.BuildTasks.Tests).
+      - name: Test net10 (dotnet test)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -c Debug -f net10.0
+          dotnet test Nav.Language.BuildTasks.Tests\Nav.Language.BuildTasks.Tests.csproj -c Debug
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nav.Language.Extension
+          path: deploy/Vsix
+          if-no-files-found: error
+
+      - name: Upload Build Tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nav.Language.BuildTools
+          path: deploy/Build Tools
+          if-no-files-found: error
