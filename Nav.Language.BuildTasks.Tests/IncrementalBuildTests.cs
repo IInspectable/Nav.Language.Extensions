@@ -25,6 +25,11 @@ namespace Pharmatechnik.Nav.Language.BuildTasks.Tests;
 [TestFixture]
 public class IncrementalBuildTests {
 
+    [OneTimeTearDown]
+    public void CleanupToolLayout() {
+        BuildEnvironment.Cleanup();
+    }
+
     static Dictionary<string, string> Incremental(params (string Key, string Value)[] extra) {
         var props = new Dictionary<string, string> { ["NavIncremental"] = "true" };
         foreach (var (key, value) in extra) {
