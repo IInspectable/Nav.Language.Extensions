@@ -9,7 +9,37 @@
     <File Path="Directory.Packages.props" />
     <File Path="README.md" />
     <File Path="Version.props" />
+  </Folder>
+  <Folder Name="/Tools/Commands/">
+    <File Path="Tools/Commands/Import-NavCommands.ps1" />
     <File Path="Tools/Commands/README.md" />
+  </Folder>
+  <Folder Name="/Tools/Commands/Functions/">
+    <File Path="Tools/Commands/Functions/Get-NavCommandInfo.ps1" />
+    <File Path="Tools/Commands/Functions/Get-Worktree.ps1" />
+    <File Path="Tools/Commands/Functions/Install-Extension.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Build.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Clean.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Deploy.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-GenerateErrors.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-IncreaseBuild.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-IncreaseMajor.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-IncreaseMinor.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-NavCommand.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Publish.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Snapshot.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Test.ps1" />
+    <File Path="Tools/Commands/Functions/Navigation.ps1" />
+    <File Path="Tools/Commands/Functions/New-Branch.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-Cli.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-Mcp.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-VsCode.ps1" />
+    <File Path="Tools/Commands/Functions/Remove-Branch.ps1" />
+    <File Path="Tools/Commands/Functions/Resolve-MsBuild.ps1" />
+    <File Path="Tools/Commands/Functions/Resolve-Root.ps1" />
+    <File Path="Tools/Commands/Functions/Show-Commands.ps1" />
+    <File Path="Tools/Commands/Functions/Show-SelectionMenu.ps1" />
+    <File Path="Tools/Commands/Functions/Update-Version.ps1" />
   </Folder>
   <Folder Name="/_build/">
     <File Path="_build/CodeGen/GenerateCodeGenFacts.cs" />
