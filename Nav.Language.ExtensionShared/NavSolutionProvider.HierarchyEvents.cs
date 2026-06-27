@@ -22,18 +22,18 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
 
         if (!AreHierarchyEventsConnected) {
 
-            GetSolutionHierachy()?.AdviseHierarchyEvents(this, out _hierarchyEventsCookie);
+            GetSolutionHierarchy()?.AdviseHierarchyEvents(this, out _hierarchyEventsCookie);
         }
 
     }
 
-    IVsHierarchy GetSolutionHierachy() {
+    IVsHierarchy GetSolutionHierarchy() {
         ThreadHelper.ThrowIfNotOnUIThread();
 
-        var vsSolution1 = (IVsSolution) ServiceProvider.GetService(typeof(SVsSolution)) ?? throw new InvalidOperationException();
+        var vsSolution = (IVsSolution) ServiceProvider.GetService(typeof(SVsSolution)) ?? throw new InvalidOperationException();
 
         // ReSharper disable once SuspiciousTypeConversion.Global
-        return vsSolution1 as IVsHierarchy;
+        return vsSolution as IVsHierarchy;
     }
 
     // TODO DisconnectHierarchyEvents beim Beenden von Studio
@@ -42,7 +42,7 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
         ThreadHelper.ThrowIfNotOnUIThread();
 
         if (AreHierarchyEventsConnected) {
-            GetSolutionHierachy().UnadviseHierarchyEvents(_hierarchyEventsCookie);
+            GetSolutionHierarchy().UnadviseHierarchyEvents(_hierarchyEventsCookie);
             _hierarchyEventsCookie = 0;
         }
     }
@@ -60,14 +60,11 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
     }
 
     int IVsHierarchyEvents.OnPropertyChanged(uint itemid, int propid, uint flags) {
-           
+
         if (propid == (int) __VSHPROPID.VSHPROPID_ProjectName &&
             itemid == (uint) VSConstants.VSITEMID.Root) {
 
             Invalidate();
-
-            // ReSharper disable once DuplicatedStatements
-            return VSConstants.S_OK;
         }
 
         return VSConstants.S_OK;
