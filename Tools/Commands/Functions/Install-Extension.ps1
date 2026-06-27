@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Sucht das gebaute VSIX des Projekts Nav.Language.Extension2026
-    (bin\<Configuration>\Pharmatechnik.Nav.Language.Extension.2026.vsix) und startet den
+    (bin\<Configuration>\Pharmatechnik.Nav.Language.Extension.2026-<Version>.vsix, neuestes per Glob)
+    und startet den
     VSIXInstaller von Visual Studio (über vswhere ermittelt). Der Repo-Root wird zur
     Aufruf-Zeit aufgelöst (Resolve-Root).
 
@@ -28,9 +29,14 @@ function Install-Extension {
     $root = Resolve-Root
     if (-not $root) { return }
 
-    $vsix = Join-Path $root "Nav.Language.Extension2026\bin\$Configuration\Pharmatechnik.Nav.Language.Extension.2026.vsix"
-    if (-not (Test-Path $vsix)) {
-        Write-Host "VSIX nicht gefunden: '$vsix'" -ForegroundColor Red
+    # Der VSIX-Name enthält die Version (TargetVsixContainerName, siehe CustomBuild.targets), daher
+    # per Glob das neueste VSIX greifen statt einen festen Namen anzunehmen.
+    $binDir = Join-Path $root "Nav.Language.Extension2026\bin\$Configuration"
+    $vsix = Get-ChildItem -Path $binDir -Filter 'Pharmatechnik.Nav.Language.Extension.2026*.vsix' -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+    if (-not $vsix) {
+        Write-Host "VSIX nicht gefunden in: '$binDir'" -ForegroundColor Red
         Write-Host "  Zuerst die Extension bauen (z. B. 'nav build')." -ForegroundColor Yellow
         return
     }

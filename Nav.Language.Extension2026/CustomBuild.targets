@@ -2,6 +2,11 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProductName>Nav Language Extensions</ProductName>
+    <!-- Version in den VSIX-Dateinamen ziehen (analog zum VS-Code-VSIX). Für VS selbst irrelevant
+         (es liest die Version aus Identity/@Version im Manifest), aber im deploy\Vsix-Artefakt ist
+         der Stand am Dateinamen erkennbar und überschreibt sich nicht. ProductVersion stammt aus
+         Version.props (via Directory.Build.props). -->
+    <TargetVsixContainerName>Pharmatechnik.Nav.Language.Extension.2026-$(ProductVersion).vsix</TargetVsixContainerName>
   </PropertyGroup>
   <Import Project="..\_build\WriteThisAssemblyFile.targets" />
   <PropertyGroup>
