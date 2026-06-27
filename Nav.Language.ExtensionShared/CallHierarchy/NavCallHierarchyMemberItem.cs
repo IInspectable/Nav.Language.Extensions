@@ -59,9 +59,11 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
         _glyphMoniker      = glyphMoniker;
         _details           = details ?? Array.Empty<ICallHierarchyItemDetails>();
 
-        // Jeder Knoten bietet (mindestens) die ausgehenden Aufrufe an, damit sich die Hierarchie beliebig
-        // tief expandieren lässt. "Calls To" (Callers) kommt in Step 3 dazu.
+        // Jeder Knoten bietet beide Richtungen an, damit sich die Hierarchie beliebig tief in beide
+        // Richtungen expandieren lässt (echte Rekursion). Eingehend ("Calls To") zuerst — wie die
+        // C#-Call-Hierarchy in VS.
         _searchCategories = new[] {
+            new CallHierarchySearchCategory(CallHierarchyPredefinedSearchCategoryNames.Callers, $"Calls To '{memberName}'"),
             new CallHierarchySearchCategory(CallHierarchyPredefinedSearchCategoryNames.Callees, $"Calls From '{memberName}'")
         };
     }
@@ -131,8 +133,12 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
             var unit     = solution.SemanticModelProvider.GetSemanticModel(FilePath, cancellationToken);
             var task     = unit == null ? null : NavCallHierarchyService.PrepareCallHierarchy(unit, Offset);
 
-            if (task != null && categoryName == CallHierarchyPredefinedSearchCategoryNames.Callees) {
-                AddOutgoingCalls(task, unit, callback, cancellationToken);
+            if (task != null) {
+                if (categoryName == CallHierarchyPredefinedSearchCategoryNames.Callees) {
+                    AddOutgoingCalls(task, unit, callback, cancellationToken);
+                } else if (categoryName == CallHierarchyPredefinedSearchCategoryNames.Callers) {
+                    await AddIncomingCallsAsync(task, solution, callback, cancellationToken).ConfigureAwait(false);
+                }
             }
 
         } catch (OperationCanceledException) {
@@ -154,21 +160,42 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
     /// <summary>Ausgehende Aufrufe: je aufgerufener Task ein Kind-Knoten mit den Aufrufstellen als Details.</summary>
     static void AddOutgoingCalls(ITaskDefinitionSymbol task, CodeGenerationUnit unit, ICallHierarchySearchCallback callback, CancellationToken cancellationToken) {
 
-        // Die Aufrufstellen liegen in der aufrufenden Task, also in dieser Datei → Zeilentext aus deren SourceText.
+        // Die Aufrufstellen liegen in der aufrufenden Task, also in DIESER Datei → Zeilentext aus deren SourceText.
         var sourceText = unit.Syntax.SyntaxTree.SourceText;
 
         foreach (var call in NavCallHierarchyService.GetOutgoingCalls(task)) {
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var details = call.CallSites.Select(callSite => CreateDetail(sourceText, callSite))
-                                        .ToList<ICallHierarchyItemDetails>();
-
-            var child = NavCallHierarchyItemFactory.FromDeclaration(call.Target, details);
+            var child = NavCallHierarchyItemFactory.FromDeclaration(call.Target, BuildDetails(sourceText, call.CallSites));
             if (child != null) {
                 callback.AddResult(child);
             }
         }
+    }
+
+    /// <summary>Eingehende Aufrufe: je aufrufender Task ein Kind-Knoten mit den Aufrufstellen als Details.</summary>
+    static async Task AddIncomingCallsAsync(ITaskDefinitionSymbol task, NavSolution solution, ICallHierarchySearchCallback callback, CancellationToken cancellationToken) {
+
+        var calls = await NavCallHierarchyService.GetIncomingCallsAsync(task, solution, cancellationToken).ConfigureAwait(false);
+
+        foreach (var call in calls) {
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Die Aufrufstellen liegen in der AUFRUFENDEN Task (ggf. andere Datei) → Zeilentext aus deren SourceText.
+            var sourceText = call.Caller.CodeGenerationUnit.Syntax.SyntaxTree.SourceText;
+
+            var child = NavCallHierarchyItemFactory.FromDefinition(call.Caller, BuildDetails(sourceText, call.CallSites));
+            if (child != null) {
+                callback.AddResult(child);
+            }
+        }
+    }
+
+    static IReadOnlyList<ICallHierarchyItemDetails> BuildDetails(SourceText sourceText, IReadOnlyList<Location> callSites) {
+        return callSites.Select(callSite => CreateDetail(sourceText, callSite))
+                        .ToList<ICallHierarchyItemDetails>();
     }
 
     static NavCallHierarchyDetail CreateDetail(SourceText sourceText, Location callSite) {
