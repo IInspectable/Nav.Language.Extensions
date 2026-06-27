@@ -22,14 +22,30 @@
   <PropertyGroup>
     <DeployDirectory>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)\..\deploy\Vsix))</DeployDirectory>
   </PropertyGroup>
+  <!-- Der VSSDK-Schritt CreateVsixContainer ist nur unzuverlässig inkrementell: seine Up-to-date-
+       Prüfung trackt eine feste Input-Liste. Ändert sich nur diese .targets oder ein eingebetteter
+       Inhalt, dessen Timestamp die Input-Liste nicht erfasst, gilt das bereits gebaute .vsix als
+       aktuell — der Container-Build wird übersprungen und ein VERALTETER Stand weiterdeployt.
+       Deshalb das vorhandene VSIX vorher löschen: fehlt das Output, baut CreateVsixContainer neu. -->
+  <Target Name="ForceVsixRebuild" BeforeTargets="CreateVsixContainer">
+    <ItemGroup>
+      <_StaleVsix Include="$(OutputPath)\**\*.vsix" />
+    </ItemGroup>
+    <Delete Files="@(_StaleVsix)" />
+  </Target>
+  <!-- Das gebaute VSIX (Default-Name aus dem VsSDK) ins deploy ziehen und dabei selbst auf den
+       versionierten Zielnamen umbenennen. So bleibt der VSSDK-interne Name unangetastet und der
+       Deploy-Name liegt komplett in unserer Hand. ProductVersion stammt aus Version.props
+       (via Directory.Build.props). Für VS ist der Name ohnehin egal (Version kommt aus dem
+       Manifest), aber im deploy\Vsix-Artefakt ist der Stand am Dateinamen erkennbar. -->
   <Target Name="DeployFiles" AfterTargets="CreateVsixContainer">
     <ItemGroup>
       <_FilesToDelete Include="$(DeployDirectory)\**\*" />
-      <_itemsToDeploy Include="$(OutputPath)\**\*.vsix" />
     </ItemGroup>
     <Message Text="Copy files to directory '$([System.IO.Path]::GetFullPath('$(DeployDirectory)'))'" Importance="high" />
     <Delete Files="@(_FilesToDelete)" />
-    <Copy SourceFiles="@(_itemsToDeploy)" DestinationFolder="$(DeployDirectory)" />
+    <Copy SourceFiles="$(TargetVsixContainer)"
+          DestinationFiles="$(DeployDirectory)\Pharmatechnik.Nav.Language.Extension.2026-$(ProductVersion).vsix" />
   </Target>
   <Target Name="UpdateProductVersion" BeforeTargets="PrepareForBuild">
     <Message Text="Updating XML $(VsixVersionNumber) files %(XmlConfigUpdates.FullPath)" Importance="high" />

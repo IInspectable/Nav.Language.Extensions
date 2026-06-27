@@ -1,7 +1,6 @@
 ﻿#region Using Directives
 
 using System;
-using System.Collections.Immutable;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Reactive.Linq;
@@ -37,8 +36,6 @@ partial class NavSolutionProvider {
 
     readonly FileSystemWatcher _fileSystemWatcher;
 
-    static string SearchFilter => $"*{NavLanguageContentDefinitions.FileExtension}";
-
     [ImportingConstructor]
     public NavSolutionProvider(TaskStatusProvider taskStatusProvider, SVsServiceProvider serviceProvider) {
             
@@ -63,6 +60,7 @@ partial class NavSolutionProvider {
         _fileSystemWatcher.Renamed += OnFileSystemRenamed;
         _fileSystemWatcher.Created += OnFileSystemCreated;
         _fileSystemWatcher.Deleted += OnFileSystemDeleted;
+        _fileSystemWatcher.Error   += OnFileSystemError;
 
         UpdateSearchDirectory();
 
@@ -122,6 +120,12 @@ partial class NavSolutionProvider {
         Invalidate();
     }
 
+    void OnFileSystemError(object sender, ErrorEventArgs e) {
+        // Bei Pufferüberlauf gehen einzelne Change-Events verloren — der Snapshot
+        // wäre danach still veraltet. Konservativ komplett invalidieren.
+        Invalidate();
+    }
+
     void Invalidate() {
 
         lock (_gate) {
@@ -138,8 +142,15 @@ partial class NavSolutionProvider {
 
     public async Task<NavSolution> GetSolutionAsync(CancellationToken cancellationToken) {
 
-        if (_navSolutionSnapshot.IsCurrent(_directory, _lastChanged)) {
-            return _navSolutionSnapshot.Solution;
+        NavSolutionSnapshot snapshot;
+        DateTime            lastChanged;
+        lock (_gate) {
+            snapshot    = _navSolutionSnapshot;
+            lastChanged = _lastChanged;
+        }
+
+        if (snapshot.IsCurrent(_directory, lastChanged)) {
+            return snapshot.Solution;
         }
 
         var solutionSnapshot = await CreateSolutionSnapshotAsync(_taskStatusProvider, _directory, cancellationToken);
@@ -158,31 +169,10 @@ partial class NavSolutionProvider {
         }
 
         var creationTime = DateTime.Now;
-        // ReSharper disable once CollectionNeverQueried.Local
-        var itemBuilder  = ImmutableArray.CreateBuilder<FileInfo>();
 
         using var taskStatus = taskStatusProvider.CreateTaskStatus("Nav Solution Provider");
 
         await taskStatus.OnProgressChangedAsync("Searching for the edge of eternity");
-
-        foreach (var file in Directory.EnumerateFiles(directory.FullName,
-                                                      SearchFilter,
-                                                      SearchOption.AllDirectories)) {
-
-            if (cancellationToken.IsCancellationRequested) {
-                return NavSolutionSnapshot.Empty;
-            }
-
-            // Windows *.nav matcht auch .navignore & Co. (3-Zeichen-Endung) — exakt filtern.
-            if (!NavSolution.HasNavExtension(file)) {
-                continue;
-            }
-
-            var fileInfo = new FileInfo(file);
-
-            itemBuilder.Add(fileInfo);
-
-        }
 
         var solution = await NavSolution.FromDirectoryAsync(directory, cancellationToken);
 
@@ -210,9 +200,9 @@ partial class NavSolutionProvider {
             ThreadHelper.ThrowIfNotOnUIThread();
 
             var solution = NavLanguagePackage.GetGlobalService<SVsSolution, IVsSolution>();
-            solution.GetProperty((int) __VSPROPID.VSPROPID_IsSolutionOpen, out object value);
 
-            return value is true;
+            return ErrorHandler.Succeeded(solution.GetProperty((int) __VSPROPID.VSPROPID_IsSolutionOpen, out object value)) &&
+                   value is true;
         }
     }
 
