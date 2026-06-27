@@ -60,21 +60,13 @@ public class NavCallHierarchyReproTests {
             }
 
             Assert.That(task, Is.Not.Null, "task T nicht gefunden");
-            TestContext.WriteLine($"AsTaskDeclaration null? {task!.AsTaskDeclaration == null}");
-            TestContext.WriteLine($"target decl location: {task.AsTaskDeclaration?.Location}");
 
             // ReferenceFinder (das, was CodeLens nutzt)
             var collector = new CountingContext();
-            await ReferenceFinder.FindReferencesAsync(new FindReferencesArgs(task, defUnit, solution, collector));
-            TestContext.WriteLine($"ReferenceFinder references: {collector.ReferenceCount}");
+            await ReferenceFinder.FindReferencesAsync(new FindReferencesArgs(task!, defUnit, solution, collector));
 
             // Mein Service
             var incoming = await NavCallHierarchyService.GetIncomingCallsAsync(task, solution, CancellationToken.None);
-            var callSites = 0;
-            foreach (var c in incoming) {
-                callSites += c.CallSites.Count;
-                TestContext.WriteLine($"incoming caller: {c.Caller.Name} ({c.CallSites.Count})");
-            }
 
             Assert.That(incoming.Count, Is.GreaterThan(0), "Incoming leer trotz erwarteter Aufrufer!");
         } finally {
