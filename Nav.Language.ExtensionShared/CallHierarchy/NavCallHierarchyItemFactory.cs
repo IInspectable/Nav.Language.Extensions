@@ -32,11 +32,12 @@ static class NavCallHierarchyItemFactory {
     /// <summary>
     /// Knoten für eine (ggf. cross-file inkludierte) Task-Deklaration — das Ziel eines ausgehenden Aufrufs.
     /// <see cref="Location.FilePath"/> zeigt bereits auf die Zieldatei, sodass Navigation und Neuauflösung
-    /// cross-file korrekt landen.
+    /// cross-file korrekt landen. In der Aufrufhierarchie ist auch das Ziel konzeptionell "die Task" →
+    /// einheitliches Task-Glyph (nicht das Interface-Glyph der Deklaration).
     /// </summary>
     public static NavCallHierarchyMemberItem FromDeclaration(ITaskDeclarationSymbol declaration,
                                                              IReadOnlyList<ICallHierarchyItemDetails> details = null) {
-        return Build(declaration.Name, declaration.Location, ImageMonikers.TaskDeclaration, details);
+        return Build(declaration.Name, declaration.Location, ImageMonikers.TaskDefinition, details);
     }
 
     static NavCallHierarchyMemberItem Build(string name, Location nameLocation, ImageMoniker moniker,
