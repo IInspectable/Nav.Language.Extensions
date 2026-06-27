@@ -53,6 +53,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Commands\ViewCallHierarchyCommandHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CallHierarchy\NavCallHierarchyMemberItem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CallHierarchy\NavCallHierarchyItemFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CallHierarchy\NavCallHierarchyDetail.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\Infrastructure\CommandArgs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\Infrastructure\CommandHandlerMetadata.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\Infrastructure\CommandHandlerService.cs" />

@@ -1,14 +1,22 @@
 #region Using Directives
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Media;
 
 using Microsoft.VisualStudio.Imaging.Interop;
 using Microsoft.VisualStudio.Language.CallHierarchy;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+
+using Pharmatechnik.Nav.Language.CallHierarchy;
+using Pharmatechnik.Nav.Language.Text;
+
+using Task = System.Threading.Tasks.Task;
 
 #endregion
 
@@ -18,30 +26,44 @@ namespace Pharmatechnik.Nav.Language.Extension.CallHierarchy;
 /// Ein Knoten der VS-Aufrufhierarchie = eine Nav-Task. Implementiert den VS-Kontrakt
 /// <see cref="ICallHierarchyMemberItem"/> (Pendant zum LSP-<c>CallHierarchyItem</c>). Der Knoten trägt
 /// nur <see cref="FilePath"/> + <see cref="Offset"/> (Bezeichner-Position) zur Identität; die Task wird
-/// bei jeder Expansion frisch über <c>NavCallHierarchyService.PrepareCallHierarchy</c> aufgelöst
+/// bei jeder Expansion frisch über <see cref="NavCallHierarchyService.PrepareCallHierarchy"/> aufgelöst
 /// (Freshness-Muster wie LSP-<c>ResolveCallHierarchyTask</c>) — daher hält der Knoten kein Symbol fest.
 /// <para>
-/// Die eigentliche Suche (ein-/ausgehende Aufrufe) folgt in Step 2/3; in Step 1 ist der Knoten die
-/// reine Wurzel (keine Such-Kategorien), navigierbar per Doppelklick.
+/// Die Suche läuft pro Kategorie über <see cref="StartSearch"/> (nicht blockierend, Ergebnisse via
+/// <see cref="ICallHierarchySearchCallback.AddResult(ICallHierarchyMemberItem)"/>); jede Richtung hat
+/// eine eigene <see cref="CancellationTokenSource"/> (Abbruch über <see cref="CancelSearch"/>). Step 2
+/// liefert die ausgehenden Aufrufe (<c>Callees</c>); die eingehenden (<c>Callers</c>) folgen in Step 3.
 /// </para>
 /// </summary>
 sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
 
-    readonly ImageMoniker _glyphMoniker;
-    readonly Location     _navigationTarget;
+    readonly ImageMoniker                                _glyphMoniker;
+    readonly Location                                    _navigationTarget;
+    readonly IReadOnlyList<ICallHierarchyItemDetails>    _details;
+    readonly CallHierarchySearchCategory[]               _searchCategories;
+    readonly Dictionary<string, CancellationTokenSource> _searches = new();
+    readonly object                                      _gate     = new();
 
     public NavCallHierarchyMemberItem(string memberName,
                                       string containingTypeName,
                                       Location navigationTarget,
                                       string filePath,
                                       int offset,
-                                      ImageMoniker glyphMoniker) {
+                                      ImageMoniker glyphMoniker,
+                                      IReadOnlyList<ICallHierarchyItemDetails> details = null) {
         MemberName         = memberName;
         ContainingTypeName = containingTypeName;
         _navigationTarget  = navigationTarget;
         FilePath           = filePath;
         Offset             = offset;
         _glyphMoniker      = glyphMoniker;
+        _details           = details ?? Array.Empty<ICallHierarchyItemDetails>();
+
+        // Jeder Knoten bietet (mindestens) die ausgehenden Aufrufe an, damit sich die Hierarchie beliebig
+        // tief expandieren lässt. "Calls To" (Callers) kommt in Step 3 dazu.
+        _searchCategories = new[] {
+            new CallHierarchySearchCategory(CallHierarchyPredefinedSearchCategoryNames.Callees, $"Calls From '{memberName}'")
+        };
     }
 
     /// <summary>Datei der Task-Definition (Bezeichner) — Teil der Knoten-Identität für die Neuauflösung.</summary>
@@ -65,11 +87,8 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
         }
     }
 
-    // Wurzel hat keine eigenen Aufrufstellen; die Details der Kinder folgen in Step 2/3.
-    public IEnumerable<ICallHierarchyItemDetails> Details => Enumerable.Empty<ICallHierarchyItemDetails>();
-
-    // Such-Kategorien (Callers/Callees) kommen in Step 2/3 dazu.
-    public IEnumerable<CallHierarchySearchCategory> SupportedSearchCategories => Enumerable.Empty<CallHierarchySearchCategory>();
+    public IEnumerable<ICallHierarchyItemDetails>   Details                   => _details;
+    public IEnumerable<CallHierarchySearchCategory> SupportedSearchCategories => _searchCategories;
 
     public bool SupportsNavigateTo     => true;
     public bool SupportsFindReferences => false;
@@ -82,16 +101,95 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
         }).FileAndForget("nav/extension/callhierarchy/navigate");
     }
 
-    // --- Suche: Platzhalter für Step 2/3 -------------------------------------------------------------
-    // StartSearch darf nicht blockieren und MUSS am Ende SearchSucceeded()/SearchFailed() melden.
-    // Solange keine Kategorien angeboten werden, ruft das Toolfenster StartSearch nicht auf; der
-    // sofortige SearchSucceeded() ist nur defensiv.
+    // --- Suche -------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Startet die (nicht blockierende) Suche für eine Kategorie: pro Kategorie eine eigene
+    /// <see cref="CancellationTokenSource"/> (analog Roslyns <c>CallHierarchyItem.StartSearch</c>), Arbeit
+    /// auf dem Threadpool, Ergebnisse über den Callback, am Ende immer
+    /// <see cref="ICallHierarchySearchCallback.SearchSucceeded"/>/<c>SearchFailed</c>.
+    /// </summary>
     public void StartSearch(string categoryName, CallHierarchySearchScope searchScope, ICallHierarchySearchCallback callback) {
-        callback.SearchSucceeded();
+
+        CancellationTokenSource cts;
+        lock (_gate) {
+            CancelSearch_NoLock(categoryName);
+            cts                     = new CancellationTokenSource();
+            _searches[categoryName] = cts;
+        }
+
+        Task.Run(() => SearchWorkerAsync(categoryName, callback, cts.Token))
+            .FileAndForget("nav/extension/callhierarchy/search");
     }
 
-    public void CancelSearch(string categoryName)  { }
-    public void SuspendSearch(string categoryName) { }
+    async Task SearchWorkerAsync(string categoryName, ICallHierarchySearchCallback callback, CancellationToken cancellationToken) {
+
+        string errorMessage = null;
+        try {
+
+            var solution = await NavLanguagePackage.GetSolutionAsync(cancellationToken).ConfigureAwait(false);
+            var unit     = solution.SemanticModelProvider.GetSemanticModel(FilePath, cancellationToken);
+            var task     = unit == null ? null : NavCallHierarchyService.PrepareCallHierarchy(unit, Offset);
+
+            if (task != null && categoryName == CallHierarchyPredefinedSearchCategoryNames.Callees) {
+                AddOutgoingCalls(task, unit, callback, cancellationToken);
+            }
+
+        } catch (OperationCanceledException) {
+            errorMessage = "Abgebrochen";
+        } catch (Exception ex) {
+            errorMessage = ex.Message;
+        } finally {
+            lock (_gate) {
+                _searches.Remove(categoryName);
+            }
+            if (errorMessage != null) {
+                callback.SearchFailed(errorMessage);
+            } else {
+                callback.SearchSucceeded();
+            }
+        }
+    }
+
+    /// <summary>Ausgehende Aufrufe: je aufgerufener Task ein Kind-Knoten mit den Aufrufstellen als Details.</summary>
+    static void AddOutgoingCalls(ITaskDefinitionSymbol task, CodeGenerationUnit unit, ICallHierarchySearchCallback callback, CancellationToken cancellationToken) {
+
+        // Die Aufrufstellen liegen in der aufrufenden Task, also in dieser Datei → Zeilentext aus deren SourceText.
+        var sourceText = unit.Syntax.SyntaxTree.SourceText;
+
+        foreach (var call in NavCallHierarchyService.GetOutgoingCalls(task)) {
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var details = call.CallSites.Select(callSite => CreateDetail(sourceText, callSite))
+                                        .ToList<ICallHierarchyItemDetails>();
+
+            var child = NavCallHierarchyItemFactory.FromDeclaration(call.Target, details);
+            if (child != null) {
+                callback.AddResult(child);
+            }
+        }
+    }
+
+    static NavCallHierarchyDetail CreateDetail(SourceText sourceText, Location callSite) {
+        var line = sourceText.GetTextLineAtPosition(callSite.Start);
+        var text = sourceText.Substring(line.ExtentWithoutLineEndings).Trim();
+        return new NavCallHierarchyDetail(callSite, text);
+    }
+
+    public void CancelSearch(string categoryName) {
+        lock (_gate) {
+            CancelSearch_NoLock(categoryName);
+        }
+    }
+
+    void CancelSearch_NoLock(string categoryName) {
+        if (_searches.TryGetValue(categoryName, out var cts)) {
+            cts.Cancel();
+        }
+    }
+
+    public void SuspendSearch(string categoryName) => CancelSearch(categoryName);
     public void ResumeSearch(string categoryName)  { }
     public void ItemSelected()                     { }
     public void FindReferences()                   { }
