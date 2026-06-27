@@ -28,7 +28,17 @@ class NavCodeGenerator {
             var fileSpecs = CollectFiles(cl, logger);
             var pipeline  = CreatePipeline(cl, logger);
 
-            return pipeline.Run(fileSpecs) ? 0 : 1;
+            var result = pipeline.Run(fileSpecs);
+
+            // Bei gesetztem Manifest-Pfad alle erzeugten Ausgabedateien (auch inhaltsgleich
+            // übersprungene) für den inkrementellen MSBuild-Build protokollieren. Nur bei Erfolg —
+            // sonst bliebe das (alte) Manifest älter als die Inputs und der nächste Build generiert
+            // erneut.
+            if (result.Succeeded && !cl.ManifestFile.IsNullOrEmpty()) {
+                WriteManifest(cl.ManifestFile, result.GeneratedFiles.Select(r => r.FileName));
+            }
+
+            return result.Succeeded ? 0 : 1;
 
         } catch (Exception ex) {
 
@@ -36,6 +46,23 @@ class NavCodeGenerator {
 
             return -1;
         }
+    }
+
+    static void WriteManifest(string manifestFile, IEnumerable<string> generatedFiles) {
+
+        var lines = generatedFiles
+                   .Select(PathHelper.GetFullPathNoThrow)
+                   .Where(path => !path.IsNullOrEmpty())
+                   .Distinct(StringComparer.OrdinalIgnoreCase)
+                   .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                   .ToList();
+
+        var directory = Path.GetDirectoryName(manifestFile);
+        if (!directory.IsNullOrEmpty()) {
+            Directory.CreateDirectory(directory);
+        }
+
+        File.WriteAllLines(manifestFile, lines);
     }
 
     static NavCodeGeneratorPipeline CreatePipeline(CommandLine cl, ConsoleLogger logger) {

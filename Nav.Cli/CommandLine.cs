@@ -41,6 +41,7 @@ sealed record CommandLine {
     public string       ProjectRootDirectory { get; private set; }
     public string       IwflRootDirectory    { get; private set; }
     public string       WflRootDirectory     { get; private set; }
+    public string       ManifestFile         { get; private set; }
 
     public CodeGenerationOptions GenerationOptions {get; private set;}
 
@@ -65,6 +66,7 @@ sealed record CommandLine {
             { "i=|iwflroot"         , "Gibt ein alternatives IWFL Wurzelverzeichnis an.", v => cla.IwflRootDirectory = v },
             { "w=|wflroot"          , "Gibt ein alternatives WFL Wurzelverzeichnis an.", v => cla.WflRootDirectory = v },
             { "r=|projectroot"      , "Gibt das Project Wurzelverzeichnis an.", v => cla.ProjectRootDirectory = v },
+            { "m=|manifest"         , "Schreibt die Liste aller erzeugten Ausgabedateien (Manifest) in die angegebene Datei — für inkrementelle Builds.", v => cla.ManifestFile = v },
             { "h|?|help"            , "Zeigt diese Hilfe an.", v => showHelp = v != null },
 
         };

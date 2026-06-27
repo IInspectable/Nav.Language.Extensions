@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 using JetBrains.Annotations;
 
@@ -68,7 +69,7 @@ public sealed partial class NavCodeGeneratorPipeline {
 
     public ISemanticModelProviderFactory SemanticModelProviderFactory { get; }
 
-    public bool Run(IEnumerable<FileSpec> fileSpecs) {
+    public RunResult Run(IEnumerable<FileSpec> fileSpecs) {
 
         using var logger                = new LoggerAdapter(Logger);
         using var syntaxProvider        = SyntaxProviderFactory.CreateProvider();
@@ -76,7 +77,8 @@ public sealed partial class NavCodeGeneratorPipeline {
         using var codeGenerator         = CodeGeneratorProvider.Create(Options, PathProviderFactory);
         using var fileGenerator         = FileGeneratorProvider.Create(Options);
 
-        var statistic = new Statistic();
+        var statistic      = new Statistic();
+        var generatedFiles = ImmutableArray.CreateBuilder<FileGeneratorResult>();
 
         logger.LogProcessBegin();
 
@@ -115,6 +117,8 @@ public sealed partial class NavCodeGeneratorPipeline {
                 logger.LogFileGeneratorResults(fileGeneratorResults);
 
                 statistic.UpdatePerTask(fileGeneratorResults);
+
+                generatedFiles.AddRange(fileGeneratorResults);
             }
 
             logger.LogProcessFileEnd(fileSpec);
@@ -122,7 +126,9 @@ public sealed partial class NavCodeGeneratorPipeline {
 
         logger.LogProcessEnd(statistic);
 
-        return !logger.HasLoggedErrors;
+        return logger.HasLoggedErrors
+            ? RunResult.Failed
+            : RunResult.Success(generatedFiles.ToImmutable());
 
     }
 

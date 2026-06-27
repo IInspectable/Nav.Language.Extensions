@@ -47,9 +47,9 @@ public class RegressionTests {
         var fileSpecs = CollectNavFiles();
 
         var pipeline = NavCodeGeneratorPipeline.CreateDefault();
-        var b        = pipeline.Run(fileSpecs);
+        var result   = pipeline.Run(fileSpecs);
 
-        Assert.That(b, Is.True);
+        Assert.That(result.Succeeded, Is.True);
     }
 
     static IEnumerable<FileTestCase> PlainGetFileTestCases() {

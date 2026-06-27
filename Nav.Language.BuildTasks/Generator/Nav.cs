@@ -49,6 +49,8 @@ namespace Pharmatechnik.Nav.Language.BuildTasks {
         public ITaskItem   ProjectRootDirectory { get; set; }
         public ITaskItem   IwflRootDirectory    { get; set; }
         public ITaskItem   WflRootDirectory     { get; set; }
+
+        public string      ManifestFile         { get; set; }
         
         protected override string GenerateFullPathToTool() {
             // ReSharper disable once AssignNullToNotNullAttribute
@@ -73,6 +75,9 @@ namespace Pharmatechnik.Nav.Language.BuildTasks {
             clb.AppendSwitchIfNotNull("/r:", ProjectRootDirectory);
             clb.AppendSwitchIfNotNull("/w:", WflRootDirectory);
             clb.AppendSwitchIfNotNull("/i:", IwflRootDirectory);
+            if (!string.IsNullOrEmpty(ManifestFile)) {
+                clb.AppendSwitchIfNotNull("/m:", ManifestFile);
+            }
             clb.AppendSwitchIfNotNull("/s:", Sources, " /s:");
 
             return clb.ToString();

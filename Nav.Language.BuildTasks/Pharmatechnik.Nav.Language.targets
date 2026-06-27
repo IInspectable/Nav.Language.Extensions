@@ -1,5 +1,5 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
- 
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
   <UsingTask TaskName="Pharmatechnik.Nav.Language.BuildTasks.Nav" AssemblyFile="Pharmatechnik.Nav.Language.BuildTasks.dll" />
 
   <ItemGroup>
@@ -19,14 +19,100 @@
     <NavProjectRootDirectory Condition="'$(NavProjectRootDirectory)' == ''"></NavProjectRootDirectory>
     <NavIwflRootDirectory    Condition="'$(NavIwflRootDirectory)'    == ''"></NavIwflRootDirectory>
     <NavWflRootDirectory     Condition="'$(NavWflRootDirectory)'     == ''"></NavWflRootDirectory>
+
+    <!-- Inkrementeller Build (Opt-in). Default aus ⇒ Verhalten exakt wie bisher (Always-Run). -->
+    <NavIncremental          Condition="'$(NavIncremental)'          == ''">false</NavIncremental>
   </PropertyGroup>
 
-  <Target Name="GenerateNavCode" BeforeTargets="PreBuildCodeGen">
-    
+  <!--
+    Inkrementeller MSBuild-Build (nur bei NavIncremental=true):
+      * nav.exe schreibt ein Outputs-Manifest (alle erzeugten/übersprungenen .cs-Pfade).
+      * Das Manifest ist der EINZIGE Zeitstempel-Anker der Outputs: nav.exe schreibt es bei jedem
+        erfolgreichen Lauf neu. Die generierten .cs selbst taugen NICHT als Outputs für den
+        Zeitstempel-Vergleich, weil nav.exe inhaltsgleiche Dateien NICHT neu schreibt — ihr mtime
+        bliebe alt und würde gegenüber einem neueren Input den Build dauerhaft als veraltet einstufen.
+      * Gelöschte Generate-Dateien werden separat über eine Existenzprüfung erkannt (Manifest
+        verwerfen ⇒ fehlender Output ⇒ Regen).
+      * Ein Param-Stamp bewegt seine mtime nur bei Änderung content-relevanter Parameter.
+      * nav.exe selbst hängt als Input (Templates sind in der Engine eingebettet ⇒ Upgrade
+        der Toolchain erzwingt Regen).
+    Bei NavIncremental=false setzt _NavPrepareAlwaysRun einen Sentinel-Output, der nie existiert
+    ⇒ GenerateNavCode läuft immer (= bisheriges Verhalten, abwärtskompatibel). WICHTIG: ein LEERES
+    Outputs würde MSBuild das Target überspringen lassen ("Ziel … keine Ausgaben") — deshalb der
+    nicht-leere Sentinel statt leerer Items.
+  -->
+  <PropertyGroup>
+    <!-- Nur content-relevante Parameter: Force/Verbose/FullPaths/UseSyntaxCache fließen NICHT ein. -->
+    <NavParamsContent>Strict=$(NavStrict);To=$(NavGenerateToClasses);Wfl=$(NavGenerateWflClasses);Iwfl=$(NavGenerateIwflClasses);Nullable=$(NavNullableContext);ProjRoot=$(NavProjectRootDirectory);IwflRoot=$(NavIwflRootDirectory);WflRoot=$(NavWflRootDirectory)</NavParamsContent>
+  </PropertyGroup>
+
+  <Target Name="_NavPrepareIncremental" Condition="'$(NavIncremental)' == 'true'">
+
+    <!-- Pfade erst hier setzen: IntermediateOutputPath ist zur Ausführungszeit garantiert belegt. -->
+    <PropertyGroup>
+      <NavManifestFile>$(IntermediateOutputPath)nav.outputs.txt</NavManifestFile>
+      <NavParamsFile>$(IntermediateOutputPath)nav.params.txt</NavParamsFile>
+      <_NavRanMarker>$(IntermediateOutputPath)nav.ran.marker</_NavRanMarker>
+      <_NavToolPath>$(MSBuildThisFileDirectory)nav.exe</_NavToolPath>
+    </PropertyGroup>
+
+    <!-- Run-Marker zurücksetzen. Der Marker ist der EINZIGE verlässliche "lief der Body?"-Indikator:
+         <PropertyGroup> und Task-<Output> im Target-Body werden auch bei Skip ausgewertet/publiziert,
+         ein echter Task (Touch/Message) dagegen NICHT. Wir löschen hier (läuft immer) und lassen den
+         Body den Marker per Touch neu anlegen — _NavReport prüft dann dessen Existenz. -->
+    <Delete Files="$(_NavRanMarker)" />
+
+    <!-- Param-Stamp: mtime bumpt nur bei Änderung content-relevanter Parameter. -->
+    <WriteLinesToFile File="$(NavParamsFile)"
+                      Lines="$(NavParamsContent)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+
+    <!-- NavForce erzwingt Vollregen: Manifest löschen ⇒ Output fehlt ⇒ Target läuft garantiert. -->
+    <Delete Files="$(NavManifestFile)" Condition="'$(NavForce)' == 'true'" />
+
+    <!-- Outputs des letzten Laufs einlesen (Existenzprüfung + Report-Anzahl). -->
+    <ReadLinesFromFile File="$(NavManifestFile)" Condition="Exists('$(NavManifestFile)')">
+      <Output TaskParameter="Lines" ItemName="_NavPreviousOutputs" />
+    </ReadLinesFromFile>
+
+    <!-- Fehlt eine zuvor erzeugte Datei (z.B. manuell gelöscht), Manifest verwerfen ⇒ Regen. -->
+    <ItemGroup>
+      <_NavMissingOutput Include="@(_NavPreviousOutputs)" Condition="!Exists('%(Identity)')" />
+    </ItemGroup>
+    <Delete Files="$(NavManifestFile)" Condition="'@(_NavMissingOutput)' != ''" />
+
+    <ItemGroup>
+      <_NavIncrInput  Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)" />
+      <_NavIncrInput  Include="$(NavParamsFile);$(_NavToolPath)" />
+      <!-- Nur das Manifest als Zeitstempel-/Existenz-Output (siehe Kommentar oben). -->
+      <_NavIncrOutput Include="$(NavManifestFile)" />
+    </ItemGroup>
+
+  </Target>
+
+  <!-- Nicht-inkrementell: Sentinel-Output, der nie angelegt wird ⇒ GenerateNavCode gilt immer als
+       veraltet und läuft jedes Mal (bisheriges Verhalten). MSBuild verlangt für die Auswertung
+       BEIDE — nicht-leeres Inputs UND Outputs — sonst überspringt es das Target ("keine Eingaben"
+       bzw. "keine Ausgaben"). Sind keine .nav-Dateien vorhanden, ist Inputs leer und das Target
+       wird übersprungen — das ist korrekt (nichts zu generieren). -->
+  <Target Name="_NavPrepareAlwaysRun" Condition="'$(NavIncremental)' != 'true'">
+    <ItemGroup>
+      <_NavIncrInput  Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)" />
+      <_NavIncrOutput Include="$(IntermediateOutputPath)nav.always-run.sentinel" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="GenerateNavCode"
+          BeforeTargets="PreBuildCodeGen"
+          DependsOnTargets="_NavPrepareIncremental;_NavPrepareAlwaysRun"
+          Inputs="@(_NavIncrInput)"
+          Outputs="@(_NavIncrOutput)">
+
     <ItemGroup>
       <NavFilesToProcess Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)"/>
     </ItemGroup>
-    
+
     <Nav Sources              = "@(NavFilesToProcess)"
          Force                = "$(NavForce)"
          Strict               = "$(NavStrict)"
@@ -38,7 +124,30 @@
          WflRootDirectory     = "$(NavWflRootDirectory)"
          UseSyntaxCache       = "$(NavUseSyntaxCache)"
          FullPaths            = "$(NavFullPaths)"
-         NullableContext      = "$(NavNullableContext)" />
+         NullableContext      = "$(NavNullableContext)"
+         ManifestFile         = "$(NavManifestFile)" />
+
+    <!-- Run-Marker setzen: Touch ist ein echter Task und läuft NICHT, wenn das Target übersprungen
+         wird. Damit unterscheidet _NavReport zuverlässig "ausgeführt" von "übersprungen". -->
+    <Touch Condition="'$(NavIncremental)' == 'true'" Files="$(_NavRanMarker)" AlwaysCreate="true" />
   </Target>
-  
+
+  <!--
+    Status-Ausgabe, läuft IMMER (kein Inputs/Outputs). So ist auch im Skip-Fall sichtbar, dass
+    das Nav-Target berücksichtigt wurde — die normale Konsolen-Verbosity zeigt MSBuilds eigene
+    "up-to-date"-Meldung sonst nicht.
+  -->
+  <Target Name="_NavReport"
+          AfterTargets="GenerateNavCode"
+          Condition="'$(NavIncremental)' == 'true'">
+
+    <Message Condition="Exists('$(_NavRanMarker)')"
+             Importance="high"
+             Text="Nav: Codegen ausgeführt — $(MSBuildProjectName)" />
+
+    <Message Condition="!Exists('$(_NavRanMarker)')"
+             Importance="high"
+             Text="Nav: up-to-date — @(_NavPreviousOutputs->Count()) Outputs übersprungen ($(MSBuildProjectName))" />
+  </Target>
+
 </Project>
