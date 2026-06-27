@@ -3,7 +3,8 @@
   "displayName": "Nav Language",
   "description": "VS-Code-Client für den Nav-LSP-Server",
   "version": "0.0.0",
-  "publisher": "pharmatechnik",
+  "publisher": "Pharmatechnik",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Pharmatechnik/Nav.Language.Extensions.git"
