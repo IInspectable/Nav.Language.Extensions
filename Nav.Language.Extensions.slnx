@@ -10,8 +10,18 @@
     <File Path="README.md" />
     <File Path="Version.props" />
     <File Path="Tools/Commands/README.md" />
+  </Folder>
+  <Folder Name="/_build/">
+    <File Path="_build/CodeGen/GenerateCodeGenFacts.cs" />
     <File Path="_build/GobalAssemblyInfo.cs" />
     <File Path="_build/WriteThisAssemblyFile.targets" />
+  </Folder>
+  <Folder Name="/doc/">
+    <File Path="doc/Errors.md" />
+    <File Path="doc/Features.md" />
+    <File Path="doc/nav-lsp-status.md" />
+    <File Path="doc/nav-mcp-status.md" />
+    <File Path="doc/vs-call-hierarchy-plan.md" />
   </Folder>
   <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
