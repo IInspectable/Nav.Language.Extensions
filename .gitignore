@@ -56,7 +56,8 @@
 /Nav.Language.Tests/Regression/Tests/**/*.cs
 !/Nav.Language.Tests/Regression/**/*.expected.cs
 
-/.vs
+# VS-Cache (Solution-State, Design-Time-Build-Cache) — auch projekt-lokale .vs-Ordner, nicht nur im Root
+.vs/
 # Persönliche ReSharper-Settings (maschinenlokal: absolute Pfade, Test-Session-State, Cache-Keys)
 /**/*.DotSettings.user
 /**/*.generated.cs

@@ -9,5 +9,6 @@ static class CommandHandlerNames {
     public const string RenameCommandHandler                       = nameof(RenameCommandHandler);
     public const string PasteCommandHandler                        = nameof(PasteCommandHandler);
     public const string FindReferencesCommandHandler               = nameof(FindReferencesCommandHandler);
+    public const string ViewCallHierarchyCommandHandler            = nameof(ViewCallHierarchyCommandHandler);
 
 }

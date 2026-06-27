@@ -108,6 +108,29 @@
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
+  <PropertyGroup>
+    <!-- VS-Install-Verzeichnis (…\Common7\IDE\) zum Auflösen der Call-Hierarchy-Assemblies. Diese gibt
+         es in KEINEM NuGet (auch nicht im SDK-Metapaket) — sie liegen nur im VS-Install. DevEnvDir wird
+         von den VSSDK-Targets gesetzt; als Fallback aus VsInstallRoot ableiten. -->
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == '' and '$(DevEnvDir)' != ''">$(DevEnvDir)</NavVsIdeDir>
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == '' and '$(VsInstallRoot)' != ''">$(VsInstallRoot)\Common7\IDE\</NavVsIdeDir>
+    <!-- Fallback für MSBuild.exe-Aufrufe ohne gesetztes DevEnvDir/VsInstallRoot (z.B. `n build` via
+         vswhere): MSBuild.exe liegt immer unter <VsInstallRoot>\MSBuild\Current\Bin → drei Ebenen hoch. -->
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildBinPath)\..\..\..\Common7\IDE\'))</NavVsIdeDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- VS-eigenes Call-Hierarchy-Toolfenster: ICallHierarchyMemberItem & Co. (Kontrakt) sowie der
+         Präsentations-Service SCallHierarchy/ICallHierarchy. Private=false: von VS bereitgestellt,
+         nicht ins VSIX kopieren. -->
+    <Reference Include="Microsoft.VisualStudio.Language.CallHierarchy">
+      <HintPath>$(NavVsIdeDir)CommonExtensions\Microsoft\CallHierarchy\Microsoft.VisualStudio.Language.CallHierarchy.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.CallHierarchy.Package.Definitions">
+      <HintPath>$(NavVsIdeDir)Microsoft.VisualStudio.CallHierarchy.Package.Definitions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
