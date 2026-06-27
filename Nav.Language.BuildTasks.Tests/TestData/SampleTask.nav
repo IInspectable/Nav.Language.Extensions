@@ -1,0 +1,15 @@
+[namespaceprefix Nav.Language.BuildTasks.Tests.Sample]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+task SampleTask  [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init [params ];
+    exit    End;
+
+    Init --> End;
+}

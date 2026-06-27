@@ -61,6 +61,7 @@
   <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
+  <Project Path="Nav.Language.BuildTasks.Tests/Nav.Language.BuildTasks.Tests.csproj" />
   <Project Path="Nav.Language.CodeAnalysis/Nav.Language.CodeAnalysis.csproj" />
   <Project Path="Nav.Language.Extension.Tests/Nav.Language.Extension.Tests.csproj" />
   <Project Path="Nav.Language.Extension2026/Nav.Language.Extension2026.csproj" Id="f9bd82fb-2abb-41b6-afa0-24013754a9c8" />
