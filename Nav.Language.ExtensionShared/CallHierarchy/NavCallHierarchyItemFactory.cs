@@ -52,13 +52,13 @@ static class NavCallHierarchyItemFactory {
         var containingTypeName = Path.GetFileNameWithoutExtension(nameLocation.FilePath);
 
         return new NavCallHierarchyMemberItem(
-            memberName: name,
+            memberName        : name,
             containingTypeName: containingTypeName,
-            navigationTarget: nameLocation,
-            filePath: nameLocation.FilePath,
-            offset: nameLocation.Start,
-            glyphMoniker: moniker,
-            details: details);
+            navigationTarget  : nameLocation,
+            filePath          : nameLocation.FilePath,
+            offset            : nameLocation.Start,
+            glyphMoniker      : moniker,
+            details           : details);
     }
 
 }
