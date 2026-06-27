@@ -193,6 +193,13 @@ angenommenen Kontrakt markiert.
 Task das Toolfenster mit korrekt benanntem Wurzelknoten; Doppelklick navigiert zur Task.
 Commit-Message als Text liefern.
 
+> **Status: erledigt** (Build grün; Toolfenster + Wurzelknoten + Doppelklick-Navigation manuell
+> bestätigt). Abweichend von den Aufgaben oben (die noch auf den Vor-Step-0-Annahmen beruhten):
+> **kein** `ICallHierarchyPresenter`-Import — Präsentation über den VS-Service `SCallHierarchy`/
+> `ICallHierarchy` (`ShowToolWindow` + `AddRootItem`); Service-Provider per `[ImportingConstructor]
+> SVsServiceProvider` (nicht `NavLanguagePackage.ServiceProvider` → das liefert null, NRE). Member-Item
+> trägt `Valid`/`SupportsNavigateTo` statt `IsRoot`. Caret-Offset via `GetCaretPoint(...)`.
+
 ---
 
 ## Step 2 — Ausgehende Aufrufe (Calls From) *(eigene Session)*
@@ -218,6 +225,12 @@ Commit-Message als Text liefern.
 **Definition of Done:** Build grün; Wurzel expandiert zu den aufgerufenen Tasks; Aufrufstellen
 navigierbar; cross-file/`taskref`-Ziele landen richtig. Commit-Message als Text.
 
+> **Status: erledigt.** Abweichend: **kein** `NavCallHierarchySearchCommand` (kein
+> `ICallHierarchySearchCommand` in der API) — die Suche ist `NavCallHierarchyMemberItem.StartSearch`,
+> Kategorie `Callees` (nicht `CallsFromMember`). Threading wie Roslyns `CallHierarchyItem`: per-Kategorie
+> `CancellationTokenSource`, `Task.Run`, `AddResult` + `SearchSucceeded`/`SearchFailed`. `NavCallHierarchyDetail`
+> implementiert `ICallHierarchyItemDetails`; Detail-`Text` = Zeilentext der Aufrufstelle.
+
 ---
 
 ## Step 3 — Eingehende Aufrufe (Calls To) + echte Rekursion *(eigene Session)*
@@ -239,6 +252,13 @@ selbst wieder beide Kategorien → mehrstufiges Auf-/Absteigen.
 **Definition of Done:** Build grün; eingehende Aufrufe erscheinen; ein Kindknoten lässt sich erneut
 in beide Richtungen expandieren (auch über Dateigrenzen); Abbruch funktioniert. Commit-Message als Text.
 
+> **Status: erledigt.** Beide Kategorien an jedem Knoten: `Callers` („Calls To") + `Callees`
+> („Calls From", eingehend zuerst). `StartSearch` verzweigt nach Kategorie; für `Callers` wird der
+> `CancellationToken` der knoten-eigenen CTS an `GetIncomingCallsAsync` durchgereicht (Abbruch greift
+> solution-weit). Detail-Zeilentext eingehend aus der `SourceText` der jeweils **aufrufenden** Datei
+> (`call.Caller.CodeGenerationUnit`), ausgehend aus der aktuellen Datei. Rekursion automatisch, da die
+> Factory alle Knoten einheitlich mit beiden Kategorien baut.
+
 ---
 
 ## Step 4 — Feinschliff & manueller Test *(eigene Session)*
@@ -256,6 +276,23 @@ in beide Richtungen expandieren (auch über Dateigrenzen); Abbruch funktioniert.
 
 **Definition of Done:** Feature in VS funktional gleichwertig zum LSP. Commit-Message als Text.
 Abschließend in `doc\nav-lsp-status.md` / Memory den neuen Stand vermerken.
+
+> **Status: erledigt.** Glyph für alle Hierarchie-Knoten vereinheitlicht (Task-Icon, auch für
+> Callees-Ziele). Caret-außerhalb-Task / Leerfälle / unaufgelöste `taskref` / `CommandState`-Gating /
+> Detail-Text geprüft (kein Änderungsbedarf). `ReportProgress` bewusst weggelassen (keine sinnvollen
+> Zähl-Schritte aus `GetIncomingCallsAsync`). Stand in Memory `vs-call-hierarchy.md` vermerkt (API,
+> Build-Referenz-Falle, `SVsServiceProvider`-Falle). Manueller Smoke-Test über mehrere Dateien/Includes
+> bestätigt. **Feature komplett.**
+
+---
+
+## Gesamtstatus
+
+**Steps 0–4 abgeschlossen** — die VS-2026-Extension bietet die Aufrufhierarchie (Ctrl+K, Ctrl+T) über
+VS' eingebautes Toolfenster, funktional gleichwertig zum LSP. Engine (`NavCallHierarchyService`)
+unverändert; die gesamte VS-Schicht liegt in `Nav.Language.ExtensionShared\CallHierarchy\` +
+`Commands\ViewCallHierarchyCommandHandler.cs`, plus zwei VS-Install-`<Reference>` (über `NavVsIdeDir`)
+in `Nav.Language.Extension2026.csproj`.
 
 ---
 

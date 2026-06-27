@@ -54,6 +54,18 @@ Symbol — inklusive einer Vorschau des zugehörigen Codes.
 Über **Alle Referenzen suchen** (`Umschalt+F12`) werden sämtliche Verwendungen eines Symbols
 ermittelt und im Standard-Ergebnisfenster von Visual Studio angezeigt.
 
+## Aufrufhierarchie
+
+Über **Aufrufhierarchie anzeigen** (`Strg+K, Strg+T`) auf einer Task öffnet sich das eingebaute
+**Aufrufhierarchie-Fenster** von Visual Studio — dasselbe Werkzeug, das man von C# kennt:
+
+- **Calls To** — alle Tasks, die die gewählte Task aufrufen (eingehend, solution-weit ermittelt).
+- **Calls From** — alle Tasks, die die gewählte Task aufruft (ausgehend).
+- Jeder Knoten lässt sich **beliebig tief in beide Richtungen** weiter aufklappen — auch über
+  Include-/`taskref`-Grenzen hinweg.
+- Die einzelnen **Aufrufstellen** werden im Detailbereich angezeigt; ein Doppelklick springt direkt
+  zur jeweiligen Stelle in der `.nav`-Datei.
+
 ## Referenz-Hervorhebung
 
 Steht der Cursor auf einem Symbol, werden alle Vorkommen dieses Symbols im Dokument

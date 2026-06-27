@@ -17,7 +17,7 @@ namespace Pharmatechnik.Nav.Language.Extension.CallHierarchy;
 /// LSP-<c>CallHierarchyBuilder</c>: <see cref="FromDefinition"/> für Task-Definitionen (Wurzel/Aufrufer),
 /// <see cref="FromDeclaration"/> für die Ziel-Deklaration eines ausgehenden Aufrufs (ggf. cross-file).
 /// <para>
-/// <paramref name="details"/> sind die Aufrufstellen, die im Detailbereich des Knotens erscheinen (bei
+/// <c>details</c> sind die Aufrufstellen, die im Detailbereich des Knotens erscheinen (bei
 /// ausgehenden Aufrufen die TaskNodes in der aufrufenden Task; bei der Wurzel keine).
 /// </para>
 /// </summary>
@@ -52,13 +52,13 @@ static class NavCallHierarchyItemFactory {
         var containingTypeName = Path.GetFileNameWithoutExtension(nameLocation.FilePath);
 
         return new NavCallHierarchyMemberItem(
-            memberName        : name,
+            memberName: name,
             containingTypeName: containingTypeName,
-            navigationTarget  : nameLocation,
-            filePath          : nameLocation.FilePath,
-            offset            : nameLocation.Start,
-            glyphMoniker      : moniker,
-            details           : details);
+            navigationTarget: nameLocation,
+            filePath: nameLocation.FilePath,
+            offset: nameLocation.Start,
+            glyphMoniker: moniker,
+            details: details);
     }
 
 }
