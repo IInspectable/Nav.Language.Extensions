@@ -11,6 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   oder bearbeitet werden — `.cs`, `.md`, sowie Projekt-/Build-Dateien (`.csproj`, `.props`, `.targets`
   und sonstige MSBuild-Files, `.slnx`/`.sln` etc.). Neue Dateien immer als UTF-8 mit BOM anlegen;
   bestehende Dateien beim Bearbeiten in dieser Kodierung belassen.
+- **In der Quellcode-Dokumentation (Code-Kommentare, XML-Doku) nicht auf „Steps" eines Plans
+  verweisen.** Plan-Steps sind ein temporäres Arbeits-Artefakt und haben im dauerhaften Code keinen
+  Platz — Doku beschreibt den Code, nicht den Weg dorthin.
 
 ## Was ist das hier?
 
