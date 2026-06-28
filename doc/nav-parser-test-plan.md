@@ -64,6 +64,19 @@ spätere Verhaltensänderungen erscheinen dann als **reviewbare Diffs** an den G
 | `Regression\RegressionTests.cs` | End-to-End-Golden der generierten `.cs` (`.expected.cs`). |
 | `SyntaxTokenTests.cs`, `SyntaxFactsTest.cs`, `SyntaxTreeNavigationTests.cs`, `DescendantNodesTests.cs`, `ExtentTests.cs` | Token-Modell, Navigation, Extents. |
 
+### Stand: Step 1 ist erledigt (darauf baut Step 2 auf)
+
+| Artefakt | Inhalt / wiederzuverwenden |
+|---|---|
+| `Syntax\Tests\*.nav` | **Kuratierter Korpus** (valider Voll-Feature-Fall + Edge/Torture: halbe Transition, fehlendes Target/Semikolon/Brace, kaputte Generics, Unexpected Char, Präprozessor, leerer Block, nur Whitespace/Kommentar, leere Datei, vorzeitiges EOF). **Step 2 nutzt denselben Korpus** — nicht neu erfinden. |
+| `Syntax\SyntaxGoldenTests.cs` | Token-Golden-Fixture: `DumpTokens`, `[Explicit] UpdateGolden`, Round-Trip, `GetCorpusFiles()` (TestCaseSource über `Syntax\Tests`), `Normalize()` (EOL-toleranter Vergleich). **Step 2 hängt `DumpTree` + einen `.tree`-Test in genau diese Fixture** (Korpus-Quelle und Update-Schalter sind schon da). |
+| `Syntax\Tests\*.nav.tokens` | Token-Golden (eine Datei je `.nav`). Analog dazu legt Step 2 `*.nav.tree` an. |
+| `Syntax\SyntaxNewLineTests.cs` | Inline-NL-Tests (`\n`/`\r`/`\r\n` + NEL/LS/PS = `U+0085`/`U+2028`/`U+2029`), NL-Sequenzen als `(char)0x…`-Casts. Pinnt u.a. die CRLF-Asymmetrie im SingleLineComment-Split. **Nicht** datei-basiert, weil git LF/CR in `.nav` sonst zu CRLF normalisiert. |
+| `Syntax\Tests\.gitattributes` | `*.nav -text` / `*.tokens -text` → friert Zeilenenden ein (Working-Tree-Bytes == committete Bytes), damit die **absoluten Offsets** der Golden checkout-stabil bleiben. **Step 2 muss `*.tree -text` ergänzen.** |
+| `Nav.Language.Tests.csproj` | Korpus + Golden via `<Content Include="Syntax\Tests\**\*.nav/.tokens" />` registriert. **Step 2 ergänzt einen `**\*.tree`-Eintrag.** |
+
+**Konventionen aus Step 1 (für Step 2 verbindlich):** Golden-Offsets sind absolut → Korpus-`.nav` bleiben CRLF und per `-text` eingefroren; Golden-Vergleiche laufen über `Normalize()`; neue `.cs` als UTF-8 **mit BOM**; Tests müssen auf **net472 und net10.0** grün sein. Goldens werden ausschließlich über den `[Explicit]`-Update-Test erzeugt (nie von Hand editiert).
+
 ### Bewährte Muster zum Wiederverwenden
 
 - **Golden-Update-Schalter:** `RegressionTests.GenerateFiles` (`[Test, Explicit]`) und
