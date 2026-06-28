@@ -69,6 +69,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Syntax-Golden-Korpus (Step 1): kuratierte .nav plus erzeugte .tokens-Golden.
+         Werden nicht ins Output kopiert; die Tests loesen sie via TestDataDirectory.Resolve aus dem
+         Projektverzeichnis auf (wie Diagnostics\Tests / Regression\Tests). -->
+    <Content Include="Syntax\Tests\**\*.nav" />
+    <Content Include="Syntax\Tests\**\*.tokens" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Diagnostics\Tests\Nav0107ExitNode0HasNoIncomingEdgesDisabled.nav" />
     <Content Include="Diagnostics\Tests\Nav1012TaskNode0NotRequired.nav" />
     <Content Include="Diagnostics\Tests\SyntaxErrorTokenRecognitionError.nav" />

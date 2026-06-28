@@ -1,0 +1,6 @@
+﻿task A [params T2<T3, p1]
+{
+    init I1;
+    exit e1;
+    I1 --> e1;
+}

@@ -1,0 +1,16 @@
+﻿// Führender Zeilenkommentar ganz am Dateianfang
+
+/* Mehrzeiliger
+   Block-Kommentar
+   über drei Zeilen */
+
+task A          // nachgestellter Kommentar hinter dem Task-Namen
+{
+	init I1;    // Tab-Einrückung plus Trailing-Kommentar
+
+	exit e1;
+
+
+	// freistehender Kommentar zwischen zwei Leerzeilen
+	I1 --> e1;
+}

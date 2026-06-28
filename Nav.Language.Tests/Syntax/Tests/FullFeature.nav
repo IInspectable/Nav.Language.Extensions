@@ -1,0 +1,41 @@
+﻿[namespaceprefix NS.1]
+
+[using U1]
+[using U2]
+
+taskref "F1";
+taskref "F2";
+
+taskref TR1 [namespaceprefix NS.2]
+            [notimplemented]
+            [result RT1 r1]
+{
+    init I1 [abstractmethod] [params T1 param1, T2<T3, T4<T5>> param2, T6[][] param3] do "D1";
+    exit E1;
+    end;
+}
+
+// Kommentar vor task T1 — prüft führende Trivia am Knoten
+task T1 [code "code1"]
+        [base B0: B1, B2]
+        [generateto "g1"]
+        [params P1 p1, P2 p2]
+        [result R1 r1]
+{
+    init I3;
+    exit E2;
+    end;
+    task Tx tx [donotinject] [abstractmethod];
+    choice C1;
+    dialog D1;
+    view V1;
+
+    init --> Tx on Something if "Condition" do "Action1";
+
+    Tx:Exit o-> V1 if "Condition" do "Action2";
+
+    C1 --> V4 if "X";
+    C1 --> V5 else if "Y";
+    C1 ==> end else;
+    C1 --> tx spont;
+}

@@ -38,6 +38,7 @@ public class SyntaxStressTests {
             var tree =SyntaxTree.ParseText(text);
 
             CheckNonNullChild(tree.Root);
+            CheckRoundTrip(tree, text);
         }
     }
 
@@ -51,6 +52,7 @@ public class SyntaxStressTests {
             var tree = SyntaxTree.ParseText(text);
 
             CheckNonNullChild(tree.Root);
+            CheckRoundTrip(tree, text);
         }
     }
 
@@ -59,6 +61,17 @@ public class SyntaxStressTests {
         foreach (var child in node.ChildNodes()) {
             CheckNonNullChild(child);
         }
+    }
+
+    // Full-Fidelity-Invariante: Die (sortierte, Trivia-inklusive) Token-Liste deckt den Quelltext
+    // lückenlos ab — die Konkatenation aller Token-Texte ergibt exakt den Originaltext zurück.
+    static void CheckRoundTrip(SyntaxTree tree, string text) {
+        var sb = new StringBuilder();
+        foreach (var token in tree.Tokens) {
+            sb.Append(token.ToString());
+        }
+
+        Assert.That(sb.ToString(), Is.EqualTo(text));
     }
 
     List<int> RandomShuffle(IEnumerable<int> source) {
