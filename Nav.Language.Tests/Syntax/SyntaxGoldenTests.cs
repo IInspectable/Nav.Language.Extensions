@@ -17,15 +17,19 @@ namespace Nav.Language.Tests;
 /// <summary>
 /// Golden-Master der Syntax-Schicht je Korpus-Datei. Friert den exakt beobachtbaren Output des
 /// <i>heutigen</i> (ANTLR-basierten) Parsers ein, damit der künftige handgeschriebene Parser
-/// Token für Token <i>und</i> Knoten für Knoten dagegen diffbar ist.
+/// Token für Token, Knoten für Knoten <i>und</i> Diagnose für Diagnose dagegen diffbar ist.
 ///
-/// Zwei Golden-Stränge:
+/// Drei Golden-Stränge:
 /// <list type="bullet">
 ///   <item><description><c>.tokens</c> — der vollständige Token-Strom (inkl. Trivia), plus
 ///   Full-Fidelity-Round-Trip.</description></item>
 ///   <item><description><c>.tree</c> — die Baumstruktur (Verschachtelung, Extents, angehängte
 ///   Token), plus reine Struktur-Invarianten über den ganzen Korpus (Parent-Zuordnung,
 ///   Kind-in-Parent-Extent, überlappungsfreie Geschwister).</description></item>
+///   <item><description><c>.diag</c> — die reinen <i>Syntax</i>-Diagnostics (direkt aus
+///   <see cref="SyntaxTree.Diagnostics"/>, ohne das semantische Modell). Nagelt das
+///   Error-Recovery-Verhalten fest — der Bereich, in dem der neue Parser am ehesten abweicht.
+///   Eine leere Golden-Datei pinnt „diese Datei erzeugt keine Syntaxfehler".</description></item>
 /// </list>
 /// </summary>
 [TestFixture]
@@ -33,6 +37,7 @@ public class SyntaxGoldenTests {
 
     const string GoldenExtension = ".tokens";
     const string TreeExtension   = ".tree";
+    const string DiagExtension   = ".diag";
 
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
     public void TokenStreamMatchesGolden(CorpusFile corpus) {
@@ -58,6 +63,23 @@ public class SyntaxGoldenTests {
 
         Assert.That(RoundTrip(tree), Is.EqualTo(source),
                     $"Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
+    }
+
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void SyntaxDiagnosticsMatchGolden(CorpusFile corpus) {
+
+        var tree   = ParseCorpusFile(corpus, out _);
+        var actual = DumpDiagnostics(tree);
+
+        var goldenPath = corpus.FilePath + DiagExtension;
+
+        Assert.That(File.Exists(goldenPath), Is.True,
+                    $"Golden-Datei '{goldenPath}' fehlt. Den [Explicit]-Test '{nameof(UpdateGolden)}' ausführen, um sie zu erzeugen.");
+
+        var expected = File.ReadAllText(goldenPath);
+
+        Assert.That(Normalize(actual), Is.EqualTo(Normalize(expected)),
+                    $"Syntax-Diagnostics von '{corpus}' weichen vom Golden '{Path.GetFileName(goldenPath)}' ab.");
     }
 
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
@@ -137,7 +159,8 @@ public class SyntaxGoldenTests {
     }
 
     /// <summary>
-    /// Schreibt alle <c>.tokens</c>- und <c>.tree</c>-Golden neu (Muster: <see cref="RegressionTests.GenerateFiles"/>).
+    /// Schreibt alle <c>.tokens</c>-, <c>.tree</c>- und <c>.diag</c>-Golden neu
+    /// (Muster: <see cref="RegressionTests.GenerateFiles"/>).
     /// </summary>
     [Test, Explicit]
     public void UpdateGolden() {
@@ -146,8 +169,9 @@ public class SyntaxGoldenTests {
 
         foreach (var corpus in GetCorpusFiles()) {
             var tree = ParseCorpusFile(corpus, out _);
-            File.WriteAllText(corpus.FilePath + GoldenExtension, DumpTokens(tree),     utf8Bom);
-            File.WriteAllText(corpus.FilePath + TreeExtension,   DumpTree(tree.Root),  utf8Bom);
+            File.WriteAllText(corpus.FilePath + GoldenExtension, DumpTokens(tree),      utf8Bom);
+            File.WriteAllText(corpus.FilePath + TreeExtension,   DumpTree(tree.Root),   utf8Bom);
+            File.WriteAllText(corpus.FilePath + DiagExtension,   DumpDiagnostics(tree), utf8Bom);
         }
     }
 
@@ -217,6 +241,32 @@ public class SyntaxGoldenTests {
 
     static string Describe(SyntaxNode node) {
         return $"{node.GetType().Name} {node.Extent}";
+    }
+
+    /// <summary>
+    /// Serialisiert die reinen Syntax-Diagnostics — eine Zeile je Diagnose im
+    /// <see cref="UnitTestDiagnosticFormatter"/>-Format (<c>//==>>[Kategorie](Zeile,Spalte,…): …</c>,
+    /// dasselbe wie <see cref="DiagnosticTests"/>). Stabile Reihenfolge: erst Error/Warning/Suggestion,
+    /// innerhalb dessen nach Position. Kein Treffer ⇒ leerer String.
+    /// </summary>
+    static string DumpDiagnostics(SyntaxTree tree) {
+
+        var byPosition = tree.Diagnostics
+                             .SelectMany(diagnostic => diagnostic.ExpandLocations())
+                             .OrderBy(diagnostic => diagnostic.Location.Start)
+                             .ToList();
+
+        var ordered = byPosition.Errors()
+                                .Concat(byPosition.Warnings())
+                                .Concat(byPosition.Suggestions());
+
+        var sb = new StringBuilder();
+        foreach (var diagnostic in ordered) {
+            sb.Append(diagnostic.ToString(UnitTestDiagnosticFormatter.Instance));
+            sb.Append('\n');
+        }
+
+        return sb.ToString();
     }
 
     static string RoundTrip(SyntaxTree tree) {

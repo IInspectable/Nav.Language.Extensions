@@ -1,0 +1,3 @@
+﻿//==>>[Syntax](3,10,3,12): error Nav0002: missing edge
+//==>>[Syntax](4,5,4,9): error Nav0002: missing edge
+//==>>[Syntax](4,5,4,9): error Nav0002: mismatched input 'exit' expecting '}'
