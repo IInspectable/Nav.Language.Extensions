@@ -64,19 +64,20 @@ spätere Verhaltensänderungen erscheinen dann als **reviewbare Diffs** an den G
 | `Regression\RegressionTests.cs` | End-to-End-Golden der generierten `.cs` (`.expected.cs`). |
 | `SyntaxTokenTests.cs`, `SyntaxFactsTest.cs`, `SyntaxTreeNavigationTests.cs`, `DescendantNodesTests.cs`, `ExtentTests.cs` | Token-Modell, Navigation, Extents. |
 
-### Stand: Steps 1–4 sind erledigt (darauf baut Step 5 auf)
+### Stand: Steps 1–5 sind erledigt (das Sicherheitsnetz steht)
 
 | Artefakt | Inhalt / wiederzuverwenden |
 |---|---|
-| `Syntax\Tests\*.nav` | **Kuratierter Korpus** (valider Voll-Feature-Fall + Edge/Torture: halbe Transition, fehlendes Target/Semikolon/Brace, kaputte Generics, Unexpected Char, Präprozessor — am Zeilenanfang (Nav3000) **und** nicht am Zeilenanfang (Nav3001) —, leerer Block, nur Whitespace/Kommentar, leere Datei, vorzeitiges EOF). **Step 5 darf hier knifflige Unicode-/Lex-Fälle ergänzen** (neue `.nav` ⇒ `UpdateGolden` erzeugt alle drei Golden automatisch), bestehende aber nicht neu erfinden. |
+| `Syntax\Tests\*.nav` | **Kuratierter Korpus** (valider Voll-Feature-Fall + Edge/Torture: halbe Transition, fehlendes Target/Semikolon/Brace, kaputte Generics, Unexpected Char, Präprozessor — am Zeilenanfang (Nav3000) **und** nicht am Zeilenanfang (Nav3001) —, leerer Block, nur Whitespace/Kommentar, leere Datei, vorzeitiges EOF). Step 5 hat den Korpus bewusst **nicht** erweitert — die Unicode-/Lex-Kanten liegen inline in `SyntaxLexerTests` (git würde LF/CR in einer `.nav` normalisieren). Neue `.nav` hier ⇒ `UpdateGolden` erzeugt alle drei Golden automatisch; bestehende nicht neu erfinden. |
 | `Syntax\SyntaxGoldenTests.cs` | Golden-Fixture mit **drei Strängen**: `DumpTokens`→`.tokens`, `DumpTree`→`.tree`, `DumpDiagnostics`→`.diag`; dazu Full-Fidelity-Round-Trip und Struktur-Invarianten (Parent-Zuordnung, Kind-in-Parent-Extent, überlappungsfreie Geschwister). Ein gemeinsamer `[Explicit] UpdateGolden` schreibt alle drei; `GetCorpusFiles()` (TestCaseSource über `Syntax\Tests`), `Normalize()` (EOL-tolerant). |
 | `Syntax\Tests\*.nav.tokens` / `*.nav.tree` / `*.nav.diag` | Die drei Golden je `.nav`. `.diag` = reine **Syntax**-Diagnostics (direkt aus `SyntaxTree.Diagnostics`, ohne semantisches Modell, im `UnitTestDiagnosticFormatter`-Format); leere `.diag` pinnt „keine Syntaxfehler". |
-| `Syntax\SyntaxNewLineTests.cs` | Inline-NL-Tests (`\n`/`\r`/`\r\n` + NEL/LS/PS = `U+0085`/`U+2028`/`U+2029`), NL-Sequenzen als `(char)0x…`-Casts. Pinnt u.a. die CRLF-Asymmetrie im SingleLineComment-Split. **Step 5 baut Unicode-Kanten im selben Inline-Stil** (kleine Strings, exakte Token-Sequenz), **nicht** datei-basiert (git würde LF/CR in `.nav` sonst zu CRLF normalisieren). |
+| `Syntax\SyntaxNewLineTests.cs` | Inline-NL-Tests (`\n`/`\r`/`\r\n` + NEL/LS/PS = `U+0085`/`U+2028`/`U+2029`), NL-Sequenzen als `(char)0x…`-Casts. Pinnt u.a. die CRLF-Asymmetrie im SingleLineComment-Split. Im selben Inline-Stil ergänzt `SyntaxLexerTests` die übrigen Unicode-/Lex-Kanten — **nicht** datei-basiert (git würde LF/CR in `.nav` sonst zu CRLF normalisieren). |
+| `Syntax\SyntaxLexerTests.cs` | **Lexer-Direkt-Golden + Unicode** (Step 5): parametrisierte Inline-Fälle über `SyntaxTree.ParseText(...).Tokens` — exakte Token-Sequenz + Round-Trip je Fall. Deckt Umlaut-/Punkt-/Ziffern-Identifier, Keyword-Längstmatch (`task` vs. `tasks`), Kanten-Keywords `o->`/`-->`/`==>` gegen ihre Präfixe (`-`/`=`/`->`/`==` → `Unknown`/`GreaterThan`), Nicht-Nav-Letter (`é` → `Unknown`), Zs-Whitespace + Tab/VT/FF, String-Literale mit/ohne Abschluss (inkl. NEL-Asymmetrie: U+0085 bleibt im Literal) und entartete Eingaben. NL-Varianten bewusst nur in `SyntaxNewLineTests`. |
 | `SyntaxNodeTriviaTests.cs` | **Erschöpfende Trivia-Tests**: Leading/Trailing-Extents (inkl. Dateiränder + `onlyWhiteSpace`), Trivia-Parent = Root, SingleLineComment-/EOL-Split, mehrzeiliger Kommentar, führendes BOM, Unicode-Zs-Whitespace. Das alte `// TODO Weitere Tests für Trivias` ist aufgelöst. |
 | `Syntax\Tests\.gitattributes` | `*.nav` / `*.tokens` / `*.tree` / `*.diag` je `-text` → friert Zeilenenden ein (Working-Tree-Bytes == committete Bytes), damit die **absoluten Offsets** der Golden checkout-stabil bleiben. **Neue Golden-Endung ⇒ hier `-text` ergänzen.** |
 | `Nav.Language.Tests.csproj` | Korpus + Golden via vier Einträgen `<Content Include="Syntax\Tests\**\*.nav` … `*.tokens` … `*.tree` … `*.diag" />` registriert. **Neue Golden-Endung ⇒ hier Eintrag ergänzen.** |
 
-**Verbindliche Konventionen (Steps 1–4):** Golden-Offsets sind absolut → Korpus-`.nav` bleiben CRLF und per `-text` eingefroren; Golden-Vergleiche laufen über `Normalize()`; neue `.cs`/`.nav` als UTF-8 **mit BOM**; Tests müssen auf **net472 und net10.0** grün sein; Goldens werden ausschließlich über den `[Explicit]`-Update-Test erzeugt (nie von Hand editiert); **keine literalen Sonderzeichen im Code** (BOM/Zs/NL als `\u….`-Escapes bzw. `(char)0x…`-Casts); **keine „Step"-Verweise in Code-/XML-Doku** (siehe `CLAUDE.md`).
+**Verbindliche Konventionen (Steps 1–5):** Golden-Offsets sind absolut → Korpus-`.nav` bleiben CRLF und per `-text` eingefroren; Golden-Vergleiche laufen über `Normalize()`; neue `.cs`/`.nav` als UTF-8 **mit BOM**; Tests müssen auf **net472 und net10.0** grün sein; Goldens werden ausschließlich über den `[Explicit]`-Update-Test erzeugt (nie von Hand editiert); **keine literalen Sonderzeichen im Code** (BOM/Zs/NL als `\u….`-Escapes bzw. `(char)0x…`-Casts); **keine „Step"-Verweise in Code-/XML-Doku** (siehe `CLAUDE.md`).
 
 ### Bewährte Muster zum Wiederverwenden
 
@@ -241,3 +242,8 @@ Je größer und schräger, desto besser. Mindestens:
 eingecheckt; Round-Trip + Struktur-Invarianten über Korpus **und** alle Tipp-Präfixe grün; beide TFMs
 grün. Ab dann kann der Parser-Tausch beginnen — jeder Golden-Diff ist entweder ein Bug oder eine
 bewusste, dokumentierte Änderung.
+
+> **Status:** Alle fünf Steps sind erledigt, die DoD ist erfüllt (Suite auf net10.0 **und** net472
+> grün). Das Sicherheitsnetz steht — der Parser-Tausch (siehe `nav-handwritten-parser.md`) kann
+> beginnen. Neue Tests entstehen ab hier nur noch reaktiv, falls der handgeschriebene Parser
+> zusätzliche Fälle aufdeckt.
