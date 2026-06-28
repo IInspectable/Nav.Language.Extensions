@@ -15,7 +15,7 @@ namespace Nav.Language.Tests;
 /// <summary>
 /// Pinnt das Zeilenende-Verhalten des heutigen Lexers (<c>\n</c>, <c>\r</c>, <c>\r\n</c> sowie die
 /// exotischen NEL/LS/PS (U+0085/U+2028/U+2029) - der mit Abstand fragilste Bereich für den
-/// künftigen handgeschriebenen Parser (Plan Step 4/5, „das leidige NL-Problem").
+/// künftigen handgeschriebenen Parser („das leidige NL-Problem").
 /// <para/>
 /// Bewusst <b>Inline-Tests, kein Datei-Korpus</b>: Die NL-Sequenzen werden als C#-Escapes bzw. über
 /// numerische <c>(char)</c>-Casts gebildet und stehen NIE als literale Zeilenenden in dieser Datei.

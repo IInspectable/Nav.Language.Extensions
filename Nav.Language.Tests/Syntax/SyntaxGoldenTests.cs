@@ -15,14 +15,18 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Nav.Language.Tests;
 
 /// <summary>
-/// Golden-Master des vollständigen Token-Stroms je Korpus-Datei plus Full-Fidelity-Round-Trip.
-/// Friert den exakt beobachtbaren Output des <i>heutigen</i> (ANTLR-basierten) Parsers ein, damit
-/// der künftige handgeschriebene Parser Token für Token dagegen diffbar ist
-/// (siehe <c>doc\nav-parser-test-plan.md</c>, Step 1).
+/// Golden-Master der Syntax-Schicht je Korpus-Datei. Friert den exakt beobachtbaren Output des
+/// <i>heutigen</i> (ANTLR-basierten) Parsers ein, damit der künftige handgeschriebene Parser
+/// Token für Token <i>und</i> Knoten für Knoten dagegen diffbar ist.
 ///
-/// Step 2 ergänzt das Netz um den <i>Knotenbaum</i>: ein zweiter Golden-Strang (<c>.tree</c>) friert
-/// die Baumstruktur (Verschachtelung, Extents) ein, plus reine Struktur-Invarianten über den ganzen
-/// Korpus (Parent-Zuordnung, Kind-in-Parent-Extent, überlappungsfreie Geschwister).
+/// Zwei Golden-Stränge:
+/// <list type="bullet">
+///   <item><description><c>.tokens</c> — der vollständige Token-Strom (inkl. Trivia), plus
+///   Full-Fidelity-Round-Trip.</description></item>
+///   <item><description><c>.tree</c> — die Baumstruktur (Verschachtelung, Extents, angehängte
+///   Token), plus reine Struktur-Invarianten über den ganzen Korpus (Parent-Zuordnung,
+///   Kind-in-Parent-Extent, überlappungsfreie Geschwister).</description></item>
+/// </list>
 /// </summary>
 [TestFixture]
 public class SyntaxGoldenTests {
