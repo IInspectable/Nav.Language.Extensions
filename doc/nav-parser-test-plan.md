@@ -1,4 +1,4 @@
-# Test-Abdeckung vor dem Parser-Austausch — Step-für-Step-Plan
+﻿# Test-Abdeckung vor dem Parser-Austausch — Step-für-Step-Plan
 
 > **Zweck dieses Dokuments:** Bevor der ANTLR-basierte Lexer/Parser durch einen handgeschriebenen
 > ersetzt wird (siehe [`nav-handwritten-parser.md`](./nav-handwritten-parser.md)), soll die

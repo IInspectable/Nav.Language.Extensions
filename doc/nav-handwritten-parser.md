@@ -1,4 +1,4 @@
-# Handgeschriebener Lexer/Parser für Nav — Erkenntnisse & Entwurf
+﻿# Handgeschriebener Lexer/Parser für Nav — Erkenntnisse & Entwurf
 
 > **Zweck dieses Dokuments:** Festhalten der Analyse zur Frage, ob/wie der **ANTLR-basierte**
 > Lexer/Parser in `Nav.Language` durch einen **handgeschriebenen** ersetzt werden kann. Es ist

@@ -1,12 +1,16 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Sprache / Schreibweise
 
 - **Immer echte Umlaute verwenden** (ä, ö, ü, Ä, Ö, Ü, ß) — in Code-Kommentaren, Commit-Messages,
-  Dokumentation und sämtlichem erzeugten Text. **Keine** ASCII-Ersatzschreibweisen wie „ae", „oe",
-  „ue", „ss".
+  Dokumentation und sämtlichem erzeugten Text, insbesondere auch in `.cs`- und `.md`-Dateien.
+  **Keine** ASCII-Ersatzschreibweisen wie „ae", „oe", „ue", „ss".
+- **Standard-Dateikodierung ist UTF-8 *mit* BOM.** Gilt für **alle** Textdateien, die hier erzeugt
+  oder bearbeitet werden — `.cs`, `.md`, sowie Projekt-/Build-Dateien (`.csproj`, `.props`, `.targets`
+  und sonstige MSBuild-Files, `.slnx`/`.sln` etc.). Neue Dateien immer als UTF-8 mit BOM anlegen;
+  bestehende Dateien beim Bearbeiten in dieser Kodierung belassen.
 
 ## Was ist das hier?
 
