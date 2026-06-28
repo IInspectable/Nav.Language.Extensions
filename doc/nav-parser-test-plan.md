@@ -58,24 +58,25 @@ spätere Verhaltensänderungen erscheinen dann als **reviewbare Diffs** an den G
 | `Generated Tests\ParseEmptyStringTests.cs` | Jede Regel auf `""` → alle erwarteten Token `IsMissing` (Missing-Token-Verhalten je Regel). |
 | `SyntaxTreeAllRulesTests.cs` | Tiefe Struktur-Assertions über `Resources.AllRules` (Typen, Extents, Classifications, Verschachtelung). `TestAllSyntaxesPresent` prüft, dass jede Knotenklasse vorkommt. |
 | `SyntaxStressTests.cs` | Inkrementelles Tippen (Präfix-Kürzung), Random-Shuffle → keine Null-Children, keine Crashes. |
-| `SyntaxNodeTriviaTests.cs` | Leading/Trailing-Trivia-Extents — **sparse**, trägt selbst `// TODO Weitere Tests für Trivias`. |
+| `SyntaxNodeTriviaTests.cs` | Trivia-Verhalten — in Step 4 **erschöpfend** ausgebaut (siehe „Stand"-Tabelle), TODO aufgelöst. |
 | `SyntaxErrorTests.cs` | Nur „`AllRules` → 0 Diagnostics" — **dünn**. |
 | `Diagnostics\DiagnosticTests.cs` | `.nav`-Korpus mit Inline-Annotation `// ^----^ NavId` + `FixTests`-Golden-Update. Geht über das **semantische** Modell (`CodeGenerationUnit`). |
 | `Regression\RegressionTests.cs` | End-to-End-Golden der generierten `.cs` (`.expected.cs`). |
 | `SyntaxTokenTests.cs`, `SyntaxFactsTest.cs`, `SyntaxTreeNavigationTests.cs`, `DescendantNodesTests.cs`, `ExtentTests.cs` | Token-Modell, Navigation, Extents. |
 
-### Stand: Step 1 ist erledigt (darauf baut Step 2 auf)
+### Stand: Steps 1–4 sind erledigt (darauf baut Step 5 auf)
 
 | Artefakt | Inhalt / wiederzuverwenden |
 |---|---|
-| `Syntax\Tests\*.nav` | **Kuratierter Korpus** (valider Voll-Feature-Fall + Edge/Torture: halbe Transition, fehlendes Target/Semikolon/Brace, kaputte Generics, Unexpected Char, Präprozessor, leerer Block, nur Whitespace/Kommentar, leere Datei, vorzeitiges EOF). **Step 2 nutzt denselben Korpus** — nicht neu erfinden. |
-| `Syntax\SyntaxGoldenTests.cs` | Token-Golden-Fixture: `DumpTokens`, `[Explicit] UpdateGolden`, Round-Trip, `GetCorpusFiles()` (TestCaseSource über `Syntax\Tests`), `Normalize()` (EOL-toleranter Vergleich). **Step 2 hängt `DumpTree` + einen `.tree`-Test in genau diese Fixture** (Korpus-Quelle und Update-Schalter sind schon da). |
-| `Syntax\Tests\*.nav.tokens` | Token-Golden (eine Datei je `.nav`). Analog dazu legt Step 2 `*.nav.tree` an. |
-| `Syntax\SyntaxNewLineTests.cs` | Inline-NL-Tests (`\n`/`\r`/`\r\n` + NEL/LS/PS = `U+0085`/`U+2028`/`U+2029`), NL-Sequenzen als `(char)0x…`-Casts. Pinnt u.a. die CRLF-Asymmetrie im SingleLineComment-Split. **Nicht** datei-basiert, weil git LF/CR in `.nav` sonst zu CRLF normalisiert. |
-| `Syntax\Tests\.gitattributes` | `*.nav -text` / `*.tokens -text` → friert Zeilenenden ein (Working-Tree-Bytes == committete Bytes), damit die **absoluten Offsets** der Golden checkout-stabil bleiben. **Step 2 muss `*.tree -text` ergänzen.** |
-| `Nav.Language.Tests.csproj` | Korpus + Golden via `<Content Include="Syntax\Tests\**\*.nav/.tokens" />` registriert. **Step 2 ergänzt einen `**\*.tree`-Eintrag.** |
+| `Syntax\Tests\*.nav` | **Kuratierter Korpus** (valider Voll-Feature-Fall + Edge/Torture: halbe Transition, fehlendes Target/Semikolon/Brace, kaputte Generics, Unexpected Char, Präprozessor — am Zeilenanfang (Nav3000) **und** nicht am Zeilenanfang (Nav3001) —, leerer Block, nur Whitespace/Kommentar, leere Datei, vorzeitiges EOF). **Step 5 darf hier knifflige Unicode-/Lex-Fälle ergänzen** (neue `.nav` ⇒ `UpdateGolden` erzeugt alle drei Golden automatisch), bestehende aber nicht neu erfinden. |
+| `Syntax\SyntaxGoldenTests.cs` | Golden-Fixture mit **drei Strängen**: `DumpTokens`→`.tokens`, `DumpTree`→`.tree`, `DumpDiagnostics`→`.diag`; dazu Full-Fidelity-Round-Trip und Struktur-Invarianten (Parent-Zuordnung, Kind-in-Parent-Extent, überlappungsfreie Geschwister). Ein gemeinsamer `[Explicit] UpdateGolden` schreibt alle drei; `GetCorpusFiles()` (TestCaseSource über `Syntax\Tests`), `Normalize()` (EOL-tolerant). |
+| `Syntax\Tests\*.nav.tokens` / `*.nav.tree` / `*.nav.diag` | Die drei Golden je `.nav`. `.diag` = reine **Syntax**-Diagnostics (direkt aus `SyntaxTree.Diagnostics`, ohne semantisches Modell, im `UnitTestDiagnosticFormatter`-Format); leere `.diag` pinnt „keine Syntaxfehler". |
+| `Syntax\SyntaxNewLineTests.cs` | Inline-NL-Tests (`\n`/`\r`/`\r\n` + NEL/LS/PS = `U+0085`/`U+2028`/`U+2029`), NL-Sequenzen als `(char)0x…`-Casts. Pinnt u.a. die CRLF-Asymmetrie im SingleLineComment-Split. **Step 5 baut Unicode-Kanten im selben Inline-Stil** (kleine Strings, exakte Token-Sequenz), **nicht** datei-basiert (git würde LF/CR in `.nav` sonst zu CRLF normalisieren). |
+| `SyntaxNodeTriviaTests.cs` | **Erschöpfende Trivia-Tests**: Leading/Trailing-Extents (inkl. Dateiränder + `onlyWhiteSpace`), Trivia-Parent = Root, SingleLineComment-/EOL-Split, mehrzeiliger Kommentar, führendes BOM, Unicode-Zs-Whitespace. Das alte `// TODO Weitere Tests für Trivias` ist aufgelöst. |
+| `Syntax\Tests\.gitattributes` | `*.nav` / `*.tokens` / `*.tree` / `*.diag` je `-text` → friert Zeilenenden ein (Working-Tree-Bytes == committete Bytes), damit die **absoluten Offsets** der Golden checkout-stabil bleiben. **Neue Golden-Endung ⇒ hier `-text` ergänzen.** |
+| `Nav.Language.Tests.csproj` | Korpus + Golden via vier Einträgen `<Content Include="Syntax\Tests\**\*.nav` … `*.tokens` … `*.tree` … `*.diag" />` registriert. **Neue Golden-Endung ⇒ hier Eintrag ergänzen.** |
 
-**Konventionen aus Step 1 (für Step 2 verbindlich):** Golden-Offsets sind absolut → Korpus-`.nav` bleiben CRLF und per `-text` eingefroren; Golden-Vergleiche laufen über `Normalize()`; neue `.cs` als UTF-8 **mit BOM**; Tests müssen auf **net472 und net10.0** grün sein. Goldens werden ausschließlich über den `[Explicit]`-Update-Test erzeugt (nie von Hand editiert).
+**Verbindliche Konventionen (Steps 1–4):** Golden-Offsets sind absolut → Korpus-`.nav` bleiben CRLF und per `-text` eingefroren; Golden-Vergleiche laufen über `Normalize()`; neue `.cs`/`.nav` als UTF-8 **mit BOM**; Tests müssen auf **net472 und net10.0** grün sein; Goldens werden ausschließlich über den `[Explicit]`-Update-Test erzeugt (nie von Hand editiert); **keine literalen Sonderzeichen im Code** (BOM/Zs/NL als `\u….`-Escapes bzw. `(char)0x…`-Casts); **keine „Step"-Verweise in Code-/XML-Doku** (siehe `CLAUDE.md`).
 
 ### Bewährte Muster zum Wiederverwenden
 
