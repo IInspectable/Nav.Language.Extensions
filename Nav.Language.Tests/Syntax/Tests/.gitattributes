@@ -1,4 +1,4 @@
-# Die .tokens-Golden in diesem Ordner enthalten ABSOLUTE Byte-Offsets in die zugehörige .nav.
+# Die .tokens- und .tree-Golden in diesem Ordner enthalten ABSOLUTE Byte-Offsets in die zugehörige .nav.
 # Würde git die Zeilenenden umschreiben (CRLF <-> LF), verschöben sich sämtliche Offsets und die
 # Golden wären ungültig — und zwar lautlos beim nächsten Checkout auf einer anderen Umgebung.
 #
@@ -7,3 +7,4 @@
 # voll diffbar (kein "binary"-Flag). Das überschreibt das repo-weite "* text=auto eol=crlf".
 *.nav    -text
 *.tokens -text
+*.tree   -text

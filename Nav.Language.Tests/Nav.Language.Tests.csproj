@@ -69,11 +69,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Syntax-Golden-Korpus (Step 1): kuratierte .nav plus erzeugte .tokens-Golden.
+    <!-- Syntax-Golden-Korpus (Step 1/2): kuratierte .nav plus erzeugte .tokens- und .tree-Golden.
          Werden nicht ins Output kopiert; die Tests loesen sie via TestDataDirectory.Resolve aus dem
          Projektverzeichnis auf (wie Diagnostics\Tests / Regression\Tests). -->
     <Content Include="Syntax\Tests\**\*.nav" />
     <Content Include="Syntax\Tests\**\*.tokens" />
+    <Content Include="Syntax\Tests\**\*.tree" />
   </ItemGroup>
 
   <ItemGroup>

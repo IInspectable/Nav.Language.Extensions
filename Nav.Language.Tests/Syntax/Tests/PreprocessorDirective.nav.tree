@@ -1,0 +1,10 @@
+﻿CodeGenerationUnitSyntax [11-77]  {Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, NewLine, NewLine, HashToken, PreprocessorKeyword, PreprocessorNewLine, EndOfFile}
+  TaskDefinitionSyntax [11-67]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [26-48]
+      InitNodeDeclarationSyntax [26-34]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [40-48]  {ExitKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [54-64]
+      TransitionDefinitionSyntax [54-64]  {Semicolon}
+        IdentifierSourceNodeSyntax [54-56]  {Identifier}
+        GoToEdgeSyntax [57-60]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [61-63]  {Identifier}

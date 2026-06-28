@@ -2,11 +2,13 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 using NUnit.Framework;
 
 using Pharmatechnik.Nav.Language;
+using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -17,11 +19,16 @@ namespace Nav.Language.Tests;
 /// Friert den exakt beobachtbaren Output des <i>heutigen</i> (ANTLR-basierten) Parsers ein, damit
 /// der künftige handgeschriebene Parser Token für Token dagegen diffbar ist
 /// (siehe <c>doc\nav-parser-test-plan.md</c>, Step 1).
+///
+/// Step 2 ergänzt das Netz um den <i>Knotenbaum</i>: ein zweiter Golden-Strang (<c>.tree</c>) friert
+/// die Baumstruktur (Verschachtelung, Extents) ein, plus reine Struktur-Invarianten über den ganzen
+/// Korpus (Parent-Zuordnung, Kind-in-Parent-Extent, überlappungsfreie Geschwister).
 /// </summary>
 [TestFixture]
 public class SyntaxGoldenTests {
 
     const string GoldenExtension = ".tokens";
+    const string TreeExtension   = ".tree";
 
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
     public void TokenStreamMatchesGolden(CorpusFile corpus) {
@@ -49,8 +56,84 @@ public class SyntaxGoldenTests {
                     $"Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
     }
 
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void NodeTreeMatchesGolden(CorpusFile corpus) {
+
+        var tree   = ParseCorpusFile(corpus, out _);
+        var actual = DumpTree(tree.Root);
+
+        var goldenPath = corpus.FilePath + TreeExtension;
+
+        Assert.That(File.Exists(goldenPath), Is.True,
+                    $"Golden-Datei '{goldenPath}' fehlt. Den [Explicit]-Test '{nameof(UpdateGolden)}' ausführen, um sie zu erzeugen.");
+
+        var expected = File.ReadAllText(goldenPath);
+
+        Assert.That(Normalize(actual), Is.EqualTo(Normalize(expected)),
+                    $"Knotenbaum von '{corpus}' weicht vom Golden '{Path.GetFileName(goldenPath)}' ab.");
+    }
+
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void EveryNodeAndTokenIsParented(CorpusFile corpus) {
+
+        var tree = ParseCorpusFile(corpus, out _);
+
+        Assert.That(tree.Root.Parent, Is.Null, "Der Wurzelknoten darf keinen Parent besitzen.");
+
+        foreach (var node in tree.Root.DescendantNodes()) {
+            Assert.That(node.Parent, Is.Not.Null,
+                        $"Knoten {Describe(node)} besitzt keinen Parent.");
+        }
+
+        foreach (var token in tree.Tokens) {
+            Assert.That(token.Parent, Is.Not.Null,
+                        $"Token {token.Type} {token.Extent} besitzt keinen Parent.");
+        }
+    }
+
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void ChildExtentsLieWithinParentExtent(CorpusFile corpus) {
+
+        var tree = ParseCorpusFile(corpus, out _);
+
+        foreach (var node in tree.Root.DescendantNodesAndSelf()) {
+            if (node.Extent.IsMissing) {
+                continue;
+            }
+
+            foreach (var child in node.ChildNodes()) {
+                if (child.Extent.IsMissing) {
+                    continue;
+                }
+
+                Assert.That(node.Extent.Contains(child.Extent), Is.True,
+                            $"Kindknoten {Describe(child)} liegt nicht im Extent des Parents {Describe(node)}.");
+            }
+        }
+    }
+
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void SiblingExtentsDoNotOverlap(CorpusFile corpus) {
+
+        var tree = ParseCorpusFile(corpus, out _);
+
+        foreach (var node in tree.Root.DescendantNodesAndSelf()) {
+
+            var siblings = node.ChildNodes()
+                               .Where(child => !child.Extent.IsMissing)
+                               .OrderBy(child => child.Extent.Start)
+                               .ThenBy(child => child.Extent.End)
+                               .ToList();
+
+            for (var i = 1; i < siblings.Count; i++) {
+                Assert.That(siblings[i - 1].Extent.End, Is.LessThanOrEqualTo(siblings[i].Extent.Start),
+                            $"Geschwister-Extents überlappen: {Describe(siblings[i - 1])} und {Describe(siblings[i])} unter {Describe(node)}.");
+            }
+        }
+    }
+
     /// <summary>
-    /// Schreibt alle <c>.tokens</c>-Golden neu (Muster: <see cref="RegressionTests.GenerateFiles"/>).
+    /// Schreibt alle <c>.tokens</c>- und <c>.tree</c>-Golden neu (Muster: <see cref="RegressionTests.GenerateFiles"/>).
     /// </summary>
     [Test, Explicit]
     public void UpdateGolden() {
@@ -59,8 +142,8 @@ public class SyntaxGoldenTests {
 
         foreach (var corpus in GetCorpusFiles()) {
             var tree = ParseCorpusFile(corpus, out _);
-            var dump = DumpTokens(tree);
-            File.WriteAllText(corpus.FilePath + GoldenExtension, dump, utf8Bom);
+            File.WriteAllText(corpus.FilePath + GoldenExtension, DumpTokens(tree),     utf8Bom);
+            File.WriteAllText(corpus.FilePath + TreeExtension,   DumpTree(tree.Root),  utf8Bom);
         }
     }
 
@@ -92,6 +175,44 @@ public class SyntaxGoldenTests {
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Serialisiert den Knotenbaum — je Knoten eine eingerückte Zeile mit <c>GetType().Name</c>, dem
+    /// <see cref="TextExtent"/> und (sofern vorhanden) den Typen der direkt angehängten Token. Die
+    /// Kindknoten kommen über <see cref="SyntaxNode.ChildNodes"/> in Quelltext-Reihenfolge.
+    /// </summary>
+    static string DumpTree(SyntaxNode root) {
+        var sb = new StringBuilder();
+        DumpNode(root, depth: 0, sb);
+        return sb.ToString();
+    }
+
+    static void DumpNode(SyntaxNode node, int depth, StringBuilder sb) {
+
+        sb.Append(' ', depth * 2);
+        sb.Append(node.GetType().Name);
+        sb.Append(' ');
+        sb.Append(node.Extent.ToString());
+
+        if (!node.Extent.IsMissing) {
+            var childTokens = node.ChildTokens().ToList();
+            if (childTokens.Count > 0) {
+                sb.Append("  {");
+                sb.Append(string.Join(", ", childTokens.Select(token => token.Type.ToString())));
+                sb.Append('}');
+            }
+        }
+
+        sb.Append('\n');
+
+        foreach (var child in node.ChildNodes()) {
+            DumpNode(child, depth + 1, sb);
+        }
+    }
+
+    static string Describe(SyntaxNode node) {
+        return $"{node.GetType().Name} {node.Extent}";
     }
 
     static string RoundTrip(SyntaxTree tree) {
