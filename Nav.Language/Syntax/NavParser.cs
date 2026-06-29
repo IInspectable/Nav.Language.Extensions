@@ -37,6 +37,22 @@ namespace Pharmatechnik.Nav.Language;
 /// Da der handgeschriebene Parser hier bewusst andere (oft knappere) Diagnosen liefern darf als die
 /// bisherige ANTLR-Pipeline, wird die Recovery nicht differentiell gegen ANTLR, sondern über einen
 /// eigenen Golden-Satz abgesichert.
+/// <para/>
+/// Jede <c>Parse*</c>-Methode trägt die zugehörige Grammatikregel als EBNF-Fragment (entspricht der
+/// ursprünglichen Grammatik <c>NavGrammar.g4</c>). Lesehilfe zur Notation:
+/// <list type="bullet">
+///   <item><description><c>"…"</c> — ein literales Schlüsselwort, ein Operator oder ein
+///   Punctuation-Zeichen (z.B. <c>"task"</c>, <c>"--&gt;"</c>, <c>";"</c>).</description></item>
+///   <item><description><c>Identifier</c>, <c>StringLiteral</c>, <c>EOF</c> — kategorische Terminale
+///   (kein fester Text), groß geschrieben und ohne Anführungszeichen.</description></item>
+///   <item><description>Nichtterminale in <c>camelCase</c> verweisen auf die gleichnamige
+///   <c>Parse*</c>-Methode.</description></item>
+///   <item><description><c>?</c> optional, <c>*</c> null bis n, <c>+</c> ein bis n, <c>|</c> Alternative,
+///   <c>( … )</c> Gruppierung, <c>(* … *)</c> erläuternder Kommentar.</description></item>
+/// </list>
+/// Die EBNF beschreibt die <i>akzeptierte Sprache</i>; bewusste Implementierungs-Eigenheiten (Baum-
+/// Gruppierung, Lookahead-Disambiguierung, fehlertolerante Bestandteile) stehen als Prosa-Hinweis im
+/// jeweiligen <c>&lt;remarks&gt;</c>.
 /// </summary>
 sealed class NavParser {
 
@@ -69,6 +85,17 @@ sealed class NavParser {
 
     #region CodeGenerationUnit
 
+    /// <summary>Grammatik-Einstiegsregel <c>codeGenerationUnit</c> → <see cref="CodeGenerationUnitSyntax"/> (Wurzel).</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeGenerationUnit ::= ( codeNamespaceDeclaration codeUsingDeclaration* )?
+    ///                        memberDeclaration*
+    ///                        EOF
+    /// ]]></code>
+    /// Der optionale Namespace-/Using-Kopf wird über Zwei-Token-Lookahead erkannt (<c>[</c> + <c>namespaceprefix</c>
+    /// bzw. <c>using</c>). Auf Top-Level gibt es keinen äußeren Anker: alles, was kein Member beginnt, wird bis
+    /// zum nächsten Member oder zum Dateiende übersprungen (Panic-Mode).
+    /// </remarks>
     SyntaxTree ParseCodeGenerationUnit(CancellationToken cancellationToken) {
 
         CodeNamespaceDeclarationSyntax    codeNamespace = null;
@@ -114,6 +141,16 @@ sealed class NavParser {
         return syntaxTree;
     }
 
+    /// <summary>Grammatikregel <c>memberDeclaration</c> → <see cref="MemberDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// memberDeclaration ::= includeDirective
+    ///                     | taskDeclaration
+    ///                     | taskDefinition
+    /// ]]></code>
+    /// Disambiguierung per Lookahead: <c>taskref</c> + StringLiteral ⇒ <c>includeDirective</c>; <c>taskref</c> +
+    /// Identifier ⇒ <c>taskDeclaration</c>; <c>task</c> ⇒ <c>taskDefinition</c>.
+    /// </remarks>
     MemberDeclarationSyntax ParseMemberDeclaration() {
         if (At(SyntaxTokenType.TaskrefKeyword)) {
             return PeekType(1) == SyntaxTokenType.StringLiteral
@@ -128,6 +165,12 @@ sealed class NavParser {
 
     #region Code Namespace / Using
 
+    /// <summary>Grammatikregel <c>codeNamespaceDeclaration</c> → <see cref="CodeNamespaceDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeNamespaceDeclaration ::= "[" "namespaceprefix" identifierOrString "]"
+    /// ]]></code>
+    /// </remarks>
     CodeNamespaceDeclarationSyntax ParseCodeNamespaceDeclaration() {
 
         var open      = Eat(SyntaxTokenType.OpenBracket);
@@ -144,6 +187,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeUsingDeclaration</c> → <see cref="CodeUsingDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeUsingDeclaration ::= "[" "using" identifierOrString "]"
+    /// ]]></code>
+    /// </remarks>
     CodeUsingDeclarationSyntax ParseCodeUsingDeclaration() {
 
         var open     = Eat(SyntaxTokenType.OpenBracket);
@@ -164,6 +213,12 @@ sealed class NavParser {
 
     #region IncludeDirective
 
+    /// <summary>Grammatikregel <c>includeDirective</c> → <see cref="IncludeDirectiveSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// includeDirective ::= "taskref" StringLiteral ";"
+    /// ]]></code>
+    /// </remarks>
     IncludeDirectiveSyntax ParseIncludeDirective() {
 
         var keyword = Eat(SyntaxTokenType.TaskrefKeyword);
@@ -183,6 +238,19 @@ sealed class NavParser {
 
     #region TaskDeclaration
 
+    /// <summary>Grammatikregel <c>taskDeclaration</c> → <see cref="TaskDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// taskDeclaration ::= "taskref" Identifier
+    ///                     codeNamespaceDeclaration?
+    ///                     codeNotImplementedDeclaration?
+    ///                     codeResultDeclaration?
+    ///                     "{" connectionPointNodeDeclaration* "}"
+    /// ]]></code>
+    /// Die optionalen <c>code*</c>-Deklarationen werden über Zwei-Token-Lookahead erkannt (<c>[</c> +
+    /// Schlüsselwort). Vor dem Body-<c>{</c> überspringt ein gezielter Panic-Mode ungültige Token bis zum
+    /// <c>{</c>, zum Beginn eines Connection-Points oder zu einem äußeren Anker.
+    /// </remarks>
     TaskDeclarationSyntax ParseTaskDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.TaskrefKeyword);
@@ -225,6 +293,15 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>connectionPointNodeDeclaration</c> → <see cref="ConnectionPointNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// connectionPointNodeDeclaration ::= initNodeDeclaration
+    ///                                  | exitNodeDeclaration
+    ///                                  | endNodeDeclaration
+    /// ]]></code>
+    /// Disambiguierung per Start-Schlüsselwort (<c>init</c>/<c>exit</c>/<c>end</c>).
+    /// </remarks>
     ConnectionPointNodeSyntax ParseConnectionPointNodeDeclaration() {
         return At(SyntaxTokenType.InitKeyword) ? ParseInitNodeDeclaration()
              : At(SyntaxTokenType.ExitKeyword) ? ParseExitNodeDeclaration()
@@ -235,6 +312,21 @@ sealed class NavParser {
 
     #region TaskDefinition
 
+    /// <summary>Grammatikregel <c>taskDefinition</c> → <see cref="TaskDefinitionSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// taskDefinition ::= "task" Identifier
+    ///                    codeDeclaration?
+    ///                    codeBaseDeclaration?
+    ///                    codeGenerateToDeclaration?
+    ///                    codeParamsDeclaration?
+    ///                    codeResultDeclaration?
+    ///                    "{" nodeDeclarationBlock transitionDefinitionBlock "}"
+    /// ]]></code>
+    /// Die optionalen <c>code*</c>-Deklarationen werden über Zwei-Token-Lookahead erkannt (<c>[</c> +
+    /// Schlüsselwort). Vor dem Body-<c>{</c> überspringt ein gezielter Panic-Mode ungültige Token bis zum
+    /// <c>{</c>, zum Beginn einer Knoten-/Transitions-Deklaration oder zu einem äußeren Anker.
+    /// </remarks>
     TaskDefinitionSyntax ParseTaskDefinition() {
 
         var keyword = Eat(SyntaxTokenType.TaskKeyword);
@@ -272,6 +364,13 @@ sealed class NavParser {
 
     #region Node Declarations
 
+    /// <summary>Grammatikregel <c>nodeDeclarationBlock</c> → <see cref="NodeDeclarationBlockSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// nodeDeclarationBlock ::= nodeDeclaration*
+    /// ]]></code>
+    /// Ein leerer Block (kein einziger Knoten) erhält den Extent <see cref="TextExtent.Missing"/>.
+    /// </remarks>
     NodeDeclarationBlockSyntax ParseNodeDeclarationBlock() {
 
         var nodes = new List<NodeDeclarationSyntax>();
@@ -303,6 +402,19 @@ sealed class NavParser {
         }
     }
 
+    /// <summary>Grammatikregel <c>nodeDeclaration</c> → <see cref="NodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// nodeDeclaration ::= connectionPointNodeDeclaration   (* init | exit | end *)
+    ///                   | taskNodeDeclaration
+    ///                   | choiceNodeDeclaration
+    ///                   | dialogNodeDeclaration
+    ///                   | viewNodeDeclaration
+    /// ]]></code>
+    /// Disambiguierung per Start-Schlüsselwort. Sonderfall <c>init</c>: nur dann eine Knoten-Deklaration, wenn
+    /// <b>keine</b> Kante folgt — <c>init --&gt; …</c> ist eine Transition (<c>initSourceNode</c>), siehe
+    /// <see cref="StartsNodeDeclaration"/>.
+    /// </remarks>
     NodeDeclarationSyntax ParseNodeDeclaration() {
         switch (At0) {
             case SyntaxTokenType.InitKeyword:   return ParseInitNodeDeclaration();
@@ -315,6 +427,16 @@ sealed class NavParser {
         }
     }
 
+    /// <summary>Grammatikregel <c>initNodeDeclaration</c> → <see cref="InitNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// initNodeDeclaration ::= "init" Identifier?
+    ///                         codeAbstractMethodDeclaration?
+    ///                         codeParamsDeclaration?
+    ///                         doClause?
+    ///                         ";"
+    /// ]]></code>
+    /// </remarks>
     InitNodeDeclarationSyntax ParseInitNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.InitKeyword);
@@ -336,6 +458,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>exitNodeDeclaration</c> → <see cref="ExitNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// exitNodeDeclaration ::= "exit" Identifier ";"
+    /// ]]></code>
+    /// </remarks>
     ExitNodeDeclarationSyntax ParseExitNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.ExitKeyword);
@@ -351,6 +479,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>endNodeDeclaration</c> → <see cref="EndNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// endNodeDeclaration ::= "end" ";"
+    /// ]]></code>
+    /// </remarks>
     EndNodeDeclarationSyntax ParseEndNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.EndKeyword);
@@ -364,6 +498,16 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>taskNodeDeclaration</c> → <see cref="TaskNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// taskNodeDeclaration ::= "task" Identifier Identifier?
+    ///                         codeDoNotInjectDeclaration?
+    ///                         codeAbstractMethodDeclaration?
+    ///                         ";"
+    /// ]]></code>
+    /// Das zweite (optionale) <c>Identifier</c> ist der Alias des Task-Knotens.
+    /// </remarks>
     TaskNodeDeclarationSyntax ParseTaskNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.TaskKeyword);
@@ -386,6 +530,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>choiceNodeDeclaration</c> → <see cref="ChoiceNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// choiceNodeDeclaration ::= "choice" Identifier ";"
+    /// ]]></code>
+    /// </remarks>
     ChoiceNodeDeclarationSyntax ParseChoiceNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.ChoiceKeyword);
@@ -401,6 +551,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>dialogNodeDeclaration</c> → <see cref="DialogNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// dialogNodeDeclaration ::= "dialog" Identifier ";"
+    /// ]]></code>
+    /// </remarks>
     DialogNodeDeclarationSyntax ParseDialogNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.DialogKeyword);
@@ -416,6 +572,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>viewNodeDeclaration</c> → <see cref="ViewNodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// viewNodeDeclaration ::= "view" Identifier ";"
+    /// ]]></code>
+    /// </remarks>
     ViewNodeDeclarationSyntax ParseViewNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.ViewKeyword);
@@ -435,6 +597,16 @@ sealed class NavParser {
 
     #region TransitionDefinitionBlock
 
+    /// <summary>Grammatikregel <c>transitionDefinitionBlock</c> → <see cref="TransitionDefinitionBlockSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// transitionDefinitionBlock ::= ( transitionDefinition | exitTransitionDefinition )*
+    /// ]]></code>
+    /// Im Quelltext dürfen sich beide Alternativen mischen; im Baum werden sie jedoch getrennt gruppiert —
+    /// erst alle <c>transitionDefinition</c>, dann alle <c>exitTransitionDefinition</c> (<b>nicht</b> in
+    /// Quelltext-Reihenfolge). Disambiguierung per Lookahead: <c>Identifier</c> + <c>:</c> ⇒
+    /// <c>exitTransitionDefinition</c>, sonst <c>transitionDefinition</c>.
+    /// </remarks>
     TransitionDefinitionBlockSyntax ParseTransitionDefinitionBlock() {
 
         // Quelltext-Reihenfolge darf transitionDefinition und exitTransitionDefinition mischen; im Baum
@@ -473,6 +645,15 @@ sealed class NavParser {
         return At(SyntaxTokenType.InitKeyword) || At(SyntaxTokenType.Identifier);
     }
 
+    /// <summary>Grammatikregel <c>transitionDefinition</c> → <see cref="TransitionDefinitionSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// transitionDefinition ::= sourceNode edge targetNode trigger? conditionClause? doClause? ";"
+    /// ]]></code>
+    /// <c>edge</c> und <c>targetNode</c> werden fehlertolerant geparst: fehlt die Kante, wird
+    /// <c>missing edge</c> gemeldet; fehlt — bei vorhandener Kante — das Zielknoten, <c>missing target node</c>
+    /// (die beiden Fehlerproduktionen der ursprünglichen Grammatik).
+    /// </remarks>
     TransitionDefinitionSyntax ParseTransitionDefinition() {
 
         var source = ParseSourceNode();
@@ -501,6 +682,15 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>exitTransitionDefinition</c> → <see cref="ExitTransitionDefinitionSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// exitTransitionDefinition ::= identifierSourceNode ":" Identifier edge targetNode
+    ///                              conditionClause? doClause? ";"
+    /// ]]></code>
+    /// Wie bei <see cref="ParseTransitionDefinition"/> werden <c>edge</c>/<c>targetNode</c> fehlertolerant
+    /// behandelt (<c>missing edge</c> / <c>missing target node</c>).
+    /// </remarks>
     ExitTransitionDefinitionSyntax ParseExitTransitionDefinition() {
 
         var source    = ParseIdentifierSourceNode();
@@ -539,10 +729,23 @@ sealed class NavParser {
 
     #region SourceNode / TargetNode / Edge
 
+    /// <summary>Grammatikregel <c>sourceNode</c> → <see cref="SourceNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// sourceNode ::= initSourceNode         (* "init" *)
+    ///              | identifierSourceNode   (* Identifier *)
+    /// ]]></code>
+    /// </remarks>
     SourceNodeSyntax ParseSourceNode() {
         return At(SyntaxTokenType.InitKeyword) ? ParseInitSourceNode() : ParseIdentifierSourceNode();
     }
 
+    /// <summary>Grammatikregel <c>initSourceNode</c> → <see cref="InitSourceNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// initSourceNode ::= "init"
+    /// ]]></code>
+    /// </remarks>
     InitSourceNodeSyntax ParseInitSourceNode() {
         var keyword = Eat(SyntaxTokenType.InitKeyword);
         var node    = new InitSourceNodeSyntax(Span(keyword));
@@ -550,6 +753,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>identifierSourceNode</c> → <see cref="IdentifierSourceNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// identifierSourceNode ::= Identifier
+    /// ]]></code>
+    /// </remarks>
     IdentifierSourceNodeSyntax ParseIdentifierSourceNode() {
         var identifier = Eat(SyntaxTokenType.Identifier);
         var node       = new IdentifierSourceNodeSyntax(Span(identifier));
@@ -557,10 +766,23 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>targetNode</c> → <see cref="TargetNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// targetNode ::= endTargetNode          (* "end" *)
+    ///              | identifierTargetNode   (* Identifier *)
+    /// ]]></code>
+    /// </remarks>
     TargetNodeSyntax ParseTargetNode() {
         return At(SyntaxTokenType.EndKeyword) ? ParseEndTargetNode() : ParseIdentifierTargetNode();
     }
 
+    /// <summary>Grammatikregel <c>endTargetNode</c> → <see cref="EndTargetNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// endTargetNode ::= "end"
+    /// ]]></code>
+    /// </remarks>
     EndTargetNodeSyntax ParseEndTargetNode() {
         var keyword = Eat(SyntaxTokenType.EndKeyword);
         var node    = new EndTargetNodeSyntax(Span(keyword));
@@ -568,6 +790,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>identifierTargetNode</c> → <see cref="IdentifierTargetNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// identifierTargetNode ::= Identifier
+    /// ]]></code>
+    /// </remarks>
     IdentifierTargetNodeSyntax ParseIdentifierTargetNode() {
         var identifier = Eat(SyntaxTokenType.Identifier);
         var node       = new IdentifierTargetNodeSyntax(Span(identifier));
@@ -583,6 +811,14 @@ sealed class NavParser {
         return At(SyntaxTokenType.EndKeyword) || At(SyntaxTokenType.Identifier);
     }
 
+    /// <summary>Grammatikregel <c>edge</c> → <see cref="EdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// edge ::= goToEdge       (* "-->" *)
+    ///        | modalEdge      (* "o->" *)
+    ///        | nonModalEdge   (* "==>" *)
+    /// ]]></code>
+    /// </remarks>
     EdgeSyntax ParseEdge() {
         switch (At0) {
             case SyntaxTokenType.GoToEdgeKeyword:    return ParseGoToEdge();
@@ -591,6 +827,12 @@ sealed class NavParser {
         }
     }
 
+    /// <summary>Grammatikregel <c>goToEdge</c> → <see cref="GoToEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// goToEdge ::= "-->"
+    /// ]]></code>
+    /// </remarks>
     GoToEdgeSyntax ParseGoToEdge() {
         var keyword = Eat(SyntaxTokenType.GoToEdgeKeyword);
         var node    = new GoToEdgeSyntax(Span(keyword));
@@ -598,6 +840,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>modalEdge</c> → <see cref="ModalEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// modalEdge ::= "o->"
+    /// ]]></code>
+    /// </remarks>
     ModalEdgeSyntax ParseModalEdge() {
         var keyword = Eat(SyntaxTokenType.ModalEdgeKeyword);
         var node    = new ModalEdgeSyntax(Span(keyword));
@@ -605,6 +853,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>nonModalEdge</c> → <see cref="NonModalEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// nonModalEdge ::= "==>"
+    /// ]]></code>
+    /// </remarks>
     NonModalEdgeSyntax ParseNonModalEdge() {
         var keyword = Eat(SyntaxTokenType.NonModalEdgeKeyword);
         var node    = new NonModalEdgeSyntax(Span(keyword));
@@ -620,10 +874,24 @@ sealed class NavParser {
         return At(SyntaxTokenType.OnKeyword) || At(SyntaxTokenType.SpontaneousKeyword) || At(SyntaxTokenType.SpontKeyword);
     }
 
+    /// <summary>Grammatikregel <c>trigger</c> → <see cref="TriggerSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// trigger ::= signalTrigger        (* "on" … *)
+    ///           | spontaneousTrigger   (* "spontaneous" | "spont" *)
+    /// ]]></code>
+    /// </remarks>
     TriggerSyntax ParseTrigger() {
         return At(SyntaxTokenType.OnKeyword) ? ParseSignalTrigger() : ParseSpontaneousTrigger();
     }
 
+    /// <summary>Grammatikregel <c>signalTrigger</c> → <see cref="SignalTriggerSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// signalTrigger ::= "on" identifier
+    /// ]]></code>
+    /// Der <c>identifier</c> wird fehlertolerant behandelt: fehlt er, entsteht der Knoten dennoch (ohne ihn).
+    /// </remarks>
     SignalTriggerSyntax ParseSignalTrigger() {
 
         var keyword    = Eat(SyntaxTokenType.OnKeyword);
@@ -636,6 +904,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>spontaneousTrigger</c> → <see cref="SpontaneousTriggerSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// spontaneousTrigger ::= "spontaneous" | "spont"
+    /// ]]></code>
+    /// </remarks>
     SpontaneousTriggerSyntax ParseSpontaneousTrigger() {
 
         var spont       = At(SyntaxTokenType.SpontKeyword)       ? Eat(SyntaxTokenType.SpontKeyword)       : (RawToken?) null;
@@ -657,6 +931,16 @@ sealed class NavParser {
         return At(SyntaxTokenType.IfKeyword) || At(SyntaxTokenType.ElseKeyword);
     }
 
+    /// <summary>Grammatikregel <c>conditionClause</c> → <see cref="ConditionClauseSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// conditionClause ::= ifConditionClause       (* "if" … *)
+    ///                   | elseIfConditionClause   (* "else" "if" … *)
+    ///                   | elseConditionClause     (* "else" *)
+    /// ]]></code>
+    /// Disambiguierung per Lookahead: <c>if</c> ⇒ <c>ifConditionClause</c>; <c>else</c> + <c>if</c> ⇒
+    /// <c>elseIfConditionClause</c>; sonst <c>elseConditionClause</c>.
+    /// </remarks>
     ConditionClauseSyntax ParseConditionClause() {
         if (At(SyntaxTokenType.IfKeyword)) {
             return ParseIfConditionClause();
@@ -665,6 +949,12 @@ sealed class NavParser {
         return PeekType(1) == SyntaxTokenType.IfKeyword ? ParseElseIfConditionClause() : ParseElseConditionClause();
     }
 
+    /// <summary>Grammatikregel <c>ifConditionClause</c> → <see cref="IfConditionClauseSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// ifConditionClause ::= "if" identifierOrString
+    /// ]]></code>
+    /// </remarks>
     IfConditionClauseSyntax ParseIfConditionClause() {
 
         var keyword            = Eat(SyntaxTokenType.IfKeyword);
@@ -677,6 +967,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>elseConditionClause</c> → <see cref="ElseConditionClauseSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// elseConditionClause ::= "else"
+    /// ]]></code>
+    /// </remarks>
     ElseConditionClauseSyntax ParseElseConditionClause() {
 
         var keyword = Eat(SyntaxTokenType.ElseKeyword);
@@ -688,6 +984,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>elseIfConditionClause</c> → <see cref="ElseIfConditionClauseSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// elseIfConditionClause ::= elseConditionClause ifConditionClause   (* "else" "if" identifierOrString *)
+    /// ]]></code>
+    /// </remarks>
     ElseIfConditionClauseSyntax ParseElseIfConditionClause() {
 
         var elseCondition = ParseElseConditionClause();
@@ -696,6 +998,12 @@ sealed class NavParser {
         return new ElseIfConditionClauseSyntax(Span(elseCondition, ifCondition), elseCondition, ifCondition);
     }
 
+    /// <summary>Grammatikregel <c>doClause</c> → <see cref="DoClauseSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// doClause ::= "do" identifierOrString
+    /// ]]></code>
+    /// </remarks>
     DoClauseSyntax ParseDoClause() {
 
         var keyword            = Eat(SyntaxTokenType.DoKeyword);
@@ -712,6 +1020,12 @@ sealed class NavParser {
 
     #region Code Declarations
 
+    /// <summary>Grammatikregel <c>codeNotImplementedDeclaration</c> → <see cref="CodeNotImplementedDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeNotImplementedDeclaration ::= "[" "notimplemented" "]"
+    /// ]]></code>
+    /// </remarks>
     CodeNotImplementedDeclarationSyntax ParseCodeNotImplementedDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -727,6 +1041,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeDoNotInjectDeclaration</c> → <see cref="CodeDoNotInjectDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeDoNotInjectDeclaration ::= "[" "donotinject" "]"
+    /// ]]></code>
+    /// </remarks>
     CodeDoNotInjectDeclarationSyntax ParseCodeDoNotInjectDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -742,6 +1062,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeAbstractMethodDeclaration</c> → <see cref="CodeAbstractMethodDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeAbstractMethodDeclaration ::= "[" "abstractmethod" "]"
+    /// ]]></code>
+    /// </remarks>
     CodeAbstractMethodDeclarationSyntax ParseCodeAbstractMethodDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -757,6 +1083,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeDeclaration</c> → <see cref="CodeDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeDeclaration ::= "[" "code" StringLiteral* "]"
+    /// ]]></code>
+    /// </remarks>
     CodeDeclarationSyntax ParseCodeDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -790,6 +1122,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeBaseDeclaration</c> → <see cref="CodeBaseDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeBaseDeclaration ::= "[" "base" codeType ( ":" codeType ( "," codeType )? )? "]"
+    /// ]]></code>
+    /// </remarks>
     CodeBaseDeclarationSyntax ParseCodeBaseDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -825,6 +1163,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeGenerateToDeclaration</c> → <see cref="CodeGenerateToDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeGenerateToDeclaration ::= "[" "generateto" StringLiteral "]"
+    /// ]]></code>
+    /// </remarks>
     CodeGenerateToDeclarationSyntax ParseCodeGenerateToDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -842,6 +1186,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeParamsDeclaration</c> → <see cref="CodeParamsDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeParamsDeclaration ::= "[" "params" parameterList? "]"
+    /// ]]></code>
+    /// </remarks>
     CodeParamsDeclarationSyntax ParseCodeParamsDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
@@ -860,6 +1210,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>codeResultDeclaration</c> → <see cref="CodeResultDeclarationSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeResultDeclaration ::= "[" "result" parameter "]"
+    /// ]]></code>
+    /// </remarks>
     CodeResultDeclarationSyntax ParseCodeResultDeclaration() {
 
         var open      = Eat(SyntaxTokenType.OpenBracket);
@@ -880,6 +1236,12 @@ sealed class NavParser {
 
     #region ParameterList / Parameter
 
+    /// <summary>Grammatikregel <c>parameterList</c> → <see cref="ParameterListSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// parameterList ::= parameter ( "," parameter )*
+    /// ]]></code>
+    /// </remarks>
     ParameterListSyntax ParseParameterList() {
 
         var parameters = new List<ParameterSyntax> { ParseParameter() };
@@ -905,6 +1267,13 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>parameter</c> → <see cref="ParameterSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// parameter ::= codeType Identifier?
+    /// ]]></code>
+    /// Das optionale <c>Identifier</c> ist der Parametername.
+    /// </remarks>
     ParameterSyntax ParseParameter() {
 
         var type = ParseCodeType();
@@ -921,6 +1290,18 @@ sealed class NavParser {
 
     #region CodeType
 
+    /// <summary>Grammatikregel <c>codeType</c> → <see cref="CodeTypeSyntax"/> (deckt auch <c>arrayType</c> ab).</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// codeType   ::= simpleType
+    ///              | genericType
+    ///              | arrayType
+    /// arrayType  ::= ( simpleType | genericType ) arrayRankSpecifier+
+    /// ]]></code>
+    /// Die Regel <c>arrayType</c> ist hier eingefaltet: zuerst wird der Basistyp geparst (<c>Identifier</c> +
+    /// <c>&lt;</c> ⇒ <c>genericType</c>, sonst <c>simpleType</c>); folgt ein <c>[</c> <c>]</c>, entsteht ein
+    /// <see cref="ArrayTypeSyntax"/> mit einem oder mehreren <c>arrayRankSpecifier</c>.
+    /// </remarks>
     CodeTypeSyntax ParseCodeType() {
 
         CodeTypeSyntax baseType = At(SyntaxTokenType.Identifier) && PeekType(1) == SyntaxTokenType.LessThan
@@ -944,6 +1325,13 @@ sealed class NavParser {
         return baseType;
     }
 
+    /// <summary>Grammatikregel <c>simpleType</c> → <see cref="SimpleTypeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// simpleType ::= Identifier "?"?
+    /// ]]></code>
+    /// Das optionale <c>?</c> markiert einen Nullable-Typ.
+    /// </remarks>
     SimpleTypeSyntax ParseSimpleType() {
 
         var identifier   = Eat(SyntaxTokenType.Identifier);
@@ -957,6 +1345,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>genericType</c> → <see cref="GenericTypeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// genericType ::= Identifier "<" codeType ( "," codeType )* ">"
+    /// ]]></code>
+    /// </remarks>
     GenericTypeSyntax ParseGenericType() {
 
         var identifier = Eat(SyntaxTokenType.Identifier);
@@ -993,6 +1387,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>arrayRankSpecifier</c> → <see cref="ArrayRankSpecifierSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// arrayRankSpecifier ::= "[" "]"
+    /// ]]></code>
+    /// </remarks>
     ArrayRankSpecifierSyntax ParseArrayRankSpecifier() {
 
         var open  = Eat(SyntaxTokenType.OpenBracket);
@@ -1010,6 +1410,15 @@ sealed class NavParser {
 
     #region IdentifierOrString
 
+    /// <summary>Grammatikregel <c>identifierOrString</c> → <see cref="IdentifierOrStringSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// identifierOrString ::= identifier      (* Identifier *)
+    ///                      | stringLiteral   (* StringLiteral *)
+    /// ]]></code>
+    /// Steht weder ein <c>Identifier</c> noch ein <c>StringLiteral</c> an, liefert die Methode <c>null</c>
+    /// (der aufrufende Knoten entsteht dann ohne diesen Bestandteil).
+    /// </remarks>
     IdentifierOrStringSyntax ParseIdentifierOrString() {
         if (At(SyntaxTokenType.Identifier)) {
             return ParseIdentifier();
@@ -1022,6 +1431,12 @@ sealed class NavParser {
         return null;
     }
 
+    /// <summary>Grammatikregel <c>identifier</c> → <see cref="IdentifierSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// identifier ::= Identifier
+    /// ]]></code>
+    /// </remarks>
     IdentifierSyntax ParseIdentifier() {
         var identifier = Eat(SyntaxTokenType.Identifier);
         var node       = new IdentifierSyntax(Span(identifier));
@@ -1029,6 +1444,12 @@ sealed class NavParser {
         return node;
     }
 
+    /// <summary>Grammatikregel <c>stringLiteral</c> → <see cref="StringLiteralSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// stringLiteral ::= StringLiteral
+    /// ]]></code>
+    /// </remarks>
     StringLiteralSyntax ParseStringLiteral() {
         var literal = Eat(SyntaxTokenType.StringLiteral);
         var node    = new StringLiteralSyntax(Span(literal));
