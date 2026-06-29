@@ -21,9 +21,22 @@ namespace Pharmatechnik.Nav.Language;
 /// Durchlauf an die Wurzel gehängt — dasselbe beobachtbare Verhalten wie die bisherige ANTLR-Pipeline.
 /// <para/>
 /// Die Struktur folgt 1:1 der bisherigen Grammatik/dem Visitor: jede <c>Parse*</c>-Methode entspricht einer
-/// Grammatikregel. Fehlertolerante Recovery (Missing-/Skipped-Token, Sync-Sets, Diagnostics-Parität) ist
-/// bewusst noch nicht enthalten und folgt in einem eigenen Schritt; dieser Parser bildet den wohlgeformten
-/// Fall ab.
+/// Grammatikregel.
+/// <para/>
+/// Der Parser ist fehlertolerant. Zwei Mechanismen sorgen dafür, dass jede Eingabe — auch eine
+/// unvollständige — einen vollständigen Baum ergibt und <b>kein Zeichen verloren geht</b>:
+/// <list type="number">
+///   <item><description><b>Insertion</b> — fehlt ein erwartetes Token, synthetisiert <see cref="Eat"/>
+///   ein nullbreites Missing-Token (es landet nicht im Token-Strom), meldet eine Diagnose und rückt
+///   <i>nicht</i> vor.</description></item>
+///   <item><description><b>Deletion</b> — steht an einer Stelle ein unerwartetes Token, überspringt es
+///   der Panic-Mode (<see cref="Recover"/>) bis zu einem Wiedereinstiegs- oder äußeren Anker-Token, mit
+///   garantiertem Fortschritt je Schleifendurchlauf. Übersprungene signifikante Token werden — wie die
+///   Trivia — abschließend als <see cref="TextClassification.Skiped"/>-Token an die Wurzel gehängt.</description></item>
+/// </list>
+/// Da der handgeschriebene Parser hier bewusst andere (oft knappere) Diagnosen liefern darf als die
+/// bisherige ANTLR-Pipeline, wird die Recovery nicht differentiell gegen ANTLR, sondern über einen
+/// eigenen Golden-Satz abgesichert.
 /// </summary>
 sealed class NavParser {
 
@@ -70,9 +83,17 @@ sealed class NavParser {
             }
         }
 
-        while (At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword)) {
+        while (!AtEof) {
             cancellationToken.ThrowIfCancellationRequested();
-            members.Add(ParseMemberDeclaration());
+
+            if (At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword)) {
+                members.Add(ParseMemberDeclaration());
+                continue;
+            }
+
+            // Auf Top-Level gibt es keinen äußeren Anker: alles, was kein Member beginnt, wird bis zum
+            // nächsten Member oder zum Dateiende übersprungen.
+            Recover(() => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof);
         }
 
         var rootStart  = _firstSignificantStart ?? _eofPos;
@@ -171,11 +192,21 @@ sealed class NavParser {
         var notImplemented = AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword)  ? ParseCodeNotImplementedDeclaration()  : null;
         var result         = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)          ? ParseCodeResultDeclaration()          : null;
 
+        Recover(() => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
 
         var connectionPoints = new List<ConnectionPointNodeSyntax>();
-        while (At(SyntaxTokenType.InitKeyword) || At(SyntaxTokenType.ExitKeyword) || At(SyntaxTokenType.EndKeyword)) {
-            connectionPoints.Add(ParseConnectionPointNodeDeclaration());
+        while (true) {
+            if (StartsConnectionPoint()) {
+                connectionPoints.Add(ParseConnectionPointNodeDeclaration());
+                continue;
+            }
+
+            if (BreaksBody()) {
+                break;
+            }
+
+            Recover(() => StartsConnectionPoint() || BreaksBody());
         }
 
         var close = Eat(SyntaxTokenType.CloseBrace);
@@ -215,6 +246,7 @@ sealed class NavParser {
         var codeParams = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)     ? ParseCodeParamsDeclaration()     : null;
         var result     = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)     ? ParseCodeResultDeclaration()     : null;
 
+        Recover(() => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
 
         var nodeBlock       = ParseNodeDeclarationBlock();
@@ -412,16 +444,26 @@ sealed class NavParser {
         var exitTransitions = new List<ExitTransitionDefinitionSyntax>();
         var span            = new ExtentBuilder();
 
-        while (StartsTransition()) {
-            if (At(SyntaxTokenType.Identifier) && PeekType(1) == SyntaxTokenType.Colon) {
-                var exit = ParseExitTransitionDefinition();
-                exitTransitions.Add(exit);
-                span.Add(exit);
-            } else {
-                var transition = ParseTransitionDefinition();
-                transitions.Add(transition);
-                span.Add(transition);
+        while (true) {
+            if (StartsTransition()) {
+                if (At(SyntaxTokenType.Identifier) && PeekType(1) == SyntaxTokenType.Colon) {
+                    var exit = ParseExitTransitionDefinition();
+                    exitTransitions.Add(exit);
+                    span.Add(exit);
+                } else {
+                    var transition = ParseTransitionDefinition();
+                    transitions.Add(transition);
+                    span.Add(transition);
+                }
+
+                continue;
             }
+
+            if (BreaksBody()) {
+                break;
+            }
+
+            Recover(() => StartsTransition() || BreaksBody());
         }
 
         return new TransitionDefinitionBlockSyntax(span.ToExtent(), transitions, exitTransitions);
@@ -433,9 +475,18 @@ sealed class NavParser {
 
     TransitionDefinitionSyntax ParseTransitionDefinition() {
 
-        var source    = ParseSourceNode();
-        var edge      = StartsEdge()       ? ParseEdge()            : null;
-        var target    = StartsTargetNode() ? ParseTargetNode()      : null;
+        var source = ParseSourceNode();
+
+        var edge = StartsEdge() ? ParseEdge() : null;
+        if (edge == null) {
+            ReportMissing("edge");
+        }
+
+        var target = StartsTargetNode() ? ParseTargetNode() : null;
+        if (target == null && edge != null) {
+            ReportMissing("target node");
+        }
+
         var trigger   = StartsTrigger()    ? ParseTrigger()         : null;
         var condition = StartsCondition()  ? ParseConditionClause() : null;
         var doClause  = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
@@ -455,8 +506,17 @@ sealed class NavParser {
         var source    = ParseIdentifierSourceNode();
         var colon     = Eat(SyntaxTokenType.Colon);
         var name      = Eat(SyntaxTokenType.Identifier);
-        var edge      = StartsEdge()       ? ParseEdge()            : null;
-        var target    = StartsTargetNode() ? ParseTargetNode()      : null;
+
+        var edge = StartsEdge() ? ParseEdge() : null;
+        if (edge == null) {
+            ReportMissing("edge");
+        }
+
+        var target = StartsTargetNode() ? ParseTargetNode() : null;
+        if (target == null && edge != null) {
+            ReportMissing("target node");
+        }
+
         var condition = StartsCondition()  ? ParseConditionClause() : null;
         var doClause  = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
 
@@ -984,8 +1044,26 @@ sealed class NavParser {
 
     bool At(SyntaxTokenType type) => At0 == type;
 
+    bool AtEof => At0 == SyntaxTokenType.EndOfFile;
+
     bool AtCodeDeclaration(SyntaxTokenType keyword) {
         return At(SyntaxTokenType.OpenBracket) && PeekType(1) == keyword;
+    }
+
+    bool StartsConnectionPoint() {
+        return At(SyntaxTokenType.InitKeyword) || At(SyntaxTokenType.ExitKeyword) || At(SyntaxTokenType.EndKeyword);
+    }
+
+    /// <summary>
+    /// Äußere Anker eines Task-Körpers: das schließende <c>}</c> sowie der Beginn eines neuen Top-Level-
+    /// Members (<c>task</c>/<c>taskref</c>) und das Dateiende. An diesen Token bricht lokale Recovery ab und
+    /// überlässt das Token der äußeren Regel (gestaffelte Sync-Sets), statt die äußere Struktur mitzureißen.
+    /// </summary>
+    bool BreaksBody() {
+        return At(SyntaxTokenType.CloseBrace)    ||
+               At(SyntaxTokenType.TaskKeyword)   ||
+               At(SyntaxTokenType.TaskrefKeyword) ||
+               AtEof;
     }
 
     /// <summary>Typ des n-ten parser-sichtbaren Tokens ab der aktuellen Position (Trivia übersprungen).</summary>
@@ -1009,10 +1087,16 @@ sealed class NavParser {
 
     /// <summary>
     /// Konsumiert das aktuelle Token, wenn es <paramref name="type"/> entspricht, und rückt auf das nächste
-    /// sichtbare Token vor. Sonst <c>null</c> (Recovery folgt in einem eigenen Schritt).
+    /// sichtbare Token vor. Andernfalls (Insertion-Recovery) wird ein nullbreites Missing-Token
+    /// synthetisiert: es kommt <i>nicht</i> in den Token-Strom (<c>null</c>-Rückgabe trägt nichts zum
+    /// Extent bei), es wird eine Diagnose an der Einfügestelle gemeldet, und der Cursor rückt
+    /// <b>nicht</b> vor. Alle optionalen Aufrufstellen sind durch ein vorheriges <see cref="At"/>
+    /// abgesichert und erreichen den Fehlerzweig daher nie — so meldet nur ein wirklich fehlendes
+    /// Pflicht-Token.
     /// </summary>
     RawToken? Eat(SyntaxTokenType type) {
         if (At0 != type) {
+            ReportMissing(Describe(type));
             return null;
         }
 
@@ -1032,6 +1116,67 @@ sealed class NavParser {
     }
 
     /// <summary>
+    /// Panic-Mode (Deletion-Recovery): überspringt das aktuelle und alle folgenden signifikanten Token, bis
+    /// <paramref name="recovered"/> zutrifft — also ein Wiedereinstiegs- oder äußeres Anker-Token (inkl.
+    /// Dateiende) erreicht ist. Die übersprungenen Token werden hier nur überlesen; an die Wurzel gehängt
+    /// werden sie — als <see cref="TextClassification.Skiped"/> — erst in <see cref="AttachNonSignificantTokens"/>
+    /// (nichts geht verloren, der Round-Trip bleibt vollständig). Pro Lauf wird genau eine Diagnose an der
+    /// ersten übersprungenen Stelle gemeldet. Fortschritts-Garantie: trifft <paramref name="recovered"/> nicht
+    /// schon zu Beginn zu, rückt der Aufruf um mindestens ein signifikantes Token vor — Listen-Schleifen können
+    /// also nicht endlos drehen.
+    /// </summary>
+    void Recover(Func<bool> recovered) {
+        if (recovered()) {
+            return;
+        }
+
+        ReportUnexpected(TextExtent.FromBounds(CurrentStart, CurrentEnd), CurrentText);
+
+        do {
+            _firstSignificantStart ??= CurrentStart;
+            _pos++;
+            SkipHidden();
+        } while (!recovered());
+    }
+
+    int CurrentStart => _pos < _raw.Length ? _raw[_pos].Extent.Start : _eofPos;
+    int CurrentEnd   => _pos < _raw.Length ? _raw[_pos].Extent.End   : _eofPos;
+
+    string CurrentText => _sourceText.Substring(TextExtent.FromBounds(CurrentStart, CurrentEnd));
+
+    /// <summary>Meldet ein fehlendes Pflicht-Token (Insertion) nullbreit an der aktuellen Cursor-Position.</summary>
+    void ReportMissing(string what) {
+        var at = TextExtent.FromBounds(CurrentStart, CurrentStart);
+        _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(at),
+                                        DiagnosticDescriptors.NewSyntaxError($"missing {what}")));
+    }
+
+    /// <summary>Meldet ein unerwartetes (übersprungenes) Token (Deletion) über dessen Extent.</summary>
+    void ReportUnexpected(TextExtent extent, string text) {
+        _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(extent),
+                                        DiagnosticDescriptors.NewSyntaxError($"unexpected input '{text}'")));
+    }
+
+    /// <summary>Lesbare Bezeichnung eines erwarteten Tokens für „missing …"-Diagnosen.</summary>
+    static string Describe(SyntaxTokenType type) {
+        switch (type) {
+            case SyntaxTokenType.Semicolon:     return "';'";
+            case SyntaxTokenType.OpenBrace:     return "'{'";
+            case SyntaxTokenType.CloseBrace:    return "'}'";
+            case SyntaxTokenType.OpenBracket:   return "'['";
+            case SyntaxTokenType.CloseBracket:  return "']'";
+            case SyntaxTokenType.Colon:         return "':'";
+            case SyntaxTokenType.Comma:         return "','";
+            case SyntaxTokenType.LessThan:      return "'<'";
+            case SyntaxTokenType.GreaterThan:   return "'>'";
+            case SyntaxTokenType.Questionmark:  return "'?'";
+            case SyntaxTokenType.Identifier:    return "identifier";
+            case SyntaxTokenType.StringLiteral: return "string literal";
+            default:                            return $"'{type}'";
+        }
+    }
+
+    /// <summary>
     /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten Token an die Wurzel:
     /// Trivia (Whitespace/Zeilenende/Kommentare), unbekannte Zeichen, Präprozessor-Token und das
     /// abschließende <see cref="SyntaxTokenType.EndOfFile"/>. Reproduziert die Token-Zuordnung der
@@ -1040,14 +1185,24 @@ sealed class NavParser {
     /// <c>PostprocessTokens</c>.
     /// </summary>
     void AttachNonSignificantTokens(SyntaxNode root) {
+
+        // Vom Parser bereits an Knoten gehängte (signifikante) Token — anhand ihrer eindeutigen
+        // Start-Position. Token überlappen nie, daher ist die Start-Position ein sicherer Identitätsschlüssel.
+        var consumedStarts = new HashSet<int>();
+        foreach (var token in _tokens) {
+            consumedStarts.Add(token.Start);
+        }
+
         foreach (var raw in _raw) {
-            if (!TryClassifyNonSignificant(raw.Type, out var classification)) {
-                continue;
+            if (TryClassifyNonSignificant(raw.Type, out var classification)) {
+                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root));
+
+                ReportLexicalDiagnostics(raw);
+            } else if (!consumedStarts.Contains(raw.Extent.Start)) {
+                // Signifikantes Token, das der Parser nicht konsumiert hat (Panic-Mode-Skip): wie die Trivia
+                // als Skiped-Token an die Wurzel — so deckt der Token-Strom lückenlos den ganzen Text ab.
+                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, TextClassification.Skiped, root));
             }
-
-            _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root));
-
-            ReportLexicalDiagnostics(raw);
         }
     }
 

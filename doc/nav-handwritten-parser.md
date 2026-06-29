@@ -231,12 +231,35 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
 2. **Recursive-Descent-Parser**, der direkt die immutable Nodes baut (Visitor-Logik 1:1), Trivia
    gleich mit anhängen; flaches Token-Modell beibehalten. — **erledigt (Schritt A, Happy Path)**
    (`Nav.Language\Syntax\NavParser.cs`, Gate `NavParserDifferentialTests`).
-3. Error-Recovery + Diagnostics-Parität; Golden-/Snapshot-Tests als Gate. — **als Nächstes (Schritt B)**.
+3. Error-Recovery + Diagnostics-Parität; Golden-/Snapshot-Tests als Gate. — **erledigt (Schritt B)**:
+   B1 (lexikalische Diagnostics `Nav0000`/`Nav3000`/`Nav3001`) **erledigt** (Commit `e0d35c99`);
+   B2 (Golden-Verifikationsstrang für den Handparser, `*.hand.*`) **erledigt**; B3 (Error-Recovery:
+   Missing-/Skipped-Token, gestaffelte Sync-Sets, missing edge/target) inkl. Tipp-Präfix-Robustheit
+   **erledigt**.
 4. *(Später, separat)* Trivia-Modell auf angehängt + strukturiert; Direktiven als strukturierte Trivia.
+5. **Cutover (Schritt C):** `SyntaxTree.ParseText` auf den Handparser umstellen, ANTLR ausbauen.
 
 ---
 
-## Stand & Handoff (Schritt A erledigt → Schritt B als Nächstes)
+## Stand & Handoff (Schritt A + B erledigt → Cutover (Schritt C) als Nächstes)
+
+> **Schritt B vollständig erledigt.** Der Handparser ist jetzt fehlertolerant: `Eat` synthetisiert
+> bei fehlendem Pflicht-Token ein nullbreites Missing-Token + Diagnose (Insertion, kein Vorrücken);
+> der Panic-Mode `Recover` überspringt unerwartete Token bis zu einem Wiedereinstiegs- oder äußeren
+> Anker-Token (`BreaksBody`: `}`/`task`/`taskref`/EOF) mit garantiertem Fortschritt (Deletion);
+> übersprungene signifikante Token hängt `AttachNonSignificantTokens` — wie die Trivia — als
+> `Skiped`-Token an die Wurzel (Round-Trip bleibt lückenlos). „missing edge"/„missing target node"
+> sind in `ParseTransitionDefinition`/`ParseExitTransitionDefinition` nachgebildet. Abgesichert über
+> den **Golden-Strang `NavParserGoldenTests`** (`*.hand.tokens/.hand.tree/.hand.diag`, [Explicit]
+> `UpdateGolden`) plus **Tipp-Präfix-Robustheit** (jedes Präfix parst ohne Exception und round-trippt).
+> Der Handparser liefert dabei bewusst **knappere** Diagnosen als ANTLR (eine treffende Meldung statt
+> Kaskaden) und bei `StringsAndGenerics` sogar den **besseren Baum** (Body + zweiter Task erkannt,
+> nur der ungültige Kopf-`[params …]` als Skiped). `SyntaxTree.ParseText` läuft weiterhin auf ANTLR —
+> Umstellung erst beim Cutover (Schritt C). Beide TFMs grün.
+>
+> **Offener Review-Punkt:** Bei `PrematureEof` (`I1 -->`⟂EOF) meldet der Handparser drei kaskadierende
+> „missing" (target node / `;` / `}`) an derselben EOF-Position — korrekt, aber etwas geschwätzig
+> (ANTLR coalesct auf zwei). Bewusste, reviewbare Entscheidung; bei Bedarf leicht zu entschärfen.
 
 ### Was steht (Schritt A)
 
@@ -284,23 +307,55 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    dann `Nav3000`. Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
    und stellt nur noch Dateien mit ANTLR-**Parser**-Recovery (`Nav0002`) zurück — die beiden reinen
    Präprozessor-Dateien (`PreprocessorDirective.nav`, `PreprocessorNotAtLineStart.nav`) laufen voll mit.
-2. **`Eat` umbauen:** bei Mismatch heute `null` ohne Vorrücken → künftig zero-width
-   `SyntaxToken.Missing` + Diagnose, **kein** Vorrücken (Insertion). Plus `SkipTo`/Panic-Mode, der
-   überzählige Token als `Skiped`-Trivia konsumiert (Deletion) + Diagnose, mit garantiertem Fortschritt.
-3. **Gestaffelte Sync-/Anchor-Sets:** `;` lokal, `}`/`task`/`taskref` der äußeren Regel überlassen
-   (Anchor-Stack wie Roslyns C#-Parser). Listen-Schleifen brauchen die Fortschritts-Garantie
-   (mind. ein Token pro Durchlauf) — heute implizit erfüllt, nach dem Umbau explizit absichern.
-4. **Die zwei `NotifyErrorListeners`-Fälle** aus `NavGrammar.g4` `transitionDefinition` nachbilden:
-   „missing edge" (nur `sourceNode`) und „missing target node" (`sourceNode edge` ohne Ziel).
-5. **Gate erweitern** (`NavParserDifferentialTests`): die heute via `Assert.Ignore` übersprungenen
-   kaputten Korpus-Dateien einbeziehen; zusätzlich einen **Tipp-Präfix-Test** (jedes Präfix jeder
-   Datei muss matchen) wie in `NavLexerDifferentialTests`.
+2. **`Eat` umgebaut — erledigt (B3):** bei Mismatch meldet `Eat` jetzt `missing '<token>'` (Insertion)
+   und rückt **nicht** vor; die `null`-Rückgabe trägt nichts zum Extent bei (kein Token im Strom). Plus
+   Panic-Mode `Recover(Func<bool> recovered)` (Deletion): überspringt unerwartete Token bis zum
+   Wiedereinstiegs-/Anker-Token, meldet `unexpected input '<token>'` einmal je Lauf, garantiert
+   Fortschritt. Übersprungene signifikante Token werden nicht beim Skippen, sondern abschließend in
+   `AttachNonSignificantTokens` als `Skiped`-Token an die Wurzel gehängt (Reconciliation über die
+   Start-Position — nichts geht verloren, Round-Trip lückenlos).
+3. **Gestaffelte Sync-/Anchor-Sets — erledigt (B3):** `BreaksBody()` (= `}`/`task`/`taskref`/EOF) ist
+   der äußere Anker jeder Body-Schleife (Connection-Points, Transitionen); lokale Recovery überlässt
+   diese Token der äußeren Regel. Die Listen-Schleifen (`memberDeclaration*`, Connection-Points,
+   Transitionen) prüfen je Durchlauf erst Start, dann Anker, sonst `Recover` — Fortschritt ist über
+   die `Recover`-Garantie sichergestellt. Vor dem Body-`{` überspringt ein gezielter `Recover` bis zum
+   `{`/Body-Start/Anker (so wird z.B. ein ungültiges `[params …]` im Task-Kopf geskippt, der echte
+   Body aber geparst).
+4. **Die zwei `NotifyErrorListeners`-Fälle — erledigt (B3):** `missing edge` (Source ohne Kante) und
+   `missing target node` (Kante ohne Ziel) in `ParseTransitionDefinition` **und** — symmetrisch —
+   `ParseExitTransitionDefinition`.
+5. **Verifikationsstrategie für die Recovery — erledigt (B2):** zweiter Golden-Satz `*.hand.tokens/`
+   `.hand.tree/.hand.diag` über `NavParserGoldenTests` (Klon von `SyntaxGoldenTests`, gespeist von
+   `NavParser.Parse`, [Explicit] `UpdateGolden`). `NavParserDifferentialTests` bleibt das Gate für den
+   Bereich `hand == ANTLR` (wohlgeformt + lexikalisch; `Nav0002`-Dateien via `Assert.Ignore`); die
+   `.hand.*` pinnen den divergenten Recovery-Output. Die `.hand.*` werden von den bestehenden
+   csproj-Content-Globs (`**\*.tokens` usw.) und der `.gitattributes` (`-text`) automatisch miterfasst.
+6. **Tipp-Präfix-Test — erledigt (B3b):** `NavParserGoldenTests.ParsesAndRoundTripsAllTypingPrefixes` —
+   jedes Präfix jeder Korpus-Datei parst ohne Exception und round-trippt lückenlos (kein
+   ANTLR-Vergleich, da Recovery divergiert). Dazu der korpusweite `TokenStreamRoundTrips`.
 
 > **Erwartung:** An den `.diag`-Golden (`Syntax\Tests\*.nav.diag`) wird es **bewusste, reviewbare
 > Diffs** geben — der Handparser darf bessere Meldungen liefern als ANTLR. Diffs gemeinsam prüfen,
 > nicht blind übernehmen. ANTLR liefert z.B. `Nav0002 no viable alternative` (so in `StringsAndGenerics.nav`
 > bei `taskref … [params …]` und massenhaft in `LargeNav.nav`) — diese ANTLR-spezifischen Meldungen sind
 > *nicht* 1:1-Ziel.
+
+### Korpus-Baseline (in Session zu B1 gemessen — Beleg, dass der Ansatz trägt)
+
+Ad-hoc-Lauf über **alle 1912 `.nav` unter `D:\tfs\Main`** (temporärer `[Explicit]`-Harness im
+Testprojekt, danach wieder entfernt — `NavParser.Parse` vs. `SyntaxTree.ParseText`):
+
+- **0 Abstürze** im Handparser über den gesamten Korpus.
+- **0 unerwartete Abweichungen**: Für **alle** Dateien ohne ANTLR-`Nav0002` (1908 Stück) sind Baum,
+  Token-Strom, Diagnostics **und** Round-Trip byte-identisch zu ANTLR. Nur die 4 `Nav0002`-Dateien
+  weichen ab (= die noch ausstehende Parser-Recovery).
+- **Performance ~2x**: net10.0 Release ANTLR 251 ms vs. Handparser 122 ms je Volllauf (Debug
+  611 ms vs. 304 ms) — der Gewinn kommt aus dem Wegfall von Visitor + `PostprocessTokens`-Reconciliation.
+
+So lässt sich der Lauf reproduzieren: `[Explicit]`-NUnit-Test im Testprojekt, der den Korpus
+rekursiv einliest (Endung exakt `.nav`), je Datei beide Parser aufruft, Ausnahmen sammelt, die
+Dump-Helfer aus `NavParserDifferentialTests` zum Vergleich nutzt und mit `Stopwatch` (Warmup + 3
+Iterationen) misst.
 
 ### Verifikation (beide TFMs Pflicht)
 

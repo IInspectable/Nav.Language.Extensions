@@ -1,0 +1,4 @@
+﻿CodeGenerationUnitSyntax [0-14]  {Whitespace, NewLine, NewLine, NewLine, EndOfFile}
+  TaskDefinitionSyntax [0-12]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax <missing>
+    TransitionDefinitionBlockSyntax <missing>
