@@ -2,7 +2,7 @@
 //==================================================
 // HINWEIS: Diese Datei wurde ursprünglich aus Syntax.Generated.tt generiert; seit der Umstellung des
 //			Whole-File-Parsings auf den handgeschriebenen NavParser wird sie von Hand gepflegt
-//			(die T4-Vorlage wurde stillgelegt).
+//			(die T4-Vorlage wurde stillgelegt, die Datei aus dem Generated-Ordner herausgelöst).
 //==================================================
 namespace Pharmatechnik.Nav.Language {
 

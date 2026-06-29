@@ -279,10 +279,11 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
 
 ### Verbleibend in Schritt C (Arbeit für die nächste Session)
 
-1. **Rename `Syntax.Generated.cs`** — der Name passt nicht mehr (nicht mehr generiert). Vorschlag:
-   nach `Nav.Language\Syntax\Syntax.cs` (raus aus dem `Generated\`-Ordner, da dort nur noch echte
-   Generate liegen). Namespace `Pharmatechnik.Nav.Language` beibehalten; SDK-Glob zieht die Datei
-   automatisch — keine csproj-Compile-Einträge nötig.
+1. **Rename `Syntax.Generated.cs` — erledigt.** Per `git mv` nach `Nav.Language\Syntax\Syntax.cs`
+   verschoben (raus aus dem `Generated\`-Ordner, da dort nur noch echte Generate liegen). Namespace
+   `Pharmatechnik.Nav.Language` unverändert; der SDK-Glob zieht die Datei automatisch (keine
+   csproj-Compile-Einträge nötig — es gab auch keine). Header-Kommentar angepasst. Beide TFMs grün
+   (net10 1099/0, net472 1099/0).
 2. **ANTLR-Ausbau (der Rest):**
    - **Per-Regel-Einstiege auf den Handparser heben:** `NavParser` braucht per-Regel-Einstiege
      (uniformer Wrapper: Cursor aufsetzen → private `Parse*` rufen → Rest als nicht-signifikant an die
