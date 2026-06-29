@@ -440,7 +440,7 @@ sealed class NavParser {
     InitNodeDeclarationSyntax ParseInitNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.InitKeyword);
-        var name    = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : (RawToken?) null;
+        var name    = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : null;
 
         var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
         var codeParams     = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)         ? ParseCodeParamsDeclaration()         : null;
@@ -512,7 +512,7 @@ sealed class NavParser {
 
         var keyword = Eat(SyntaxTokenType.TaskKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
-        var alias   = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : (RawToken?) null;
+        var alias   = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : null;
 
         var doNotInject    = AtCodeDeclaration(SyntaxTokenType.DonotinjectKeyword)    ? ParseCodeDoNotInjectDeclaration()    : null;
         var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
@@ -912,8 +912,8 @@ sealed class NavParser {
     /// </remarks>
     SpontaneousTriggerSyntax ParseSpontaneousTrigger() {
 
-        var spont       = At(SyntaxTokenType.SpontKeyword)       ? Eat(SyntaxTokenType.SpontKeyword)       : (RawToken?) null;
-        var spontaneous = At(SyntaxTokenType.SpontaneousKeyword) ? Eat(SyntaxTokenType.SpontaneousKeyword) : (RawToken?) null;
+        var spont       = At(SyntaxTokenType.SpontKeyword)       ? Eat(SyntaxTokenType.SpontKeyword)       : null;
+        var spontaneous = At(SyntaxTokenType.SpontaneousKeyword) ? Eat(SyntaxTokenType.SpontaneousKeyword) : null;
 
         var node = new SpontaneousTriggerSyntax(Span(spont, spontaneous));
 
@@ -1277,7 +1277,7 @@ sealed class NavParser {
     ParameterSyntax ParseParameter() {
 
         var type = ParseCodeType();
-        var name = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : (RawToken?) null;
+        var name = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : null;
 
         var node = new ParameterSyntax(Span(type, name), type);
 
@@ -1335,7 +1335,7 @@ sealed class NavParser {
     SimpleTypeSyntax ParseSimpleType() {
 
         var identifier   = Eat(SyntaxTokenType.Identifier);
-        var questionmark = At(SyntaxTokenType.Questionmark) ? Eat(SyntaxTokenType.Questionmark) : (RawToken?) null;
+        var questionmark = At(SyntaxTokenType.Questionmark) ? Eat(SyntaxTokenType.Questionmark) : null;
 
         var node = new SimpleTypeSyntax(Span(identifier, questionmark));
 
