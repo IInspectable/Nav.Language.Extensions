@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 
 using JetBrains.Annotations;
@@ -110,11 +111,11 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>
-    /// Für Knoten, die sehr weit "oben" liegen, kann die Implementierung von DescendantNodes&lt;T&gt;
+    /// Fï¿½r Knoten, die sehr weit "oben" liegen, kann die Implementierung von DescendantNodes&lt;T&gt;
     /// massiv beschleunigt werden, wenn sichergestellt werden kann, dass ein Knoten keine untergeordnenten 
     /// Knoten vom selben Typ haben kann, und deshalb die Suche in den Kindknoten vorzeitig abgebrochen
     /// werden kann.
-    /// Eigentlich müsste diese Eigenschaft systematisch überschrieben werden. Bisweilen werden hiermit nur
+    /// Eigentlich mï¿½sste diese Eigenschaft systematisch ï¿½berschrieben werden. Bisweilen werden hiermit nur
     /// die Hotspots optimiert.
     /// </summary>
     private protected virtual bool PromiseNoDescendantNodeOfSameType => false;
@@ -156,6 +157,24 @@ public abstract partial class SyntaxNode: IExtent {
         return TextExtent.FromBounds(GetLeadingTriviaExtent(onlyWhiteSpace).Start, GetTrailingTriviaExtent(onlyWhiteSpace).End);
     }
 
+    /// <summary>
+    /// Die Leading-Trivia dieses Knotens â€” abgeleitet aus dem <b>ersten</b> signifikanten Token (echtes
+    /// Roslyn-Modell). Hat der Knoten keine eigenen Token, ist sie leer.
+    /// </summary>
+    public ImmutableArray<SyntaxTrivia> GetLeadingTrivia() {
+        var first = ChildTokens().FirstOrDefault();
+        return first.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : first.LeadingTrivia;
+    }
+
+    /// <summary>
+    /// Die Trailing-Trivia dieses Knotens â€” abgeleitet aus dem <b>letzten</b> signifikanten Token (echtes
+    /// Roslyn-Modell). Hat der Knoten keine eigenen Token, ist sie leer.
+    /// </summary>
+    public ImmutableArray<SyntaxTrivia> GetTrailingTrivia() {
+        var last = ChildTokens().LastOrDefault();
+        return last.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : last.TrailingTrivia;
+    }
+
     public TextExtent GetLeadingTriviaExtent(bool onlyWhiteSpace = false) {
         var isTrivia      = GetIsTriviaFunc(onlyWhiteSpace);
         var nodeStartLine = SyntaxTree.SourceText.GetTextLineAtPosition(Start);
@@ -184,7 +203,7 @@ public abstract partial class SyntaxNode: IExtent {
         return TextExtent.FromBounds(start, Start);
     }
 
-    // Die Trailing Trivias gehen bis zum nächsten Token, respektive zum Ende der Zeile
+    // Die Trailing Trivias gehen bis zum nï¿½chsten Token, respektive zum Ende der Zeile
     public TextExtent GetTrailingTriviaExtent(bool onlyWhiteSpace = false) {
 
         var isTrivia       = GetIsTriviaFunc(onlyWhiteSpace);

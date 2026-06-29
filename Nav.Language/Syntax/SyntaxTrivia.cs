@@ -15,23 +15,48 @@ namespace Pharmatechnik.Nav.Language;
 [Serializable]
 public readonly struct SyntaxTrivia: IExtent {
 
+    /// <summary>
+    /// Erzeugt eine Trivia mit ihrem lexikalischen Typ und dem von ihr abgedeckten Quelltext-Ausschnitt.
+    /// </summary>
+    /// <param name="type">Der lexikalische Typ der Trivia (z.B. <see cref="SyntaxTokenType.Whitespace"/>,
+    /// <see cref="SyntaxTokenType.NewLine"/>, <see cref="SyntaxTokenType.SingleLineComment"/>).</param>
+    /// <param name="extent">Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</param>
     public SyntaxTrivia(SyntaxTokenType type, TextExtent extent) {
         Type   = type;
         Extent = extent;
     }
 
-    public SyntaxTokenType Type   { get; }
-    public TextExtent      Extent { get; }
+    /// <summary>Der lexikalische Typ dieser Trivia (Whitespace, Zeilenende oder Kommentar).</summary>
+    public SyntaxTokenType Type { get; }
 
-    public int Start  => Extent.Start;
+    /// <summary>Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</summary>
+    public TextExtent Extent { get; }
+
+    /// <summary>Die Startposition dieser Trivia im Quelltext (inklusiv).</summary>
+    public int Start => Extent.Start;
+
+    /// <summary>Die Länge dieser Trivia in Zeichen.</summary>
     public int Length => Extent.Length;
-    public int End    => Extent.End;
 
-    /// <summary>Der Quelltext dieser Trivia — für Tests und Debug-Ausgaben.</summary>
+    /// <summary>Die Endposition dieser Trivia im Quelltext (exklusiv).</summary>
+    public int End => Extent.End;
+
+    /// <summary>
+    /// Liefert den Quelltext dieser Trivia aus dem übergebenen <paramref name="sourceText"/> — gedacht für
+    /// Tests und Debug-Ausgaben. Da eine Trivia keinen Parent und damit keinen Bezug auf ihren
+    /// <see cref="SourceText"/> hält, muss er hier explizit übergeben werden.
+    /// </summary>
+    /// <param name="sourceText">Der Quelltext, aus dem der Ausschnitt geschnitten wird.</param>
+    /// <returns>Der Quelltext der Trivia, oder <see cref="String.Empty"/>, wenn
+    /// <paramref name="sourceText"/> <c>null</c> ist.</returns>
     public string ToString(SourceText sourceText) {
         return sourceText?.Substring(Extent) ?? String.Empty;
     }
 
+    /// <summary>
+    /// Liefert eine kompakte Kurzform (Ausschnitt und Typ) — ohne den eigentlichen Quelltext, da dieser
+    /// nur mit dem zugehörigen <see cref="SourceText"/> auflösbar ist (siehe <see cref="ToString(SourceText)"/>).
+    /// </summary>
     public override string ToString() {
         return $"{Extent} {Type}";
     }
