@@ -79,6 +79,7 @@ public sealed partial class NavCodeGeneratorPipeline {
 
         var statistic      = new Statistic();
         var generatedFiles = ImmutableArray.CreateBuilder<FileGeneratorResult>();
+        var includedFiles  = ImmutableArray.CreateBuilder<string>();
 
         logger.LogProcessBegin();
 
@@ -107,6 +108,15 @@ public sealed partial class NavCodeGeneratorPipeline {
             logger.LogWarnings(syntax.SyntaxTree.Diagnostics);
             logger.LogWarnings(codeGenerationUnit.Diagnostics);
 
+            // Per taskref eingelesene Abhängigkeitsdateien festhalten. Sie sind selbst keine Eingabe-
+            // dateien des Laufs, fließen aber in den erzeugten Code ein (aufgelöste Task-Deklarationen)
+            // ⇒ der inkrementelle Build muss sie als zusätzliche Inputs tracken. Nav-Includes sind genau
+            // eine Ebene tief (inkludierte Dateien verarbeiten ihre eigenen taskrefs nicht), daher genügt
+            // die direkte Include-Menge — keine transitive Hülle nötig.
+            foreach (var include in codeGenerationUnit.Includes) {
+                includedFiles.Add(include.FileLocation.FilePath);
+            }
+
             // 3. Generate Code
             var codeGenerationResults = codeGenerator.Generate(codeGenerationUnit);
             foreach (var codeGenerationResult in codeGenerationResults) {
@@ -128,7 +138,7 @@ public sealed partial class NavCodeGeneratorPipeline {
 
         return logger.HasLoggedErrors
             ? RunResult.Failed
-            : RunResult.Success(generatedFiles.ToImmutable());
+            : RunResult.Success(generatedFiles.ToImmutable(), includedFiles.ToImmutable());
 
     }
 

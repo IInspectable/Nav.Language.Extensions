@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <UsingTask TaskName="Pharmatechnik.Nav.Language.BuildTasks.Nav" AssemblyFile="Pharmatechnik.Nav.Language.BuildTasks.dll" />
 
@@ -36,6 +36,14 @@
       * Ein Param-Stamp bewegt seine mtime nur bei Änderung content-relevanter Parameter.
       * nav.exe selbst hängt als Input (Templates sind in der Engine eingebettet ⇒ Upgrade
         der Toolchain erzwingt Regen).
+      * Discovered Inputs (Deps-Manifest): nav.exe protokolliert zusätzlich die per taskref
+        eingelesenen Abhängigkeitsdateien, die selbst KEINE GenerateNavCode-Items sind. Der nächste
+        Build liest dieses Manifest und hängt die Pfade als zusätzliche Inputs an — so löst eine
+        Änderung an einer solchen Abhängigkeit korrekt einen Regen aus, statt fälschlich übersprungen
+        zu werden (Depfile-Prinzip wie bei C/C++-Header-Tracking). Beim Erstbuild existiert das
+        Manifest noch nicht ⇒ nur direkte Inputs; der Erstbuild läuft ohnehin (Outputs-Manifest fehlt).
+        Eine neue taskref-Kante erfordert das Editieren der referenzierenden Datei — die ist selbst
+        direkter Input ⇒ Regen ⇒ Deps werden frisch entdeckt.
     Bei NavIncremental=false setzt _NavPrepareAlwaysRun einen Sentinel-Output, der nie existiert
     ⇒ GenerateNavCode läuft immer (= bisheriges Verhalten, abwärtskompatibel). WICHTIG: ein LEERES
     Outputs würde MSBuild das Target überspringen lassen ("Ziel … keine Ausgaben") — deshalb der
@@ -51,6 +59,7 @@
     <!-- Pfade erst hier setzen: IntermediateOutputPath ist zur Ausführungszeit garantiert belegt. -->
     <PropertyGroup>
       <NavManifestFile>$(IntermediateOutputPath)nav.outputs.txt</NavManifestFile>
+      <NavDependencyManifestFile>$(IntermediateOutputPath)nav.inputs.txt</NavDependencyManifestFile>
       <NavParamsFile>$(IntermediateOutputPath)nav.params.txt</NavParamsFile>
       <_NavRanMarker>$(IntermediateOutputPath)nav.ran.marker</_NavRanMarker>
       <_NavToolPath>$(MSBuildThisFileDirectory)nav.exe</_NavToolPath>
@@ -82,9 +91,18 @@
     </ItemGroup>
     <Delete Files="$(NavManifestFile)" Condition="'@(_NavMissingOutput)' != ''" />
 
+    <!-- Discovered Inputs des letzten Laufs einlesen: per taskref eingelesene Abhängigkeitsdateien,
+         die selbst keine GenerateNavCode-Items sind. Als zusätzliche Inputs angehängt ⇒ ihre Änderung
+         löst korrekt einen Regen aus. Ein nicht mehr existierender Eintrag (gelöschte Abhängigkeit)
+         stuft MSBuild als veralteten Input ein ⇒ Regen (sichere Richtung). -->
+    <ReadLinesFromFile File="$(NavDependencyManifestFile)" Condition="Exists('$(NavDependencyManifestFile)')">
+      <Output TaskParameter="Lines" ItemName="_NavDiscoveredInput" />
+    </ReadLinesFromFile>
+
     <ItemGroup>
       <_NavIncrInput  Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)" />
       <_NavIncrInput  Include="$(NavParamsFile);$(_NavToolPath)" />
+      <_NavIncrInput  Include="@(_NavDiscoveredInput)" />
       <!-- Nur das Manifest als Zeitstempel-/Existenz-Output (siehe Kommentar oben). -->
       <_NavIncrOutput Include="$(NavManifestFile)" />
     </ItemGroup>
@@ -113,19 +131,20 @@
       <NavFilesToProcess Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)"/>
     </ItemGroup>
 
-    <Nav Sources              = "@(NavFilesToProcess)"
-         Force                = "$(NavForce)"
-         Strict               = "$(NavStrict)"
-         GenerateToClasses    = "$(NavGenerateToClasses)"
-         GenerateWflClasses   = "$(NavGenerateWflClasses)"
-         GenerateIwflClasses  = "$(NavGenerateIwflClasses)"
-         ProjectRootDirectory = "$(NavProjectRootDirectory)"
-         IwflRootDirectory    = "$(NavIwflRootDirectory)"
-         WflRootDirectory     = "$(NavWflRootDirectory)"
-         UseSyntaxCache       = "$(NavUseSyntaxCache)"
-         FullPaths            = "$(NavFullPaths)"
-         NullableContext      = "$(NavNullableContext)"
-         ManifestFile         = "$(NavManifestFile)" />
+    <Nav Sources                = "@(NavFilesToProcess)"
+         Force                  = "$(NavForce)"
+         Strict                 = "$(NavStrict)"
+         GenerateToClasses      = "$(NavGenerateToClasses)"
+         GenerateWflClasses     = "$(NavGenerateWflClasses)"
+         GenerateIwflClasses    = "$(NavGenerateIwflClasses)"
+         ProjectRootDirectory   = "$(NavProjectRootDirectory)"
+         IwflRootDirectory      = "$(NavIwflRootDirectory)"
+         WflRootDirectory       = "$(NavWflRootDirectory)"
+         UseSyntaxCache         = "$(NavUseSyntaxCache)"
+         FullPaths              = "$(NavFullPaths)"
+         NullableContext        = "$(NavNullableContext)"
+         ManifestFile           = "$(NavManifestFile)"
+         DependencyManifestFile = "$(NavDependencyManifestFile)" />
 
     <!-- Run-Marker setzen: Touch ist ein echter Task und läuft NICHT, wenn das Target übersprungen
          wird. Damit unterscheidet _NavReport zuverlässig "ausgeführt" von "übersprungen". -->

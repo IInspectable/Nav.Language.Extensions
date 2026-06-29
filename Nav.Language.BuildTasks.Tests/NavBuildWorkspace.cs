@@ -25,11 +25,12 @@ sealed class NavBuildWorkspace: IDisposable {
     readonly string _targetsFile;
     readonly List<string> _navFiles = new();
 
-    public string WorkDir      { get; }
-    public string ProjectFile  => Path.Combine(WorkDir, "Fixture.proj");
-    public string ObjDir       => Path.Combine(WorkDir, "obj");
-    public string ManifestFile => Path.Combine(ObjDir, "nav.outputs.txt");
-    public string RanMarker    => Path.Combine(ObjDir, "nav.ran.marker");
+    public string WorkDir                 { get; }
+    public string ProjectFile             => Path.Combine(WorkDir, "Fixture.proj");
+    public string ObjDir                  => Path.Combine(WorkDir, "obj");
+    public string ManifestFile            => Path.Combine(ObjDir, "nav.outputs.txt");
+    public string DependencyManifestFile  => Path.Combine(ObjDir, "nav.inputs.txt");
+    public string RanMarker               => Path.Combine(ObjDir, "nav.ran.marker");
 
     NavBuildWorkspace(string workDir, string msBuildExe, string targetsFile) {
         WorkDir      = workDir;
@@ -59,6 +60,23 @@ sealed class NavBuildWorkspace: IDisposable {
 
         File.Copy(source, dest, overwrite: true);
         _navFiles.Add(dest);
+
+        return dest;
+    }
+
+    /// <summary>
+    /// Kopiert eine .nav-Fixture ins Arbeitsverzeichnis, OHNE sie als GenerateNavCode-Item zu
+    /// registrieren — etwa eine per taskref referenzierte Abhängigkeitsdatei, die selbst keine
+    /// Eingabedatei des Builds ist.
+    /// </summary>
+    public string AddDependencyFile(string fixtureName, string targetName = null) {
+
+        targetName ??= fixtureName;
+
+        var source = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestData", fixtureName);
+        var dest   = Path.Combine(WorkDir, targetName);
+
+        File.Copy(source, dest, overwrite: true);
 
         return dest;
     }
@@ -140,6 +158,9 @@ sealed class NavBuildWorkspace: IDisposable {
 
     public string[] ReadManifest() =>
         File.Exists(ManifestFile) ? File.ReadAllLines(ManifestFile) : Array.Empty<string>();
+
+    public string[] ReadDependencyManifest() =>
+        File.Exists(DependencyManifestFile) ? File.ReadAllLines(DependencyManifestFile) : Array.Empty<string>();
 
     public DateTime ManifestTimestampUtc => File.GetLastWriteTimeUtc(ManifestFile);
 
