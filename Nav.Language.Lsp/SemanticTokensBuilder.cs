@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -63,7 +63,41 @@ static class SemanticTokensBuilder {
         var previousLine      = 0;
         var previousCharacter = 0;
 
+        foreach (var span in CollectSpans(syntaxTree)) {
+
+            foreach (var segment in SplitIntoLineSegments(span)) {
+
+                var deltaLine      = segment.Line - previousLine;
+                var deltaCharacter = deltaLine == 0 ? segment.Character - previousCharacter : segment.Character;
+
+                data.Add(deltaLine);
+                data.Add(deltaCharacter);
+                data.Add(segment.Length);
+                data.Add(span.TokenType);
+                data.Add(0); // keine Modifier
+
+                previousLine      = segment.Line;
+                previousCharacter = segment.Character;
+            }
+        }
+
+        return data.ToArray();
+    }
+
+    // Sammelt die zu kodierenden, klassifizierten Spans in Quelltext-Reihenfolge: die signifikanten Token aus
+    // dem flachen Strom (Trivia übersprungen) plus die Kommentare aus der angehängten Trivia (Roslyn-Modell).
+    // Whitespace/Zeilenenden tragen keine Klassifizierung und entfallen ersatzlos. Das Delta-Encoding verlangt
+    // aufsteigende Positionen — daher abschließend nach Start-Offset sortieren.
+    static List<ClassifiedSpan> CollectSpans(SyntaxTree syntaxTree) {
+
+        var source = syntaxTree.SourceText;
+        var spans  = new List<ClassifiedSpan>();
+
         foreach (var token in syntaxTree.Tokens) {
+
+            if (SyntaxFacts.IsTrivia(token.Classification)) {
+                continue;
+            }
 
             var tokenType = MapTokenType(token.Classification);
             if (tokenType == None || token.IsMissing || token.Length <= 0) {
@@ -75,23 +109,46 @@ static class SemanticTokensBuilder {
                 continue;
             }
 
-            foreach (var segment in SplitIntoLineSegments(token, location)) {
-
-                var deltaLine      = segment.Line - previousLine;
-                var deltaCharacter = deltaLine == 0 ? segment.Character - previousCharacter : segment.Character;
-
-                data.Add(deltaLine);
-                data.Add(deltaCharacter);
-                data.Add(segment.Length);
-                data.Add(tokenType);
-                data.Add(0); // keine Modifier
-
-                previousLine      = segment.Line;
-                previousCharacter = segment.Character;
-            }
+            spans.Add(new ClassifiedSpan(token.Start, token.ToString(), token.Length, tokenType, location));
         }
 
-        return data.ToArray();
+        var commentType = MapTokenType(TextClassification.Comment);
+        foreach (var comment in syntaxTree.Comments()) {
+
+            if (comment.Length <= 0) {
+                continue;
+            }
+
+            var location = source.GetLocation(comment.Extent);
+            if (location == null) {
+                continue;
+            }
+
+            spans.Add(new ClassifiedSpan(comment.Start, comment.ToString(source), comment.Length, commentType, location));
+        }
+
+        spans.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+        return spans;
+    }
+
+    // Ein bereits klassifizierter Quelltext-Ausschnitt (signifikantes Token oder Kommentar-Trivia), aus dem die
+    // Zeilen-Segmente und das Delta-Encoding erzeugt werden.
+    readonly struct ClassifiedSpan {
+
+        public ClassifiedSpan(int start, string text, int length, int tokenType, Location location) {
+            Start     = start;
+            Text      = text;
+            Length    = length;
+            TokenType = tokenType;
+            Location  = location;
+        }
+
+        public int      Start     { get; }
+        public string   Text      { get; }
+        public int      Length    { get; }
+        public int      TokenType { get; }
+        public Location Location  { get; }
     }
 
     readonly struct LineSegment {
@@ -107,16 +164,18 @@ static class SemanticTokensBuilder {
         public int Length     { get; }
     }
 
-    // LSP-Clients melden i.d.R. multilineTokenSupport=false — mehrzeilige Tokens (z.B. Blockkommentare)
+    // LSP-Clients melden i.d.R. multilineTokenSupport=false — mehrzeilige Spans (z.B. Blockkommentare)
     // daher pro Zeile in Segmente aufteilen.
-    static IEnumerable<LineSegment> SplitIntoLineSegments(SyntaxToken token, Location location) {
+    static IEnumerable<LineSegment> SplitIntoLineSegments(ClassifiedSpan span) {
+
+        var location = span.Location;
 
         if (location.StartLine == location.EndLine) {
-            yield return new LineSegment(location.StartLine, location.StartCharacter, token.Length);
+            yield return new LineSegment(location.StartLine, location.StartCharacter, span.Length);
             yield break;
         }
 
-        var lines = token.ToString().Split('\n');
+        var lines = span.Text.Split('\n');
 
         for (var i = 0; i < lines.Length; i++) {
 

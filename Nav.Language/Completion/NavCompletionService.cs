@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -149,10 +149,9 @@ public static class NavCompletionService {
             return false;
         }
 
-        var triggerToken = unit.Syntax.FindToken(position);
-
-        // Keine Vervollständigung in Kommentaren.
-        if (triggerToken.Type is SyntaxTokenType.SingleLineComment or SyntaxTokenType.MultiLineComment) {
+        // Keine Vervollständigung in Kommentaren — aus der angehängten Trivia (Roslyn-Modell), nicht über
+        // ein FindToken auf den flachen Strom.
+        if (unit.Syntax.SyntaxTree.IsPositionInComment(position)) {
             return false;
         }
 

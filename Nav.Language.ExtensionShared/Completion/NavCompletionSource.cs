@@ -167,13 +167,9 @@ class NavCompletionSource: AsyncCompletionSource {
 
         applicableToSpan = default;
 
-        var triggerToken = codeGenerationUnit.Syntax.FindToken(triggerLocation);
-
-        bool isInComment = triggerToken.Type == SyntaxTokenType.SingleLineComment ||
-                           triggerToken.Type == SyntaxTokenType.MultiLineComment;
-
-        // Keine Autocompletion in Kommentaren!
-        if (isInComment) {
+        // Keine Autocompletion in Kommentaren! — aus der angehängten Trivia (Roslyn-Modell), nicht über ein
+        // FindToken auf den flachen Strom.
+        if (codeGenerationUnit.Syntax.SyntaxTree.IsPositionInComment(triggerLocation)) {
             return false;
         }
 
