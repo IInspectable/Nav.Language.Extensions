@@ -227,19 +227,31 @@ public abstract partial class SyntaxNode: IExtent {
 
     /// <summary>
     /// Die Leading-Trivia dieses Knotens — abgeleitet aus dem <b>ersten</b> signifikanten Token (echtes
-    /// Roslyn-Modell). Hat der Knoten keine eigenen Token, ist sie leer.
+    /// Roslyn-Modell). Das ist das Token an <see cref="Start"/>; bei zusammengesetzten Knoten gehört es
+    /// einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten Extent,
+    /// ist sie leer.
     /// </summary>
     public ImmutableArray<SyntaxTrivia> GetLeadingTrivia() {
-        var first = ChildTokens().FirstOrDefault();
+        if (Extent.IsMissing) {
+            return ImmutableArray<SyntaxTrivia>.Empty;
+        }
+
+        var first = SyntaxTree.Tokens.FindAtPosition(Start);
         return first.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : first.LeadingTrivia;
     }
 
     /// <summary>
     /// Die Trailing-Trivia dieses Knotens — abgeleitet aus dem <b>letzten</b> signifikanten Token (echtes
-    /// Roslyn-Modell). Hat der Knoten keine eigenen Token, ist sie leer.
+    /// Roslyn-Modell). Das ist das Token, das an <see cref="End"/> endet; bei zusammengesetzten Knoten
+    /// gehört es einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten
+    /// Extent, ist sie leer.
     /// </summary>
     public ImmutableArray<SyntaxTrivia> GetTrailingTrivia() {
-        var last = ChildTokens().LastOrDefault();
+        if (Extent.IsMissing) {
+            return ImmutableArray<SyntaxTrivia>.Empty;
+        }
+
+        var last = SyntaxTree.Tokens.FindAtPosition(End - 1);
         return last.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : last.TrailingTrivia;
     }
 
@@ -251,28 +263,57 @@ public abstract partial class SyntaxNode: IExtent {
     /// <param name="onlyWhiteSpace">Wenn <c>true</c>, zählt nur Whitespace als Trivia; Kommentare begrenzen
     /// den Ausschnitt dann.</param>
     public TextExtent GetLeadingTriviaExtent(bool onlyWhiteSpace = false) {
-        var isTrivia      = GetIsTriviaFunc(onlyWhiteSpace);
-        var nodeStartLine = SyntaxTree.SourceText.GetTextLineAtPosition(Start);
-        var leadingExtent = TextExtent.FromBounds(nodeStartLine.Extent.Start, Start);
 
-        var start = Start;
-        // Wenn  bis zum Zeilenanfang nur Trivia Tokens, werden alle vorigen Zeilen, die nur aus Trivias bestehen, auch mit dazu genommen
-        if (SyntaxTree.Tokens[leadingExtent].All(token => isTrivia(token.Classification))) {
-            // Trivia geht mindestens zum Zeilenanfang der Node
-            start = leadingExtent.Start;
-            // Jetzt alle vorigen Zeilen durchlaufen
-            var line = nodeStartLine.Line - 1;
-            while (line >= 0) {
+        // Abgeleitet aus der am ersten signifikanten Token angehängten Leading-Trivia (Roslyn-Modell).
+        var leadingTrivia = GetLeadingTrivia();
+        if (leadingTrivia.IsEmpty) {
+            return TextExtent.FromBounds(Start, Start);
+        }
 
-                var lineExtent = SyntaxTree.SourceText.TextLines[line].Extent;
-                if (!SyntaxTree.Tokens[lineExtent].All(token => isTrivia(token.Classification))) {
-                    // Zeile besteht nicht nur aus Trivias
-                    break;
+        int start;
+        if (!onlyWhiteSpace) {
+            // Kommentare zählen als Trivia: der gesamte angehängte Vorlauf gehört dazu.
+            start = leadingTrivia[0].Start;
+        } else {
+            // Nur Whitespace zählt: der letzte Kommentar begrenzt den Ausschnitt. Alles bis
+            // einschließlich des Zeilenendes nach dem letzten Kommentar gehört zu einer
+            // kommentar-behafteten Zeile und zählt nicht mehr; erst die anschließende reine
+            // Whitespace-Strecke (Leerzeilen + Einrückung der Knotenzeile) ist Trivia.
+            var lastComment = -1;
+            for (var i = 0; i < leadingTrivia.Length; i++) {
+                if (IsCommentTrivia(leadingTrivia[i].Type)) {
+                    lastComment = i;
+                }
+            }
+
+            if (lastComment < 0) {
+                start = leadingTrivia[0].Start;
+            } else {
+                var newLineAfterComment = -1;
+                for (var i = lastComment + 1; i < leadingTrivia.Length; i++) {
+                    if (leadingTrivia[i].Type == SyntaxTokenType.NewLine) {
+                        newLineAfterComment = i;
+                        break;
+                    }
                 }
 
-                start =  lineExtent.Start;
-                line  -= 1;
+                if (newLineAfterComment < 0) {
+                    // Der letzte Kommentar steht in der Knotenzeile selbst → kein reiner Whitespace-Vorlauf.
+                    return TextExtent.FromBounds(Start, Start);
+                }
+
+                start = leadingTrivia[newLineAfterComment].End;
             }
+        }
+
+        // Zeilen-Guard (Parität zur zeilenbasierten Vorgänger-Heuristik): der Ausschnitt darf nur dann vor
+        // den Anfang der Knotenzeile zurückreichen, wenn er an einer Zeilengrenze beginnt. Beginnt er mitten
+        // in einer Zeile — etwa weil ein übersprungenes Zeichen oder eine Direktive vorausgeht (solche Trenner
+        // tragen keine angehängte Trivia) —, besteht der Zeilen-Präfix nicht ausschließlich aus Trivia und der
+        // Ausschnitt ist leer.
+        var lineStart = SyntaxTree.SourceText.GetTextLineAtPosition(Start).Extent.Start;
+        if (start > lineStart) {
+            return TextExtent.FromBounds(Start, Start);
         }
 
         return TextExtent.FromBounds(start, Start);
@@ -287,26 +328,26 @@ public abstract partial class SyntaxNode: IExtent {
     /// Zeile begrenzt den Ausschnitt dann.</param>
     public TextExtent GetTrailingTriviaExtent(bool onlyWhiteSpace = false) {
 
-        var isTrivia       = GetIsTriviaFunc(onlyWhiteSpace);
-        var nodeEndLine    = SyntaxTree.SourceText.GetTextLineAtPosition(End);
-        var trailingExtent = TextExtent.FromBounds(End, nodeEndLine.Extent.End);
+        // Abgeleitet aus der am letzten signifikanten Token angehängten Trailing-Trivia (Roslyn-Modell):
+        // diese reicht ohnehin höchstens bis einschließlich des ersten Zeilenendes bzw. bis zum nächsten
+        // Token. Im onlyWhiteSpace-Modus begrenzt der erste Kommentar den Ausschnitt.
+        var trailingTrivia = GetTrailingTrivia();
 
-        var endToken = SyntaxTree.Tokens[trailingExtent]
-                                 .SkipWhile(token => isTrivia(token.Classification))
-                                 .FirstOrDefault();
+        var end = End;
+        foreach (var trivia in trailingTrivia) {
+            if (onlyWhiteSpace && IsCommentTrivia(trivia.Type)) {
+                break;
+            }
 
-        var end = endToken.IsMissing ? nodeEndLine.Extent.End : endToken.Start;
+            end = trivia.End;
+        }
 
         return TextExtent.FromBounds(End, end);
     }
 
-    /// <summary>
-    /// Liefert das Trivia-Prädikat für die <c>Get*TriviaExtent</c>-Methoden: bei
-    /// <paramref name="onlyWhiteSpace"/> nur Whitespace, sonst Whitespace und Kommentare
-    /// (siehe <see cref="SyntaxFacts.IsTrivia"/>).
-    /// </summary>
-    static Func<TextClassification, bool> GetIsTriviaFunc(bool onlyWhiteSpace = false) {
-        return onlyWhiteSpace ? (c => c == TextClassification.Whitespace) : new Func<TextClassification, bool>(SyntaxFacts.IsTrivia);
+    /// <summary>Ob der Trivia-Typ ein Kommentar ist (ein- oder mehrzeilig) — für die <c>onlyWhiteSpace</c>-Grenze.</summary>
+    static bool IsCommentTrivia(SyntaxTokenType type) {
+        return type == SyntaxTokenType.SingleLineComment || type == SyntaxTokenType.MultiLineComment;
     }
 
     /// <summary>Der <see cref="SyntaxTree"/>, zu dem dieser Knoten gehört. Erst nach <see cref="FinalConstruct"/> verfügbar.</summary>

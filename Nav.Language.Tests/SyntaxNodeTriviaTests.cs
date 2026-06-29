@@ -129,6 +129,27 @@ task C;
         Assert.That(taskC.GetTrailingTriviaExtent(onlyWhiteSpace: true), Is.EqualTo(new TextExtent(54, length: 2))); // NewLine!!
     }
 
+    // Ein mehrzeiliger Kommentar direkt über einem Knoten: im onlyWhiteSpace-Modus begrenzt er den
+    // Leading-Ausschnitt wie jeder Kommentar (nur die Einrückung der Knotenzeile zählt), während er ohne
+    // onlyWhiteSpace mitgenommen wird. Damit verhalten sich ein- und mehrzeilige Kommentare als Grenze
+    // gleich — abgeleitet aus der angehängten Token-Trivia (Roslyn-Modell).
+    [Test]
+    public void MultiLineCommentBoundsOnlyWhiteSpaceLeading() {
+
+        string source = "task A;\r\n/* multi\r\nline */\r\n    task B;\r\n";
+        var    ndb    = Syntax.ParseNodeDeclarationBlock(source);
+
+        var taskB = ndb.NodeDeclarations[1];
+
+        // Ohne onlyWhiteSpace gehört der Kommentar (samt darüberliegender Zeilen) zur Leading-Trivia.
+        var leadingFull = taskB.GetLeadingTriviaExtent();
+        Assert.That(source.Substring(leadingFull.Start, leadingFull.Length), Does.Contain("/* multi"));
+
+        // Mit onlyWhiteSpace begrenzt der Kommentar den Ausschnitt — nur die Einrückung der Knotenzeile bleibt.
+        var leadingWs = taskB.GetLeadingTriviaExtent(onlyWhiteSpace: true);
+        Assert.That(source.Substring(leadingWs.Start, leadingWs.Length), Is.EqualTo("    "));
+    }
+
     // An den Dateirändern (Vollparse statt Sub-Regel): führende Trivia des ersten Knotens reicht bis
     // zum Dateianfang (inkl. Header-Kommentar), nachfolgende Trivia des letzten Knotens bis ans EOF.
     [Test]
