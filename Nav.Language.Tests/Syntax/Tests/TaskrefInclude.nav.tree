@@ -1,0 +1,9 @@
+﻿CodeGenerationUnitSyntax [0-75]  {Whitespace, NewLine, Whitespace, NewLine, NewLine, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, NewLine, EndOfFile}
+  IncludeDirectiveSyntax [0-13]  {TaskrefKeyword, StringLiteral, Semicolon}
+  IncludeDirectiveSyntax [14-27]  {TaskrefKeyword, StringLiteral, Semicolon}
+  TaskDefinitionSyntax [29-74]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [42-72]
+      InitNodeDeclarationSyntax [42-50]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [55-63]  {ExitKeyword, Identifier, Semicolon}
+      EndNodeDeclarationSyntax [68-72]  {EndKeyword, Semicolon}
+    TransitionDefinitionBlockSyntax <missing>

@@ -1,0 +1,10 @@
+﻿task T
+{
+    init I1;
+    exit E1;
+    end;
+    view V1;
+
+    init --> V1 on Something;
+    V1 --> E1 spont;
+}

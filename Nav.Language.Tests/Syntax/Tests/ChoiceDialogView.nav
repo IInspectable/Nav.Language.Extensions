@@ -1,0 +1,14 @@
+﻿task T
+{
+    init I1;
+    exit E1;
+    end;
+    choice C1;
+    dialog D1;
+    view V1;
+
+    I1 --> C1;
+    C1 --> D1;
+    D1 --> V1;
+    V1 --> E1;
+}

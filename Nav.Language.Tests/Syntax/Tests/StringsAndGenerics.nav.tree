@@ -1,25 +1,44 @@
-﻿CodeGenerationUnitSyntax [0-328]  {Whitespace, Whitespace, OpenBracket, ParamsKeyword, Whitespace, Identifier, Whitespace, Identifier, Comma, Whitespace, Identifier, LessThan, Identifier, Comma, Whitespace, Identifier, LessThan, Identifier, GreaterThan, GreaterThan, Whitespace, Identifier, Comma, Whitespace, Identifier, OpenBracket, CloseBracket, OpenBracket, CloseBracket, Whitespace, Identifier, Comma, Whitespace, Identifier, LessThan, Identifier, LessThan, Identifier, GreaterThan, Comma, Whitespace, Identifier, OpenBracket, CloseBracket, GreaterThan, Whitespace, Identifier, CloseBracket, NewLine, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, NewLine, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
-  TaskDeclarationSyntax [0-176]  {TaskrefKeyword, Identifier, OpenBrace, CloseBrace}
-    InitNodeDeclarationSyntax [86-149]  {InitKeyword, Identifier, Semicolon}
-      CodeParamsDeclarationSyntax [94-142]  {OpenBracket, ParamsKeyword, CloseBracket}
-        ParameterListSyntax [102-141]
-          ParameterSyntax [102-141]  {Identifier}
-            GenericTypeSyntax [102-135]  {Identifier, LessThan, GreaterThan}
-              SimpleTypeSyntax [131-134]  {Identifier}
-      DoClauseSyntax [143-148]  {DoKeyword}
-        StringLiteralSyntax [146-148]  {StringLiteral}
-    ExitNodeDeclarationSyntax [155-163]  {ExitKeyword, Identifier, Semicolon}
-    EndNodeDeclarationSyntax [169-173]  {EndKeyword, Semicolon}
-  TaskDefinitionSyntax [180-326]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
-    CodeDeclarationSyntax [187-217]  {OpenBracket, CodeKeyword, StringLiteral, CloseBracket}
-    CodeGenerateToDeclarationSyntax [218-260]  {OpenBracket, GeneratetoKeyword, StringLiteral, CloseBracket}
-    NodeDeclarationBlockSyntax [269-291]
-      InitNodeDeclarationSyntax [269-277]  {InitKeyword, Identifier, Semicolon}
-      ExitNodeDeclarationSyntax [283-291]  {ExitKeyword, Identifier, Semicolon}
-    TransitionDefinitionBlockSyntax [297-323]
-      TransitionDefinitionSyntax [297-323]  {Semicolon}
-        IdentifierSourceNodeSyntax [297-299]  {Identifier}
-        GoToEdgeSyntax [300-303]  {GoToEdgeKeyword}
-        IdentifierTargetNodeSyntax [304-306]  {Identifier}
-        IfConditionClauseSyntax [307-322]  {IfKeyword}
-          StringLiteralSyntax [310-322]  {StringLiteral}
+﻿CodeGenerationUnitSyntax [0-307]  {Whitespace, NewLine, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, NewLine, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
+  TaskDeclarationSyntax [0-163]  {TaskrefKeyword, Identifier, OpenBrace, CloseBrace}
+    InitNodeDeclarationSyntax [17-139]  {InitKeyword, Identifier, Semicolon}
+      CodeParamsDeclarationSyntax [25-132]  {OpenBracket, ParamsKeyword, CloseBracket}
+        ParameterListSyntax [33-131]  {Comma, Comma, Comma, Comma}
+          ParameterSyntax [33-38]  {Identifier}
+            SimpleTypeSyntax [33-35]  {Identifier}
+          ParameterSyntax [40-57]  {Identifier}
+            GenericTypeSyntax [40-54]  {Identifier, LessThan, Comma, GreaterThan}
+              SimpleTypeSyntax [43-45]  {Identifier}
+              GenericTypeSyntax [47-53]  {Identifier, LessThan, GreaterThan}
+                SimpleTypeSyntax [50-52]  {Identifier}
+          ParameterSyntax [59-68]  {Identifier}
+            ArrayTypeSyntax [59-65]
+              SimpleTypeSyntax [59-61]  {Identifier}
+              ArrayRankSpecifierSyntax [61-63]  {OpenBracket, CloseBracket}
+              ArrayRankSpecifierSyntax [63-65]  {OpenBracket, CloseBracket}
+          ParameterSyntax [70-90]  {Identifier}
+            GenericTypeSyntax [70-87]  {Identifier, LessThan, Comma, GreaterThan}
+              GenericTypeSyntax [73-79]  {Identifier, LessThan, GreaterThan}
+                SimpleTypeSyntax [76-78]  {Identifier}
+              ArrayTypeSyntax [81-86]
+                SimpleTypeSyntax [81-84]  {Identifier}
+                ArrayRankSpecifierSyntax [84-86]  {OpenBracket, CloseBracket}
+          ParameterSyntax [92-131]  {Identifier}
+            GenericTypeSyntax [92-125]  {Identifier, LessThan, GreaterThan}
+              SimpleTypeSyntax [121-124]  {Identifier}
+      DoClauseSyntax [133-138]  {DoKeyword}
+        StringLiteralSyntax [136-138]  {StringLiteral}
+    ExitNodeDeclarationSyntax [144-152]  {ExitKeyword, Identifier, Semicolon}
+    EndNodeDeclarationSyntax [157-161]  {EndKeyword, Semicolon}
+  TaskDefinitionSyntax [165-306]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    CodeDeclarationSyntax [172-202]  {OpenBracket, CodeKeyword, StringLiteral, CloseBracket}
+    CodeGenerateToDeclarationSyntax [203-245]  {OpenBracket, GeneratetoKeyword, StringLiteral, CloseBracket}
+    NodeDeclarationBlockSyntax [252-273]
+      InitNodeDeclarationSyntax [252-260]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [265-273]  {ExitKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [278-304]
+      TransitionDefinitionSyntax [278-304]  {Semicolon}
+        IdentifierSourceNodeSyntax [278-280]  {Identifier}
+        GoToEdgeSyntax [281-284]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [285-287]  {Identifier}
+        IfConditionClauseSyntax [288-303]  {IfKeyword}
+          StringLiteralSyntax [291-303]  {StringLiteral}

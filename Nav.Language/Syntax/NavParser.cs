@@ -1775,10 +1775,12 @@ sealed class NavParser {
     /// <summary>
     /// Meldet die nur vom Lexer ableitbaren Diagnosen für ein nicht-signifikantes Token: ein
     /// <see cref="SyntaxTokenType.Unknown"/> als unerwartetes Zeichen (<c>Nav0000</c>); ein
-    /// <see cref="SyntaxTokenType.HashToken"/> bzw. <see cref="SyntaxTokenType.PreprocessorKeyword"/>
-    /// als nicht unterstützte Präprozessor-Direktive (<c>Nav3000</c>), beim <c>#</c> zusätzlich
-    /// <c>Nav3001</c>, falls davor in der Zeile nicht nur Whitespace steht. Reihenfolge und Location
-    /// (nullbreite Start-Position des Tokens) entsprechen dem bisherigen <c>PostprocessTokens</c>.
+    /// <see cref="SyntaxTokenType.HashToken"/> als nicht unterstützte Präprozessor-Direktive
+    /// (<c>Nav3000</c>), beim <c>#</c> zusätzlich <c>Nav3001</c>, falls davor in der Zeile nicht nur
+    /// Whitespace steht. Die Diagnose hängt einmalig am einleitenden <c>#</c> — das anschließende
+    /// <see cref="SyntaxTokenType.PreprocessorKeyword"/> löst keine eigene Meldung aus, damit eine
+    /// Direktive nur eine einzige <c>Nav3000</c> erzeugt. Location ist die nullbreite Start-Position
+    /// des Tokens.
     /// </summary>
     void ReportLexicalDiagnostics(RawToken raw) {
         switch (raw.Type) {
@@ -1797,10 +1799,6 @@ sealed class NavParser {
                                                 DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
                 break;
             }
-            case SyntaxTokenType.PreprocessorKeyword:
-                _diagnostics.Add(new Diagnostic(LexicalLocation(raw.Extent),
-                                                DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
-                break;
         }
     }
 

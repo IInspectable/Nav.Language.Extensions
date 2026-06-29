@@ -1,0 +1,6 @@
+﻿task A
+{
+    init I1 do "kein schließendes Anführungszeichen;
+    exit e1;
+    end;
+}

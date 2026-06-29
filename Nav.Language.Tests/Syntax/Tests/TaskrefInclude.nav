@@ -1,0 +1,9 @@
+﻿taskref "F1";
+taskref "F2";
+
+task T
+{
+    init I1;
+    exit E1;
+    end;
+}

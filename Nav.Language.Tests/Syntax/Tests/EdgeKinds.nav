@@ -1,0 +1,12 @@
+﻿task T
+{
+    init I1;
+    exit E1;
+    end;
+    view V1;
+    task Tx tx;
+
+    I1 --> V1;
+    V1 ==> end;
+    Tx:Exit o-> V1;
+}

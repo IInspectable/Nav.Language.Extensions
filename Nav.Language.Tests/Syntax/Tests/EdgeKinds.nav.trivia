@@ -1,0 +1,57 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T NewLine           [6-7]         "\n"
+    7 OpenBrace
+    T NewLine           [8-9]         "\n"
+   13 InitKeyword
+    L Whitespace        [9-13]        "    "
+    T Whitespace        [17-18]       " "
+   20 Semicolon
+    T NewLine           [21-22]       "\n"
+   26 ExitKeyword
+    L Whitespace        [22-26]       "    "
+    T Whitespace        [30-31]       " "
+   33 Semicolon
+    T NewLine           [34-35]       "\n"
+   39 EndKeyword
+    L Whitespace        [35-39]       "    "
+   42 Semicolon
+    T NewLine           [43-44]       "\n"
+   48 ViewKeyword
+    L Whitespace        [44-48]       "    "
+    T Whitespace        [52-53]       " "
+   55 Semicolon
+    T NewLine           [56-57]       "\n"
+   61 TaskKeyword
+    L Whitespace        [57-61]       "    "
+    T Whitespace        [65-66]       " "
+   66 Identifier
+    T Whitespace        [68-69]       " "
+   71 Semicolon
+    T NewLine           [72-73]       "\n"
+   78 Identifier
+    L NewLine           [73-74]       "\n"
+    L Whitespace        [74-78]       "    "
+    T Whitespace        [80-81]       " "
+   81 GoToEdgeKeyword
+    T Whitespace        [84-85]       " "
+   87 Semicolon
+    T NewLine           [88-89]       "\n"
+   93 Identifier
+    L Whitespace        [89-93]       "    "
+    T Whitespace        [95-96]       " "
+   96 NonModalEdgeKeyword
+    T Whitespace        [99-100]      " "
+  103 Semicolon
+    T NewLine           [104-105]     "\n"
+  109 Identifier
+    L Whitespace        [105-109]     "    "
+  112 Identifier
+    T Whitespace        [116-117]     " "
+  117 ModalEdgeKeyword
+    T Whitespace        [120-121]     " "
+  123 Semicolon
+    T NewLine           [124-125]     "\n"
+  125 CloseBrace
+    T NewLine           [126-127]     "\n"

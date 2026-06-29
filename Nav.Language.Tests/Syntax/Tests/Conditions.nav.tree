@@ -1,0 +1,33 @@
+﻿CodeGenerationUnitSyntax [0-173]  {Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, NewLine, Whitespace, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
+  TaskDefinitionSyntax [0-172]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [13-84]
+      InitNodeDeclarationSyntax [13-21]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [26-34]  {ExitKeyword, Identifier, Semicolon}
+      EndNodeDeclarationSyntax [39-43]  {EndKeyword, Semicolon}
+      ChoiceNodeDeclarationSyntax [48-58]  {ChoiceKeyword, Identifier, Semicolon}
+      ViewNodeDeclarationSyntax [63-71]  {ViewKeyword, Identifier, Semicolon}
+      ViewNodeDeclarationSyntax [76-84]  {ViewKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [90-170]
+      TransitionDefinitionSyntax [90-100]  {Semicolon}
+        IdentifierSourceNodeSyntax [90-92]  {Identifier}
+        GoToEdgeSyntax [93-96]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [97-99]  {Identifier}
+      TransitionDefinitionSyntax [105-122]  {Semicolon}
+        IdentifierSourceNodeSyntax [105-107]  {Identifier}
+        GoToEdgeSyntax [108-111]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [112-114]  {Identifier}
+        IfConditionClauseSyntax [115-121]  {IfKeyword}
+          StringLiteralSyntax [118-121]  {StringLiteral}
+      TransitionDefinitionSyntax [127-149]  {Semicolon}
+        IdentifierSourceNodeSyntax [127-129]  {Identifier}
+        GoToEdgeSyntax [130-133]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [134-136]  {Identifier}
+        ElseIfConditionClauseSyntax [137-148]
+          ElseConditionClauseSyntax [137-141]  {ElseKeyword}
+          IfConditionClauseSyntax [142-148]  {IfKeyword}
+            StringLiteralSyntax [145-148]  {StringLiteral}
+      TransitionDefinitionSyntax [154-170]  {Semicolon}
+        IdentifierSourceNodeSyntax [154-156]  {Identifier}
+        NonModalEdgeSyntax [157-160]  {NonModalEdgeKeyword}
+        EndTargetNodeSyntax [161-164]  {EndKeyword}
+        ElseConditionClauseSyntax [165-169]  {ElseKeyword}

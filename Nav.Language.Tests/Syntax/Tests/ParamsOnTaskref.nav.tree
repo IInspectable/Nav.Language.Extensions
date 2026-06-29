@@ -1,0 +1,5 @@
+﻿CodeGenerationUnitSyntax [0-84]  {Whitespace, Whitespace, OpenBracket, ParamsKeyword, Whitespace, Identifier, Whitespace, Identifier, Comma, Whitespace, Identifier, LessThan, Identifier, Comma, Whitespace, Identifier, LessThan, Identifier, GreaterThan, GreaterThan, Whitespace, Identifier, CloseBracket, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, NewLine, EndOfFile}
+  TaskDeclarationSyntax [0-83]  {TaskrefKeyword, Identifier, OpenBrace, CloseBrace}
+    InitNodeDeclarationSyntax [51-59]  {InitKeyword, Identifier, Semicolon}
+    ExitNodeDeclarationSyntax [64-72]  {ExitKeyword, Identifier, Semicolon}
+    EndNodeDeclarationSyntax [77-81]  {EndKeyword, Semicolon}
