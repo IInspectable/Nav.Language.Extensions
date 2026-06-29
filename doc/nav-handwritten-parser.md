@@ -301,26 +301,122 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    - **`SyntaxFacts.cs` entkoppeln — erledigt.** Keyword-/Punctuation-Literale fest hinterlegt (1:1 wie
      vormals über `NavGrammar.DefaultVocabulary`); `GetLiteralName`/`GetLiteralNameAsChar` und das
      `using ...Generated` entfernt. Beide TFMs grün (net10 1099/0, net472 1099/0).
-   - **ANTLR-Plumbing löschen** (`Nav.Language\Internal\`): `NavGrammarVisitor`, `NavCommonTokenStream`,
-     `NavLexerErrorListener`, `NavParserErrorListener`, `DiagnosticFactory` (`IToken`-basiert),
-     `SyntaxBuildingExtension`; `Nav.Language\Syntax\SourceTextCharStream.cs`; die `IToken`/
-     `ITerminalNode`-Overloads in `SyntaxTokenFactory.cs`/`TextExtentFactory.cs`. Plus die
-     ANTLR-Hälfte von `SyntaxTree` (interne `treeCreator`-Überladung, `ParseTextAntlr`,
-     `PostprocessTokens`, `SplitSingleLineCommenTokens`).
-   - **Build:** in `Nav.Language.csproj` die zwei PackageReferences `Antlr4` + `Antlr4.Runtime` und die
-     `<Antlr4 Update="Grammar\*.g4">`-Items entfernen; `Grammar\*.g4` aus dem Build nehmen.
-     **`StringTemplate4` MUSS bleiben** (liefert `Antlr4.StringTemplate` für die Codegenerierung — nicht
-     der Parser). Das ist die häufigste „grün, aber kaputt"-Falle.
-   - **Test-Cleanup:** `NavParserDifferentialTests` + `NavLexerDifferentialTests` entfernen (brauchen
-     ANTLR/`ParseTextAntlr`). Die `.hand.{tokens,tree,diag}` sind jetzt redundant (== `.nav.*`) →
-     löschen, samt `NavParserGoldenTests`; `SyntaxGoldenTests` bleibt (pinnt jetzt den Handparser-Output
-     als kanonisches Golden).
+   - **ANTLR-Plumbing löschen, Build-Wiring + Test-Cleanup — vorbereitet, noch offen.** Vollständige,
+     verifizierte Schritt-für-Schritt-Anleitung (exakte Datei-/Zeilenliste, Reihenfolge, Verifikation)
+     im eigenen Abschnitt **„Vorbereiteter Teardown — ANTLR vollständig ausbauen (Step 2c)"** unten.
 3. **Verifikation:** beide TFMs (net10 + net472) + Regression grün halten — nach jedem Teilschritt.
 
 ### Risiko-Hotspots (unverändert)
 
-(a) `SyntaxTokenType`/`SyntaxFacts`-Entkopplung (stille Wertverschiebung), (b) die per-Regel-Einstiege,
-(c) dass `StringTemplate4` nicht versehentlich mit ausgebaut wird.
+(a) `SyntaxTokenType`/`SyntaxFacts`-Entkopplung (stille Wertverschiebung) — bereits erledigt, blieb grün,
+(b) die per-Regel-Einstiege — bereits erledigt, (c) dass `StringTemplate4` nicht versehentlich mit
+ausgebaut wird — **das ist beim noch offenen Teardown (Step 2c) der entscheidende Punkt.**
+
+---
+
+## Vorbereiteter Teardown — ANTLR vollständig ausbauen (Schritt C, Step 2c)
+
+> **Stand:** Step 1 + 2a + 2b sind eingecheckt (`84546326` SyntaxTokenType/SyntaxFacts entkoppelt,
+> `1566cec1` per-Regel-Einstiege, `da93a9da` Rename). Arbeitsbaum sauber. Dieser Abschnitt ist so
+> geschrieben, dass eine **frische Session** ihn ohne weiteren Kontext abarbeiten kann. Quelle der
+> Wahrheit bleibt der Code — die Zeilennummern unten sind Stand der Vorbereitung (Juni 2026), vor dem
+> Editieren kurz gegenprüfen.
+>
+> **Befund (in dieser Session per grep verifiziert):** `using Antlr4.Runtime` kommt **nur** in
+> `Nav.Language` vor (kein anderer Host); `Antlr4.StringTemplate` nur in `CodeGen\CodeGenerator.cs`
+> (bleibt). `NavGrammar`/`NavTokens` nur in `Internal\NavGrammarVisitor.cs` und der ANTLR-Hälfte von
+> `SyntaxTree.cs`. `ParseTextAntlr` nur in den zwei Differential-Gates. → Der Ausbau ist auf
+> `Nav.Language` + die Syntax-Tests begrenzt.
+
+### A. Engine — Dateien komplett löschen
+
+- `Nav.Language\Internal\NavGrammarVisitor.cs` (der ANTLR→immutable-Visitor; die Logik lebt 1:1 in `NavParser`).
+- `Nav.Language\Internal\NavCommonTokenStream.cs`
+- `Nav.Language\Internal\NavLexerErrorListener.cs`
+- `Nav.Language\Internal\NavParserErrorListener.cs`
+- `Nav.Language\Internal\DiagnosticFactory.cs` (enthält `SyntaxErrorFactory`; nur von den zwei
+  ErrorListenern genutzt).
+- `Nav.Language\Internal\SyntaxBuildingExtension.cs` (Extensions `OfSyntaxType`/`Optional`/`ZeroOrMore`/
+  `GetLocation(this IToken,string)` — **nur** vom Visitor bzw. von `PostprocessTokens` genutzt; die
+  engine-weiten `GetLocation()` sind eigene Methoden auf `SyntaxNode`/`SyntaxToken`/`SourceText`, **nicht**
+  betroffen).
+- `Nav.Language\Internal\TextExtentFactory.cs` (komplett ANTLR: alle Methoden über `IToken`/
+  `ParserRuleContext`; einzige Verbraucher = Visitor + die zu entfernende `IToken`-`SyntaxTokenFactory`-
+  Überladung → wird vollständig tot).
+- `Nav.Language\Syntax\SourceTextCharStream.cs` (`ToCharStream`, nur vom ANTLR-Lexer-Setup genutzt).
+- `Nav.Language\Grammar\NavGrammar.g4` und `Nav.Language\Grammar\NavTokens.g4` (Ordner `Grammar\` fällt weg).
+
+### B. Engine — Dateien editieren
+
+- **`Nav.Language\Syntax\SyntaxTree.cs`** — die ANTLR-Hälfte entfernen:
+  - usings raus: `Antlr4.Runtime`, `Antlr4.Runtime.Tree`, `Pharmatechnik.Nav.Language.Generated`
+    (und `System.Text`/`System.Collections.Generic`, falls danach ungenutzt — Compiler/Review prüfen).
+  - `ParseTextAntlr(...)` löschen.
+  - die interne Überladung `ParseText(text, Func<NavGrammar,IParseTree> treeCreator, …)` löschen.
+  - `PostprocessTokens(...)`, `SplitSingleLineCommenTokens(...)`, `FindNewLineIndexInSingleLineComment(...)`
+    löschen — der `NavLexer` macht den SingleLineComment-/EOL-Split bereits selbst.
+  - **behalten:** der interne `SyntaxTree(…)`-Konstruktor + Properties **und** der öffentliche
+    `ParseText(text, filePath, ct)` (delegiert an `NavParser.Parse`). Dessen Kommentar entschlacken
+    (kein Verweis mehr auf `ParseTextAntlr`/ANTLR-Pipeline).
+- **`Nav.Language\Internal\SyntaxTokenFactory.cs`** — die zwei ANTLR-Überladungen
+  `CreateToken(ITerminalNode,…)` und `CreateToken(IToken,…)` löschen; usings `Antlr4.Runtime`/
+  `Antlr4.Runtime.Tree` raus. **Behalten:** `CreateToken(TextExtent, SyntaxTokenType, TextClassification,
+  SyntaxNode)` (von `NavParser` an drei Stellen genutzt).
+
+### C. Build-Wiring
+
+- **`Nav.Language\Nav.Language.csproj`:** die PackageReferences `Antlr4` und `Antlr4.Runtime` entfernen
+  (war Zeilen 41–45); die ItemGroup mit `<Antlr4 Update="Grammar\NavGrammar.g4">` + `NavTokens.g4`
+  entfernen (war Zeilen 53–60). **`StringTemplate4` (Zeile 46) MUSS bleiben.**
+- **`Directory.Packages.props`:** die `PackageVersion`-Zeilen `Antlr4`, `Antlr4.Runtime`,
+  `Antlr4.CodeGenerator` entfernen (war Zeilen 35–37). **`StringTemplate4` (Zeile 39) MUSS bleiben.**
+- `obj\…\NavGrammar.cs`/`NavTokens.cs` usw. sind generiert + gitignored — kein Eingriff; werden nach
+  dem Ausbau schlicht nicht mehr erzeugt.
+
+> **Häufigste „grün, aber kaputt"-Falle:** `StringTemplate4` liefert `Antlr4.StringTemplate` für die
+> **Codegenerierung** (`CodeGen\CodeGenerator.cs`), nicht den Parser. Nur `Antlr4` + `Antlr4.Runtime`
+> (+ `Antlr4.CodeGenerator`) fliegen raus.
+
+### D. Tests (`Nav.Language.Tests\Syntax\` bzw. `…\`)
+
+- **Zuerst retten:** `NavParserGoldenTests` enthält genau **einen** einzigartigen, ANTLR-unabhängigen Test:
+  `ParsesAndRoundTripsAllTypingPrefixes` (Tipp-Präfix-Robustheit, nutzt `NavParser.Parse`). Diesen Test
+  nach `SyntaxGoldenTests` verschieben (RoundTrip-Helfer existiert dort bereits). **Alle anderen**
+  `NavParserGoldenTests`-Tests sind Duplikate der `SyntaxGoldenTests` (die jetzt via
+  `SyntaxTree.ParseText` = Hand denselben Output über `.nav.{tokens,tree,diag}` pinnen).
+- `Nav.Language.Tests\Syntax\NavParserGoldenTests.cs` löschen.
+- `Nav.Language.Tests\Syntax\NavParserDifferentialTests.cs` löschen (nutzt `ParseTextAntlr`).
+- `Nav.Language.Tests\Syntax\NavLexerDifferentialTests.cs` löschen (nutzt `ParseTextAntlr`).
+- alle **48** `Nav.Language.Tests\Syntax\Tests\*.hand.{tokens,tree,diag}` löschen (redundant zu `.nav.*`).
+- **`Nav.Language.Tests\CodeSanityTests.cs`:** den Test `TestSyntaxTokenTypeMapping` löschen (reflektiert
+  über `NavTokens` → kompiliert ohne ANTLR nicht; er verifizierte genau die in Step 2b eingefrorene
+  Kopplung `SyntaxTokenType` == `NavTokens`) und das `using Pharmatechnik.Nav.Language.Generated;` entfernen.
+- **Bleiben** (ANTLR-frei): `SyntaxGoldenTests.cs` (kanonisches Golden, jetzt Handparser-Output),
+  `SyntaxLexerTests.cs`, `SyntaxNewLineTests.cs`.
+
+### E. Reihenfolge & Verifikation
+
+1. Test-Rettung (`ParsesAndRoundTripsAllTypingPrefixes` → `SyntaxGoldenTests`), dann die test-seitigen
+   Löschungen (B-Listen oben) — so kompiliert das Testprojekt nach dem Engine-Umbau ohne Dangling-Refs.
+2. Engine editieren (`SyntaxTree.cs`, `SyntaxTokenFactory.cs`), dann die `Internal\`-/`Grammar\`-Dateien löschen.
+3. csproj + `Directory.Packages.props`.
+4. `dotnet build Nav.Language\Nav.Language.csproj -c Debug` → **0 Fehler, 0 Warnungen**. Der Compiler
+   listet jede übersehene ANTLR-Referenz; iterativ schließen.
+5. Beide TFMs: net10 `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`; net472
+   bauen + `nunit3-console` (`_build\nunit.consolerunner\3.8.0\tools\`). **Kriterium: 0 Fehler.** Die
+   Gesamt-Testzahl sinkt (gelöschte Differential-/`.hand.`-Golden-/Mapping-Fälle) und steigt um den
+   verschobenen Prefix-Test — die absolute Zahl ist also nicht mehr 1099.
+6. Regression (`RegressionTests`/`.expected.cs`) grün — End-to-End-Netz über die Codegenerierung.
+7. **Volle Solution `n build`** (MSBuild.exe wegen VSIX) — fängt, falls doch ein Host an ANTLR hing
+   (sollte nicht: nur `Nav.Language` nutzte `Antlr4.Runtime`).
+8. Neue/verschobene `.cs` als **UTF-8 mit BOM, CRLF** (`.gitattributes`: `eol=crlf`).
+
+### Risiko-Hotspots (für Step 2c)
+
+(a) `StringTemplate4` nicht mit ausbauen (siehe Falle oben). (b) Vergessene `using ...Generated`/
+`Antlr4.Runtime` → Compilerfehler, leicht zu finden. (c) Den Tipp-Präfix-Robustheitstest nicht verlieren.
+(d) Nach dem Ausbau ist der Handparser **alleinige** Quelle der Wahrheit — es gibt kein Differential-Netz
+gegen ANTLR mehr; `SyntaxGoldenTests` (kanonisches Golden) + Regression sind das Sicherheitsnetz.
 
 ---
 
