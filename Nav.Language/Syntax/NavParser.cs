@@ -1095,8 +1095,8 @@ sealed class NavParser {
         var keyword = Eat(SyntaxTokenType.CodeKeyword);
 
         var literals = new List<RawToken>();
-        while (At(SyntaxTokenType.StringLiteral)) {
-            literals.Add(Eat(SyntaxTokenType.StringLiteral).Value);
+        while (TryEat(SyntaxTokenType.StringLiteral, out var literal)) {
+            literals.Add(literal);
         }
 
         var close = Eat(SyntaxTokenType.CloseBracket);
@@ -1247,8 +1247,8 @@ sealed class NavParser {
         var parameters = new List<ParameterSyntax> { ParseParameter() };
         var commas     = new List<RawToken>();
 
-        while (At(SyntaxTokenType.Comma)) {
-            commas.Add(Eat(SyntaxTokenType.Comma).Value);
+        while (TryEat(SyntaxTokenType.Comma, out var comma)) {
+            commas.Add(comma);
             parameters.Add(ParseParameter());
         }
 
@@ -1359,8 +1359,8 @@ sealed class NavParser {
         var arguments = new List<CodeTypeSyntax> { ParseCodeType() };
         var commas    = new List<RawToken>();
 
-        while (At(SyntaxTokenType.Comma)) {
-            commas.Add(Eat(SyntaxTokenType.Comma).Value);
+        while (TryEat(SyntaxTokenType.Comma, out var comma)) {
+            commas.Add(comma);
             arguments.Add(ParseCodeType());
         }
 
@@ -1528,6 +1528,28 @@ sealed class NavParser {
         SkipHidden();
 
         return token;
+    }
+
+    /// <summary>
+    /// Konsumiert das aktuelle Token, wenn es <paramref name="type"/> entspricht, gibt es über
+    /// <paramref name="token"/> zurück und rückt vor (Ergebnis <c>true</c>). Andernfalls bleibt der Cursor
+    /// stehen und das Ergebnis ist <c>false</c> — <b>ohne</b> Diagnose. Das ist die nicht-nullbare,
+    /// konsumierende Form von <see cref="At(SyntaxTokenType)"/> für Listen-Schleifen (z.B. komma-getrennte
+    /// Aufzählungen): es gibt hier kein Pflicht-Token, daher auch kein Missing-Token wie bei <see cref="Eat"/>.
+    /// </summary>
+    bool TryEat(SyntaxTokenType type, out RawToken token) {
+        if (At0 != type) {
+            token = default;
+            return false;
+        }
+
+        token = _raw[_pos];
+        _firstSignificantStart ??= token.Start;
+
+        _pos++;
+        SkipHidden();
+
+        return true;
     }
 
     void SkipHidden() {
