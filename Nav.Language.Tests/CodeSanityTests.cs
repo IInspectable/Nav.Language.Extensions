@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Pharmatechnik.Nav.Language;
-using Pharmatechnik.Nav.Language.Generated;
 using Pharmatechnik.Nav.Language.Internal;
 
 #endregion
@@ -78,45 +77,6 @@ public class CodeSanityTests {
         walker.Walk(syntax.Root);
         foreach (var fail in walker.NameFails) {
             Assert.Fail("Name von {0} sollte mit 'Code' beginnen.", fail.Name);
-        }
-    }
-
-    [Test]
-    [Description("Mit diesem Test stellen wir sicher, dass es für alle Token-Arten aus der NavTokens.g4 einen korrekten SyntaxTokenType Enum Wert gibt: \r\n")]
-    public void TestSyntaxTokenTypeMapping() {
-
-        var expectedTypes = typeof (NavTokens).GetFields(BindingFlags.Public | BindingFlags.Static)
-                                              .Where(f => f.IsLiteral && !f.Name.EndsWith("Channel") && !f.Name.EndsWith("Mode"))
-                                              .ToList();
-
-        var actualTypes = typeof(SyntaxTokenType).GetFields(BindingFlags.Public | BindingFlags.Static)
-                                                 .Where(f => f.IsLiteral)
-                                                 .ToList();
-          
-        foreach(var expected in expectedTypes.ToList()) {
-
-            var candidate =actualTypes.FirstOrDefault(field => field.Name == expected.Name);
-            Assert.That(candidate, Is.Not.Null, "Der folgende Wert fehlt: {0}.{1} = {2}", nameof(SyntaxTokenType), expected.Name, expected.GetRawConstantValue());
-
-            Assert.That(candidate.GetRawConstantValue(), Is.EqualTo(expected.GetRawConstantValue()),
-                        "{0}.{1}", nameof(SyntaxTokenType), expected.Name);
-
-            actualTypes.Remove(candidate);
-        }
-
-        // EndOfFile müssen wir separat behandeln, da diese Konstante im Lexer, aber nicht im Parser definiert ist
-        const string endOfFile = "EndOfFile";
-        const int    eofValue  = 255;
-
-        var endOfFileField = actualTypes.FirstOrDefault(left => left.Name == endOfFile );
-        Assert.That(endOfFileField,                       Is.Not.Null,          "Der folgende Wert fehlt: {0}.{1} = {2}", nameof(SyntaxTokenType), endOfFile, eofValue);
-        Assert.That(endOfFileField.GetRawConstantValue(), Is.EqualTo(eofValue), "{0}.{1}",                                nameof(SyntaxTokenType), endOfFile );
-
-        actualTypes.Remove(endOfFileField);
-
-        foreach (var left in actualTypes) {
-            Assert.That(false,
-                        "{0}.{1} ist zuviel", nameof(SyntaxTokenType), left.Name);
         }
     }
 

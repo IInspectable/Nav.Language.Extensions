@@ -32,10 +32,6 @@
     <!-- Löst die uralten Rx-Linq/Rx-PlatformServices 2.2.5 ab; Namespace System.Reactive.Linq bleibt unverändert -->
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
 
-    <PackageVersion Include="Antlr4" Version="4.6.6" />
-    <PackageVersion Include="Antlr4.Runtime" Version="4.6.6" />
-    <PackageVersion Include="Antlr4.CodeGenerator" Version="4.6.6" />
-
     <PackageVersion Include="StringTemplate4" Version="4.0.8" />
 
     <!-- ========= LSP-Server (Nav.Language.Lsp, .NET 10) ============== -->

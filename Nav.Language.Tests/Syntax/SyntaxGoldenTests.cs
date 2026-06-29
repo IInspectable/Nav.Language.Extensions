@@ -65,6 +65,26 @@ public class SyntaxGoldenTests {
                     $"Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
     }
 
+    /// <summary>
+    /// Robustheit gegen unvollständige Eingaben: jedes Tipp-Präfix jeder Korpus-Datei muss sich ohne
+    /// Ausnahme parsen lassen und lückenlos round-trippen. Genau das stresst die Recovery — jeder
+    /// Zwischenstand beim Tippen ist eine teilweise wohlgeformte Eingabe.
+    /// </summary>
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void ParsesAndRoundTripsAllTypingPrefixes(CorpusFile corpus) {
+
+        var source = File.ReadAllText(corpus.FilePath);
+
+        for (var length = 0; length <= source.Length; length++) {
+            var prefix = source.Substring(0, length);
+
+            var tree = SyntaxTree.ParseText(prefix, corpus.FilePath);
+
+            Assert.That(RoundTrip(tree), Is.EqualTo(prefix),
+                        $"Round-Trip beim Präfix der Länge {length} von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
+        }
+    }
+
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
     public void SyntaxDiagnosticsMatchGolden(CorpusFile corpus) {
 

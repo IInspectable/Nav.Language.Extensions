@@ -301,9 +301,9 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    - **`SyntaxFacts.cs` entkoppeln — erledigt.** Keyword-/Punctuation-Literale fest hinterlegt (1:1 wie
      vormals über `NavGrammar.DefaultVocabulary`); `GetLiteralName`/`GetLiteralNameAsChar` und das
      `using ...Generated` entfernt. Beide TFMs grün (net10 1099/0, net472 1099/0).
-   - **ANTLR-Plumbing löschen, Build-Wiring + Test-Cleanup — vorbereitet, noch offen.** Vollständige,
-     verifizierte Schritt-für-Schritt-Anleitung (exakte Datei-/Zeilenliste, Reihenfolge, Verifikation)
-     im eigenen Abschnitt **„Vorbereiteter Teardown — ANTLR vollständig ausbauen (Step 2c)"** unten.
+   - **ANTLR-Plumbing löschen, Build-Wiring + Test-Cleanup — erledigt (Step 2c).** ANTLR ist als
+     Parser/Lexer vollständig ausgebaut; der Handparser ist jetzt die alleinige Syntax-Implementierung.
+     Details im Abschnitt **„ANTLR-Teardown — durchgeführt (Step 2c)"** unten.
 3. **Verifikation:** beide TFMs (net10 + net472) + Regression grün halten — nach jedem Teilschritt.
 
 ### Risiko-Hotspots (unverändert)
@@ -314,19 +314,32 @@ ausgebaut wird — **das ist beim noch offenen Teardown (Step 2c) der entscheide
 
 ---
 
-## Vorbereiteter Teardown — ANTLR vollständig ausbauen (Schritt C, Step 2c)
+## ANTLR-Teardown — durchgeführt (Schritt C, Step 2c)
 
-> **Stand:** Step 1 + 2a + 2b sind eingecheckt (`84546326` SyntaxTokenType/SyntaxFacts entkoppelt,
-> `1566cec1` per-Regel-Einstiege, `da93a9da` Rename). Arbeitsbaum sauber. Dieser Abschnitt ist so
-> geschrieben, dass eine **frische Session** ihn ohne weiteren Kontext abarbeiten kann. Quelle der
-> Wahrheit bleibt der Code — die Zeilennummern unten sind Stand der Vorbereitung (Juni 2026), vor dem
-> Editieren kurz gegenprüfen.
+> **Stand: erledigt (uncommitted — Einstieg für die nächste Session).** ANTLR ist als Parser/Lexer
+> vollständig ausgebaut; der Handparser (`NavParser`) ist die **alleinige** Syntax-Implementierung.
+> `Antlr4`/`Antlr4.Runtime`/`Antlr4.CodeGenerator` sind aus allen Projekten + `Directory.Packages.props`
+> entfernt; **`StringTemplate4` (Codegenerierung) ist geblieben.** Es gibt kein Differential-Netz gegen
+> ANTLR mehr — `SyntaxGoldenTests` (kanonisches Golden, jetzt Handparser-Output) + Regression
+> (`.expected.cs`) sind das Sicherheitsnetz.
 >
-> **Befund (in dieser Session per grep verifiziert):** `using Antlr4.Runtime` kommt **nur** in
+> **Verifikation:** Engine-Build 0 Fehler / 0 Warnungen; net10 906 pass / 0 fail; net472 906 pass /
+> 0 fail (je 4 Ignored + 2 Explicit übersprungen); volle Solution (`nav build`, MSBuild.exe, inkl. VSIX
+> + Extension-Tests) 0/0 — der IncrementalClean hat dabei die letzte verwaiste `Antlr4.Runtime.dll` aus
+> dem Extension.Tests-Output entfernt. Die Gesamt-Testzahl ist von 1099 auf 906 gesunken (gelöschte
+> Differential-/`.hand.`-Golden-/Mapping-Fälle), plus der nach `SyntaxGoldenTests` gerettete
+> Tipp-Präfix-Test.
+>
+> Die folgende Liste protokolliert den durchgeführten Ausbau (war zuvor die vorbereitete Anleitung).
+> Über die im Befund genannten Stellen hinaus betraf der Ausbau drei Build-Wiring-Stellen außerhalb von
+> `Nav.Language` (Test-csproj-`Antlr4`-PackageRefs, `Nav.Language.BuildTasks\CustomBuild.targets`
+> `.g4`-Deploy, `Nav.Language.Extension2026\Additional.VsixItems.targets` VSIX-Pack-Zeile) — alle drei
+> mit ausgebaut.
+>
+> **Befund (vor dem Ausbau per grep verifiziert):** `using Antlr4.Runtime` kam **nur** in
 > `Nav.Language` vor (kein anderer Host); `Antlr4.StringTemplate` nur in `CodeGen\CodeGenerator.cs`
-> (bleibt). `NavGrammar`/`NavTokens` nur in `Internal\NavGrammarVisitor.cs` und der ANTLR-Hälfte von
-> `SyntaxTree.cs`. `ParseTextAntlr` nur in den zwei Differential-Gates. → Der Ausbau ist auf
-> `Nav.Language` + die Syntax-Tests begrenzt.
+> (geblieben). `NavGrammar`/`NavTokens` nur in `Internal\NavGrammarVisitor.cs` und der ANTLR-Hälfte von
+> `SyntaxTree.cs`. `ParseTextAntlr` nur in den zwei Differential-Gates.
 
 ### A. Engine — Dateien komplett löschen
 

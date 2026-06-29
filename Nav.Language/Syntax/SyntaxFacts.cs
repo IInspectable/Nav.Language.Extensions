@@ -11,8 +11,7 @@ namespace Pharmatechnik.Nav.Language;
 
 public static class SyntaxFacts {
 
-    // Keywords. Die Literale entsprechen 1:1 den ursprünglichen Grammatik-Literalen (vormals über
-    // NavGrammar.DefaultVocabulary aufgelöst), jetzt fest hinterlegt — unabhängig von der Grammatik.
+    // Keywords. Die kanonischen Literale der Nav-Sprache, fest hinterlegt.
     public static readonly string TaskKeyword            = "task";
     public static readonly string TaskrefKeyword         = "taskref";
     public static readonly string InitKeyword            = "init";

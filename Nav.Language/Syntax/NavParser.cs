@@ -34,12 +34,11 @@ namespace Pharmatechnik.Nav.Language;
 ///   garantiertem Fortschritt je Schleifendurchlauf. Übersprungene signifikante Token werden — wie die
 ///   Trivia — abschließend als <see cref="TextClassification.Skiped"/>-Token an die Wurzel gehängt.</description></item>
 /// </list>
-/// Da der handgeschriebene Parser hier bewusst andere (oft knappere) Diagnosen liefern darf als die
-/// bisherige ANTLR-Pipeline, wird die Recovery nicht differentiell gegen ANTLR, sondern über einen
-/// eigenen Golden-Satz abgesichert.
+/// Die Recovery liefert bewusst knappe, treffende Diagnosen; abgesichert ist sie über einen
+/// Golden-Satz je Korpus-Datei (Token, Baum und Diagnostics werden gepinnt).
 /// <para/>
-/// Jede <c>Parse*</c>-Methode trägt die zugehörige Grammatikregel als EBNF-Fragment (entspricht der
-/// ursprünglichen Grammatik <c>NavGrammar.g4</c>). Lesehilfe zur Notation:
+/// Jede <c>Parse*</c>-Methode trägt die zugehörige Grammatikregel als EBNF-Fragment. Lesehilfe zur
+/// Notation:
 /// <list type="bullet">
 ///   <item><description><c>"…"</c> — ein literales Schlüsselwort, ein Operator oder ein
 ///   Punctuation-Zeichen (z.B. <c>"task"</c>, <c>"--&gt;"</c>, <c>";"</c>).</description></item>

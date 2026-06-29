@@ -38,25 +38,12 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="Antlr4">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Antlr4.Runtime" />
     <PackageReference Include="StringTemplate4" />
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.CodeDom" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Antlr4 Update="Grammar\NavGrammar.g4">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.Generated</CustomToolNamespace>
-    </Antlr4>
-    <Antlr4 Update="Grammar\NavTokens.g4">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.Generated</CustomToolNamespace>
-    </Antlr4>
   </ItemGroup>
   <ItemGroup>
     <None Update="Syntax\Generated\SyntaxNodeVisitor.Generated.tt">
