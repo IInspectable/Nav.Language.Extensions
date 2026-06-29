@@ -226,8 +226,80 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
 
 ## Empfohlene Schritte (nach dem Test-Plan)
 
-1. **Lexer** schreiben; gegen ANTLR-`cts.AllTokens` auf identische Token-Sequenz verifizieren.
+1. **Lexer** schreiben; gegen ANTLR-`cts.AllTokens` auf identische Token-Sequenz verifizieren. — **erledigt**
+   (`Nav.Language\Syntax\NavLexer.cs`, Gate `NavLexerDifferentialTests`).
 2. **Recursive-Descent-Parser**, der direkt die immutable Nodes baut (Visitor-Logik 1:1), Trivia
-   gleich mit anhängen; flaches Token-Modell beibehalten.
-3. Error-Recovery + Diagnostics-Parität; Golden-/Snapshot-Tests als Gate.
+   gleich mit anhängen; flaches Token-Modell beibehalten. — **erledigt (Schritt A, Happy Path)**
+   (`Nav.Language\Syntax\NavParser.cs`, Gate `NavParserDifferentialTests`).
+3. Error-Recovery + Diagnostics-Parität; Golden-/Snapshot-Tests als Gate. — **als Nächstes (Schritt B)**.
 4. *(Später, separat)* Trivia-Modell auf angehängt + strukturiert; Direktiven als strukturierte Trivia.
+
+---
+
+## Stand & Handoff (Schritt A erledigt → Schritt B als Nächstes)
+
+### Was steht (Schritt A)
+
+- **`Nav.Language\Syntax\NavParser.cs`** — handgeschriebener Recursive-Descent-Parser über den
+  `RawToken`-Strom des `NavLexer`. Eine `Parse*`-Methode je Grammatikregel (1:1 zu `NavGrammarVisitor`),
+  baut die immutablen Nodes direkt, vergibt die kontextabhängige `TextClassification` je signifikantem
+  Token und hängt es an seinen Knoten. Einstieg: `NavParser.Parse(text, filePath, ct) : SyntaxTree`.
+- **`Nav.Language.Tests\Syntax\NavParserDifferentialTests.cs`** — Gate: difft Baum (`DumpTree`),
+  Token-Strom (`DumpTokens`) und Round-Trip von `NavParser.Parse` gegen `SyntaxTree.ParseText` (ANTLR)
+  über den `Syntax\Tests`-Korpus. Nicht-wohlgeformte Dateien (ANTLR meldet Diagnostics) werden via
+  `Assert.Ignore` zurückgestellt.
+- **`SyntaxTree.ParseText` ist unverändert auf ANTLR** — der neue Parser läuft nur hinterm Gate
+  (wie beim Lexer). Umschalten erst in Schritt C.
+- Verifiziert (beide TFMs grün): die 6 wohlgeformten Korpus-Dateien; ad-hoc zusätzlich `AllRules.nav`
+  (nutzt jede Regel), die Regression-`.nav` und `LargeNav.nav` (2869 Zeilen) — Baum/Token/Round-Trip
+  jeweils byte-identisch zu ANTLR.
+
+### Kalibrierte Invarianten (an den Golden festgenagelt — beim Recovery-Umbau nicht brechen)
+
+- **Trivia/Unknown/Präprozessor/EOF hängen ausnahmslos an der Wurzel** (`AttachNonSignificantTokens`),
+  nicht am umschließenden Knoten — exakt wie das heutige `PostprocessTokens`. Der Parser selbst sieht
+  nur signifikante Token (Cursor überspringt die in `IsHidden` gelisteten Typen).
+- **EOF** ist ein nullbreites Token am Textende, Parent = Wurzel, Klassifikation `Whitespace`.
+- **Wurzel-Extent** = `[Start des ersten signifikanten Tokens … EOF-Position]`; ohne signifikante
+  Token (leere Datei, nur Whitespace/Kommentar) `[eof, eof]`.
+- **Leere Knoten-/Transitionsblöcke** ⇒ Extent `TextExtent.Missing` (Knoten existiert trotzdem).
+- **`TransitionDefinitionBlock` gruppiert im Baum erst alle `TransitionDefinition`, dann alle
+  `ExitTransitionDefinition`** — *nicht* in Quelltext-Reihenfolge (die `(... | ...)*` mischen darf).
+- **`init`-Disambiguierung:** `init` gefolgt von einer Kante ⇒ Transition (`initSourceNode`), sonst
+  Knoten-Deklaration (`StartsNodeDeclaration`).
+- **Knoten-Extent** = Min-Start/Max-End über konsumierte signifikante Token + Kindknoten
+  (`ExtentBuilder`); entspricht ANTLRs `context.Start/Stop`.
+
+### Schritt B — Aufgaben (Error-Recovery + Diagnostics-Parität)
+
+1. **Diagnostics, die Schritt A bewusst noch NICHT emittiert** (heute in `SyntaxTree.cs`
+   `PostprocessTokens` erzeugt — dort als Vorlage nachlesen, solange der ANTLR-Pfad noch lebt):
+   - `Nav0000UnexpectedCharacter` je `Unknown`-Token.
+   - `Nav3000InvalidPreprocessorDirective` je `HashToken` **und** je `PreprocessorKeyword`.
+   - `Nav3001…MustAppearOnFirstNonWhitespacePosition` für `HashToken`, wenn vor dem `#` in der Zeile
+     nicht nur Whitespace steht (`SourceText.SliceFromLineStartToPosition(...).IsWhiteSpace()`).
+   Diese gehören in/neben `AttachNonSignificantTokens` (dort werden genau diese Token-Typen behandelt).
+2. **`Eat` umbauen:** bei Mismatch heute `null` ohne Vorrücken → künftig zero-width
+   `SyntaxToken.Missing` + Diagnose, **kein** Vorrücken (Insertion). Plus `SkipTo`/Panic-Mode, der
+   überzählige Token als `Skiped`-Trivia konsumiert (Deletion) + Diagnose, mit garantiertem Fortschritt.
+3. **Gestaffelte Sync-/Anchor-Sets:** `;` lokal, `}`/`task`/`taskref` der äußeren Regel überlassen
+   (Anchor-Stack wie Roslyns C#-Parser). Listen-Schleifen brauchen die Fortschritts-Garantie
+   (mind. ein Token pro Durchlauf) — heute implizit erfüllt, nach dem Umbau explizit absichern.
+4. **Die zwei `NotifyErrorListeners`-Fälle** aus `NavGrammar.g4` `transitionDefinition` nachbilden:
+   „missing edge" (nur `sourceNode`) und „missing target node" (`sourceNode edge` ohne Ziel).
+5. **Gate erweitern** (`NavParserDifferentialTests`): die heute via `Assert.Ignore` übersprungenen
+   kaputten Korpus-Dateien einbeziehen; zusätzlich einen **Tipp-Präfix-Test** (jedes Präfix jeder
+   Datei muss matchen) wie in `NavLexerDifferentialTests`.
+
+> **Erwartung:** An den `.diag`-Golden (`Syntax\Tests\*.nav.diag`) wird es **bewusste, reviewbare
+> Diffs** geben — der Handparser darf bessere Meldungen liefern als ANTLR. Diffs gemeinsam prüfen,
+> nicht blind übernehmen. ANTLR liefert z.B. `Nav0002 no viable alternative` (so in `StringsAndGenerics.nav`
+> bei `taskref … [params …]` und massenhaft in `LargeNav.nav`) — diese ANTLR-spezifischen Meldungen sind
+> *nicht* 1:1-Ziel.
+
+### Verifikation (beide TFMs Pflicht)
+
+- net10.0: `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`
+- net472: Testprojekt mit `dotnet build …\Nav.Language.Tests.csproj -f net472` bauen, dann
+  `_build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll`.
+- **Neue `.cs` als UTF-8 mit BOM anlegen** (der Write-Standard erzeugt *ohne* BOM — danach umkodieren).
