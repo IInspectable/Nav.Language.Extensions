@@ -42,6 +42,12 @@ public readonly struct SyntaxTrivia: IExtent {
     public int End => Extent.End;
 
     /// <summary>
+    /// Ob diese Trivia ein Kommentar ist (ein- oder mehrzeilig) — im Unterschied zu reinem Whitespace
+    /// oder einem Zeilenende. Kommentare sind die einzige semantisch tragende Trivia-Art.
+    /// </summary>
+    public bool IsComment => Type == SyntaxTokenType.SingleLineComment || Type == SyntaxTokenType.MultiLineComment;
+
+    /// <summary>
     /// Liefert den Quelltext dieser Trivia aus dem übergebenen <paramref name="sourceText"/> — gedacht für
     /// Tests und Debug-Ausgaben. Da eine Trivia keinen Parent und damit keinen Bezug auf ihren
     /// <see cref="SourceText"/> hält, muss er hier explizit übergeben werden.
