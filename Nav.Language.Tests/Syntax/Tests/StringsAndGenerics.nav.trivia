@@ -1,0 +1,92 @@
+﻿    0 TaskrefKeyword
+    T Whitespace        [7-8]         " "
+    8 Identifier
+    T Whitespace        [10-11]       " "
+   12 ParamsKeyword
+    T Whitespace        [18-19]       " "
+   19 Identifier
+    T Whitespace        [21-22]       " "
+   24 Comma
+    T Whitespace        [25-26]       " "
+   31 Comma
+    T Whitespace        [32-33]       " "
+   39 GreaterThan
+    T Whitespace        [40-41]       " "
+   43 Comma
+    T Whitespace        [44-45]       " "
+   50 CloseBracket
+    T Whitespace        [51-52]       " "
+   54 Comma
+    T Whitespace        [55-56]       " "
+   65 Comma
+    T Whitespace        [66-67]       " "
+   72 GreaterThan
+    T Whitespace        [73-74]       " "
+   76 CloseBracket
+    T NewLine           [77-79]       "\r\n"
+   79 OpenBrace
+    T NewLine           [80-82]       "\r\n"
+   86 InitKeyword
+    L Whitespace        [82-86]       "    "
+    T Whitespace        [90-91]       " "
+   91 Identifier
+    T Whitespace        [93-94]       " "
+   95 ParamsKeyword
+    T Whitespace        [101-102]     " "
+  134 GreaterThan
+    T Whitespace        [135-136]     " "
+  141 CloseBracket
+    T Whitespace        [142-143]     " "
+  143 DoKeyword
+    T Whitespace        [145-146]     " "
+  148 Semicolon
+    T NewLine           [149-151]     "\r\n"
+  155 ExitKeyword
+    L Whitespace        [151-155]     "    "
+    T Whitespace        [159-160]     " "
+  162 Semicolon
+    T NewLine           [163-165]     "\r\n"
+  169 EndKeyword
+    L Whitespace        [165-169]     "    "
+  172 Semicolon
+    T NewLine           [173-175]     "\r\n"
+  175 CloseBrace
+    T NewLine           [176-178]     "\r\n"
+  180 TaskKeyword
+    L NewLine           [178-180]     "\r\n"
+    T Whitespace        [184-185]     " "
+  185 Identifier
+    T Whitespace        [186-187]     " "
+  188 CodeKeyword
+    T Whitespace        [192-193]     " "
+  216 CloseBracket
+    T Whitespace        [217-218]     " "
+  219 GeneratetoKeyword
+    T Whitespace        [229-230]     " "
+  259 CloseBracket
+    T NewLine           [260-262]     "\r\n"
+  262 OpenBrace
+    T NewLine           [263-265]     "\r\n"
+  269 InitKeyword
+    L Whitespace        [265-269]     "    "
+    T Whitespace        [273-274]     " "
+  276 Semicolon
+    T NewLine           [277-279]     "\r\n"
+  283 ExitKeyword
+    L Whitespace        [279-283]     "    "
+    T Whitespace        [287-288]     " "
+  290 Semicolon
+    T NewLine           [291-293]     "\r\n"
+  297 Identifier
+    L Whitespace        [293-297]     "    "
+    T Whitespace        [299-300]     " "
+  300 GoToEdgeKeyword
+    T Whitespace        [303-304]     " "
+  304 Identifier
+    T Whitespace        [306-307]     " "
+  307 IfKeyword
+    T Whitespace        [309-310]     " "
+  322 Semicolon
+    T NewLine           [323-325]     "\r\n"
+  325 CloseBrace
+    T NewLine           [326-328]     "\r\n"

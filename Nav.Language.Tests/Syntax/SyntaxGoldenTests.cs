@@ -19,7 +19,7 @@ namespace Nav.Language.Tests;
 /// <i>heutigen</i> (ANTLR-basierten) Parsers ein, damit der künftige handgeschriebene Parser
 /// Token für Token, Knoten für Knoten <i>und</i> Diagnose für Diagnose dagegen diffbar ist.
 ///
-/// Drei Golden-Stränge:
+/// Vier Golden-Stränge:
 /// <list type="bullet">
 ///   <item><description><c>.tokens</c> — der vollständige Token-Strom (inkl. Trivia), plus
 ///   Full-Fidelity-Round-Trip.</description></item>
@@ -30,6 +30,10 @@ namespace Nav.Language.Tests;
 ///   <see cref="SyntaxTree.Diagnostics"/>, ohne das semantische Modell). Nagelt das
 ///   Error-Recovery-Verhalten fest — der Bereich, in dem der neue Parser am ehesten abweicht.
 ///   Eine leere Golden-Datei pinnt „diese Datei erzeugt keine Syntaxfehler".</description></item>
+///   <item><description><c>.trivia</c> — die nach der Roslyn-Regel an die signifikanten Token
+///   angehängte Leading-/Trailing-Trivia (<see cref="SyntaxToken.LeadingTrivia"/> /
+///   <see cref="SyntaxToken.TrailingTrivia"/>). Nagelt die Trivia-Zuordnung über den ganzen Korpus
+///   fest; die gezielten Regel-Kanten pinnt zusätzlich <c>TokenTriviaTests</c>.</description></item>
 /// </list>
 /// </summary>
 [TestFixture]
@@ -38,6 +42,7 @@ public class SyntaxGoldenTests {
     const string GoldenExtension = ".tokens";
     const string TreeExtension   = ".tree";
     const string DiagExtension   = ".diag";
+    const string TriviaExtension = ".trivia";
 
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
     public void TokenStreamMatchesGolden(CorpusFile corpus) {
@@ -100,6 +105,23 @@ public class SyntaxGoldenTests {
 
         Assert.That(Normalize(actual), Is.EqualTo(Normalize(expected)),
                     $"Syntax-Diagnostics von '{corpus}' weichen vom Golden '{Path.GetFileName(goldenPath)}' ab.");
+    }
+
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void TokenTriviaMatchesGolden(CorpusFile corpus) {
+
+        var tree   = ParseCorpusFile(corpus, out _);
+        var actual = DumpTrivia(tree);
+
+        var goldenPath = corpus.FilePath + TriviaExtension;
+
+        Assert.That(File.Exists(goldenPath), Is.True,
+                    $"Golden-Datei '{goldenPath}' fehlt. Den [Explicit]-Test '{nameof(UpdateGolden)}' ausführen, um sie zu erzeugen.");
+
+        var expected = File.ReadAllText(goldenPath);
+
+        Assert.That(Normalize(actual), Is.EqualTo(Normalize(expected)),
+                    $"Token-Trivia von '{corpus}' weicht vom Golden '{Path.GetFileName(goldenPath)}' ab.");
     }
 
     [Test, TestCaseSource(nameof(GetCorpusFiles))]
@@ -179,7 +201,7 @@ public class SyntaxGoldenTests {
     }
 
     /// <summary>
-    /// Schreibt alle <c>.tokens</c>-, <c>.tree</c>- und <c>.diag</c>-Golden neu
+    /// Schreibt alle <c>.tokens</c>-, <c>.tree</c>-, <c>.diag</c>- und <c>.trivia</c>-Golden neu
     /// (Muster: <see cref="RegressionTests.GenerateFiles"/>).
     /// </summary>
     [Test, Explicit]
@@ -192,6 +214,7 @@ public class SyntaxGoldenTests {
             File.WriteAllText(corpus.FilePath + GoldenExtension, DumpTokens(tree),      utf8Bom);
             File.WriteAllText(corpus.FilePath + TreeExtension,   DumpTree(tree.Root),   utf8Bom);
             File.WriteAllText(corpus.FilePath + DiagExtension,   DumpDiagnostics(tree), utf8Bom);
+            File.WriteAllText(corpus.FilePath + TriviaExtension, DumpTrivia(tree),      utf8Bom);
         }
     }
 
@@ -287,6 +310,60 @@ public class SyntaxGoldenTests {
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Serialisiert die nach der Roslyn-Regel angehängte Trivia — je signifikantem Token (und dem
+    /// abschließenden <see cref="SyntaxTokenType.EndOfFile"/>) mit nicht-leerer Trivia eine Kopfzeile
+    /// (Start + Typ), darunter je Trivia eine eingerückte Zeile: <c>L</c>/<c>T</c> für Leading/Trailing,
+    /// der Trivia-Typ, der Extent und der (escapte) Quelltext. Token ohne jede Trivia werden
+    /// übersprungen — das hält die Golden klein und den Fokus auf der Zuordnung.
+    /// </summary>
+    static string DumpTrivia(SyntaxTree tree) {
+
+        var source = tree.SourceText;
+
+        var sb = new StringBuilder();
+        foreach (var token in tree.Tokens) {
+
+            var leading  = token.LeadingTrivia;
+            var trailing = token.TrailingTrivia;
+
+            if (leading.IsEmpty && trailing.IsEmpty) {
+                continue;
+            }
+
+            sb.Append(token.Start.ToString().PadLeft(5));
+            sb.Append(' ');
+            sb.Append(token.Type.ToString());
+            sb.Append('\n');
+
+            foreach (var trivia in leading) {
+                AppendTrivia(sb, "L", trivia, source);
+            }
+
+            foreach (var trivia in trailing) {
+                AppendTrivia(sb, "T", trivia, source);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    static void AppendTrivia(StringBuilder sb, string kind, SyntaxTrivia trivia, SourceText source) {
+        sb.Append("    ");
+        sb.Append(kind);
+        sb.Append(' ');
+        sb.Append(trivia.Type.ToString().PadRight(18));
+        sb.Append(trivia.Extent.ToString().PadRight(14));
+        sb.Append('"');
+        sb.Append(Escape(trivia.ToString(source)));
+        sb.Append('"');
+        sb.Append('\n');
+    }
+
+    static string Escape(string text) {
+        return text.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
     }
 
     static string RoundTrip(SyntaxTree tree) {

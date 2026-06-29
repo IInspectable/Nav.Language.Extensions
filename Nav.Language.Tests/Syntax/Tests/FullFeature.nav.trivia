@@ -1,0 +1,255 @@
+﻿    1 NamespaceprefixKeyword
+    T Whitespace        [16-17]       " "
+   21 CloseBracket
+    T NewLine           [22-24]       "\r\n"
+   26 OpenBracket
+    L NewLine           [24-26]       "\r\n"
+   27 UsingKeyword
+    T Whitespace        [32-33]       " "
+   35 CloseBracket
+    T NewLine           [36-38]       "\r\n"
+   39 UsingKeyword
+    T Whitespace        [44-45]       " "
+   47 CloseBracket
+    T NewLine           [48-50]       "\r\n"
+   52 TaskrefKeyword
+    L NewLine           [50-52]       "\r\n"
+    T Whitespace        [59-60]       " "
+   64 Semicolon
+    T NewLine           [65-67]       "\r\n"
+   67 TaskrefKeyword
+    T Whitespace        [74-75]       " "
+   79 Semicolon
+    T NewLine           [80-82]       "\r\n"
+   84 TaskrefKeyword
+    L NewLine           [82-84]       "\r\n"
+    T Whitespace        [91-92]       " "
+   92 Identifier
+    T Whitespace        [95-96]       " "
+   97 NamespaceprefixKeyword
+    T Whitespace        [112-113]     " "
+  117 CloseBracket
+    T NewLine           [118-120]     "\r\n"
+  132 OpenBracket
+    L Whitespace        [120-132]     "            "
+  147 CloseBracket
+    T NewLine           [148-150]     "\r\n"
+  162 OpenBracket
+    L Whitespace        [150-162]     "            "
+  163 ResultKeyword
+    T Whitespace        [169-170]     " "
+  170 Identifier
+    T Whitespace        [173-174]     " "
+  176 CloseBracket
+    T NewLine           [177-179]     "\r\n"
+  179 OpenBrace
+    T NewLine           [180-182]     "\r\n"
+  186 InitKeyword
+    L Whitespace        [182-186]     "    "
+    T Whitespace        [190-191]     " "
+  191 Identifier
+    T Whitespace        [193-194]     " "
+  209 CloseBracket
+    T Whitespace        [210-211]     " "
+  212 ParamsKeyword
+    T Whitespace        [218-219]     " "
+  219 Identifier
+    T Whitespace        [221-222]     " "
+  228 Comma
+    T Whitespace        [229-230]     " "
+  235 Comma
+    T Whitespace        [236-237]     " "
+  243 GreaterThan
+    T Whitespace        [244-245]     " "
+  251 Comma
+    T Whitespace        [252-253]     " "
+  258 CloseBracket
+    T Whitespace        [259-260]     " "
+  266 CloseBracket
+    T Whitespace        [267-268]     " "
+  268 DoKeyword
+    T Whitespace        [270-271]     " "
+  275 Semicolon
+    T NewLine           [276-278]     "\r\n"
+  282 ExitKeyword
+    L Whitespace        [278-282]     "    "
+    T Whitespace        [286-287]     " "
+  289 Semicolon
+    T NewLine           [290-292]     "\r\n"
+  296 EndKeyword
+    L Whitespace        [292-296]     "    "
+  299 Semicolon
+    T NewLine           [300-302]     "\r\n"
+  302 CloseBrace
+    T NewLine           [303-305]     "\r\n"
+  367 TaskKeyword
+    L NewLine           [305-307]     "\r\n"
+    L SingleLineComment [307-366]     "// Kommentar vor task T1 — prüft führende Trivia am Knoten\r"
+    L NewLine           [366-367]     "\n"
+    T Whitespace        [371-372]     " "
+  372 Identifier
+    T Whitespace        [374-375]     " "
+  376 CodeKeyword
+    T Whitespace        [380-381]     " "
+  388 CloseBracket
+    T NewLine           [389-391]     "\r\n"
+  399 OpenBracket
+    L Whitespace        [391-399]     "        "
+  400 BaseKeyword
+    T Whitespace        [404-405]     " "
+  407 Colon
+    T Whitespace        [408-409]     " "
+  411 Comma
+    T Whitespace        [412-413]     " "
+  415 CloseBracket
+    T NewLine           [416-418]     "\r\n"
+  426 OpenBracket
+    L Whitespace        [418-426]     "        "
+  427 GeneratetoKeyword
+    T Whitespace        [437-438]     " "
+  442 CloseBracket
+    T NewLine           [443-445]     "\r\n"
+  453 OpenBracket
+    L Whitespace        [445-453]     "        "
+  454 ParamsKeyword
+    T Whitespace        [460-461]     " "
+  461 Identifier
+    T Whitespace        [463-464]     " "
+  466 Comma
+    T Whitespace        [467-468]     " "
+  468 Identifier
+    T Whitespace        [470-471]     " "
+  473 CloseBracket
+    T NewLine           [474-476]     "\r\n"
+  484 OpenBracket
+    L Whitespace        [476-484]     "        "
+  485 ResultKeyword
+    T Whitespace        [491-492]     " "
+  492 Identifier
+    T Whitespace        [494-495]     " "
+  497 CloseBracket
+    T NewLine           [498-500]     "\r\n"
+  500 OpenBrace
+    T NewLine           [501-503]     "\r\n"
+  507 InitKeyword
+    L Whitespace        [503-507]     "    "
+    T Whitespace        [511-512]     " "
+  514 Semicolon
+    T NewLine           [515-517]     "\r\n"
+  521 ExitKeyword
+    L Whitespace        [517-521]     "    "
+    T Whitespace        [525-526]     " "
+  528 Semicolon
+    T NewLine           [529-531]     "\r\n"
+  535 EndKeyword
+    L Whitespace        [531-535]     "    "
+  538 Semicolon
+    T NewLine           [539-541]     "\r\n"
+  545 TaskKeyword
+    L Whitespace        [541-545]     "    "
+    T Whitespace        [549-550]     " "
+  550 Identifier
+    T Whitespace        [552-553]     " "
+  553 Identifier
+    T Whitespace        [555-556]     " "
+  568 CloseBracket
+    T Whitespace        [569-570]     " "
+  586 Semicolon
+    T NewLine           [587-589]     "\r\n"
+  593 ChoiceKeyword
+    L Whitespace        [589-593]     "    "
+    T Whitespace        [599-600]     " "
+  602 Semicolon
+    T NewLine           [603-605]     "\r\n"
+  609 DialogKeyword
+    L Whitespace        [605-609]     "    "
+    T Whitespace        [615-616]     " "
+  618 Semicolon
+    T NewLine           [619-621]     "\r\n"
+  625 ViewKeyword
+    L Whitespace        [621-625]     "    "
+    T Whitespace        [629-630]     " "
+  632 Semicolon
+    T NewLine           [633-635]     "\r\n"
+  641 InitKeyword
+    L NewLine           [635-637]     "\r\n"
+    L Whitespace        [637-641]     "    "
+    T Whitespace        [645-646]     " "
+  646 GoToEdgeKeyword
+    T Whitespace        [649-650]     " "
+  650 Identifier
+    T Whitespace        [652-653]     " "
+  653 OnKeyword
+    T Whitespace        [655-656]     " "
+  656 Identifier
+    T Whitespace        [665-666]     " "
+  666 IfKeyword
+    T Whitespace        [668-669]     " "
+  669 StringLiteral
+    T Whitespace        [680-681]     " "
+  681 DoKeyword
+    T Whitespace        [683-684]     " "
+  693 Semicolon
+    T NewLine           [694-696]     "\r\n"
+  702 Identifier
+    L NewLine           [696-698]     "\r\n"
+    L Whitespace        [698-702]     "    "
+  705 Identifier
+    T Whitespace        [709-710]     " "
+  710 ModalEdgeKeyword
+    T Whitespace        [713-714]     " "
+  714 Identifier
+    T Whitespace        [716-717]     " "
+  717 IfKeyword
+    T Whitespace        [719-720]     " "
+  720 StringLiteral
+    T Whitespace        [731-732]     " "
+  732 DoKeyword
+    T Whitespace        [734-735]     " "
+  744 Semicolon
+    T NewLine           [745-747]     "\r\n"
+  753 Identifier
+    L NewLine           [747-749]     "\r\n"
+    L Whitespace        [749-753]     "    "
+    T Whitespace        [755-756]     " "
+  756 GoToEdgeKeyword
+    T Whitespace        [759-760]     " "
+  760 Identifier
+    T Whitespace        [762-763]     " "
+  763 IfKeyword
+    T Whitespace        [765-766]     " "
+  769 Semicolon
+    T NewLine           [770-772]     "\r\n"
+  776 Identifier
+    L Whitespace        [772-776]     "    "
+    T Whitespace        [778-779]     " "
+  779 GoToEdgeKeyword
+    T Whitespace        [782-783]     " "
+  783 Identifier
+    T Whitespace        [785-786]     " "
+  786 ElseKeyword
+    T Whitespace        [790-791]     " "
+  791 IfKeyword
+    T Whitespace        [793-794]     " "
+  797 Semicolon
+    T NewLine           [798-800]     "\r\n"
+  804 Identifier
+    L Whitespace        [800-804]     "    "
+    T Whitespace        [806-807]     " "
+  807 NonModalEdgeKeyword
+    T Whitespace        [810-811]     " "
+  811 EndKeyword
+    T Whitespace        [814-815]     " "
+  819 Semicolon
+    T NewLine           [820-822]     "\r\n"
+  826 Identifier
+    L Whitespace        [822-826]     "    "
+    T Whitespace        [828-829]     " "
+  829 GoToEdgeKeyword
+    T Whitespace        [832-833]     " "
+  833 Identifier
+    T Whitespace        [835-836]     " "
+  841 Semicolon
+    T NewLine           [842-844]     "\r\n"
+  844 CloseBrace
+    T NewLine           [845-847]     "\r\n"

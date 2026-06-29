@@ -1,0 +1,8 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T NewLine           [6-8]         "\r\n"
+    8 OpenBrace
+    T NewLine           [9-11]        "\r\n"
+   11 CloseBrace
+    T NewLine           [12-14]       "\r\n"
