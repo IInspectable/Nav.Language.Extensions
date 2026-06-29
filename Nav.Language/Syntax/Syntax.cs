@@ -8,192 +8,195 @@ namespace Pharmatechnik.Nav.Language {
 
     using System.Threading;
 
+	// Snippet-Parser je Grammatikregel. Produktionscode parst ganze Dateien über ParseCodeGenerationUnit;
+	// die per-Regel-Einstiege sind die test-seitige Schnittstelle und laufen — wie das Whole-File-Parsing —
+	// über den handgeschriebenen NavParser (per-Regel über NavParser.ParseRule).
 	public static class Syntax {
-		
+
 		public static DoClauseSyntax ParseDoClause(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (DoClauseSyntax)SyntaxTree.ParseText(text, parser => parser.doClause(), filePath, null, cancellationToken).Root;		
+			return (DoClauseSyntax)NavParser.ParseRule(text, NavParser.Rule.DoClause, filePath, cancellationToken).Root;
 		}
 
 		public static GoToEdgeSyntax ParseGoToEdge(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (GoToEdgeSyntax)SyntaxTree.ParseText(text, parser => parser.goToEdge(), filePath, null, cancellationToken).Root;		
+			return (GoToEdgeSyntax)NavParser.ParseRule(text, NavParser.Rule.GoToEdge, filePath, cancellationToken).Root;
 		}
 
 		public static ArrayTypeSyntax ParseArrayType(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ArrayTypeSyntax)SyntaxTree.ParseText(text, parser => parser.arrayType(), filePath, null, cancellationToken).Root;		
+			return (ArrayTypeSyntax)NavParser.ParseRule(text, NavParser.Rule.ArrayType, filePath, cancellationToken).Root;
 		}
 
 		public static ModalEdgeSyntax ParseModalEdge(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ModalEdgeSyntax)SyntaxTree.ParseText(text, parser => parser.modalEdge(), filePath, null, cancellationToken).Root;		
+			return (ModalEdgeSyntax)NavParser.ParseRule(text, NavParser.Rule.ModalEdge, filePath, cancellationToken).Root;
 		}
 
 		public static ParameterSyntax ParseParameter(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ParameterSyntax)SyntaxTree.ParseText(text, parser => parser.parameter(), filePath, null, cancellationToken).Root;		
+			return (ParameterSyntax)NavParser.ParseRule(text, NavParser.Rule.Parameter, filePath, cancellationToken).Root;
 		}
 
 		public static IdentifierSyntax ParseIdentifier(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (IdentifierSyntax)SyntaxTree.ParseText(text, parser => parser.identifier(), filePath, null, cancellationToken).Root;		
+			return (IdentifierSyntax)NavParser.ParseRule(text, NavParser.Rule.Identifier, filePath, cancellationToken).Root;
 		}
 
 		public static SimpleTypeSyntax ParseSimpleType(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (SimpleTypeSyntax)SyntaxTree.ParseText(text, parser => parser.simpleType(), filePath, null, cancellationToken).Root;		
+			return (SimpleTypeSyntax)NavParser.ParseRule(text, NavParser.Rule.SimpleType, filePath, cancellationToken).Root;
 		}
 
 		public static GenericTypeSyntax ParseGenericType(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (GenericTypeSyntax)SyntaxTree.ParseText(text, parser => parser.genericType(), filePath, null, cancellationToken).Root;		
+			return (GenericTypeSyntax)NavParser.ParseRule(text, NavParser.Rule.GenericType, filePath, cancellationToken).Root;
 		}
 
 		public static NonModalEdgeSyntax ParseNonModalEdge(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (NonModalEdgeSyntax)SyntaxTree.ParseText(text, parser => parser.nonModalEdge(), filePath, null, cancellationToken).Root;		
+			return (NonModalEdgeSyntax)NavParser.ParseRule(text, NavParser.Rule.NonModalEdge, filePath, cancellationToken).Root;
 		}
 
 		public static EndTargetNodeSyntax ParseEndTargetNode(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (EndTargetNodeSyntax)SyntaxTree.ParseText(text, parser => parser.endTargetNode(), filePath, null, cancellationToken).Root;		
+			return (EndTargetNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.EndTargetNode, filePath, cancellationToken).Root;
 		}
 
 		public static ParameterListSyntax ParseParameterList(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ParameterListSyntax)SyntaxTree.ParseText(text, parser => parser.parameterList(), filePath, null, cancellationToken).Root;		
+			return (ParameterListSyntax)NavParser.ParseRule(text, NavParser.Rule.ParameterList, filePath, cancellationToken).Root;
 		}
 
 		public static SignalTriggerSyntax ParseSignalTrigger(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (SignalTriggerSyntax)SyntaxTree.ParseText(text, parser => parser.signalTrigger(), filePath, null, cancellationToken).Root;		
+			return (SignalTriggerSyntax)NavParser.ParseRule(text, NavParser.Rule.SignalTrigger, filePath, cancellationToken).Root;
 		}
 
 		public static StringLiteralSyntax ParseStringLiteral(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (StringLiteralSyntax)SyntaxTree.ParseText(text, parser => parser.stringLiteral(), filePath, null, cancellationToken).Root;		
+			return (StringLiteralSyntax)NavParser.ParseRule(text, NavParser.Rule.StringLiteral, filePath, cancellationToken).Root;
 		}
 
 		public static InitSourceNodeSyntax ParseInitSourceNode(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (InitSourceNodeSyntax)SyntaxTree.ParseText(text, parser => parser.initSourceNode(), filePath, null, cancellationToken).Root;		
+			return (InitSourceNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.InitSourceNode, filePath, cancellationToken).Root;
 		}
 
 		public static TaskDefinitionSyntax ParseTaskDefinition(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (TaskDefinitionSyntax)SyntaxTree.ParseText(text, parser => parser.taskDefinition(), filePath, null, cancellationToken).Root;		
+			return (TaskDefinitionSyntax)NavParser.ParseRule(text, NavParser.Rule.TaskDefinition, filePath, cancellationToken).Root;
 		}
 
 		public static CodeDeclarationSyntax ParseCodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static TaskDeclarationSyntax ParseTaskDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (TaskDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.taskDeclaration(), filePath, null, cancellationToken).Root;		
+			return (TaskDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.TaskDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static IncludeDirectiveSyntax ParseIncludeDirective(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (IncludeDirectiveSyntax)SyntaxTree.ParseText(text, parser => parser.includeDirective(), filePath, null, cancellationToken).Root;		
+			return (IncludeDirectiveSyntax)NavParser.ParseRule(text, NavParser.Rule.IncludeDirective, filePath, cancellationToken).Root;
 		}
 
 		public static IfConditionClauseSyntax ParseIfConditionClause(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (IfConditionClauseSyntax)SyntaxTree.ParseText(text, parser => parser.ifConditionClause(), filePath, null, cancellationToken).Root;		
+			return (IfConditionClauseSyntax)NavParser.ParseRule(text, NavParser.Rule.IfConditionClause, filePath, cancellationToken).Root;
 		}
 
 		public static ArrayRankSpecifierSyntax ParseArrayRankSpecifier(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ArrayRankSpecifierSyntax)SyntaxTree.ParseText(text, parser => parser.arrayRankSpecifier(), filePath, null, cancellationToken).Root;		
+			return (ArrayRankSpecifierSyntax)NavParser.ParseRule(text, NavParser.Rule.ArrayRankSpecifier, filePath, cancellationToken).Root;
 		}
 
 		public static CodeGenerationUnitSyntax ParseCodeGenerationUnit(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
 			// Produktions-Einstieg fürs Whole-File-Parsing: läuft über den handgeschriebenen NavParser
-			// (SyntaxTree.ParseText). Die per-Regel-Einstiege unten parsen weiterhin über ANTLR.
+			// (SyntaxTree.ParseText).
 			return (CodeGenerationUnitSyntax)SyntaxTree.ParseText(text, filePath, cancellationToken).Root;
 		}
 
 		public static EndNodeDeclarationSyntax ParseEndNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (EndNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.endNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (EndNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.EndNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static SpontaneousTriggerSyntax ParseSpontaneousTrigger(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (SpontaneousTriggerSyntax)SyntaxTree.ParseText(text, parser => parser.spontaneousTrigger(), filePath, null, cancellationToken).Root;		
+			return (SpontaneousTriggerSyntax)NavParser.ParseRule(text, NavParser.Rule.SpontaneousTrigger, filePath, cancellationToken).Root;
 		}
 
 		public static CodeBaseDeclarationSyntax ParseCodeBaseDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeBaseDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeBaseDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeBaseDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeBaseDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static ElseConditionClauseSyntax ParseElseConditionClause(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ElseConditionClauseSyntax)SyntaxTree.ParseText(text, parser => parser.elseConditionClause(), filePath, null, cancellationToken).Root;		
+			return (ElseConditionClauseSyntax)NavParser.ParseRule(text, NavParser.Rule.ElseConditionClause, filePath, cancellationToken).Root;
 		}
 
 		public static ExitNodeDeclarationSyntax ParseExitNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ExitNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.exitNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (ExitNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.ExitNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static InitNodeDeclarationSyntax ParseInitNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (InitNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.initNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (InitNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.InitNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static TaskNodeDeclarationSyntax ParseTaskNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (TaskNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.taskNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (TaskNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.TaskNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static ViewNodeDeclarationSyntax ParseViewNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ViewNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.viewNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (ViewNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.ViewNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeUsingDeclarationSyntax ParseCodeUsingDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeUsingDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeUsingDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeUsingDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeUsingDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static IdentifierSourceNodeSyntax ParseIdentifierSourceNode(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (IdentifierSourceNodeSyntax)SyntaxTree.ParseText(text, parser => parser.identifierSourceNode(), filePath, null, cancellationToken).Root;		
+			return (IdentifierSourceNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.IdentifierSourceNode, filePath, cancellationToken).Root;
 		}
 
 		public static IdentifierTargetNodeSyntax ParseIdentifierTargetNode(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (IdentifierTargetNodeSyntax)SyntaxTree.ParseText(text, parser => parser.identifierTargetNode(), filePath, null, cancellationToken).Root;		
+			return (IdentifierTargetNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.IdentifierTargetNode, filePath, cancellationToken).Root;
 		}
 
 		public static NodeDeclarationBlockSyntax ParseNodeDeclarationBlock(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (NodeDeclarationBlockSyntax)SyntaxTree.ParseText(text, parser => parser.nodeDeclarationBlock(), filePath, null, cancellationToken).Root;		
+			return (NodeDeclarationBlockSyntax)NavParser.ParseRule(text, NavParser.Rule.NodeDeclarationBlock, filePath, cancellationToken).Root;
 		}
 
 		public static TransitionDefinitionSyntax ParseTransitionDefinition(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (TransitionDefinitionSyntax)SyntaxTree.ParseText(text, parser => parser.transitionDefinition(), filePath, null, cancellationToken).Root;		
+			return (TransitionDefinitionSyntax)NavParser.ParseRule(text, NavParser.Rule.TransitionDefinition, filePath, cancellationToken).Root;
 		}
 
 		public static ChoiceNodeDeclarationSyntax ParseChoiceNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ChoiceNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.choiceNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (ChoiceNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.ChoiceNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeParamsDeclarationSyntax ParseCodeParamsDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeParamsDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeParamsDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeParamsDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeParamsDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeResultDeclarationSyntax ParseCodeResultDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeResultDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeResultDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeResultDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeResultDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static ElseIfConditionClauseSyntax ParseElseIfConditionClause(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ElseIfConditionClauseSyntax)SyntaxTree.ParseText(text, parser => parser.elseIfConditionClause(), filePath, null, cancellationToken).Root;		
+			return (ElseIfConditionClauseSyntax)NavParser.ParseRule(text, NavParser.Rule.ElseIfConditionClause, filePath, cancellationToken).Root;
 		}
 
 		public static DialogNodeDeclarationSyntax ParseDialogNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (DialogNodeDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.dialogNodeDeclaration(), filePath, null, cancellationToken).Root;		
+			return (DialogNodeDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.DialogNodeDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeNamespaceDeclarationSyntax ParseCodeNamespaceDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeNamespaceDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeNamespaceDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeNamespaceDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeNamespaceDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static ExitTransitionDefinitionSyntax ParseExitTransitionDefinition(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (ExitTransitionDefinitionSyntax)SyntaxTree.ParseText(text, parser => parser.exitTransitionDefinition(), filePath, null, cancellationToken).Root;		
+			return (ExitTransitionDefinitionSyntax)NavParser.ParseRule(text, NavParser.Rule.ExitTransitionDefinition, filePath, cancellationToken).Root;
 		}
 
 		public static CodeGenerateToDeclarationSyntax ParseCodeGenerateToDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeGenerateToDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeGenerateToDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeGenerateToDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeGenerateToDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static TransitionDefinitionBlockSyntax ParseTransitionDefinitionBlock(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (TransitionDefinitionBlockSyntax)SyntaxTree.ParseText(text, parser => parser.transitionDefinitionBlock(), filePath, null, cancellationToken).Root;		
+			return (TransitionDefinitionBlockSyntax)NavParser.ParseRule(text, NavParser.Rule.TransitionDefinitionBlock, filePath, cancellationToken).Root;
 		}
 
 		public static CodeDoNotInjectDeclarationSyntax ParseCodeDoNotInjectDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeDoNotInjectDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeDoNotInjectDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeDoNotInjectDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeDoNotInjectDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeAbstractMethodDeclarationSyntax ParseCodeAbstractMethodDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeAbstractMethodDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeAbstractMethodDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeAbstractMethodDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeAbstractMethodDeclaration, filePath, cancellationToken).Root;
 		}
 
 		public static CodeNotImplementedDeclarationSyntax ParseCodeNotImplementedDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeNotImplementedDeclarationSyntax)SyntaxTree.ParseText(text, parser => parser.codeNotImplementedDeclaration(), filePath, null, cancellationToken).Root;		
+			return (CodeNotImplementedDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeNotImplementedDeclaration, filePath, cancellationToken).Root;
 		}
 
 	}

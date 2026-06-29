@@ -83,6 +83,116 @@ sealed class NavParser {
         return new NavParser(sourceText).ParseCodeGenerationUnit(cancellationToken);
     }
 
+    #region Per-Regel-Einstiege (test-only)
+
+    /// <summary>
+    /// Grammatikregeln, die einzeln (statt als ganze Datei) geparst werden können — die test-seitige
+    /// Snippet-Schnittstelle hinter <see cref="Syntax"/>. Jeder Wert verweist auf die gleichnamige private
+    /// <c>Parse*</c>-Methode (Ausnahme: <see cref="ArrayType"/> nutzt <see cref="ParseCodeType"/>, das die
+    /// Array-Regel mit abdeckt).
+    /// </summary>
+    internal enum Rule {
+        DoClause,                     GoToEdge,                  ArrayType,
+        ModalEdge,                    Parameter,                 Identifier,
+        SimpleType,                   GenericType,               NonModalEdge,
+        EndTargetNode,                ParameterList,             SignalTrigger,
+        StringLiteral,                InitSourceNode,            TaskDefinition,
+        CodeDeclaration,              TaskDeclaration,           IncludeDirective,
+        IfConditionClause,            ArrayRankSpecifier,        EndNodeDeclaration,
+        SpontaneousTrigger,           CodeBaseDeclaration,       ElseConditionClause,
+        ExitNodeDeclaration,          InitNodeDeclaration,       TaskNodeDeclaration,
+        ViewNodeDeclaration,          CodeUsingDeclaration,      IdentifierSourceNode,
+        IdentifierTargetNode,         NodeDeclarationBlock,      TransitionDefinition,
+        ChoiceNodeDeclaration,        CodeParamsDeclaration,     CodeResultDeclaration,
+        ElseIfConditionClause,        DialogNodeDeclaration,     CodeNamespaceDeclaration,
+        ExitTransitionDefinition,     CodeGenerateToDeclaration, TransitionDefinitionBlock,
+        CodeDoNotInjectDeclaration,   CodeAbstractMethodDeclaration,
+        CodeNotImplementedDeclaration
+    }
+
+    /// <summary>
+    /// Test-seitiger Einstieg je Grammatikregel (siehe <see cref="Syntax"/>): parst ein Snippet, das genau
+    /// einer Regel entspricht, und liefert dessen Knoten als Wurzel. Setzt — wie <see cref="Parse"/> — den
+    /// Cursor auf, ruft die zur Regel gehörende private <c>Parse*</c>-Methode und hängt den Rest (Trivia,
+    /// im Panic-Mode übersprungene Token, das abschließende <see cref="SyntaxTokenType.EndOfFile"/>) an die
+    /// so entstandene Wurzel. Produktionscode parst ausschließlich ganze Dateien über <see cref="Parse"/>.
+    /// </summary>
+    internal static SyntaxTree ParseRule(string text, Rule rule, string filePath = null, CancellationToken cancellationToken = default) {
+
+        var sourceText = SourceText.From(text ?? String.Empty, filePath);
+        var parser     = new NavParser(sourceText);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var root = parser.ParseRuleRoot(rule);
+
+        // Trivia/Unknown/Präprozessor/EndOfFile sowie übersprungene Token hängen — wie beim Whole-File-
+        // Parsing — an der Wurzel (hier dem Regel-Knoten).
+        parser.AttachNonSignificantTokens(root);
+
+        var syntaxTree = new SyntaxTree(sourceText : sourceText,
+                                        root       : root,
+                                        tokens     : new SyntaxTokenList(parser._tokens),
+                                        diagnostics: parser._diagnostics.ToImmutable());
+
+        root.FinalConstruct(syntaxTree, null);
+
+        return syntaxTree;
+    }
+
+    SyntaxNode ParseRuleRoot(Rule rule) {
+        switch (rule) {
+            case Rule.DoClause:                     return ParseDoClause();
+            case Rule.GoToEdge:                     return ParseGoToEdge();
+            case Rule.ArrayType:                    return ParseCodeType();
+            case Rule.ModalEdge:                    return ParseModalEdge();
+            case Rule.Parameter:                    return ParseParameter();
+            case Rule.Identifier:                   return ParseIdentifier();
+            case Rule.SimpleType:                   return ParseSimpleType();
+            case Rule.GenericType:                  return ParseGenericType();
+            case Rule.NonModalEdge:                 return ParseNonModalEdge();
+            case Rule.EndTargetNode:                return ParseEndTargetNode();
+            case Rule.ParameterList:                return ParseParameterList();
+            case Rule.SignalTrigger:                return ParseSignalTrigger();
+            case Rule.StringLiteral:                return ParseStringLiteral();
+            case Rule.InitSourceNode:               return ParseInitSourceNode();
+            case Rule.TaskDefinition:               return ParseTaskDefinition();
+            case Rule.CodeDeclaration:              return ParseCodeDeclaration();
+            case Rule.TaskDeclaration:              return ParseTaskDeclaration();
+            case Rule.IncludeDirective:             return ParseIncludeDirective();
+            case Rule.IfConditionClause:            return ParseIfConditionClause();
+            case Rule.ArrayRankSpecifier:           return ParseArrayRankSpecifier();
+            case Rule.EndNodeDeclaration:           return ParseEndNodeDeclaration();
+            case Rule.SpontaneousTrigger:           return ParseSpontaneousTrigger();
+            case Rule.CodeBaseDeclaration:          return ParseCodeBaseDeclaration();
+            case Rule.ElseConditionClause:          return ParseElseConditionClause();
+            case Rule.ExitNodeDeclaration:          return ParseExitNodeDeclaration();
+            case Rule.InitNodeDeclaration:          return ParseInitNodeDeclaration();
+            case Rule.TaskNodeDeclaration:          return ParseTaskNodeDeclaration();
+            case Rule.ViewNodeDeclaration:          return ParseViewNodeDeclaration();
+            case Rule.CodeUsingDeclaration:         return ParseCodeUsingDeclaration();
+            case Rule.IdentifierSourceNode:         return ParseIdentifierSourceNode();
+            case Rule.IdentifierTargetNode:         return ParseIdentifierTargetNode();
+            case Rule.NodeDeclarationBlock:         return ParseNodeDeclarationBlock();
+            case Rule.TransitionDefinition:         return ParseTransitionDefinition();
+            case Rule.ChoiceNodeDeclaration:        return ParseChoiceNodeDeclaration();
+            case Rule.CodeParamsDeclaration:        return ParseCodeParamsDeclaration();
+            case Rule.CodeResultDeclaration:        return ParseCodeResultDeclaration();
+            case Rule.ElseIfConditionClause:        return ParseElseIfConditionClause();
+            case Rule.DialogNodeDeclaration:        return ParseDialogNodeDeclaration();
+            case Rule.CodeNamespaceDeclaration:     return ParseCodeNamespaceDeclaration();
+            case Rule.ExitTransitionDefinition:     return ParseExitTransitionDefinition();
+            case Rule.CodeGenerateToDeclaration:    return ParseCodeGenerateToDeclaration();
+            case Rule.TransitionDefinitionBlock:    return ParseTransitionDefinitionBlock();
+            case Rule.CodeDoNotInjectDeclaration:   return ParseCodeDoNotInjectDeclaration();
+            case Rule.CodeAbstractMethodDeclaration:  return ParseCodeAbstractMethodDeclaration();
+            case Rule.CodeNotImplementedDeclaration: return ParseCodeNotImplementedDeclaration();
+            default: throw new ArgumentOutOfRangeException(nameof(rule), rule, null);
+        }
+    }
+
+    #endregion
+
     #region CodeGenerationUnit
 
     /// <summary>Grammatik-Einstiegsregel <c>codeGenerationUnit</c> → <see cref="CodeGenerationUnitSyntax"/> (Wurzel).</summary>

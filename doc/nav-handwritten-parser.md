@@ -285,10 +285,15 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    csproj-Compile-Einträge nötig — es gab auch keine). Header-Kommentar angepasst. Beide TFMs grün
    (net10 1099/0, net472 1099/0).
 2. **ANTLR-Ausbau (der Rest):**
-   - **Per-Regel-Einstiege auf den Handparser heben:** `NavParser` braucht per-Regel-Einstiege
-     (uniformer Wrapper: Cursor aufsetzen → private `Parse*` rufen → Rest als nicht-signifikant an die
-     Wurzel → `SyntaxTree` bauen). Die ~50 `Syntax.ParseXxx` darauf umstellen (sie bleiben in
-     `Nav.Language`). Das ist die schon länger notierte „eine Designfrage".
+   - **Per-Regel-Einstiege auf den Handparser heben — erledigt.** `NavParser` hat jetzt einen
+     uniformen per-Regel-Einstieg `ParseRule(text, Rule, filePath, ct)` (Cursor aufsetzen → die zur
+     `Rule` gehörende private `Parse*` rufen → Rest als nicht-signifikant an die so entstandene Wurzel
+     → `SyntaxTree` bauen); dispatcht über die nested `enum NavParser.Rule` (hält alle `Parse*` privat).
+     Die 44 `Syntax.ParseXxx` rufen das (statt der ANTLR-Regel-Delegaten); `ParseArrayType` → `ParseCodeType`
+     (deckt die Array-Regel mit ab). `ParseCodeGenerationUnit` bleibt Whole-File. Die ANTLR-`treeCreator`-
+     Überladung wird damit nur noch von `ParseTextAntlr` (Differential-Gate) benutzt. Beide TFMs grün
+     (net10 1099/0, net472 1099/0; generierte `SyntaxTests`/`ParseEmptyStringTests`, `SyntaxNodeTriviaTests`,
+     `SyntaxTokenTests` inklusive).
    - **`SyntaxTokenType.cs` entkoppeln:** Enumwerte `= NavTokens.X` (ANTLR-Konstanten) auf **feste
      Integer** einfrieren (heutige Werte 1:1 übernehmen; lecken nicht in Golden, aber sicherheitshalber).
    - **`SyntaxFacts.cs` entkoppeln:** `GetLiteralName(int)` nutzt `NavGrammar.DefaultVocabulary` →
