@@ -272,13 +272,18 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
 
 ### Schritt B — Aufgaben (Error-Recovery + Diagnostics-Parität)
 
-1. **Diagnostics, die Schritt A bewusst noch NICHT emittiert** (heute in `SyntaxTree.cs`
-   `PostprocessTokens` erzeugt — dort als Vorlage nachlesen, solange der ANTLR-Pfad noch lebt):
+1. **Lexikalische Diagnostics** (heute in `SyntaxTree.cs` `PostprocessTokens` erzeugt) — **erledigt (B1)**:
    - `Nav0000UnexpectedCharacter` je `Unknown`-Token.
    - `Nav3000InvalidPreprocessorDirective` je `HashToken` **und** je `PreprocessorKeyword`.
    - `Nav3001…MustAppearOnFirstNonWhitespacePosition` für `HashToken`, wenn vor dem `#` in der Zeile
      nicht nur Whitespace steht (`SourceText.SliceFromLineStartToPosition(...).IsWhiteSpace()`).
-   Diese gehören in/neben `AttachNonSignificantTokens` (dort werden genau diese Token-Typen behandelt).
+   Umgesetzt in `NavParser.ReportLexicalDiagnostics` (aufgerufen aus `AttachNonSignificantTokens`).
+   Die Location wird über `NavParser.LexicalLocation` gebaut — Start-/End-Zeilenposition **identisch**
+   an der Token-Startposition (im Test-Formatter nullbreit), exakt wie ANTLRs `IToken.GetLocation`
+   (nicht der Zeilen*bereich* aus `SourceText.GetLocation`). Reihenfolge je `#`: erst `Nav3001`,
+   dann `Nav3000`. Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
+   und stellt nur noch Dateien mit ANTLR-**Parser**-Recovery (`Nav0002`) zurück — die beiden reinen
+   Präprozessor-Dateien (`PreprocessorDirective.nav`, `PreprocessorNotAtLineStart.nav`) laufen voll mit.
 2. **`Eat` umbauen:** bei Mismatch heute `null` ohne Vorrücken → künftig zero-width
    `SyntaxToken.Missing` + Diagnose, **kein** Vorrücken (Insertion). Plus `SkipTo`/Panic-Mode, der
    überzählige Token als `Skiped`-Trivia konsumiert (Deletion) + Diagnose, mit garantiertem Fortschritt.

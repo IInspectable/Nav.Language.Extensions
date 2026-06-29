@@ -1035,7 +1035,9 @@ sealed class NavParser {
     /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten Token an die Wurzel:
     /// Trivia (Whitespace/Zeilenende/Kommentare), unbekannte Zeichen, Präprozessor-Token und das
     /// abschließende <see cref="SyntaxTokenType.EndOfFile"/>. Reproduziert die Token-Zuordnung der
-    /// bisherigen Pipeline.
+    /// bisherigen Pipeline. Dabei werden auch die rein lexikalischen Diagnosen gemeldet (unerwartetes
+    /// Zeichen, nicht unterstützte Präprozessor-Direktive) — derselbe Mechanismus wie im bisherigen
+    /// <c>PostprocessTokens</c>.
     /// </summary>
     void AttachNonSignificantTokens(SyntaxNode root) {
         foreach (var raw in _raw) {
@@ -1044,7 +1046,53 @@ sealed class NavParser {
             }
 
             _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root));
+
+            ReportLexicalDiagnostics(raw);
         }
+    }
+
+    /// <summary>
+    /// Meldet die nur vom Lexer ableitbaren Diagnosen für ein nicht-signifikantes Token: ein
+    /// <see cref="SyntaxTokenType.Unknown"/> als unerwartetes Zeichen (<c>Nav0000</c>); ein
+    /// <see cref="SyntaxTokenType.HashToken"/> bzw. <see cref="SyntaxTokenType.PreprocessorKeyword"/>
+    /// als nicht unterstützte Präprozessor-Direktive (<c>Nav3000</c>), beim <c>#</c> zusätzlich
+    /// <c>Nav3001</c>, falls davor in der Zeile nicht nur Whitespace steht. Reihenfolge und Location
+    /// (nullbreite Start-Position des Tokens) entsprechen dem bisherigen <c>PostprocessTokens</c>.
+    /// </summary>
+    void ReportLexicalDiagnostics(RawToken raw) {
+        switch (raw.Type) {
+            case SyntaxTokenType.Unknown:
+                _diagnostics.Add(new Diagnostic(LexicalLocation(raw.Extent),
+                                                DiagnosticDescriptors.Syntax.Nav0000UnexpectedCharacter,
+                                                _sourceText.Substring(raw.Extent)));
+                break;
+            case SyntaxTokenType.HashToken: {
+                if (!_sourceText.SliceFromLineStartToPosition(raw.Start).IsWhiteSpace()) {
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(raw.Extent),
+                                                    DiagnosticDescriptors.Syntax.Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition));
+                }
+
+                _diagnostics.Add(new Diagnostic(LexicalLocation(raw.Extent),
+                                                DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
+                break;
+            }
+            case SyntaxTokenType.PreprocessorKeyword:
+                _diagnostics.Add(new Diagnostic(LexicalLocation(raw.Extent),
+                                                DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Baut die <see cref="Location"/> für eine lexikalische Diagnose. Anders als
+    /// <see cref="SourceText.GetLocation"/> (Zeilen<i>bereich</i>) trägt sie — wie die bisherige
+    /// ANTLR-Pipeline für diese Diagnosen — Start- und End-Zeilenposition <b>identisch</b> an der
+    /// Startposition des Tokens; im Test-Formatter erscheint sie damit nullbreit.
+    /// </summary>
+    Location LexicalLocation(TextExtent extent) {
+        var line         = _sourceText.GetTextLineAtPosition(extent.Start);
+        var linePosition = new LinePosition(line.Line, extent.Start - line.Start);
+        return new Location(extent, linePosition, _sourceText.FileInfo?.FullName);
     }
 
     static bool TryClassifyNonSignificant(SyntaxTokenType type, out TextClassification classification) {

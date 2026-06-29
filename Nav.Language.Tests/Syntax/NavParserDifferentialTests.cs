@@ -15,14 +15,18 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Nav.Language.Tests;
 
 /// <summary>
-/// Differentielles Sicherheitsnetz für den handgeschriebenen <see cref="NavParser"/>: für jede
-/// <b>wohlgeformte</b> Korpus-Datei muss er denselben Knotenbaum und denselben Token-Strom liefern wie die
-/// bisherige ANTLR-Pipeline (<see cref="SyntaxTree.ParseText(string, string, System.Threading.CancellationToken)"/>).
-/// Verglichen wird Knoten für Knoten (Typ, Extent, angehängte Token) und Token für Token (Start, Länge, Typ,
-/// Klassifikation, Parent-Knotentyp), dazu der Full-Fidelity-Round-Trip.
+/// Differentielles Sicherheitsnetz für den handgeschriebenen <see cref="NavParser"/>: für jede Korpus-Datei,
+/// in der ANTLR <b>keine</b> Parser-Recovery auslöst, muss er denselben Knotenbaum, denselben Token-Strom
+/// <i>und</i> dieselben Diagnostics liefern wie die bisherige ANTLR-Pipeline
+/// (<see cref="SyntaxTree.ParseText(string, string, System.Threading.CancellationToken)"/>). Verglichen wird
+/// Knoten für Knoten (Typ, Extent, angehängte Token), Token für Token (Start, Länge, Typ, Klassifikation,
+/// Parent-Knotentyp), Diagnose für Diagnose, dazu der Full-Fidelity-Round-Trip.
 /// <para/>
-/// Bewusst nur der wohlgeformte Fall: Dateien, für die ANTLR Diagnostics meldet (Error-Recovery), werden
-/// übersprungen — fehlertolerante Recovery samt Diagnostics-Parität ist Gegenstand eines eigenen Schritts.
+/// Bewusst zurückgestellt sind nur Dateien, in denen ANTLR <b>Parser</b>-Recovery anstößt (Diagnose
+/// <see cref="DiagnosticId.Nav0002"/>): dort darf der Handparser bewusst von ANTLR abweichen (bessere
+/// Meldungen) und wird stattdessen per Golden (<c>SyntaxGoldenTests</c>) abgesichert. Rein lexikalische
+/// Diagnosen (<c>Nav0000</c> unerwartetes Zeichen, <c>Nav3000/Nav3001</c> Präprozessor) sind dagegen
+/// deterministisch und werden hier mitverglichen.
 /// </summary>
 [TestFixture]
 public class NavParserDifferentialTests {
@@ -32,7 +36,7 @@ public class NavParserDifferentialTests {
 
         var source = File.ReadAllText(navFile);
         var reference = SyntaxTree.ParseText(source, navFile);
-        SkipIfNotWellFormed(reference, navFile);
+        SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
 
@@ -45,7 +49,7 @@ public class NavParserDifferentialTests {
 
         var source = File.ReadAllText(navFile);
         var reference = SyntaxTree.ParseText(source, navFile);
-        SkipIfNotWellFormed(reference, navFile);
+        SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
 
@@ -54,11 +58,24 @@ public class NavParserDifferentialTests {
     }
 
     [Test, TestCaseSource(nameof(CorpusFiles))]
+    public void DiagnosticsMatchReference(string navFile) {
+
+        var source = File.ReadAllText(navFile);
+        var reference = SyntaxTree.ParseText(source, navFile);
+        SkipIfParserRecoveryDiverges(reference, navFile);
+
+        var actual = NavParser.Parse(source, navFile);
+
+        Assert.That(DumpDiagnostics(actual), Is.EqualTo(DumpDiagnostics(reference)),
+                    $"Der handgeschriebene Parser liefert für '{Path.GetFileName(navFile)}' andere Diagnostics als ANTLR.");
+    }
+
+    [Test, TestCaseSource(nameof(CorpusFiles))]
     public void RoundTripsCorpus(string navFile) {
 
         var source = File.ReadAllText(navFile);
         var reference = SyntaxTree.ParseText(source, navFile);
-        SkipIfNotWellFormed(reference, navFile);
+        SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
 
@@ -68,10 +85,30 @@ public class NavParserDifferentialTests {
 
     #region Infrastructure
 
-    static void SkipIfNotWellFormed(SyntaxTree reference, string navFile) {
-        if (!reference.Diagnostics.IsEmpty) {
-            Assert.Ignore($"'{Path.GetFileName(navFile)}' ist nicht wohlgeformt (ANTLR meldet Diagnostics) — Recovery folgt in einem eigenen Schritt.");
+    static void SkipIfParserRecoveryDiverges(SyntaxTree reference, string navFile) {
+        if (reference.Diagnostics.Any(diagnostic => diagnostic.Descriptor.Id == DiagnosticId.Nav0002)) {
+            Assert.Ignore($"'{Path.GetFileName(navFile)}' stößt ANTLR-Parser-Recovery (Nav0002) an — der Handparser darf hier bewusst abweichen und wird per Golden abgesichert.");
         }
+    }
+
+    static string DumpDiagnostics(SyntaxTree tree) {
+
+        var byPosition = tree.Diagnostics
+                            .SelectMany(diagnostic => diagnostic.ExpandLocations())
+                            .OrderBy(diagnostic => diagnostic.Location.Start)
+                            .ToList();
+
+        var ordered = byPosition.Errors()
+                                .Concat(byPosition.Warnings())
+                                .Concat(byPosition.Suggestions());
+
+        var sb = new StringBuilder();
+        foreach (var diagnostic in ordered) {
+            sb.Append(diagnostic.ToString(UnitTestDiagnosticFormatter.Instance));
+            sb.Append('\n');
+        }
+
+        return sb.ToString();
     }
 
     static string DumpTokens(SyntaxTree tree) {
