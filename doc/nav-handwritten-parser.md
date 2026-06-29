@@ -261,6 +261,77 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
 > „missing" (target node / `;` / `}`) an derselben EOF-Position — korrekt, aber etwas geschwätzig
 > (ANTLR coalesct auf zwei). Bewusste, reviewbare Entscheidung; bei Bedarf leicht zu entschärfen.
 
+---
+
+## Schritt C — Cutover (Plan für die nächste Session)
+
+**Ziel:** `SyntaxTree.ParseText` von ANTLR auf den Handparser umstellen und ANTLR **als Parser/Lexer**
+vollständig ausbauen. Danach gibt es nur noch eine Syntax-Implementierung. Hartes Cutover ohne
+Runtime-Schalter (so entschieden); die Golden-Diffs sind das Review-Artefakt.
+
+### Befund-Lage (in dieser Session verifiziert — Einstieg, Quelle der Wahrheit bleibt der Code)
+
+- **Produktion parst nur ganze Dateien.** Alle drei produktiven Aufrufer nutzen ausschließlich
+  `Syntax.ParseCodeGenerationUnit` (Whole-File): `Nav.Language\Provider\SyntaxProvider.cs`,
+  `Nav.Language\Workspace\OverlaySyntaxProvider.cs`, `Nav.Language.ExtensionShared\ParserService\ParserService.cs`
+  (Default `GetParseMethod`). Das deckt `NavParser.Parse` bereits 1:1 ab.
+- **Die per-Regel-Einstiege `Syntax.ParseXxx` sind test-only.** `Nav.Language\Syntax\Generated\Syntax.Generated.cs`
+  (aus `.tt`) erzeugt je Grammatikregel ein `Syntax.ParseXxx`, das
+  `SyntaxTree.ParseText(text, parser => parser.<rule>(), …)` mit **ANTLR-Regel-Delegat** aufruft.
+  Konsumenten sind die generierten Tests (`Generated Tests\SyntaxTest.cs` = `SampleSyntax` je Regel,
+  `ParseEmptyStringTests.cs`) und diverse Feature-Test-Helfer, die Snippets parsen. **Kein**
+  Produktionscode. → Das ist die **eine echte Designfrage** des Cutovers (siehe unten).
+- **`SyntaxTokenType` ist an ANTLR gekoppelt:** `Nav.Language\Syntax\SyntaxTokenType.cs` definiert jeden
+  Enumwert als `= NavTokens.X` (ANTLR-generierte Konstante; nur `EndOfFile = 255` ist schon hart). Beim
+  ANTLR-Ausbau müssen diese auf **feste Integer** eingefroren werden (die Zahlen lecken nirgendwo in
+  Golden — `DumpTokens` schreibt den Namen —, aber sicherheitshalber die heutigen Werte 1:1 übernehmen).
+- **`SyntaxFacts` ist an ANTLR gekoppelt:** `GetLiteralName(int)` nutzt `NavGrammar.DefaultVocabulary`,
+  und viele `public static readonly string XxxKeyword = GetLiteralName(NavGrammar.Xxx)`. Beim Ausbau →
+  hartkodierte Literal-Map (das Muster gibt es schon: `ModalEdgeKeyword = "o->"`, `ModalEdgeKeywordAlt = "*->"`).
+- **StringTemplate bleibt!** `Nav.Language\CodeGen\CodeGenerator.cs` nutzt `using Antlr4.StringTemplate;` —
+  das kommt aus dem **separaten** NuGet `StringTemplate4` (csproj-Zeile 46), **nicht** aus dem Parser-ANTLR.
+  Nur `Antlr4` + `Antlr4.Runtime` (csproj-Zeilen 41–45) sind Parser/Lexer und fliegen raus; `StringTemplate4`
+  **muss bleiben**, sonst bricht die Codegenerierung.
+- **ANTLR-Plumbing zum Löschen/Entkoppeln** (`Nav.Language\Internal\`): `NavGrammarVisitor.cs`,
+  `NavCommonTokenStream.cs`, `NavLexerErrorListener.cs`, `NavParserErrorListener.cs`, `DiagnosticFactory.cs`
+  (`IToken`-basiert), `SyntaxBuildingExtension.cs`; `Nav.Language\Syntax\SourceTextCharStream.cs`;
+  die `IToken`/`ITerminalNode`-Overloads in `SyntaxTokenFactory.cs`/`TextExtentFactory.cs`. Plus die
+  ANTLR-Pfad-Hälfte von `SyntaxTree.ParseText` und `PostprocessTokens`/`SplitSingleLineCommenTokens`.
+- **Build:** `Nav.Language\Nav.Language.csproj` Zeilen 53–60 (`<Antlr4 Update="Grammar\NavGrammar.g4"/>`
+  + `NavTokens.g4`) und die zwei PackageReferences entfernen; `Grammar\*.g4` aus dem Build nehmen.
+  Der `_build\CodeGen\GenerateCodeGenFacts.cs`-Generator (StringTemplate-Facts) hat **nichts** mit der
+  Grammatik zu tun — bleibt.
+
+### Die eine Designfrage: per-Regel-Einstiege (`Syntax.ParseXxx`) ohne ANTLR
+
+Empfohlen: **`NavParser` per-Regel-Einstiege geben** und `Syntax.Generated.tt` so umschreiben, dass jede
+`Syntax.ParseXxx` statt `parser => parser.<rule>()` einen Handparser-Einstieg ruft. Mechanisch: ein
+uniformer Wrapper „Cursor aufsetzen → `ParseXxx()` → Rest als nicht-signifikant an die Wurzel →
+`SyntaxTree` bauen", parametrisiert über die schon vorhandene private `Parse*`-Methode je Regel. Die
+~25 Methoden existieren bereits — sie müssen nur als Einstieg aufrufbar werden (intern sichtbar reicht;
+Tests haben `InternalsVisibleTo`). Damit bleiben `SyntaxTest`/`ParseEmptyStringTests` unverändert nutzbar.
+Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — nicht empfohlen.
+
+### Verifikation des Cutovers (Reihenfolge)
+
+1. `SyntaxTree.ParseText(text, filePath, ct)` (Whole-File) intern auf `NavParser.Parse` umlegen, ANTLR-Pfad
+   daneben **vorerst stehen lassen**, Solution baut (`dotnet build` für den .NET-Teil; volle Solution via
+   `n build` / MSBuild.exe wegen der VSIX).
+2. **Golden-Cutover:** Die bestehenden ANTLR-Golden `Syntax\Tests\*.nav.{tokens,tree,diag}` werden jetzt
+   vom Handparser erzeugt. Praktisch: `SyntaxGoldenTests.UpdateGolden` neu laufen lassen und die Diffs
+   gegen die schon reviewten `*.hand.*` prüfen (müssen identisch sein → die `.hand.*` werden redundant und
+   können samt `NavParserGoldenTests`/`NavParserDifferentialTests` entfernt werden, sobald ANTLR weg ist).
+3. `.expected.cs`-Regression (`RegressionTests`) und die volle Suite auf **net10 + net472** grün halten —
+   das ist das End-to-End-Netz über die Codegenerierung (fängt subtile Baum-/Token-Abweichungen).
+4. Erst **dann** ANTLR ausbauen (Pakete, `.g4`, Plumbing, `SyntaxTokenType`/`SyntaxFacts` entkoppeln) und
+   erneut beide TFMs + Regression grün ziehen.
+
+> **Risiko-Hotspots:** (a) `SyntaxTokenType`/`SyntaxFacts`-Entkopplung (stille Wertverschiebung), (b) die
+> per-Regel-Einstiege, (c) dass `StringTemplate4` nicht versehentlich mit ausgebaut wird. (a)/(c) sind die
+> häufigsten „grün, aber kaputt"-Fallen.
+
+---
+
 ### Was steht (Schritt A)
 
 - **`Nav.Language\Syntax\NavParser.cs`** — handgeschriebener Recursive-Descent-Parser über den
