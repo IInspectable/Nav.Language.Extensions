@@ -38,6 +38,15 @@ class NavCodeGenerator {
                 WriteManifest(cl.ManifestFile, result.GeneratedFiles.Select(r => r.FileName));
             }
 
+            // Abhängigkeits-Manifest: die per taskref eingelesenen Dateien, die selbst keine
+            // Eingabedateien sind. Der inkrementelle Build liest dieses Manifest beim nächsten Lauf und
+            // hängt die Pfade als zusätzliche Inputs an — so löst eine Änderung an einer solchen
+            // Abhängigkeit korrekt einen Regen aus, statt fälschlich übersprungen zu werden. Nur bei
+            // Erfolg schreiben (analog zum Outputs-Manifest).
+            if (result.Succeeded && !cl.DependencyManifestFile.IsNullOrEmpty()) {
+                WriteManifest(cl.DependencyManifestFile, result.IncludedFiles);
+            }
+
             return result.Succeeded ? 0 : 1;
 
         } catch (Exception ex) {

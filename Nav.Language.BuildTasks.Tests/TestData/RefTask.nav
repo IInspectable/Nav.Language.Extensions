@@ -1,0 +1,18 @@
+﻿[namespaceprefix Nav.Language.BuildTasks.Tests.Sample]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL]
+
+taskref "RefDependency.nav";
+
+task RefTask [result bool]
+{
+    init I1 [params string message];
+
+    task RefDependency D;
+    exit Ok;
+
+    I1   --> D;
+
+    D:Ok --> Ok;
+}

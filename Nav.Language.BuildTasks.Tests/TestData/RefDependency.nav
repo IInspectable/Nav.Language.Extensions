@@ -1,0 +1,20 @@
+﻿[namespaceprefix Nav.Language.BuildTasks.Tests.Sample]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL]
+
+task RefDependency [code "public enum ExitCode{ Ok, Abbrechen}"]
+                   [base StandardWFS : IWFService]
+                   [result ExitCode]
+{
+    init I1 [params string message];
+
+    view TestView1;
+
+    exit Ok;
+
+    I1    --> TestView1;
+
+    TestView1 --> Ok on Ok;
+    TestView1 --> Ok on OnFoo;
+}

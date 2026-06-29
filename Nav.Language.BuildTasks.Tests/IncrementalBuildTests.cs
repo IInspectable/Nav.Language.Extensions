@@ -188,6 +188,33 @@ public class IncrementalBuildTests {
     }
 
     [Test]
+    public void Geaenderte_taskref_Abhaengigkeit_loest_Regen_aus() {
+
+        using var ws = NavBuildWorkspace.Create();
+        ws.AddNavFile("RefTask.nav");                                 // GenerateNavCode-Item
+        var dependency = ws.AddDependencyFile("RefDependency.nav");   // NICHT als Input gelistet
+        ws.WriteProject();
+
+        Assert.That(ws.Build(Incremental()).Succeeded, Is.True);
+
+        // Die per taskref eingelesene Abhaengigkeit wurde als discovered input protokolliert.
+        var deps = ws.ReadDependencyManifest();
+        Assert.That(deps.Select(Path.GetFileName), Has.Member("RefDependency.nav"),
+                    "Die taskref-Abhaengigkeit fehlt im Deps-Manifest (nav.inputs.txt).");
+
+        // Baseline: zweiter Build ohne Aenderung wird uebersprungen.
+        Assert.That(ws.Build(Incremental()).Succeeded, Is.True);
+        Assert.That(ws.BodyRan, Is.False, "Body lief ohne Aenderung erneut (kein Skip).");
+
+        // Abhaengigkeit anfassen: mtime klar in die Zukunft. Sie ist KEIN GenerateNavCode-Item —
+        // ohne Deps-Tracking wuerde der Build sie nicht sehen und faelschlich ueberspringen.
+        File.SetLastWriteTimeUtc(dependency, DateTime.UtcNow.AddMinutes(1));
+
+        Assert.That(ws.Build(Incremental()).Succeeded, Is.True);
+        Assert.That(ws.BodyRan, Is.True, "Geaenderte taskref-Abhaengigkeit loeste keinen Regen aus.");
+    }
+
+    [Test]
     public void Manifest_enthaelt_absolute_eindeutige_sortierte_Pfade() {
 
         using var ws = NavBuildWorkspace.Create();

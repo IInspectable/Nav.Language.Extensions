@@ -29,21 +29,22 @@ sealed record CommandLine {
         GenerationOptions = CodeGenerationOptions.All;
     }
 
-    public string       Directory            { get; private set; }
-    public List<string> Sources              { get; }
-    public bool         Force                { get; private set; }
-    public bool         Strict               { get; private set; }
-    public bool         UseSyntaxCache       { get; private set; }
-    public bool         Verbose              { get; private set; }
-    public bool         FullPaths            { get; private set; }
-    public bool         NoWarnings           { get; private set; }
-    public bool         NullableContext      { get; private set; }
-    public string       ProjectRootDirectory { get; private set; }
-    public string       IwflRootDirectory    { get; private set; }
-    public string       WflRootDirectory     { get; private set; }
-    public string       ManifestFile         { get; private set; }
+    public string       Directory              { get; private set; }
+    public List<string> Sources                { get; }
+    public bool         Force                  { get; private set; }
+    public bool         Strict                 { get; private set; }
+    public bool         UseSyntaxCache         { get; private set; }
+    public bool         Verbose                { get; private set; }
+    public bool         FullPaths              { get; private set; }
+    public bool         NoWarnings             { get; private set; }
+    public bool         NullableContext        { get; private set; }
+    public string       ProjectRootDirectory   { get; private set; }
+    public string       IwflRootDirectory      { get; private set; }
+    public string       WflRootDirectory       { get; private set; }
+    public string       ManifestFile           { get; private set; }
+    public string       DependencyManifestFile { get; private set; }
 
-    public CodeGenerationOptions GenerationOptions {get; private set;}
+    public CodeGenerationOptions GenerationOptions { get; private set; }
 
     public bool   Analyze { get; set; }
     public string Pattern { get; set; }
@@ -67,6 +68,7 @@ sealed record CommandLine {
             { "w=|wflroot"          , "Gibt ein alternatives WFL Wurzelverzeichnis an.", v => cla.WflRootDirectory = v },
             { "r=|projectroot"      , "Gibt das Project Wurzelverzeichnis an.", v => cla.ProjectRootDirectory = v },
             { "m=|manifest"         , "Schreibt die Liste aller erzeugten Ausgabedateien (Manifest) in die angegebene Datei — für inkrementelle Builds.", v => cla.ManifestFile = v },
+            { "dm=|depsmanifest"    , "Schreibt die Liste aller per taskref eingelesenen Abhängigkeitsdateien in die angegebene Datei — für inkrementelle Builds.", v => cla.DependencyManifestFile = v },
             { "h|?|help"            , "Zeigt diese Hilfe an.", v => showHelp = v != null },
 
         };
