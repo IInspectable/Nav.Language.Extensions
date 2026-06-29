@@ -294,10 +294,13 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
      Überladung wird damit nur noch von `ParseTextAntlr` (Differential-Gate) benutzt. Beide TFMs grün
      (net10 1099/0, net472 1099/0; generierte `SyntaxTests`/`ParseEmptyStringTests`, `SyntaxNodeTriviaTests`,
      `SyntaxTokenTests` inklusive).
-   - **`SyntaxTokenType.cs` entkoppeln:** Enumwerte `= NavTokens.X` (ANTLR-Konstanten) auf **feste
-     Integer** einfrieren (heutige Werte 1:1 übernehmen; lecken nicht in Golden, aber sicherheitshalber).
-   - **`SyntaxFacts.cs` entkoppeln:** `GetLiteralName(int)` nutzt `NavGrammar.DefaultVocabulary` →
-     hartkodierte Literal-Map (Muster existiert: `ModalEdgeKeyword = "o->"`).
+   - **`SyntaxTokenType.cs` entkoppeln — erledigt.** Enumwerte `= NavTokens.X` auf feste Integer
+     eingefroren (heutige ANTLR-Nummern 1:1, `using ...Generated` entfernt). Die Werte stimmen weiter mit
+     ANTLRs `NavTokens` überein — wichtig, solange die Differential-Gates via `SyntaxTokenFactory` aus
+     `IToken.Type` (ANTLR-Int) in den Enum casten.
+   - **`SyntaxFacts.cs` entkoppeln — erledigt.** Keyword-/Punctuation-Literale fest hinterlegt (1:1 wie
+     vormals über `NavGrammar.DefaultVocabulary`); `GetLiteralName`/`GetLiteralNameAsChar` und das
+     `using ...Generated` entfernt. Beide TFMs grün (net10 1099/0, net472 1099/0).
    - **ANTLR-Plumbing löschen** (`Nav.Language\Internal\`): `NavGrammarVisitor`, `NavCommonTokenStream`,
      `NavLexerErrorListener`, `NavParserErrorListener`, `DiagnosticFactory` (`IToken`-basiert),
      `SyntaxBuildingExtension`; `Nav.Language\Syntax\SourceTextCharStream.cs`; die `IToken`/

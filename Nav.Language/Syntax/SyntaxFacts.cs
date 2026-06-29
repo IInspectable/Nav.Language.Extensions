@@ -1,10 +1,8 @@
 ﻿#region Using Directives
 
-using System;
 using System.Linq;
 using System.Collections.Immutable;
 
-using Pharmatechnik.Nav.Language.Generated;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -13,34 +11,35 @@ namespace Pharmatechnik.Nav.Language;
 
 public static class SyntaxFacts {
 
-    // Keywords
-    public static readonly string TaskKeyword            = GetLiteralName(NavGrammar.TaskKeyword);
-    public static readonly string TaskrefKeyword         = GetLiteralName(NavGrammar.TaskrefKeyword);
-    public static readonly string InitKeyword            = GetLiteralName(NavGrammar.InitKeyword);
+    // Keywords. Die Literale entsprechen 1:1 den ursprünglichen Grammatik-Literalen (vormals über
+    // NavGrammar.DefaultVocabulary aufgelöst), jetzt fest hinterlegt — unabhängig von der Grammatik.
+    public static readonly string TaskKeyword            = "task";
+    public static readonly string TaskrefKeyword         = "taskref";
+    public static readonly string InitKeyword            = "init";
     public static readonly string InitKeywordAlt         = InitKeyword.ToPascalcase();
-    public static readonly string EndKeyword             = GetLiteralName(NavGrammar.EndKeyword);
-    public static readonly string ChoiceKeyword          = GetLiteralName(NavGrammar.ChoiceKeyword);
-    public static readonly string DialogKeyword          = GetLiteralName(NavGrammar.DialogKeyword);
-    public static readonly string ViewKeyword            = GetLiteralName(NavGrammar.ViewKeyword);
-    public static readonly string ExitKeyword            = GetLiteralName(NavGrammar.ExitKeyword);
-    public static readonly string OnKeyword              = GetLiteralName(NavGrammar.OnKeyword);
-    public static readonly string IfKeyword              = GetLiteralName(NavGrammar.IfKeyword);
-    public static readonly string ElseKeyword            = GetLiteralName(NavGrammar.ElseKeyword);
-    public static readonly string SpontaneousKeyword     = GetLiteralName(NavGrammar.SpontaneousKeyword);
-    public static readonly string SpontKeyword           = GetLiteralName(NavGrammar.SpontKeyword);
-    public static readonly string DoKeyword              = GetLiteralName(NavGrammar.DoKeyword);
-    public static readonly string ResultKeyword          = GetLiteralName(NavGrammar.ResultKeyword);
-    public static readonly string ParamsKeyword          = GetLiteralName(NavGrammar.ParamsKeyword);
-    public static readonly string BaseKeyword            = GetLiteralName(NavGrammar.BaseKeyword);
-    public static readonly string NamespaceprefixKeyword = GetLiteralName(NavGrammar.NamespaceprefixKeyword);
-    public static readonly string UsingKeyword           = GetLiteralName(NavGrammar.UsingKeyword);
-    public static readonly string CodeKeyword            = GetLiteralName(NavGrammar.CodeKeyword);
-    public static readonly string GeneratetoKeyword      = GetLiteralName(NavGrammar.GeneratetoKeyword);
-    public static readonly string NotimplementedKeyword  = GetLiteralName(NavGrammar.NotimplementedKeyword);
-    public static readonly string AbstractmethodKeyword  = GetLiteralName(NavGrammar.AbstractmethodKeyword);
-    public static readonly string DonotinjectKeyword     = GetLiteralName(NavGrammar.DonotinjectKeyword);
-    public static readonly string GoToEdgeKeyword        = GetLiteralName(NavGrammar.GoToEdgeKeyword);
-    public static readonly string NonModalEdgeKeyword    = GetLiteralName(NavGrammar.NonModalEdgeKeyword);
+    public static readonly string EndKeyword             = "end";
+    public static readonly string ChoiceKeyword          = "choice";
+    public static readonly string DialogKeyword          = "dialog";
+    public static readonly string ViewKeyword            = "view";
+    public static readonly string ExitKeyword            = "exit";
+    public static readonly string OnKeyword              = "on";
+    public static readonly string IfKeyword              = "if";
+    public static readonly string ElseKeyword            = "else";
+    public static readonly string SpontaneousKeyword     = "spontaneous";
+    public static readonly string SpontKeyword           = "spont";
+    public static readonly string DoKeyword              = "do";
+    public static readonly string ResultKeyword          = "result";
+    public static readonly string ParamsKeyword          = "params";
+    public static readonly string BaseKeyword            = "base";
+    public static readonly string NamespaceprefixKeyword = "namespaceprefix";
+    public static readonly string UsingKeyword           = "using";
+    public static readonly string CodeKeyword            = "code";
+    public static readonly string GeneratetoKeyword      = "generateto";
+    public static readonly string NotimplementedKeyword  = "notimplemented";
+    public static readonly string AbstractmethodKeyword  = "abstractmethod";
+    public static readonly string DonotinjectKeyword     = "donotinject";
+    public static readonly string GoToEdgeKeyword        = "-->";
+    public static readonly string NonModalEdgeKeyword    = "==>";
     public static readonly string ModalEdgeKeyword       = "o->";
     public static readonly string ModalEdgeKeywordAlt    = "*->";
 
@@ -119,18 +118,18 @@ public static class SyntaxFacts {
         return EdgeKeywords.Contains(value);
     }
 
-    // Punctuation
-    public static readonly char OpenBrace    = GetLiteralNameAsChar(NavGrammar.OpenBrace);
-    public static readonly char CloseBrace   = GetLiteralNameAsChar(NavGrammar.CloseBrace);
-    public static readonly char OpenParen    = GetLiteralNameAsChar(NavGrammar.OpenParen);
-    public static readonly char CloseParen   = GetLiteralNameAsChar(NavGrammar.CloseParen);
-    public static readonly char OpenBracket  = GetLiteralNameAsChar(NavGrammar.OpenBracket);
-    public static readonly char CloseBracket = GetLiteralNameAsChar(NavGrammar.CloseBracket);
-    public static readonly char LessThan     = GetLiteralNameAsChar(NavGrammar.LessThan);
-    public static readonly char GreaterThan  = GetLiteralNameAsChar(NavGrammar.GreaterThan);
-    public static readonly char Semicolon    = GetLiteralNameAsChar(NavGrammar.Semicolon);
-    public static readonly char Comma        = GetLiteralNameAsChar(NavGrammar.Comma);
-    public static readonly char Colon        = GetLiteralNameAsChar(NavGrammar.Colon);
+    // Punctuation. Wie die Keywords: die Zeichen entsprechen 1:1 den ursprünglichen Grammatik-Literalen.
+    public static readonly char OpenBrace    = '{';
+    public static readonly char CloseBrace   = '}';
+    public static readonly char OpenParen    = '(';
+    public static readonly char CloseParen   = ')';
+    public static readonly char OpenBracket  = '[';
+    public static readonly char CloseBracket = ']';
+    public static readonly char LessThan     = '<';
+    public static readonly char GreaterThan  = '>';
+    public static readonly char Semicolon    = ';';
+    public static readonly char Comma        = ',';
+    public static readonly char Colon        = ':';
 
     public static readonly ImmutableHashSet<char> Punctuations = new[] {
         OpenBrace,
@@ -185,19 +184,6 @@ public static class SyntaxFacts {
     public static readonly string SingleLineComment = "//";
     public static readonly string BlockCommentStart = "/*";
     public static readonly string BlockCommentEnd   = "*/";
-
-    static char GetLiteralNameAsChar(int tokenType) {
-        string name = GetLiteralName(tokenType);
-        if (name.Length != 1) {
-            throw new InvalidOperationException($"{name} has more or less than one char.");
-        }
-
-        return name[0];
-    }
-
-    static string GetLiteralName(int tokenType) {
-        return NavGrammar.DefaultVocabulary.GetLiteralName(tokenType).Trim('\'');
-    }
 
     public static bool IsTrivia(TextClassification classification) {
         return classification == TextClassification.Comment || classification == TextClassification.Whitespace;
