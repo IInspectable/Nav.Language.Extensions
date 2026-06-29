@@ -1,2 +1,1 @@
-﻿//==>>[Syntax](5,12,5,13): error Nav0002: missing target node
-//==>>[Syntax](5,12,5,13): error Nav0002: extraneous input ';' expecting '}'
+﻿//==>>[Syntax](5,12,5,12): error Nav0002: missing target node

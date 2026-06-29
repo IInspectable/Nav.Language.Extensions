@@ -21,7 +21,7 @@
    45    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    46    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
    49    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   50    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
+   50    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    51    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    53    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
    54    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax

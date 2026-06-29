@@ -1,7 +1,8 @@
-﻿ 
+﻿
 //==================================================
-// HINWEIS: Diese Datei wurde am 23.01.2024 20:55:41
-//			automatisch generiert!
+// HINWEIS: Diese Datei wurde ursprünglich aus Syntax.Generated.tt generiert; seit der Umstellung des
+//			Whole-File-Parsings auf den handgeschriebenen NavParser wird sie von Hand gepflegt
+//			(die T4-Vorlage wurde stillgelegt).
 //==================================================
 namespace Pharmatechnik.Nav.Language {
 
@@ -90,7 +91,9 @@ namespace Pharmatechnik.Nav.Language {
 		}
 
 		public static CodeGenerationUnitSyntax ParseCodeGenerationUnit(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
-			return (CodeGenerationUnitSyntax)SyntaxTree.ParseText(text, parser => parser.codeGenerationUnit(), filePath, null, cancellationToken).Root;		
+			// Produktions-Einstieg fürs Whole-File-Parsing: läuft über den handgeschriebenen NavParser
+			// (SyntaxTree.ParseText). Die per-Regel-Einstiege unten parsen weiterhin über ANTLR.
+			return (CodeGenerationUnitSyntax)SyntaxTree.ParseText(text, filePath, cancellationToken).Root;
 		}
 
 		public static EndNodeDeclarationSyntax ParseEndNodeDeclaration(string text, string filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {

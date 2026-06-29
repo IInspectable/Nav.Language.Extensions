@@ -5,12 +5,12 @@
     7    1  OpenBracket             Punctuation                  CodeParamsDeclarationSyntax
     8    6  ParamsKeyword           Keyword                      CodeParamsDeclarationSyntax
    14    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   15    2  Identifier              ParameterName                ParameterSyntax
-   17    1  LessThan                Skiped                       CodeGenerationUnitSyntax
-   18    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   20    1  Comma                   Skiped                       CodeGenerationUnitSyntax
+   15    2  Identifier              TypeName                     GenericTypeSyntax
+   17    1  LessThan                Punctuation                  GenericTypeSyntax
+   18    2  Identifier              TypeName                     SimpleTypeSyntax
+   20    1  Comma                   Punctuation                  GenericTypeSyntax
    21    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   22    2  Identifier              Skiped                       CodeGenerationUnitSyntax
+   22    2  Identifier              TypeName                     SimpleTypeSyntax
    24    1  CloseBracket            Punctuation                  CodeParamsDeclarationSyntax
    25    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    27    1  OpenBrace               Punctuation                  TaskDefinitionSyntax

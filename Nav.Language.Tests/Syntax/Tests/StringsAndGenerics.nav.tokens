@@ -52,35 +52,35 @@
    79    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
    80    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    82    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   86    4  InitKeyword             Skiped                       CodeGenerationUnitSyntax
+   86    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
    90    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   91    2  Identifier              Skiped                       CodeGenerationUnitSyntax
+   91    2  Identifier              Identifier                   InitNodeDeclarationSyntax
    93    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   94    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
-   95    6  ParamsKeyword           Skiped                       CodeGenerationUnitSyntax
+   94    1  OpenBracket             Punctuation                  CodeParamsDeclarationSyntax
+   95    6  ParamsKeyword           Keyword                      CodeParamsDeclarationSyntax
   101    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  102   28  Identifier              Skiped                       CodeGenerationUnitSyntax
-  130    1  LessThan                Skiped                       CodeGenerationUnitSyntax
-  131    3  Identifier              Skiped                       CodeGenerationUnitSyntax
-  134    1  GreaterThan             Skiped                       CodeGenerationUnitSyntax
+  102   28  Identifier              TypeName                     GenericTypeSyntax
+  130    1  LessThan                Punctuation                  GenericTypeSyntax
+  131    3  Identifier              TypeName                     SimpleTypeSyntax
+  134    1  GreaterThan             Punctuation                  GenericTypeSyntax
   135    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  136    5  Identifier              Skiped                       CodeGenerationUnitSyntax
-  141    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
+  136    5  Identifier              ParameterName                ParameterSyntax
+  141    1  CloseBracket            Punctuation                  CodeParamsDeclarationSyntax
   142    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  143    2  DoKeyword               Skiped                       CodeGenerationUnitSyntax
+  143    2  DoKeyword               ControlKeyword               DoClauseSyntax
   145    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  146    2  StringLiteral           Skiped                       CodeGenerationUnitSyntax
-  148    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
+  146    2  StringLiteral           StringLiteral                StringLiteralSyntax
+  148    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
   149    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   151    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  155    4  ExitKeyword             Skiped                       CodeGenerationUnitSyntax
+  155    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
   159    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  160    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-  162    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
+  160    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
+  162    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
   163    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   165    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-  169    3  EndKeyword              Skiped                       CodeGenerationUnitSyntax
-  172    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
+  169    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
+  172    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
   173    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   175    1  CloseBrace              Punctuation                  TaskDeclarationSyntax
   176    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax

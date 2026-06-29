@@ -1,8 +1,11 @@
-﻿CodeGenerationUnitSyntax [0-77]  {Whitespace, Whitespace, Whitespace, LessThan, Identifier, Comma, Whitespace, Identifier, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-77]  {Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
   TaskDefinitionSyntax [0-75]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     CodeParamsDeclarationSyntax [7-25]  {OpenBracket, ParamsKeyword, CloseBracket}
-      ParameterListSyntax [15-17]
-        ParameterSyntax [15-17]  {Identifier}
+      ParameterListSyntax [15-24]
+        ParameterSyntax [15-24]
+          GenericTypeSyntax [15-24]  {Identifier, LessThan, Comma}
+            SimpleTypeSyntax [18-20]  {Identifier}
+            SimpleTypeSyntax [22-24]  {Identifier}
     NodeDeclarationBlockSyntax [34-56]
       InitNodeDeclarationSyntax [34-42]  {InitKeyword, Identifier, Semicolon}
       ExitNodeDeclarationSyntax [48-56]  {ExitKeyword, Identifier, Semicolon}

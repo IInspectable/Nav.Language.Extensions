@@ -1,2 +1,1 @@
-﻿//==>>[Syntax](1,18,1,19): error Nav0002: mismatched input '<' expecting ']'
-//==>>[Syntax](1,25,1,26): error Nav0002: no viable alternative at input 'T2<T3, p1]'
+﻿//==>>[Syntax](1,25,1,25): error Nav0002: missing '>'

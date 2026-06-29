@@ -44,6 +44,18 @@ public class SyntaxTree {
     public ImmutableArray<Diagnostic> Diagnostics { get; }
 
     public static SyntaxTree ParseText(string text, string filePath = null, CancellationToken cancellationToken = default) {
+        // Cutover auf den handgeschriebenen Parser: Whole-File-Parsing läuft jetzt über NavParser. Die
+        // ANTLR-Pipeline (interne treeCreator-Überladung, erreichbar über ParseTextAntlr und die per-Regel-
+        // Einstiege in Syntax) bleibt vorerst stehen und entfällt mit dem vollständigen ANTLR-Ausbau.
+        return NavParser.Parse(text, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Whole-File-Parsing über die (noch vorhandene) ANTLR-Pipeline. Dient ausschließlich den
+    /// Differential-Gates, die den handgeschriebenen Parser gegen ANTLR verifizieren; entfällt mit dem
+    /// vollständigen ANTLR-Ausbau.
+    /// </summary>
+    internal static SyntaxTree ParseTextAntlr(string text, string filePath = null, CancellationToken cancellationToken = default) {
 
         return ParseText(text: text,
                          treeCreator: parser => parser.codeGenerationUnit(),

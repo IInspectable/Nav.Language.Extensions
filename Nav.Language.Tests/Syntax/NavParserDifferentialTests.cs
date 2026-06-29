@@ -35,7 +35,7 @@ public class NavParserDifferentialTests {
     public void NodeTreeMatchesReference(string navFile) {
 
         var source = File.ReadAllText(navFile);
-        var reference = SyntaxTree.ParseText(source, navFile);
+        var reference = SyntaxTree.ParseTextAntlr(source, navFile);
         SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
@@ -48,7 +48,7 @@ public class NavParserDifferentialTests {
     public void TokenStreamMatchesReference(string navFile) {
 
         var source = File.ReadAllText(navFile);
-        var reference = SyntaxTree.ParseText(source, navFile);
+        var reference = SyntaxTree.ParseTextAntlr(source, navFile);
         SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
@@ -61,7 +61,7 @@ public class NavParserDifferentialTests {
     public void DiagnosticsMatchReference(string navFile) {
 
         var source = File.ReadAllText(navFile);
-        var reference = SyntaxTree.ParseText(source, navFile);
+        var reference = SyntaxTree.ParseTextAntlr(source, navFile);
         SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);
@@ -74,7 +74,7 @@ public class NavParserDifferentialTests {
     public void RoundTripsCorpus(string navFile) {
 
         var source = File.ReadAllText(navFile);
-        var reference = SyntaxTree.ParseText(source, navFile);
+        var reference = SyntaxTree.ParseTextAntlr(source, navFile);
         SkipIfParserRecoveryDiverges(reference, navFile);
 
         var actual = NavParser.Parse(source, navFile);

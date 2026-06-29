@@ -19,8 +19,8 @@
    39    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    43    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
    45    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
-   46    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-   48    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
+   46    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
+   48    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    49    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    51    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
    52    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax

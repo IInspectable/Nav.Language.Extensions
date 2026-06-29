@@ -74,7 +74,7 @@ public class NavLexerDifferentialTests {
     }
 
     static string DumpReference(string source) {
-        var tree = SyntaxTree.ParseText(source);
+        var tree = SyntaxTree.ParseTextAntlr(source);
         return string.Join("\n", tree.Tokens.Select(token => Format(token.Start, token.Length, token.Type)));
     }
 
