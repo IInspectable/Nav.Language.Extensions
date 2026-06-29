@@ -1,2 +1,2 @@
-﻿//==>>[Syntax](5,8,5,8): error Nav0000: Unexpected character '$'
-//==>>[Syntax](5,10,5,10): error Nav0002: missing edge
+﻿//==>>[Syntax](5,7,5,7): error Nav0002: missing edge
+//==>>[Syntax](5,8,5,8): error Nav0000: Unexpected character '$'

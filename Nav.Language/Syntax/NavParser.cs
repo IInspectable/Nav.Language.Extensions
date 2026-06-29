@@ -1704,11 +1704,34 @@ sealed class NavParser {
 
     string CurrentText => _sourceText.Substring(TextExtent.FromBounds(CurrentStart, CurrentEnd));
 
-    /// <summary>Meldet ein fehlendes Pflicht-Token (Insertion) nullbreit an der aktuellen Cursor-Position.</summary>
+    /// <summary>
+    /// Meldet ein fehlendes Pflicht-Token (Insertion) nullbreit am <b>Ende des zuletzt konsumierten
+    /// signifikanten Tokens</b> — also direkt hinter dem zuvor Getippten, vor dessen Trailing-Trivia.
+    /// Das entspricht der Roslyn-Konvention (»X erwartet« hängt am vorigen Token, nicht am Anfang des
+    /// folgenden): ein fehlendes <c>;</c> erscheint am Ende der vorigen Zeile statt vor dem nächsten
+    /// Knoten. Gibt es kein vorheriges signifikantes Token (Fehlstelle am Dateianfang), wird nullbreit
+    /// an der aktuellen Cursor-Position gemeldet.
+    /// </summary>
     void ReportMissing(string what) {
-        var at = TextExtent.FromBounds(CurrentStart, CurrentStart);
+        var position = PreviousSignificantEnd() ?? CurrentStart;
+        var at       = TextExtent.FromBounds(position, position);
         _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(at),
                                         DiagnosticDescriptors.NewSyntaxError($"missing {what}")));
+    }
+
+    /// <summary>
+    /// Liefert das Extent-Ende des letzten signifikanten (nicht versteckten) Tokens vor dem Cursor —
+    /// die Stelle unmittelbar hinter dem zuvor konsumierten Token, noch vor dessen Trailing-Trivia.
+    /// <c>null</c>, wenn vor dem Cursor kein signifikantes Token liegt.
+    /// </summary>
+    int? PreviousSignificantEnd() {
+        for (var i = _pos - 1; i >= 0; i--) {
+            if (!IsHidden(_raw[i].Type)) {
+                return _raw[i].Extent.End;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Meldet ein unerwartetes (übersprungenes) Token (Deletion) über dessen Extent.</summary>
