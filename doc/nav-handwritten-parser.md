@@ -626,3 +626,92 @@ Iterationen) misst.
 - net472: Testprojekt mit `dotnet build …\Nav.Language.Tests.csproj -f net472` bauen, dann
   `_build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll`.
 - **Neue `.cs` als UTF-8 mit BOM anlegen** (der Write-Standard erzeugt *ohne* BOM — danach umkodieren).
+
+---
+
+## Schritt 5 — Flache Trivia-Liste abschaffen (Bestandsaufnahme, Stand Juni 2026)
+
+> **Erklärtes Ziel:** Weg von der dual-track-Phase hin zum reinen Roslyn-Modell — Trivia hängt **nur**
+> noch als Leading/Trailing an den `SyntaxToken`, der flache `SyntaxTokenList` führt **keine**
+> Trivia-Token (Whitespace/Zeilenende/Kommentar) mehr. Schritt 4 (Trivia an die Token anhängen) ist
+> erledigt; aktuell liegt Trivia **doppelt** vor (flach im Strom *und* angehängt). Dieser Abschnitt ist
+> die vor dem Umbau erhobene Bestandsaufnahme — Quelle der Wahrheit bleibt der Code, Pfade/Zeilen als
+> Einstieg (zum Erhebungszeitpunkt verifiziert).
+
+### Kernbefund
+
+**Whitespace und NewLine sind im flachen Strom bereits totes Gewicht.** Kein Produktionscode
+klassifiziert oder liest sie sinnvoll: der LSP mappt `Whitespace → None`
+(`Nav.Language.Lsp\SemanticTokensBuilder.cs`), die VS-Klassifizierungs-Map kennt sie gar nicht
+(`Nav.Language.ExtensionShared\Classification\ClassificationTypeDefinitions.cs`). Die einzigen *tragenden*
+Trivia im flachen Strom sind **Kommentare**, plus die Invariante „`FindToken`/`FindAtPosition` liefert an
+jeder Position ein Token". Ziehen diese beiden Dinge auf das angehängte Modell um, kann die flache Trivia
+fallen.
+
+### Die echten Blocker (vor dem Entfernen auf angehängtes Trivia umstellen)
+
+1. **Kommentar-Klassifizierung** — beide Klassifizierer iterieren den flachen Strom und geben für
+   Kommentar-Token Spans aus:
+   - `Nav.Language.ExtensionShared\Classification\SyntacticClassificationTagger.cs` (`SyntaxTree.Tokens[extent, includeOverlapping: true]`)
+   - `Nav.Language.Lsp\SemanticTokensBuilder.cs` (`foreach … syntaxTree.Tokens`; `TextClassification.Comment => 2`)
+   - *Migration:* über die signifikanten Token laufen und für deren Leading/Trailing-Trivia vom Typ
+     Kommentar Spans emittieren. Whitespace/NewLine fallen ersatzlos weg.
+
+2. **Multiline-Kommentar-Folding** — zieht Kommentare direkt aus dem Strom:
+   - `Nav.Language.ExtensionShared\Outlining\OutlineTagger\MultilineCommentOutlineTagger.cs` (`Tokens.OfType(SyntaxTokenType.MultiLineComment)`)
+   - `Nav.Language.Lsp\FoldingRangeBuilder.cs` (dito)
+   - *Migration:* braucht einen neuen Einstieg über die angehängte Trivia (z.B. `syntaxTree.DescendantTrivia()`
+     bzw. eine `Comments`-Sicht).
+
+3. **„Position in Kommentar?"** via `FindToken(position)` — verhindert Vervollständigung in Kommentaren:
+   - `Nav.Language\Completion\NavCompletionService.cs` (`triggerToken.Type is SingleLineComment or MultiLineComment`)
+   - `Nav.Language.ExtensionShared\Completion\NavCompletionSource.cs`
+   - `Nav.Language.ExtensionShared\Completion\EdgeCompletionSource.cs`
+   - *Migration:* Helfer „Position liegt in einer Kommentar-Trivia". **Riskantester Teil:** diese hängen an
+     der Invariante, dass `FindToken` an einer Trivia-Position *etwas* zurückgibt. Fällt die flache Trivia
+     weg, liefert `FindToken` dort `Missing` — **alle** `FindToken`/`FindAtPosition`-Konsumenten
+     (Completion, BraceMatching, GoTo, Hover) müssen auf graceful `Missing` geprüft werden.
+
+4. **Golden-/Round-Trip-Tests** pinnen den flachen Strom **inklusive** Trivia (`SyntaxTokenTests`,
+   `SyntaxGoldenTests`, `SyntaxNodeTriviaTests`, `Syntax\SyntaxLexerTests`/`SyntaxNewLineTests` …). Müssen
+   auf die trivia-bewusste Rekonstruktion umgestellt und neu erzeugt werden. Der lückenlose Round-Trip
+   (jedes Zeichen abgedeckt) muss dann aus signifikanten Token **plus** angehängter Trivia rekonstruiert
+   werden statt aus dem flachen Strom.
+
+### Nebenprodukte (lösen sich beim Umbau auf oder schrumpfen)
+
+- `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` `FirstNoneWhitespaceToken` — das
+  `SkipWhile(token => token.Type == SyntaxTokenType.Whitespace)` wird **gegenstandslos**, sobald
+  `Tokens[extent]` nur noch Signifikantes enthält (`FirstOrDefault()` genügt). Wird durch das Entfernen
+  *aufgelöst*, nicht nur verschönert.
+- Im selben File die `ColumnsBetween…`/`WhiteSpaceBetween…`/`ComposeEdge`-Maschinerie: rekonstruiert den
+  Abstand zwischen Token per Spaltenarithmetik — angehängte Trailing-Trivia hätte den Whitespace-Text
+  direkt. (Nur teilweise: beim Rename wird der Abstand bewusst *neu berechnet*, nicht kopiert.)
+- `GetRemoveSyntaxNodeChanges` (ebenda): das manuelle NL-Wieder-Einfügen kann sich auf
+  `GetTrailingTriviaExtent` stützen.
+- Outline-Tagger `TaskReferenceOutlineTagger.cs` / `TaskDefinitionsOutlineTagger.cs` —
+  `nameToken.NextToken()` + `nameToken.End + 1`-Offsetarithmetik statt Trailing-Trivia.
+
+### Strukturiertes Trivia-Parsen — vorerst zurückgestellt
+
+Aktuell **kaum Mehrwert**: Nav hat keine Doc-Kommentare, keine Region-Marker; Präprozessor-Direktiven
+laufen bewusst auf Grammatik-Ebene (`taskref "…"`) bzw. werden nur als „nicht unterstützt" gemeldet. Der
+einzige semantik-tragende Kommentar ist `// disable <DiagnosticId>`
+(`Nav.Language\SemanticAnalyzer\AnalyzerContext.cs`), und der liest bereits sauber die
+Trailing-Trivia-Extent. Ein `GetStructure()`-Framework hätte heute keinen echten Kunden — erst angehen,
+wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
+
+### Empfohlene Reihenfolge
+
+1. **Trivia-Sicht am Baum anbieten** (`DescendantTrivia()` / `Comments`-Helfer + „Position-in-Kommentar"-Helfer)
+   — additiv, bricht nichts.
+2. **Klassifizierer (1.), Folding (2.), Completion-Kommentar-Check (3.)** darauf umstellen; flacher Strom
+   bleibt vorerst.
+3. **`FindToken`/`FindAtPosition`-Konsumenten** auf `Missing`-an-Trivia-Position härten.
+4. **Trivia aus dem flachen Strom ziehen** (Parser hängt sie nur noch an Token), Golden neu erzeugen,
+   Round-Trip-Test auf trivia-bewusste Rekonstruktion umstellen.
+5. Nebenprodukte (`FirstNoneWhitespaceToken` etc.) entrümpeln.
+
+> **Nebenbei:** `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` und
+> `Nav.Language.ExtensionShared\Outlining\OutlineTagger\TaskReferenceOutlineTagger.cs` enthalten zerstörte
+> Umlaute (U+FFFD: „gel�schte", „Zusammenh�ngende Bl�cke") — beim Anfassen gleich mitreparieren.
