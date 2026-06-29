@@ -238,6 +238,80 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    **erledigt**.
 4. *(Später, separat)* Trivia-Modell auf angehängt + strukturiert; Direktiven als strukturierte Trivia.
 5. **Cutover (Schritt C):** `SyntaxTree.ParseText` auf den Handparser umstellen, ANTLR ausbauen.
+   - **Step 1+2 (ParseText-Umstellung + Golden-Cutover) erledigt** — siehe Abschnitt
+     „Stand nach Cutover Step 1+2" unten.
+   - **Verbleibend: Rename `Syntax.Generated.cs` + ANTLR-Ausbau** — ebenda.
+
+---
+
+## Stand nach Cutover Step 1+2 (erledigt, uncommitted — Einstieg für die nächste Session)
+
+> **Whole-File-Parsing läuft jetzt produktiv auf dem Handparser. Beide TFMs grün**
+> (net10 1099 pass / 0 fail, net472 1099 pass / 0 fail, Regression/`.expected.cs` inklusive).
+> ANTLR ist noch da, wird aber nur noch von den per-Regel-Test-Einstiegen und den Differential-Gates
+> benutzt. Quelle der Wahrheit bleibt der Code.
+
+### Was in dieser Session geändert wurde (alles uncommitted)
+
+- **`Nav.Language\Syntax\SyntaxTree.cs`:** Der öffentliche `ParseText(text, filePath, ct)` ruft jetzt
+  `NavParser.Parse`. Die alte ANTLR-Whole-File-Logik (interne `treeCreator`-Überladung) bleibt erhalten,
+  erreichbar über den **neuen internen** `ParseTextAntlr(text, filePath, ct)` — der existiert **nur** für
+  die Differential-Gates und fällt mit dem ANTLR-Ausbau weg.
+- **`Nav.Language\Syntax\Generated\Syntax.Generated.cs`:** `ParseCodeGenerationUnit` (der einzige
+  Produktions-Einstieg der Klasse; genutzt von `SyntaxProvider`/`OverlaySyntaxProvider`/`ParserService`)
+  ruft jetzt den öffentlichen `SyntaxTree.ParseText` (= hand). Die **~50 per-Regel-`Syntax.ParseXxx`
+  bleiben unverändert auf ANTLR** (sie sind test-only) — **bewusst nicht verschoben** (Nutzerentscheid:
+  bleiben in `Nav.Language`, „schadet nicht"; werden beim ANTLR-Ausbau an Ort und Stelle umgebogen).
+- **T4 stillgelegt:** `Syntax.Generated.tt` **gelöscht**; das Generator-Wiring (`<None Update>` +
+  `<Compile Update>`-Block) für diese Datei aus `Nav.Language.csproj` entfernt. `Syntax.Generated.cs`
+  wird ab jetzt **von Hand** gepflegt (Header entsprechend angepasst). Die anderen `.tt`
+  (`SyntaxNodeVisitor`/`SyntaxNodeWalker`) sind unberührt und laufen weiter.
+- **Differential-Gates umgebogen:** `NavParserDifferentialTests` und `NavLexerDifferentialTests` nutzen
+  als ANTLR-Referenz jetzt `SyntaxTree.ParseTextAntlr` (sonst verglichen sie hand-gegen-hand).
+- **Golden-Cutover:** `Syntax\Tests\*.nav.{tokens,tree,diag}` der 8 Recovery-Dateien (`BrokenGenerics`,
+  `MissingCloseBrace`, `MissingEdge`, `MissingSemicolon`, `MissingTargetNode`, `PrematureEof`,
+  `StringsAndGenerics`, `UnexpectedCharacter`) über `SyntaxGoldenTests.UpdateGolden` neu erzeugt —
+  **byte-identisch zu den reviewten `.hand.*`** (per `diff` verifiziert). Alle wohlgeformten
+  Korpus-Dateien unverändert.
+- **`Nav.Language.Tests\Diagnostics\Tests\SyntaxErrorTokenRecognitionError.nav`:** ANTLRs spuriöses
+  `Nav0002 token recognition error at '字'` aus den erwarteten Markern entfernt — der Handparser
+  behandelt `字` als Preprocessor-Text und meldet sauber nur `Nav3000`.
+
+### Verbleibend in Schritt C (Arbeit für die nächste Session)
+
+1. **Rename `Syntax.Generated.cs`** — der Name passt nicht mehr (nicht mehr generiert). Vorschlag:
+   nach `Nav.Language\Syntax\Syntax.cs` (raus aus dem `Generated\`-Ordner, da dort nur noch echte
+   Generate liegen). Namespace `Pharmatechnik.Nav.Language` beibehalten; SDK-Glob zieht die Datei
+   automatisch — keine csproj-Compile-Einträge nötig.
+2. **ANTLR-Ausbau (der Rest):**
+   - **Per-Regel-Einstiege auf den Handparser heben:** `NavParser` braucht per-Regel-Einstiege
+     (uniformer Wrapper: Cursor aufsetzen → private `Parse*` rufen → Rest als nicht-signifikant an die
+     Wurzel → `SyntaxTree` bauen). Die ~50 `Syntax.ParseXxx` darauf umstellen (sie bleiben in
+     `Nav.Language`). Das ist die schon länger notierte „eine Designfrage".
+   - **`SyntaxTokenType.cs` entkoppeln:** Enumwerte `= NavTokens.X` (ANTLR-Konstanten) auf **feste
+     Integer** einfrieren (heutige Werte 1:1 übernehmen; lecken nicht in Golden, aber sicherheitshalber).
+   - **`SyntaxFacts.cs` entkoppeln:** `GetLiteralName(int)` nutzt `NavGrammar.DefaultVocabulary` →
+     hartkodierte Literal-Map (Muster existiert: `ModalEdgeKeyword = "o->"`).
+   - **ANTLR-Plumbing löschen** (`Nav.Language\Internal\`): `NavGrammarVisitor`, `NavCommonTokenStream`,
+     `NavLexerErrorListener`, `NavParserErrorListener`, `DiagnosticFactory` (`IToken`-basiert),
+     `SyntaxBuildingExtension`; `Nav.Language\Syntax\SourceTextCharStream.cs`; die `IToken`/
+     `ITerminalNode`-Overloads in `SyntaxTokenFactory.cs`/`TextExtentFactory.cs`. Plus die
+     ANTLR-Hälfte von `SyntaxTree` (interne `treeCreator`-Überladung, `ParseTextAntlr`,
+     `PostprocessTokens`, `SplitSingleLineCommenTokens`).
+   - **Build:** in `Nav.Language.csproj` die zwei PackageReferences `Antlr4` + `Antlr4.Runtime` und die
+     `<Antlr4 Update="Grammar\*.g4">`-Items entfernen; `Grammar\*.g4` aus dem Build nehmen.
+     **`StringTemplate4` MUSS bleiben** (liefert `Antlr4.StringTemplate` für die Codegenerierung — nicht
+     der Parser). Das ist die häufigste „grün, aber kaputt"-Falle.
+   - **Test-Cleanup:** `NavParserDifferentialTests` + `NavLexerDifferentialTests` entfernen (brauchen
+     ANTLR/`ParseTextAntlr`). Die `.hand.{tokens,tree,diag}` sind jetzt redundant (== `.nav.*`) →
+     löschen, samt `NavParserGoldenTests`; `SyntaxGoldenTests` bleibt (pinnt jetzt den Handparser-Output
+     als kanonisches Golden).
+3. **Verifikation:** beide TFMs (net10 + net472) + Regression grün halten — nach jedem Teilschritt.
+
+### Risiko-Hotspots (unverändert)
+
+(a) `SyntaxTokenType`/`SyntaxFacts`-Entkopplung (stille Wertverschiebung), (b) die per-Regel-Einstiege,
+(c) dass `StringTemplate4` nicht versehentlich mit ausgebaut wird.
 
 ---
 
