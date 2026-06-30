@@ -34,6 +34,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_references` | `ReferenceFinder` | Alle solution-weiten Vorkommen (inkl. Deklaration). |
 | `nav_rename` | `NavRenameService` | Umbenennungs-**Edit-Set** (read-only, file-local). |
 | `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set**. |
+| `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
 
 ## 3. Design-Entscheidungen
 
@@ -78,6 +79,17 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 - **Mutierende Tools sind read-only.** `nav_rename` und `nav_code_actions` schreiben **NICHTS** auf
   Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn, newText}`)
   zurück, das der Agent selbst anwendet.
+- **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
+  Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
+  zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt
+  (Generator + Drift-Diagnosen NAV001/NAV002, siehe `doc/nav-grammar-status.md`). Daher keine Datei-/
+  Solution-Auflösung, kein Paging (die volle Grammatik liegt klar unter dem Result-Limit). `rule` zieht
+  eine Einzelproduktion über `NavGrammar.Rules` (Schlüssel = linke Seite); **Stolperstein:**
+  Nebenproduktionen (z.B. `arrayType`) haben keinen eigenen Schlüssel, sondern stecken im Fragment ihrer
+  Hauptregel (`codeType`) — bei unbekanntem `rule` liefert das Result `error` + `availableRules` (die
+  bekannten Schlüssel) statt einer Exception. `includeTerminals` spiegelt die Terminal-Tabelle aus
+  `SyntaxFacts` (Keywords + Punctuation + kategorische Terminale Identifier/StringLiteral/EOF); das
+  `?`-Terminal (Questionmark) ist **nicht** in `SyntaxFacts.Punctuations` und wird gesondert ergänzt.
 - **Agentenfreundliche DTOs.** Schlanke, 1-basierte Sichten (nicht die LSP-DTOs), Fehler als `error`-
   Feld statt Exception (außer Protokollfehlern). Mapping-Helfer: `NavEditDto` (Offset→Zeile/Spalte via
   `sourceText.GetLocation`), `NavLocationDto`, `NavSymbolRef`, `NavSymbolKind`.
@@ -94,7 +106,9 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   Remove-Unused-Nodes. **`nav_diagnostics`** gegen `Nav.Language.Tests/Diagnostics/Tests` verifiziert:
   voller Sweep (Summary-Konsistenz `error+warning+suggestion == count`), `severity`-Filter, `filter` +
   Paging/`truncated`, plus Quer-Check `nav_validate` einer Einzeldatei == gefiltertes `nav_diagnostics`
-  (identische Counts/Codes).
+  (identische Counts/Codes). **`nav_grammar`** per stdio-Smoke: volle Grammatik (enthält
+  `codeGenerationUnit ::=`), Einzelregel (`taskDefinition`) + `includeTerminals`, unbekannte Regel
+  (`arrayType` → `error` + `availableRules`).
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
 - **Publish:** `n publish` veröffentlicht den MCP-Server als **self-contained Single-File**

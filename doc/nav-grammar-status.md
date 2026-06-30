@@ -94,23 +94,25 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
   `/p:EmitCompilerGeneratedFiles=true /p:CompilerGeneratedFilesOutputPath=obj\GeneratedDbg`, dann
   `Nav.Language\obj\GeneratedDbg\…\NavGrammar.g.cs` (Inspektions-Ordner danach löschen — liegt unter obj).
 
-## Stand: offen (Schritte 4–5) — hier weitermachen
+## Stand: offen (Schritt 5) — hier weitermachen
 
-### Schritt 4 — MCP-Tool `nav_grammar`  ← NÄCHSTER SCHRITT
+### Schritt 4 — MCP-Tool `nav_grammar` — ERLEDIGT (uncommittet)
 Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto-Registrierung via
 `WithToolsFromAssembly()` in `Program.cs` (keine weitere Verdrahtung).
-- Neu `NavGrammarTool.cs`: `[McpServerToolType]` + `[McpServerTool(Name="nav_grammar")]`, statische
-  Methode **ohne** `NavMcpWorkspace`-Parameter (kein Datei-/Solution-Zustand nötig — `NavGrammar` ist ein
-  `public const`/`static` in der Engine). Optionale Parameter: `rule` (einzelne Produktion über
-  `NavGrammar.Rules`), `includeTerminals` (Terminal-Tabelle).
-- Neu `NavGrammarResult.cs`: DTO mit voller `NavGrammar.Ebnf` bzw. einzelner Regel, optional Terminal-
-  Tabelle aus `SyntaxFacts` (Keywords + Punctuations + `"?"`).
-- `doc\nav-mcp-status.md`: Zeile in der Tool-Tabelle (§2) + Design-Notiz.
-- **Stolperstein:** `NavGrammar.Rules` ist je Fragment-Haupt-LHS verschlüsselt — `arrayType` hat keinen
-  eigenen Schlüssel (steckt im `codeType`-Fragment). Für die Einzelregel-Abfrage entweder das so
-  dokumentieren oder bei Fehlschlag in `NavGrammar.Ebnf` nachsehen.
+- `NavGrammarTool.cs`: `[McpServerToolType]` + `[McpServerTool(Name="nav_grammar")]`, statische Methode
+  **ohne** `NavMcpWorkspace`-Parameter. Parameter: `rule` (einzelne Produktion über `NavGrammar.Rules`),
+  `includeTerminals` (Terminal-Tabelle). Beide optional.
+- `NavGrammarResult.cs`: DTO mit voller `NavGrammar.Ebnf` bzw. einzelner Regel; bei unbekanntem `rule`
+  `error` + `availableRules` (statt Exception). `NavGrammarTerminals` spiegelt `SyntaxFacts` (Keywords +
+  Punctuations + kategorische Identifier/StringLiteral/EOF), `?` gesondert ergänzt.
+- `doc\nav-mcp-status.md`: Tool-Tabelle (§2) + Design-Notiz (§3) + Verifikation (§4) ergänzt.
+- **Stolperstein (umgesetzt):** `NavGrammar.Rules` ist je Fragment-Haupt-LHS verschlüsselt — `arrayType`
+  hat keinen eigenen Schlüssel (steckt im `codeType`-Fragment). Unbekanntes `rule` liefert daher Hinweis
+  + `availableRules`.
+- **Verifikation:** `dotnet build Nav.Language.Mcp` → 0/0; stdio-Smoke (volle Grammatik / `taskDefinition`
+  + Terminals / `arrayType`→Fehler) grün.
 
-### Schritt 5 — CLI `nav grammar` + Deploy-Artefakt
+### Schritt 5 — CLI `nav grammar` + Deploy-Artefakt  ← NÄCHSTER SCHRITT
 - `Nav.Cli` (FluentCommandLineParser): Subcommand `nav grammar [--rule X]`, druckt `NavGrammar.Ebnf`
   (bzw. eine Regel) nach stdout.
 - `Tools\Commands\Functions\Invoke-Publish.ps1` (Vorbild `Publish-Cli.ps1`): `nav grammar` ausführen und
@@ -144,6 +146,7 @@ reproduzierbar). Validiert das Shared-Projekt als gemeinsame Basis.
 
 ## Commit-Stand
 
-Schritte 1–3 sind committet (siehe oben). Offen im Working Tree: nur dieses Statusdokument
-(`doc/nav-grammar-status.md`) und die zugehörige `.slnx`-Ergänzung — vor Schritt 4 committen.
+Schritte 1–3 sind committet (siehe oben). Schritt 4 ist im Working Tree fertig, aber **uncommittet**:
+`Nav.Language.Mcp\Tools\NavGrammarTool.cs`, `Nav.Language.Mcp\Tools\NavGrammarResult.cs`,
+`doc\nav-mcp-status.md`, `doc\nav-grammar-status.md` (sowie ggf. die offene `.slnx`-Ergänzung aus 1–3).
 Der Nutzer committet selbst.
