@@ -69,8 +69,16 @@ public abstract partial class SyntaxNode: IExtent {
     /// <summary>Die Länge dieses Knotens in Zeichen.</summary>
     public int Length => Extent.Length;
 
-    /// <summary>Der Quelltext-Ausschnitt, den dieser Knoten abdeckt (ohne umgebende Trivia).</summary>
+    /// <summary>Der Quelltext-Ausschnitt, den dieser Knoten abdeckt (ohne umgebende Trivia; ≙ Roslyn <c>Span</c>).</summary>
     public TextExtent Extent { get; }
+
+    /// <summary>
+    /// Der Quelltext-Ausschnitt dieses Knotens samt umgebender Trivia (≙ Roslyn <c>FullSpan</c>) — das
+    /// Gegenstück zum trivia-freien <see cref="Extent"/> (≙ Roslyn <c>Span</c>). Reicht von der Leading-
+    /// bis zur Trailing-Trivia, wobei auch Kommentare als Trivia zählen. Wer Kommentare stattdessen als
+    /// Grenze behandeln will, nutzt <see cref="GetFullExtent"/> mit <c>onlyWhiteSpace: true</c>.
+    /// </summary>
+    public TextExtent FullExtent => GetFullExtent();
 
     /// <summary>
     /// Der übergeordnete Knoten, oder <c>null</c> für die Wurzel des Baums. Erst nach
@@ -226,9 +234,24 @@ public abstract partial class SyntaxNode: IExtent {
     /// <summary>
     /// Der <see cref="Extent"/> dieses Knotens samt umgebender Trivia — von der Leading- bis zur
     /// Trailing-Trivia (siehe <see cref="GetLeadingTriviaExtent"/> / <see cref="GetTrailingTriviaExtent"/>).
+    /// Das parameterlose Standard-Gegenstück (Kommentare zählen als Trivia) ist die Property
+    /// <see cref="FullExtent"/> (≙ Roslyn <c>FullSpan</c>).
     /// </summary>
-    /// <param name="onlyWhiteSpace">Wenn <c>true</c>, zählt nur Whitespace als Trivia (Kommentare begrenzen
-    /// den Ausschnitt); sonst zählen auch Kommentare als Trivia.</param>
+    /// <param name="onlyWhiteSpace">
+    /// Steuert, was als zugehörige Trivia gilt — und damit, wie weit der Ausschnitt über den
+    /// <see cref="Extent"/> hinausreicht:
+    /// <list type="bullet">
+    /// <item><description><c>false</c> (Standard): Kommentare zählen als Trivia und werden mit
+    /// eingeschlossen. Der Ausschnitt umfasst also auch unmittelbar vor- bzw. nachstehende
+    /// Kommentar(zeilen) — gedacht, um einen Knoten <i>samt seiner zugehörigen Kommentare</i> zu erfassen
+    /// (etwa beim Ausschneiden/Verschieben eines Knotens).</description></item>
+    /// <item><description><c>true</c>: nur Whitespace (Leerzeichen, Tabs, Zeilenenden) zählt als Trivia;
+    /// Kommentare <i>begrenzen</i> den Ausschnitt. Leading reicht dann nur bis hinter den letzten
+    /// Kommentar zurück (vorangehende Kommentare bleiben außen vor), und ein Kommentar in der
+    /// Trailing-Zeile beendet den Ausschnitt. Gedacht, wenn nur die reine Leerraum-/Einrückungs-Umgebung
+    /// des Knotens interessiert, nicht seine Kommentare.</description></item>
+    /// </list>
+    /// </param>
     public TextExtent GetFullExtent(bool onlyWhiteSpace = false) {
         return TextExtent.FromBounds(GetLeadingTriviaExtent(onlyWhiteSpace).Start, GetTrailingTriviaExtent(onlyWhiteSpace).End);
     }
