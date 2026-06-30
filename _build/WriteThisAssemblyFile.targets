@@ -8,8 +8,17 @@
 
   <!-- ComputeGitVersion (aus _build\Version.targets) MUSS vorher laufen, da ProductVersion &
        Co. erst dort gesetzt werden. Die AssemblyInfoLine-Items werden bewusst IM Target gebildet
-       (späte Bindung zur Ausführungszeit), damit sie die berechneten Werte sehen. -->
-  <Target Name="WriteThisAssemblyFile" BeforeTargets="PrepareForBuild" DependsOnTargets="ComputeGitVersion">
+       (späte Bindung zur Ausführungszeit), damit sie die berechneten Werte sehen.
+
+       Condition: Bei Design-Time-Builds NICHT schreiben. Visual Studio startet im Hintergrund
+       laufend eigene Design-Time-Builds; in deren Kontext läuft der git-Exec leer → ComputeGitVersion
+       fällt auf 0.0.0 zurück. Da diese Datei im Projektverzeichnis liegt (geteilt zwischen allen
+       Build-Prozessen), überschriebe VS damit den korrekten Wert eines echten (CLI-)Builds — das
+       Resultat wäre eine 0.0.0-Assembly trotz fehlerfreiem `n publish`. Also nur bei echten Builds
+       stempeln; fehlt die Datei auf einem frischen Clone noch ganz, wird sie einmalig erzeugt
+       (sonst schlüge der Compile auf die nicht existente Datei fehl). -->
+  <Target Name="WriteThisAssemblyFile" BeforeTargets="PrepareForBuild" DependsOnTargets="ComputeGitVersion"
+          Condition="('$(DesignTimeBuild)' != 'true' and '$(BuildingProject)' != 'false') or !Exists('$(AssemblyInfoFile)')">
     <Message Text="Updating Assembly Info $(AssemblyInfoFile) -> $(ProductVersion)" Importance="high" />
     <ItemGroup>
       <AssemblyInfoLine
