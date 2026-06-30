@@ -69,6 +69,7 @@ sealed class NavParser {
 
     int  _pos;                     // Index in _raw; Invariante: zeigt stets auf ein parser-sichtbares Token (signifikant oder EOF).
     int? _firstSignificantStart;   // Start des ersten konsumierten signifikanten Tokens (für den Wurzel-Extent).
+    bool _reportedMissingAtEof;    // Ein "missing …" am Dateiende wurde bereits gemeldet — weitere am EOF werden unterdrückt.
 
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
@@ -1711,8 +1712,22 @@ sealed class NavParser {
     /// folgenden): ein fehlendes <c>;</c> erscheint am Ende der vorigen Zeile statt vor dem nächsten
     /// Knoten. Gibt es kein vorheriges signifikantes Token (Fehlstelle am Dateianfang), wird nullbreit
     /// an der aktuellen Cursor-Position gemeldet.
+    /// <para/>
+    /// Am Dateiende wird die <b>Kaskade</b> nach der ersten Meldung abgebrochen: bricht die Eingabe
+    /// vorzeitig ab, synthetisiert der Parser beim Aufrollen der Regeln eine Reihe fehlender Pflicht-Token
+    /// (z.B. Zielknoten → <c>;</c> → <c>}</c>), die alle nullbreit an derselben EOF-Position landen würden.
+    /// Gemeldet wird nur die <b>erste</b> (die den unvollständigen Bau benennt); die mechanischen
+    /// Folgefehler werden unterdrückt.
     /// </summary>
     void ReportMissing(string what) {
+        if (AtEof) {
+            if (_reportedMissingAtEof) {
+                return;
+            }
+
+            _reportedMissingAtEof = true;
+        }
+
         var position = PreviousSignificantEnd() ?? CurrentStart;
         var at       = TextExtent.FromBounds(position, position);
         _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(at),

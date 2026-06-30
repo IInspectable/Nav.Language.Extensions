@@ -449,9 +449,11 @@ gegen ANTLR mehr; `SyntaxGoldenTests` (kanonisches Golden) + Regression sind das
 > nur der ungültige Kopf-`[params …]` als Skiped). `SyntaxTree.ParseText` läuft weiterhin auf ANTLR —
 > Umstellung erst beim Cutover (Schritt C). Beide TFMs grün.
 >
-> **Offener Review-Punkt:** Bei `PrematureEof` (`I1 -->`⟂EOF) meldet der Handparser drei kaskadierende
-> „missing" (target node / `;` / `}`) an derselben EOF-Position — korrekt, aber etwas geschwätzig
-> (ANTLR coalesct auf zwei). Bewusste, reviewbare Entscheidung; bei Bedarf leicht zu entschärfen.
+> **Erledigt (vormals offener Review-Punkt):** Bei `PrematureEof` (`I1 -->`⟂EOF) meldete der Handparser
+> drei kaskadierende „missing" (target node / `;` / `}`) an derselben EOF-Position. `ReportMissing`
+> bricht die Kaskade jetzt nach der **ersten** Meldung am Dateiende ab (`_reportedMissingAtEof`): es
+> bleibt nur `missing target node` (benennt den unvollständigen Bau; `;`/`}` sind bloße Folgefehler beim
+> Aufrollen der Regeln). Golden `PrematureEof.nav.diag` entsprechend neu (3 → 1 Zeile).
 
 ---
 
