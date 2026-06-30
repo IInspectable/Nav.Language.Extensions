@@ -859,3 +859,47 @@ Regression (`.expected.cs`) grün. Golden nur über `UpdateGolden` neu, Diffs re
 **UTF-8 mit BOM** (Write erzeugt keins → nachkodieren), auf `U+FFFD` scannen. **Alias ist `nav`** (nicht `n`); im
 nicht-interaktiven Shell vorher `. "Tools\Commands\Import-NavCommands.ps1"` dot-sourcen. **Nicht selbst committen** —
 Commit-Message liefern, Nutzer checkt nach Review ein.
+
+---
+
+## Abschluss — Parser-Umbau vollständig (Stand Juni 2026)
+
+> **Der handgeschriebene Lexer/Parser ist die alleinige Syntax-Implementierung; der Umbau ist
+> abgeschlossen.** Working tree sauber, alles eingecheckt (letzter Commit `64707253`, Parser/Trivia 5.5).
+
+Damit sind **alle** geplanten Schritte erledigt:
+
+- **Schritt A/B** — Recursive-Descent-Parser inkl. Error-Recovery + Diagnostics-Parität.
+- **Schritt C** — Cutover (`SyntaxTree.ParseText` auf den Handparser) und **ANTLR-Teardown** (Parser/Lexer,
+  Pakete, `.g4`, Plumbing, `SyntaxTokenType`/`SyntaxFacts` entkoppelt). `StringTemplate4` (Codegenerierung)
+  bewusst geblieben.
+- **Schritt 5** — flache Trivia-Liste abgeschafft (5.1–5.5), reines Roslyn-Modell: Trivia hängt **nur** noch
+  als Leading/Trailing an den `SyntaxToken`. `FindOwningToken` auf Binärsuche (5.4.4), Nebenprodukte
+  entrümpelt (5.5).
+
+### Punkt 6 (`CodeFixes\SyntaxTreeExtensions.cs`) — geprüft, bewusst unverändert
+
+Das letzte 5.5-Nebenprodukt (die `ColumnsBetween…`/`WhiteSpaceBetween…`/`ComposeEdge`-Maschinerie samt
+`GetRemoveSyntaxNodeChanges`-NL-Wiedereinfügen) wurde geprüft und **bewusst nicht geändert**:
+
+- **Rename/Compose** (`GetRenameSourceChanges`, `ColumnsBetweenKeywordAndIdentifier`,
+  `WhiteSpaceBetweenSourceAndEdgeMode`) rechnen den Abstand bei geänderter Namenslänge **neu**
+  (`oldOffset + oldLength − newLength`) — Neuberechnungs-, kein Kopier-Code; die Trailing-Trivia kennt die
+  neue Länge nicht.
+- **`ComposeEdge`/`WhiteSpaceBetweenEdgeModeAndTarget`** flachen Tabs gezielt zu Spalten-Spaces ab und
+  zwingen auf eine Zeile — Trailing-Trivia direkt einzusetzen wäre eine Verhaltensänderung (Tabs/NL/Kommentare
+  der Vorlage), keine Vereinfachung.
+- **`GetRemoveSyntaxNodeChanges`** nutzt für den Lösch-Extent mit `GetFullExtent(onlyWhiteSpace: true)` bereits
+  das angehängte Trivia-Modell; die NL-Wiedereinfügung braucht „Knoten allein in der Zeile?" + „Zeilenende
+  mitgelöscht?" — beides ist über die Zeilengrenze direkter ausgedrückt als über `GetTrailingTriviaExtent`, ein
+  Umbau wäre ein Seitwärtszug mit Edge-Case-Risiko ohne echten Gewinn.
+
+Encoding der Datei sauber (UTF-8 mit BOM, kein `U+FFFD`).
+
+### Verbleibend — bewusst zurückgestellte Zukunftsthemen (nicht Teil des Umbaus)
+
+1. **Strukturiertes Trivia-Parsen** (`GetStructure()` für Direktiven/Region/Doc-Kommentare) — zurückgestellt,
+   erst angehen, wenn ein echter Kunde entsteht (z.B. Formalisierung von `// disable <DiagnosticId>`).
+2. **Inkrementelles Reparsen** — separate, spätere Optimierung.
+
+Beide sind Erweiterungen **auf** dem neuen Parser, keine Restschuld **im** Parser.
