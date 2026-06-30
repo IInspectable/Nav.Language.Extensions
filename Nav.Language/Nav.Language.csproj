@@ -49,31 +49,11 @@
     <ProjectReference Include="..\_build\SourceGenerators\Nav.Grammar.SourceGenerator\Nav.Grammar.SourceGenerator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Syntax\Generated\SyntaxNodeVisitor.Generated.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>SyntaxNodeVisitor.Generated.cs</LastGenOutput>
-    </None>
-    <None Update="Syntax\Generated\SyntaxNodeWalker.Generated.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>SyntaxNodeWalker.Generated.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Update="Syntax\Generated\SyntaxNodeVisitor.Generated.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>SyntaxNodeVisitor.Generated.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Syntax\Generated\SyntaxNodeWalker.Generated.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>SyntaxNodeWalker.Generated.tt</DependentUpon>
-    </Compile>
+    <!-- Quellgenerator: erzeugt SyntaxNodeVisitor/SyntaxNodeWalker und SymbolVisitor aus den *Syntax-/
+         *Symbol-Typen (löst die VS-only T4-Templates ab). Nur als Analyzer eingebunden. -->
+    <ProjectReference Include="..\_build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />

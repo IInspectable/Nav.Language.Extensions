@@ -1,10 +1,11 @@
 ﻿===============================
 
-Die tt Dateien dienen zur manuellen Codegenerierung, und müssen bei Bedarf ausgeführt werden.
-Das sollte nicht wirklich oft passieren, da der Syntaxbaum an sich sehr "stabil" sein dürfte.
+Der Besucher- und Walker-Code für den Syntaxbaum (ISyntaxNodeVisitor / SyntaxNodeVisitor /
+SyntaxNodeWalker) wird beim Kompilieren automatisch erzeugt — durch den Roslyn-Quellgenerator
+in _build\SourceGenerators\Nav.Visitor.SourceGenerator (SyntaxVisitorWalkerGenerator). Er löst die
+früheren, nur in Visual Studio lauffähigen T4-Templates (.tt) ab und läuft unter dotnet build wie
+unter MSBuild.exe.
 
-Der Code kann nicht automatisch während des Kompilierens generiert werden, da die TT Files selbst vom 
-resultierenden Assembly abhängig sind.
-
-Das bedeuted aber auch, dass es in diesem Projekt keine Abhängigkeiten von nicht generierten Code zu
-generierten Code geben darf.
+Quelle der Wahrheit sind die SyntaxNode-Ableitungen selbst: für jede konkrete *Syntax-Klasse entsteht
+die passende Accept-/Walk-Überschreibung sowie der zugehörige Besucher-/Walker-Eintrag. Es ist nichts
+von Hand zu generieren; ein normaler Build genügt.

@@ -94,9 +94,9 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
   `/p:EmitCompilerGeneratedFiles=true /p:CompilerGeneratedFilesOutputPath=obj\GeneratedDbg`, dann
   `Nav.Language\obj\GeneratedDbg\…\NavGrammar.g.cs` (Inspektions-Ordner danach löschen — liegt unter obj).
 
-## Stand: offen — nur noch Optionales
+## Stand: abgeschlossen
 
-(Schritte 1–5 erledigt; verbleibend nur der optionale zweite Generator, siehe unten.)
+(Schritte 1–5 erledigt; der optionale zweite Generator ist ebenfalls umgesetzt, siehe unten.)
 
 ### Schritt 4 — MCP-Tool `nav_grammar` — ERLEDIGT (uncommittet)
 Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto-Registrierung via
@@ -131,10 +131,32 @@ Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto
   arrayType`(→Fehler) geprüft; `Publish-Cli` + `Export-Grammar` isoliert ausgeführt → `NavGrammar.ebnf`
   (148 Zeilen, kein BOM, `codeGenerationUnit ::=` … `stringLiteral ::=`).
 
-### Optional/später — zweiter Generator
-Visitor-/Walker-Generator unter `_build\SourceGenerators\`, der `SyntaxNodeVisitor`/`SyntaxNodeWalker` aus
-den `*Syntax`-Typen erzeugt und die VS-only-T4-Templates ablöst (dann auch unter `dotnet build`
-reproduzierbar). Validiert das Shared-Projekt als gemeinsame Basis.
+### Zweiter Generator — ERLEDIGT (uncommittet)
+Visitor-/Walker-Generator unter `_build\SourceGenerators\Nav.Visitor.SourceGenerator\` (Namespace
+`Pharmatechnik.Nav.Language.Visitor.SourceGenerator`), löst die drei nur-in-VS lauffähigen T4-Templates ab
+(`SyntaxNodeVisitor.Generated.tt`, `SyntaxNodeWalker.Generated.tt`, `SymbolVisitor.tt` samt ihren
+eingecheckten `.cs`). Zwei `IIncrementalGenerator` im selben Projekt (eine Analyzer-Referenz lädt beide),
+teilen `SourceBuilder` aus dem Shared-Projekt — das validiert das Shared-Projekt als gemeinsame Basis.
+- `SyntaxVisitorWalkerGenerator` — **semantische** Discovery (Basistyp-Kette auf `SyntaxNode`), emittiert
+  `SyntaxNodeVisitor.g.cs` (Besucher invariant) + `SyntaxNodeWalker.g.cs`. Besuchsmethoden flach auf
+  `DefaultVisit`.
+- `SymbolVisitorGenerator` — interface-basiert (Klasse→`I{Name}`-Interface), **kovariantes**
+  `ISymbolVisitor<out T>`, `public` Accept, Besuchsmethoden auf das **Interface** typisiert. **Stolperstein:**
+  die eingecheckte `SymbolVisitor.cs` war NICHT die Ausgabe des dortigen `.tt` (das war veraltet/flach),
+  sondern hatte einen **hierarchischen Fallback** — abgeleitete `*NodeReferenceSymbol`-Besuchsmethoden
+  rufen standardmäßig `VisitNodeReferenceSymbol` statt `DefaultVisit`. Der Generator bildet das nach
+  (nächstes besuchtes Basis-Interface), sonst brechen `SymbolVisito(rOfT)VisitNodeReferenceSymbolFallBack`
+  + diverse Folge-Tests. Die eingecheckte `.cs` ist maßgeblich, nicht das `.tt`.
+- Verdrahtung: zweite Analyzer-`ProjectReference` in `Nav.Language.csproj`; T4-Wiring (`<None Update>`/
+  `<Compile Update>`/T4-`<Service>`) entfernt; `Nav.Visitor.SourceGenerator(.Tests)` in `.slnx`. `_Readme.txt`
+  in `Syntax\Generated` auf den neuen Generator umgeschrieben.
+- Tests: `_build\SourceGenerators\Nav.Visitor.SourceGenerator.Tests\` (Aufbau wie die Grammar-Tests,
+  Snapshots; Harness referenzlos-semantisch über Mini-`SyntaxNode`-/`ISymbol`-Quelltexte). Der Symbol-
+  Snapshot deckt den hierarchischen Fallback ab.
+- **Verifikation:** Äquivalenz-Diff (Methoden-/Dispatch-Set identisch zu den alten `.cs`) vor dem Löschen;
+  `dotnet build Nav.Language` 0/0; Generator-Tests 3/3; .NET-10-Engine 1062/1062; net472 1070 grün
+  (NUnit-Runner); **Voll-Solution `MSBuild.exe` 0/0** (VS-Extension bezieht Visitor/Walker erstmals aus dem
+  Generator).
 
 ## Fallstricke / Konventionen (für die neue Session)
 

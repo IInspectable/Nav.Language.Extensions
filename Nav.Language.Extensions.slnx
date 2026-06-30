@@ -64,6 +64,8 @@
   <Project Path="_build/Shared/Nav.CodeAnalysis.Shared/Nav.CodeAnalysis.Shared.shproj" />
   <Project Path="_build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
   <Project Path="_build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />
+  <Project Path="_build/SourceGenerators/Nav.Visitor.SourceGenerator/Nav.Visitor.SourceGenerator.csproj" />
+  <Project Path="_build/SourceGenerators/Nav.Visitor.SourceGenerator.Tests/Nav.Visitor.SourceGenerator.Tests.csproj" />
   <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
