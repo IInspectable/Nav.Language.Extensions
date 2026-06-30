@@ -222,24 +222,6 @@ public class CodeSanityTests {
     }
 
     [Test]
-    [Ignore("Muss noch geklärt werden")]
-    [Description("ISymbol Schnittstellen sollten eine Syntax Eigenschaft haben: \r\n")]
-    public void SymbolInterfacesShouldHaveASyntaxProperty() {
-
-        var symbolTypes = FindAllDerivedTypesAndSelf<ISymbol>().Where(n => !n.IsInterface && !n.IsAbstract);
-            
-        foreach (var candidate in symbolTypes) {
-
-            var symbolItf =candidate.GetInterfaces().First(itf=> itf.UnderlyingSystemType != typeof(ISymbol) && typeof(ISymbol).IsAssignableFrom(itf.UnderlyingSystemType));
-
-            var syntaxProp = symbolItf.GetProperty("Syntax");
-            var present    = syntaxProp !=null && typeof(SyntaxNode).IsAssignableFrom(syntaxProp.PropertyType);
-                                    
-            Assert.That(present, Is.True, "Die Klasse {0} respektive deren {1} Interface sollte eine Syntax Eigenschaft vom Typ SyntaxNode haben", candidate.FullName, symbolItf.FullName);
-        }
-    }
-        
-    [Test]
     [Description("DignosticDescriptor Ids sollen eindeutig sein.")]
     public void DignosticDescriptorIdMustBeUnique() {
 

@@ -89,27 +89,6 @@ public class DiagnosticTests {
         ExpectExactly(unit, This(DiagnosticDescriptors.Semantic.Nav0005IncludeFile0HasSomeErrors));
     }
 
-    [Test]
-    [Ignore("Dieser Test funktioniert in der Praxis nicht, da er bereits zu einem Syntaxfehler führt.")]
-    public void Nav0102EndNodeMustNotContainLeavingEdges() {
-
-        var nav = @"
-          
-            task A
-            {
-                init I1;            
-                exit e1;
-                end;
-                
-                I1  --> e1;
-                end --> e1;
-            }
-            ";
-
-        var unit = BuildCodeGenerationUnit(nav);
-        ExpectExactly(unit, This(DiagnosticDescriptors.Semantic.Nav0102EndNodeMustNotContainLeavingEdges));
-    }
-        
     [Test, TestCaseSource(nameof(GetTestCases))]
     public void TestCase(FileTestCase testCase) {
 
