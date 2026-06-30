@@ -20,7 +20,10 @@ namespace Pharmatechnik.Nav.Language.Extension.Diagnostics;
 [MarginContainer(PredefinedMarginNames.VerticalScrollBar)]
 
 [ContentType(NavLanguageContentDefinitions.ContentType)]
-[TextViewRole(PredefinedTextViewRoles.Interactive)]
+// "Editable" (nicht "Interactive"): konsistent zum DiagnosticErrorTaggerProvider — die
+// Diagnose-Stripe gehört nur in den echten Dokument-Editor, nicht in read-only-Ansichten
+// (Annotate/Blame, Diff/Vergleich, History).
+[TextViewRole(PredefinedTextViewRoles.Editable)]
 sealed class DiagnosticStripeMarginProvider : IWpfTextViewMarginProvider {
 
     readonly IEditorFormatMapService _editorFormatMapService;

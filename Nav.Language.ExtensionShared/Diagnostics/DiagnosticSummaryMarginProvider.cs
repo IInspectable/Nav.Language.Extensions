@@ -13,7 +13,11 @@ namespace Pharmatechnik.Nav.Language.Extension.Diagnostics;
 [Order(Before = PredefinedMarginNames.VerticalScrollBarContainer)]
 [MarginContainer(PredefinedMarginNames.RightControl)]
 [Name(DiagnosticSummaryMargin.MarginName)]
-[TextViewRole(PredefinedTextViewRoles.Interactive)]
+// "Editable" (nicht "Interactive"): Die Diagnose-UI gehört nur in den echten Dokument-Editor.
+// Read-only-Ansichten (Annotate/Blame, Diff/Vergleich, History) erhalten keinen Error-Tagger
+// (siehe DiagnosticErrorTaggerProvider) — dort bliebe das Summary-Icon sonst ewig im
+// "Waiting for analysis"-Spinner hängen, da nie ein BatchedTagsChanged-Event eintrifft.
+[TextViewRole(PredefinedTextViewRoles.Editable)]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 class DiagnosticSummaryMarginProvider: IWpfTextViewMarginProvider {
 
