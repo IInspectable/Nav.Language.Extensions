@@ -70,6 +70,18 @@ public class SyntaxGoldenTests {
                     $"Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
     }
 
+    [Test, TestCaseSource(nameof(GetCorpusFiles))]
+    public void TokenStreamRoundTripsFromAttachedTrivia(CorpusFile corpus) {
+
+        var tree = ParseCorpusFile(corpus, out var source);
+
+        // Beweist die Totalität der angehängten Trivia (Voraussetzung dafür, die Trivia aus dem flachen Strom
+        // zu ziehen): Rekonstruktion allein aus signifikanten/Trenner-Token plus ihrer angehängten
+        // Leading/Trailing-Trivia — ohne die flachen Trivia-Token — reproduziert den Quelltext lückenlos.
+        Assert.That(RoundTripFromAttachedTrivia(tree), Is.EqualTo(source),
+                    $"Trivia-bewusster Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
+    }
+
     /// <summary>
     /// Robustheit gegen unvollständige Eingaben: jedes Tipp-Präfix jeder Korpus-Datei muss sich ohne
     /// Ausnahme parsen lassen und lückenlos round-trippen. Genau das stresst die Recovery — jeder
@@ -370,6 +382,33 @@ public class SyntaxGoldenTests {
         var sb = new StringBuilder();
         foreach (var token in tree.Tokens) {
             sb.Append(token.ToString());
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Rekonstruiert den Quelltext aus dem reinen Roslyn-Modell: je signifikantem bzw. Trenner-Token dessen
+    /// Leading-Trivia, der eigene Text und die Trailing-Trivia. Die noch im flachen Strom mitlaufenden
+    /// Trivia-Token werden übersprungen — ihr Text kommt ausschließlich über die angehängte Trivia. Stimmt das
+    /// Ergebnis mit dem Quelltext überein, ist die Trivia lückenlos angehängt (Voraussetzung für Schritt 5.4).
+    /// </summary>
+    static string RoundTripFromAttachedTrivia(SyntaxTree tree) {
+        var sb = new StringBuilder();
+        foreach (var token in tree.Tokens) {
+            if (SyntaxFacts.IsTrivia(token.Type)) {
+                continue;
+            }
+
+            foreach (var trivia in token.LeadingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
+
+            sb.Append(token.ToString());
+
+            foreach (var trivia in token.TrailingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
         }
 
         return sb.ToString();

@@ -23,6 +23,8 @@
     T NewLine           [49-50]       "\n"
    50 CloseBrace
     T NewLine           [51-52]       "\n"
+   53 Unknown
+    L NewLine           [52-53]       "\n"
    56 Identifier
     L Whitespace        [55-56]       " "
     T Whitespace        [63-64]       " "

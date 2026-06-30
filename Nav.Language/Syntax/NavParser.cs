@@ -1778,9 +1778,10 @@ sealed class NavParser {
 
         foreach (var raw in _raw) {
             if (TryClassifyNonSignificant(raw.Type, out var classification)) {
-                // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; die
-                // übrigen nicht-signifikanten Token (Trivia selbst, Präprozessor) bleiben ohne angehängte Trivia.
-                var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : ImmutableArray<SyntaxTrivia>.Empty;
+                // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
+                // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
+                // als Leading (siehe BuildTokenTrivia). Die Trivia-Token selbst bleiben ohne angehängte Trivia.
+                var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : LookupTrivia(raw.Extent.Start).Leading;
                 _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root,
                                                            leading, ImmutableArray<SyntaxTrivia>.Empty));
 
@@ -1945,7 +1946,13 @@ sealed class NavParser {
                 eofLeadingTrivia   = remaining;
                 lastSignificantKey = -1;
             } else if (IsHidden(token.Type)) {
-                // Unbekanntes Zeichen / Präprozessor-Token: nimmt keine Trivia auf, restliche Trivia entfällt.
+                // Trenner (unbekanntes Zeichen / Präprozessor-Token): nimmt selbst keine Trailing-Trivia auf,
+                // trägt die restliche Trivia aber als Leading. Sonst ginge der Text zwischen dem vorigen Token
+                // und dem Trenner verloren, sobald die Trivia nicht mehr separat im flachen Strom geführt wird.
+                if (!remaining.IsEmpty) {
+                    leading[token.Start] = remaining;
+                }
+
                 lastSignificantKey = -1;
             } else {
                 leading[token.Start] = remaining;
