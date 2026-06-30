@@ -204,6 +204,19 @@ Anchor (`;` lokal, aber `}`/`task` der äußeren Regel überlassen) — sonst re
 Heutige `NotifyErrorListeners`-Fälle, die nachgebildet werden müssen (`NavGrammar.g4`,
 `transitionDefinition`): **„missing edge"** und **„missing target node"**.
 
+**Zeilengrenze als weicher Anker beim Zielknoten.** Eine unvollständige Transition (nur Quellknoten
+getippt, Kante fehlt noch) saugte sonst den Zielknoten der **nächsten** Zeile ein und parste weiter
+bis zum nächsten `;` — die Fehler-/Skip-Region „blutete" über mehrere, für sich genommen korrekte
+Folgezeilen. Da von den Folgebestandteilen nur der Zielknoten mit einem Identifier beginnt (Trigger/
+Condition/Do sind Keywords), genügt ein Gate dort: Steht der Zielknoten-Kandidat auf einer **neuen
+Zeile** und leitet das **darauffolgende** Token eine neue Transition ein — eine Kante oder ein `:`
+(Exit-Transition) —, dann gehört er zur nächsten Transition; die laufende endet hier
+(`NavParser.TargetStartsNextTransition`). Es bleibt **eine** treffende Diagnose (`missing edge` bzw.
+`missing target node`); das mechanisch ebenfalls fehlende `;` wird auf der abgebrochenen Zeile
+unterdrückt (`TryEatSemicolonQuiet`, analog zur EOF-Kaskade `_reportedMissingAtEof`). Same-line-Fälle
+(`I1 e1;`) bleiben unverändert; echter Nav-Code bricht eine Transition nie über Zeilen um (Korpus:
+1104/1104 einzeilig). Golden: `IncompleteEdgeBleed.nav` / `IncompleteTargetBleed.nav`.
+
 ---
 
 ## Präprozessor-Direktiven
@@ -768,7 +781,7 @@ wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
 
 > **Nebenbei:** `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` und
 > `Nav.Language.ExtensionShared\Outlining\OutlineTagger\TaskReferenceOutlineTagger.cs` enthalten zerstörte
-> Umlaute (U+FFFD: „gel�schte", „Zusammenh�ngende Bl�cke") — beim Anfassen gleich mitreparieren.
+> Umlaute (U+FFFD an Stelle von „gelöschte", „Zusammenhängende Blöcke") — beim Anfassen gleich mitreparieren.
 
 ---
 

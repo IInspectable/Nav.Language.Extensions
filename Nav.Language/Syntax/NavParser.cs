@@ -785,16 +785,22 @@ sealed class NavParser {
             ReportMissing("edge");
         }
 
-        var target = StartsTargetNode() ? ParseTargetNode() : null;
+        // Beginnt der Zielknoten-Kandidat auf einer neuen Zeile eine neue Transition (Kante/':' voraus),
+        // gehört er nicht mehr zur laufenden Transition: hier abbrechen, statt die Folgezeile einzusaugen.
+        var continues = !TargetStartsNextTransition();
+
+        var target = continues && StartsTargetNode() ? ParseTargetNode() : null;
         if (target == null && edge != null) {
             ReportMissing("target node");
         }
 
-        var trigger   = StartsTrigger()    ? ParseTrigger()         : null;
-        var condition = StartsCondition()  ? ParseConditionClause() : null;
-        var doClause  = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
+        var trigger   = continues && StartsTrigger()               ? ParseTrigger()         : null;
+        var condition = continues && StartsCondition()             ? ParseConditionClause() : null;
+        var doClause  = continues && At(SyntaxTokenType.DoKeyword)  ? ParseDoClause()        : null;
 
-        var semi = Eat(SyntaxTokenType.Semicolon);
+        // Nur eine Diagnose an der Divergenzstelle: das dann mechanisch fehlende ';' wird auf der
+        // abgebrochenen Zeile unterdrückt (analog zur EOF-Kaskade).
+        var semi = continues ? Eat(SyntaxTokenType.Semicolon) : TryEatSemicolonQuiet();
 
         var node = new TransitionDefinitionSyntax(Span(source, edge, target, trigger, condition, doClause, semi),
                                                   source, edge, target, trigger, condition, doClause);
@@ -824,15 +830,21 @@ sealed class NavParser {
             ReportMissing("edge");
         }
 
-        var target = StartsTargetNode() ? ParseTargetNode() : null;
+        // Beginnt der Zielknoten-Kandidat auf einer neuen Zeile eine neue Transition (Kante/':' voraus),
+        // gehört er nicht mehr zur laufenden Transition: hier abbrechen, statt die Folgezeile einzusaugen.
+        var continues = !TargetStartsNextTransition();
+
+        var target = continues && StartsTargetNode() ? ParseTargetNode() : null;
         if (target == null && edge != null) {
             ReportMissing("target node");
         }
 
-        var condition = StartsCondition()  ? ParseConditionClause() : null;
-        var doClause  = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
+        var condition = continues && StartsCondition()             ? ParseConditionClause() : null;
+        var doClause  = continues && At(SyntaxTokenType.DoKeyword)  ? ParseDoClause()        : null;
 
-        var semi = Eat(SyntaxTokenType.Semicolon);
+        // Nur eine Diagnose an der Divergenzstelle: das dann mechanisch fehlende ';' wird auf der
+        // abgebrochenen Zeile unterdrückt (analog zur EOF-Kaskade).
+        var semi = continues ? Eat(SyntaxTokenType.Semicolon) : TryEatSemicolonQuiet();
 
         var span = new ExtentBuilder();
         span.Add(source); span.Add(colon); span.Add(name); span.Add(edge); span.Add(target);
@@ -1674,6 +1686,16 @@ sealed class NavParser {
         return true;
     }
 
+    /// <summary>
+    /// Konsumiert ein <c>;</c>, falls vorhanden, und gibt es zurück — andernfalls <c>null</c> <b>ohne</b>
+    /// Diagnose. Genutzt, wenn eine Transition an der Zeilengrenze abgebrochen wurde: die treffende
+    /// Diagnose (fehlende Kante bzw. fehlender Zielknoten) ist bereits gemeldet; das mechanisch ebenfalls
+    /// fehlende <c>;</c> wäre nur ein Folgefehler und wird unterdrückt (eine Diagnose pro Divergenzstelle).
+    /// </summary>
+    RawToken? TryEatSemicolonQuiet() {
+        return TryEat(SyntaxTokenType.Semicolon, out var semi) ? semi : null;
+    }
+
     void SkipHidden() {
         while (_pos < _raw.Length && IsHidden(_raw[_pos].Type)) {
             _pos++;
@@ -1751,6 +1773,35 @@ sealed class NavParser {
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// True, wenn zwischen dem zuletzt konsumierten signifikanten Token und dem aktuellen Cursor ein
+    /// Zeilenumbruch liegt — das aktuelle (sichtbare) Token also auf einer neuen Zeile beginnt.
+    /// </summary>
+    bool OnNewLine() {
+        for (var i = _pos - 1; i >= 0; i--) {
+            if (_raw[i].Type == SyntaxTokenType.NewLine) {
+                return true;
+            }
+
+            if (!IsHidden(_raw[i].Type)) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True, wenn das aktuelle Token (ein Zielknoten-Kandidat) auf einer neuen Zeile beginnt und das
+    /// darauffolgende Token eine neue Transition einleitet — eine Kante oder ein Doppelpunkt (Exit-
+    /// Transition). Dann gehört der Kandidat zur nächsten Transition und darf nicht als Ziel der
+    /// laufenden Transition geschluckt werden (sonst „blutet" eine unvollständige Transition über die
+    /// Zeilengrenze in die nächste, für sich genommen korrekte Zeile).
+    /// </summary>
+    bool TargetStartsNextTransition() {
+        return OnNewLine() && (IsEdge(PeekType(1)) || PeekType(1) == SyntaxTokenType.Colon);
     }
 
     /// <summary>Meldet ein unerwartetes (übersprungenes) Token (Deletion) über dessen Extent.</summary>

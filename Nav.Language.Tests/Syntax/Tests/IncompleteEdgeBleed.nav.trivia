@@ -1,0 +1,30 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T NewLine           [6-8]         "\r\n"
+    8 OpenBrace
+    T NewLine           [9-11]        "\r\n"
+   15 InitKeyword
+    L Whitespace        [11-15]       "    "
+    T Whitespace        [19-20]       " "
+   22 Semicolon
+    T NewLine           [23-25]       "\r\n"
+   29 Identifier
+    L Whitespace        [25-29]       "    "
+    T Whitespace        [31-32]       " "
+   32 GoToEdgeKeyword
+    T Whitespace        [35-36]       " "
+   38 Semicolon
+    T NewLine           [39-41]       "\r\n"
+   45 Identifier
+    L Whitespace        [41-45]       "    "
+    T NewLine           [47-49]       "\r\n"
+   53 Identifier
+    L Whitespace        [49-53]       "    "
+    T Whitespace        [55-56]       " "
+   56 GoToEdgeKeyword
+    T Whitespace        [59-60]       " "
+   63 Semicolon
+    T NewLine           [64-66]       "\r\n"
+   66 CloseBrace
+    T NewLine           [67-69]       "\r\n"
