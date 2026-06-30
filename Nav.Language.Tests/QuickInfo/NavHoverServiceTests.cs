@@ -267,6 +267,99 @@ public class NavHoverServiceTests {
         Assert.That(info.Documentation, Is.EqualTo("direkt darüber"));
     }
 
+    // Task A trägt eine Doku; Task C verwendet A als Task-Knoten.
+    const string TaskNodeDocNav = "// Doku der Task A\n" +
+                                  "task A\n"             +
+                                  "{\n"                  +
+                                  "    init I1;\n"       +
+                                  "    exit e1;\n"       +
+                                  "    I1 --> e1;\n"     +
+                                  "}\n"                  +
+                                  "task C\n"             +
+                                  "{\n"                  +
+                                  "    init I1;\n"       +
+                                  "    task A;\n"        +
+                                  "    exit e1;\n"       +
+                                  "\n"                   +
+                                  "    I1   --> A;\n"    +
+                                  "    A:e1 --> e1;\n"   +
+                                  "}\n";
+
+    [Test]
+    public void Hover_OnTaskNode_ShowsTaskDefinitionDocumentation() {
+
+        var unit  = ParseModel(TaskNodeDocNav, @"n:\av\c.nav");
+        var caret = IndexOfToken(TaskNodeDocNav, "task A;", "task "); // auf dem Task-Knoten 'A' in C
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        // Die Signatur zeigt die Task, also zeigt auch die Doku den Kommentar der Task-Definition.
+        Assert.That(Signature(info),    Is.EqualTo("task A"));
+        Assert.That(info.Documentation, Is.EqualTo("Doku der Task A"));
+    }
+
+    [Test]
+    public void Hover_OnTaskNode_IgnoresCallSiteComment() {
+
+        // Kommentar nur über der Verwendung 'task A;', nicht über der Definition.
+        const string nav = "task A\n"                       +
+                           "{\n"                             +
+                           "    init I1;\n"                  +
+                           "    exit e1;\n"                  +
+                           "    I1 --> e1;\n"                +
+                           "}\n"                             +
+                           "task C\n"                        +
+                           "{\n"                             +
+                           "    init I1;\n"                  +
+                           "    // Aufrufstellen-Notiz\n"    +
+                           "    task A;\n"                   +
+                           "    exit e1;\n"                  +
+                           "\n"                              +
+                           "    I1   --> A;\n"               +
+                           "    A:e1 --> e1;\n"              +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\c.nav");
+        var caret = IndexOfToken(nav, "task A;", "task ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        // Die Aufrufstellen-Notiz wird bewusst nicht der Task zugeordnet.
+        Assert.That(info.Documentation, Is.Null);
+    }
+
+    [Test]
+    public void Hover_OnTaskNodeAlias_ShowsTaskDefinitionDocumentation() {
+
+        // Alias-Syntax ist 'task Identifier Alias;' (ohne 'as').
+        const string nav = "// Doku der Task A\n"  +
+                           "task A\n"              +
+                           "{\n"                   +
+                           "    init I1;\n"        +
+                           "    exit e1;\n"        +
+                           "    I1 --> e1;\n"      +
+                           "}\n"                   +
+                           "task C\n"              +
+                           "{\n"                   +
+                           "    init I1;\n"        +
+                           "    task A Foo;\n"     +
+                           "    exit e1;\n"        +
+                           "\n"                    +
+                           "    I1     --> Foo;\n" +
+                           "    Foo:e1 --> e1;\n"  +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\c.nav");
+        var caret = IndexOfToken(nav, "task A Foo", "task A "); // auf dem Alias 'Foo'
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.EqualTo("Doku der Task A"));
+    }
+
     #region Helpers
 
     static string Signature(NavHoverInfo info) {

@@ -50,17 +50,33 @@ public static class NavSymbolDocumentation {
     }
 
     /// <summary>
-    /// Der Deklarations-Knoten, dessen Leading-Trivia die Kommentare trägt. Für Knoten- und
-    /// Task-Symbole ihr eigener Deklarations-Knoten; für Referenzen der ihrer Deklaration.
+    /// Der Deklarations-Knoten, dessen Leading-Trivia die Kommentare trägt. Die Auflösung folgt
+    /// derselben Logik wie die Signatur-Anzeige (<see cref="Pharmatechnik.Nav.Language.Text.DisplayPartsBuilder"/>),
+    /// damit Doku und Signatur dasselbe Symbol dokumentieren: Aliase und Referenzen lösen auf ihren Knoten
+    /// bzw. ihre Deklaration auf; ein Task-Knoten (<c>task Foo;</c>) auf die <b>Task-Definition</b>
+    /// (deren Kommentar), nicht auf die Aufrufstelle; in-place deklarierte Knoten auf sich selbst.
     /// </summary>
     [CanBeNull]
     static SyntaxNode GetDeclarationSyntax([NotNull] ISymbol symbol) {
         return symbol switch {
-            INodeReferenceSymbol { Declaration: { } decl } => decl.Syntax,
-            INodeSymbol node                               => node.Syntax,
-            ITaskDefinitionSymbol task                     => task.Syntax,
+            // Aliase auf ihren Knoten auflösen.
+            ITaskNodeAliasSymbol { TaskNode: { } taskNode } => GetDeclarationSyntax(taskNode),
+            IInitNodeAliasSymbol { InitNode: { } initNode } => GetDeclarationSyntax(initNode),
+
+            // Referenz auf ihre Deklaration auflösen, dann erneut auflösen.
+            INodeReferenceSymbol { Declaration: { } decl }  => GetDeclarationSyntax(decl),
+
+            // Task-Knoten -> Kommentar der Task-Definition (nicht der Aufrufstelle). Kein Fallback auf
+            // die Aufrufstelle: ist die Task-Syntax nicht verfügbar (cross-file taskref), gibt es bewusst
+            // keine Doku statt einer falsch zugeordneten Aufrufstellen-Notiz.
+            ITaskNodeSymbol taskNode                        => taskNode.Declaration?.Syntax,
+
+            // In-place deklarierte Knoten (init/exit/end/choice/dialog/view).
+            INodeSymbol node                                => node.Syntax,
+
+            ITaskDefinitionSymbol task                      => task.Syntax,
             ITaskDeclarationSymbol { Syntax: { } declSyntax } => declSyntax,
-            _                                              => null
+            _                                               => null
         };
     }
 
