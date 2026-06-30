@@ -11,17 +11,17 @@ public static partial class DiagnosticDescriptors {
         public const DiagnosticSeverity Severity = DiagnosticSeverity.Warning;
 
         /// <summary>
-        /// The include directive for the file '{0}' appeared previously in this file\r\nInclude Directive is unnecessary
+        /// The include directive for '{0}' appeared previously in this file and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1001IncludeDirectiveForFile0AppearedPreviously = new(
             id             : DiagnosticId.Nav1001,
-            messageFormat  : "The include directive for the file '{0}' appeared previously in this file",
+            messageFormat  : "The include directive for '{0}' appeared previously in this file and can be safely removed",
             category       : Category,
             defaultSeverity: Severity
         );
 
         /// <summary>
-        /// The using directive for '{0}' appeared previously in this file.\r\nUsing Directive is unnecessary
+        /// The using directive for '{0}' appeared previously in this file and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1002UsingDirective0AppearedPreviously = new(
             id             : DiagnosticId.Nav1002,
@@ -51,11 +51,11 @@ public static partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// The self referencing taskref directive is not required by the code and can be safely removed
+        /// The self-referencing taskref directive is not required by the code and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1006SelfReferencingIncludeNotRequired = new(
             id: DiagnosticId.Nav1006,
-            messageFormat  : "The self referencing taskref directive is not required by the code and can be safely removed",
+            messageFormat  : "The self-referencing taskref directive is not required by the code and can be safely removed",
             category       : Category,
             defaultSeverity: Severity
         );

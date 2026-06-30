@@ -6,4 +6,4 @@
     I1 --> e1;
     e1 --> e1;
 }
-//==>>[Semantic](7,5,7,7): error Nav0101: An exit node must not contain leaving edges
+//==>>[Semantic](7,5,7,7): error Nav0101: An exit node must not contain outgoing edges

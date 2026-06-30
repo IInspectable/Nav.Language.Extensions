@@ -8,4 +8,4 @@
     I1 --> e1; 
     A:e1 --> e1 else if "Foo";
 }
-//==>>[Semantic](9,17,9,30): error Nav0221: Only if conditions allowed in exit transitions
+//==>>[Semantic](9,17,9,30): error Nav0221: Only 'if' conditions are allowed in exit transitions

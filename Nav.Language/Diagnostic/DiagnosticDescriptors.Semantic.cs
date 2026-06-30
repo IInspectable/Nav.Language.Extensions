@@ -97,11 +97,11 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// An outgoing edge for Trigger '{0}' is already declared
+        /// An outgoing edge for trigger '{0}' is already declared
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0023AnOutgoingEdgeForTrigger0IsAlreadyDeclared = new(
             id             : DiagnosticId.Nav0023,
-            messageFormat  : "An outgoing edge for Trigger '{0}' is already declared",
+            messageFormat  : "An outgoing edge for trigger '{0}' is already declared",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
@@ -117,11 +117,11 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// No outgoing edge for exit '{0}' declared
+        /// No outgoing edge declared for exit '{0}'
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0025NoOutgoingEdgeForExit0Declared = new(
             id             : DiagnosticId.Nav0025,
-            messageFormat  : "No outgoing edge for exit '{0}' declared",
+            messageFormat  : "No outgoing edge declared for exit '{0}'",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
@@ -137,31 +137,31 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// The task '{0}' must not contain leaving edges
+        /// The task '{0}' must not contain outgoing edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0100TaskNode0MustNotContainLeavingEdges = new(
             id             : DiagnosticId.Nav0100,
-            messageFormat  : "The task '{0}' must not contain leaving edges",
+            messageFormat  : "The task '{0}' must not contain outgoing edges",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// An exit node must not contain leaving edges
+        /// An exit node must not contain outgoing edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0101ExitNodeMustNotContainLeavingEdges = new(
             id             : DiagnosticId.Nav0101,
-            messageFormat  : "An exit node must not contain leaving edges",
+            messageFormat  : "An exit node must not contain outgoing edges",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// An end node must not contain leaving edges
+        /// An end node must not contain outgoing edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0102EndNodeMustNotContainLeavingEdges = new(
             id             : DiagnosticId.Nav0102,
-            messageFormat  : "An end node must not contain leaving edges",
+            messageFormat  : "An end node must not contain outgoing edges",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
@@ -177,31 +177,31 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// Choice node '{0}' must only be reached by -->
+        /// Choice node '{0}' can only be reached by a goto edge (-->)
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0104ChoiceNode0MustOnlyReachedByGoTo = new(
             id             : DiagnosticId.Nav0104,
-            messageFormat  : "Choice node '{0}' must only be reached by -->",
+            messageFormat  : "Choice node '{0}' can only be reached by a goto edge (-->)",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// Exit node '{0}' must only be reached by -->
+        /// Exit node '{0}' can only be reached by a goto edge (-->)
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0105ExitNode0MustOnlyReachedByGoTo = new(
             id             : DiagnosticId.Nav0105,
-            messageFormat  : "Exit node '{0}' must only be reached by -->",
+            messageFormat  : "Exit node '{0}' can only be reached by a goto edge (-->)",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// End node '{0}' must only be reached by -->
+        /// End node '{0}' can only be reached by a goto edge (-->)
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0106EndNode0MustOnlyReachedByGoTo = new(
             id             : DiagnosticId.Nav0106,
-            messageFormat  : "End node '{0}' must only be reached by -->",
+            messageFormat  : "End node '{0}' can only be reached by a goto edge (-->)",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
@@ -238,7 +238,7 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// '{0}' edge not allowed here because the transition is reachable from an init node
+        /// '{0}' edge not allowed here because '{1}' is reachable from init node '{2}'
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0110Edge0NotAllowedIn1BecauseItsReachableFromInit2 = new(
             id             : DiagnosticId.Nav0110,
@@ -318,7 +318,7 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// Trigger not allowed after init
+        /// Signal trigger not allowed after init
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0200SignalTriggerNotAllowedAfterInit = new(
             id             : DiagnosticId.Nav0200,
@@ -358,21 +358,21 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// Only if conditions allowed in exit transitions
+        /// Only 'if' conditions are allowed in exit transitions
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0221OnlyIfConditionsAllowedInExitTransitions = new(
             id             : DiagnosticId.Nav0221,
-            messageFormat  : "Only if conditions allowed in exit transitions",
+            messageFormat  : "Only 'if' conditions are allowed in exit transitions",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// Node {0} is rechable by different edge modes
+        /// Node '{0}' is reached by edges of different modes
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0222Node0IsReachableByDifferentEdgeModes = new(
             id             : DiagnosticId.Nav0222,
-            messageFormat  : "Node {0} is reachable by different edge modes",
+            messageFormat  : "Node '{0}' is reached by edges of different modes",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );

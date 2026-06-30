@@ -21,11 +21,11 @@ public static partial class DiagnosticDescriptors {
         // Preprocessor Errors
 
         /// <summary>
-        /// Invalid Preprocessor directive
+        /// Invalid preprocessor directive
         /// </summary>
         public static readonly DiagnosticDescriptor Nav3000InvalidPreprocessorDirective = new(
             id             : DiagnosticId.Nav3000,
-            messageFormat  : "Invalid Preprocessor directive",
+            messageFormat  : "Invalid preprocessor directive",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );

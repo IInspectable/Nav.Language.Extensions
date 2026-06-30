@@ -10,4 +10,4 @@ task B
     i   --> A;
     A:e --> e;
 }
-//==>>[DeadCode](2,9,2,33): warning Nav1001: The include directive for the file 'ATaskWithoutErrors.nav' appeared previously in this file
+//==>>[DeadCode](2,9,2,33): warning Nav1001: The include directive for 'ATaskWithoutErrors.nav' appeared previously in this file and can be safely removed

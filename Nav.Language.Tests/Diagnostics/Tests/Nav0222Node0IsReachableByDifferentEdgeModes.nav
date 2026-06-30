@@ -13,5 +13,5 @@
     C   --> v1; 
     C   --> e1;
 }
-//==>>[Semantic](11,9,11,12): error Nav0222: Node v1 is reachable by different edge modes
-//==>>[Semantic](12,9,12,12): error Nav0222: Node v1 is reachable by different edge modes
+//==>>[Semantic](11,9,11,12): error Nav0222: Node 'v1' is reached by edges of different modes
+//==>>[Semantic](12,9,12,12): error Nav0222: Node 'v1' is reached by edges of different modes

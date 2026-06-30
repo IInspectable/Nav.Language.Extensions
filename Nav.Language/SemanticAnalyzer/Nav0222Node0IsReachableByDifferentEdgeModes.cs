@@ -9,7 +9,7 @@ public class Nav0222Node0IsReachableByDifferentEdgeModes: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        // Node {0} is reachable by different edge modes
+        // Node '{0}' is reached by edges of different modes
         //==============================
         foreach (IEdge edge in taskDefinition.Edges()) {
 

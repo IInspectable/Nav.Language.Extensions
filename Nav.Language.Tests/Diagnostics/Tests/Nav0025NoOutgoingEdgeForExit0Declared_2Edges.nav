@@ -20,9 +20,9 @@ task A
     I2  --> C;
     I3  --> C;
 }
-//==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge for exit 'e1' declared
-//==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge for exit 'e2' declared
-//==>>[Semantic](20,13,20,14): error Nav0025: No outgoing edge for exit 'e1' declared
-//==>>[Semantic](20,13,20,14): error Nav0025: No outgoing edge for exit 'e2' declared
-//==>>[Semantic](21,13,21,14): error Nav0025: No outgoing edge for exit 'e1' declared
-//==>>[Semantic](21,13,21,14): error Nav0025: No outgoing edge for exit 'e2' declared
+//==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge declared for exit 'e1'
+//==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge declared for exit 'e2'
+//==>>[Semantic](20,13,20,14): error Nav0025: No outgoing edge declared for exit 'e1'
+//==>>[Semantic](20,13,20,14): error Nav0025: No outgoing edge declared for exit 'e2'
+//==>>[Semantic](21,13,21,14): error Nav0025: No outgoing edge declared for exit 'e1'
+//==>>[Semantic](21,13,21,14): error Nav0025: No outgoing edge declared for exit 'e2'

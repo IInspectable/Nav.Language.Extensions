@@ -8,7 +8,7 @@ public class Nav0023AnOutgoingEdgeForTrigger0IsAlreadyDeclared: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        // An outgoing edge for Trigger '{0}' is already declared
+        // An outgoing edge for trigger '{0}' is already declared
         //==============================
         var triggerMap = new Dictionary<INodeSymbol, ITriggerSymbol>();
         foreach (var trans in taskDefinition.TriggerTransitions) {

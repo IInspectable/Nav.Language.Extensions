@@ -7,4 +7,4 @@
     I1  --> V;
     V   o-> end on Trigger;
 }
-//==>>[Semantic](8,9,8,12): error Nav0106: End node 'end' must only be reached by -->
+//==>>[Semantic](8,9,8,12): error Nav0106: End node 'end' can only be reached by a goto edge (-->)

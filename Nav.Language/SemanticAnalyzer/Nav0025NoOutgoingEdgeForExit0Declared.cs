@@ -9,7 +9,7 @@ public class Nav0025NoOutgoingEdgeForExit0Declared: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        //  No outgoing edge for exit '{0}' declared
+        //  No outgoing edge declared for exit '{0}'
         //==============================
         foreach (var taskNode in taskDefinition.NodeDeclarations.OfType<ITaskNodeSymbol>()) {
 

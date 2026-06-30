@@ -43,12 +43,14 @@ static class DiagnosticId {
 
     public const string Nav0200 = nameof(Nav0200);
     public const string Nav0201 = nameof(Nav0201);
+    // Reserviert, aktuell ungenutzt: kein Descriptor und kein Analyzer löst diese ID aus.
     public const string Nav0202 = nameof(Nav0202);
     public const string Nav0203 = nameof(Nav0203);
     public const string Nav0220 = nameof(Nav0220);
     public const string Nav0221 = nameof(Nav0221);
     public const string Nav0222 = nameof(Nav0222);
 
+    // Reserviert, aktuell ungenutzt: kein Descriptor und kein Analyzer löst diese ID aus.
     public const string Nav0300 = nameof(Nav0300);
 
     public const string Nav1001 = nameof(Nav1001);
