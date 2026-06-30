@@ -81,4 +81,29 @@
     <Message Importance="low" Text="ComputeGitVersion: ProductVersion=$(ProductVersion) AssemblyVersion=$(AssemblyVersion) Informational=$(ProductVersionInformational)" />
   </Target>
 
+  <!--
+    Git-Version in die SDK-Assembly-Info-Pipeline einspeisen. Hosts wie der LSP- (nav.lsp) und der
+    MCP-Server (nav.mcp) binden weder GobalAssemblyInfo.cs noch WriteThisAssemblyFile ein und trügen
+    sonst die SDK-Default-Version 1.0.0.0. Dieses Target greift nur bei SDK-Assembly-Info-Generierung
+    (GenerateAssemblyInfo != false); die GobalAssemblyInfo-Projekte setzen GenerateAssemblyInfo=false,
+    bei ihnen läuft GetAssemblyVersion gar nicht erst — sie bleiben unberührt. BeforeTargets greift
+    nur, wenn die SDK-Targets existieren (SDK-Projekte); für das legacy VS-Extension-Projekt
+    (non-SDK) ist es ein No-op.
+  -->
+  <Target Name="SetSdkVersionFromGit"
+          BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+          DependsOnTargets="ComputeGitVersion"
+          Condition=" '$(GenerateAssemblyInfo)' != 'false' ">
+    <PropertyGroup>
+      <!-- ProductVersionInformational trägt Branch+SHA bereits selbst — das automatische Anhängen
+           der SourceRevision durch das SDK daher abschalten (sonst doppelt). -->
+      <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+      <Version Condition=" '$(Version)' == '' or '$(Version)' == '1.0.0' ">$(ProductVersion)</Version>
+      <FileVersion Condition=" '$(FileVersion)' == '' ">$(ProductVersion)</FileVersion>
+      <InformationalVersion Condition=" '$(InformationalVersion)' == '' ">$(ProductVersionInformational)</InformationalVersion>
+      <!-- AssemblyVersion (Major.Minor.0.0) hat ComputeGitVersion bereits gesetzt; GetAssemblyVersion
+           übernimmt den vorhandenen Wert und leitet nichts mehr aus Version ab. -->
+    </PropertyGroup>
+  </Target>
+
 </Project>
