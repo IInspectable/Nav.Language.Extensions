@@ -1,11 +1,63 @@
-﻿# Handgeschriebener Lexer/Parser für Nav — Erkenntnisse & Entwurf
+﻿# Nav-Parser „Kolibri" — handgeschriebener Lexer/Parser für Nav
 
-> **Zweck dieses Dokuments:** Festhalten der Analyse zur Frage, ob/wie der **ANTLR-basierte**
-> Lexer/Parser in `Nav.Language` durch einen **handgeschriebenen** ersetzt werden kann. Es ist
-> Grundlage für die spätere Umsetzung und ergänzt den Test-Plan
-> [`nav-parser-test-plan.md`](./nav-parser-test-plan.md), der **vor** dem Umbau abgearbeitet wird.
->
-> Stand der Analyse: Juni 2026. Quelle der Wahrheit bleibt der Code — Pfade/Zeilen unten als Einstieg.
+> **Codename Kolibri:** klein, extrem schnell, ein Durchlauf (Single-Pass) statt der früheren
+> Zwei-Phasen-ANTLR-Pipeline. Diese Datei ist der dauerhafte Handoff zum Lexer/Parser der
+> `Nav.Language`-Engine — von der Ausgangsanalyse (ANTLR → handgeschrieben) bis zum aktuellen Stand.
+> Quelle der Wahrheit bleibt der Code; Pfade/Zeilen sind Einstiege.
+
+---
+
+## Stand & Performance (aktuell)
+
+**Status:** Der handgeschriebene Recursive-Descent-Parser (`Nav.Language/Syntax/NavParser.cs` +
+`NavLexer.cs`) ist die **alleinige** Syntax-Implementierung. ANTLR ist als Parser/Lexer vollständig
+ausgebaut (`StringTemplate4` bleibt — nur für die Codegenerierung). Sicherheitsnetz:
+`SyntaxGoldenTests` (Token/Baum/Diagnostics/Trivia byte-genau gepinnt) + Regression (`.expected.cs`).
+
+**Korpus-Validierung (gegen `D:\tfs\Main`, 1912 `.nav`):** Alle Dateien parsen ohne Exception;
+**Error-Diagnostics nur in 4 Dateien — alle via `.navignore` ausgeschlossen** (`.MI.`-Varianten mit
+nicht unterstützter `taskref … [namespaceprefix …]`-Syntax), **0** nicht-ignorierte Fehler. Der
+**erzeugte C#-Code ist byte-identisch** zum alten ANTLR-Generator (9229 Dateien, MD5-gleich) — der
+Handparser ist also ein exakter Ersatz end-to-end.
+
+**Performance — reines Parsen** (ganzer Korpus 7,2 MiB, in-process, Minimum aus 10 Iterationen, Debug):
+
+| Parser | Beste Parse-Zeit | Durchsatz | Allokiert/Iteration |
+|---|---|---|---|
+| ANTLR (vor Cutover) | 682 ms | 10,5 MiB/s | 374 MiB |
+| Kolibri (Cutover, vor Opts) | 371 ms | 19,3 MiB/s | 302 MiB |
+| Kolibri + Allokations-Opts | **340 ms** | **21,0 MiB/s** | **258 MiB** |
+
+→ **~2,0× schneller** als ANTLR beim reinen Parsen, bei ~31 % weniger Allokation.
+
+### Erkenntnisse (durabel — bitte beim Weiterarbeiten beachten)
+
+1. **Der Parser ist *nicht* der Flaschenhals des Build-Generators.** Parsen ist **< 2 %** der
+   End-to-End-Generatorzeit (37,7 → 33,5 s alt/neu); den Rest dominieren Semantik-Modell +
+   StringTemplate-Codegen + IO. Parser-Mikro-Optimierungen zahlen daher auf **Editor-/LSP-Reparse-
+   Latenz** ein (Reparse pro Tastendruck, weniger GC-Pausen), **nicht** auf den Batch-Generator.
+2. **Allokationen messen, nicht raten — und mit dem richtigen Maß.** `GC.GetTotalAllocatedBytes()`
+   ist deterministisch und deckt Regressionen auf, die der **Gen0-Sammlungszähler verschleiert**
+   (zu grob). Parse-Zeit als **Minimum aus N Iterationen** (CPU-stabil), und Enumeration/IO **getrennt**
+   von der reinen Parse-Zeit messen — Letztere sind FS-/Cache-abhängig und beim 2. Lauf „unfair" schnell.
+3. **Geteilte Datenstruktur schlägt viele kleine — aber nur, wenn die Hilfsindizes nicht wachsen.**
+   Beim Trivia-Umbau (alle Trivia in *einem* geteilten Array, Token halten nur Index-Bereiche, View-Typ
+   `SyntaxTriviaList`) brachte die erste Fassung mit **drei** Dictionaries eine *Verschlechterung*
+   (+16 MiB); erst die Fassung mit **einem** Dictionary sparte −44 MiB. Lehre: der Positions→Bereich-
+   Lookup über Dictionaries ist der eigentliche Allokationsposten — ein Flach-Array gewinnt nur, wenn
+   die Dictionary-Zahl dabei **nicht** steigt.
+4. **Wenig-invasiver Span-Ersatz schlägt breite `ReadOnlySpan<char>`-Migration.** Der Lexer arbeitet
+   index-basiert auf dem Original-`string`; der einzige Hotspot war der `Substring` je Identifier nur
+   fürs Keyword-Lookup. Ein Guard (Lauf kann nur Keyword sein, wenn alle Zeichen `a–z`, Länge 2–15)
+   entfernt fast alle diese Allokationen ohne span-basierten Dictionary-Lookup (`GetAlternateLookup`
+   gibt es auf `netstandard2.0` ohnehin nicht).
+
+---
+
+> **Ursprünglicher Zweck (historisch):** Festhalten der Analyse, ob/wie der **ANTLR-basierte**
+> Lexer/Parser durch einen **handgeschriebenen** ersetzt werden kann — Grundlage des Umbaus, ergänzt
+> den Test-Plan [`nav-parser-test-plan.md`](./nav-parser-test-plan.md). Der folgende Teil ist als
+> Protokoll der Umsetzung erhalten.
 
 ---
 

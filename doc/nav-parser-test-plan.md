@@ -1,7 +1,7 @@
 ﻿# Test-Abdeckung vor dem Parser-Austausch — Step-für-Step-Plan
 
 > **Zweck dieses Dokuments:** Bevor der ANTLR-basierte Lexer/Parser durch einen handgeschriebenen
-> ersetzt wird (siehe [`nav-handwritten-parser.md`](./nav-handwritten-parser.md)), soll die
+> ersetzt wird (siehe [`nav-kolibri.md`](./nav-kolibri.md)), soll die
 > **Test-Abdeckung der Syntax-Schicht maximiert** werden. Ziel ist **nicht** „mehr Tests" allgemein,
 > sondern ein **differentielles Sicherheitsnetz**, das den exakt beobachtbaren Output des *heutigen*
 > Parsers einfriert, damit der neue Parser Byte für Byte dagegen diffbar ist.
@@ -177,7 +177,7 @@ Token-Strom allein nicht zeigt (falsche Verschachtelung, fehlende optionale Knot
 
 > **Hinweis:** Diese Golden pinnen die *ANTLR*-Recovery. Der handgeschriebene Parser wird hier
 > bewusst teils **bessere** Meldungen liefern → erwartete, reviewte Diffs. Das ist beabsichtigt
-> (siehe `nav-handwritten-parser.md`, Abschnitt Error-Recovery).
+> (siehe `nav-kolibri.md`, Abschnitt Error-Recovery).
 
 ---
 
@@ -244,6 +244,6 @@ grün. Ab dann kann der Parser-Tausch beginnen — jeder Golden-Diff ist entwede
 bewusste, dokumentierte Änderung.
 
 > **Status:** Alle fünf Steps sind erledigt, die DoD ist erfüllt (Suite auf net10.0 **und** net472
-> grün). Das Sicherheitsnetz steht — der Parser-Tausch (siehe `nav-handwritten-parser.md`) kann
+> grün). Das Sicherheitsnetz steht — der Parser-Tausch (siehe `nav-kolibri.md`) kann
 > beginnen. Neue Tests entstehen ab hier nur noch reaktiv, falls der handgeschriebene Parser
 > zusätzliche Fälle aufdeckt.
