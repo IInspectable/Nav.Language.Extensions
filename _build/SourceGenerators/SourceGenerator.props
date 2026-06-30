@@ -1,0 +1,25 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <!-- Quellgeneratoren müssen netstandard2.0 anvisieren (Analyzer-Ladekontext des Compilers). -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- Generator-Assembly wird nicht als Referenz in die Konsumenten gelinkt, nur als Analyzer. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <Nullable>enable</Nullable>
+    <!-- Eigener Sprachstand: bewusst NICHT das projektweite 10.0 der Engine (Directory.Build.props)
+         erben — die Generatorprojekte werden vom modernen SDK gebaut und dürfen neuere Features nutzen. -->
+    <LangVersion>latest</LangVersion>
+    <!-- RS2008: Analyzer-Release-Tracking (nicht relevant für interne Generatoren). -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Import Project="..\Shared\Nav.CodeAnalysis.Shared\Nav.CodeAnalysis.Shared.projitems" Label="Shared" />
+
+</Project>
