@@ -65,7 +65,10 @@ class TaskReferenceOutlineTagger {
                         yield break;
                     }
 
-                    int start = keywordToken.End + 1;
+                    // Hinter dem taskref-Schlüsselwort samt dessen Trailing-Trivia beginnen: das ist genau die
+                    // Trennstrecke bis zum Dateiliteral. So trifft die Region deren Anfang unabhängig davon, wie
+                    // viele Trennzeichen dazwischenstehen — statt der fragilen Annahme von genau einem Leerzeichen.
+                    int start = keywordToken.FullExtent.End;
 
                     int length = extendEnd.End - start;
 

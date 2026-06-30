@@ -845,8 +845,10 @@ Einziger Heißpfad-Aufrufer wäre `NavCodeActionService.ExpandCaret` (nicht hei�
   **verhaltensgleich zu vorher**, ohne `NextToken()`. Die `rgnStartToken.IsMissing`-Guard entfällt (der `length <= 0`-Guard
   deckt den Randfall ab); ungenutztes `using System;` (nur für `Math.Min`) entfernt; beide Dateien auf UTF-8 mit BOM
   gebracht und die U+FFFD-Umlaute in `TaskReferenceOutlineTagger.cs` repariert. Der zweite Block dort
-  (`keywordToken.End + 1` für zusammenhängende `taskref`-Include-Regionen) ist reine Keyword-Arithmetik, vom Ziehen
-  **nicht** betroffen und bewusst unverändert gelassen. Einzige no-arg-`NextToken()`/`PreviousToken()`-Caller sind danach
+  (zusammenhängende `taskref`-Include-Regionen) nutzte mit `keywordToken.End + 1` dieselbe fragile
+  „genau-ein-Leerzeichen"-Annahme; das ist jetzt über die Trailing-Trivia des `taskref`-Keywords abgeleitet
+  (`keywordToken.FullExtent.End`) — im Ein-Leerzeichen-Fall identisch, bei mehr/keinen Trennzeichen korrekter.
+  Einzige no-arg-`NextToken()`/`PreviousToken()`-Caller sind danach
   nur noch zwei `SyntaxTokenTests` (testen `Missing.NextToken()`).
 
 ### Verifikationsprotokoll (jeder Teilschritt)
