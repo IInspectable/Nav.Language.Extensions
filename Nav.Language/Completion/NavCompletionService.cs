@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 
@@ -16,13 +15,15 @@ using Pharmatechnik.Nav.Utilities.IO;
 namespace Pharmatechnik.Nav.Language.Completion;
 
 /// <summary>
-/// VS-freier Vervollständigungs-Service auf Engine-Ebene — Grundlage für LSP <c>textDocument/completion</c>.
-/// Vereint die Logik der VS-Quellen <c>NavCompletionSource</c> und <c>EdgeCompletionSource</c> (die VS als
-/// getrennte Quellen mischt): nach <c>task</c> die deklarierten Tasks, nach <c>knoten:</c> die
-/// Exit-Connection-Points, innerhalb einer Task-Definition die Knoten (unreferenzierte zuerst), die
-/// Nav-Keywords (ohne versteckte/Edge-Keywords) sowie — wenn vor der (angefangenen) Edge ein Whitespace
-/// bzw. Zeilenanfang steht — die Edge-Keywords. Keine Vorschläge in Kommentaren, in Zeichenketten
-/// (<c>"…"</c>) oder in Code-Blöcken (<c>[ … ]</c>).
+/// VS-freier Vervollständigungs-Service auf Engine-Ebene — Grundlage für LSP <c>textDocument/completion</c>
+/// und (über dieselbe Logik) die VS-Quellen. Die grammatische Situation an der Cursor-Position wird über den
+/// recovery-festen Syntaxbaum bestimmt (<see cref="NavCompletionContext"/>) statt über einen zeilenbegrenzten
+/// Text-Rückwärtsscan; je nach Situation werden nur die dort tatsächlich sinnvollen Kategorien angeboten:
+/// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
+/// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
+/// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
+/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>do</c>. Keine Vorschläge in Kommentaren, Zeichenketten
+/// (<c>"…"</c>) oder Code-Blöcken (<c>[ … ]</c>); innerhalb von <c>taskref "…"</c> die Pfad-Vervollständigung.
 /// </summary>
 public static class NavCompletionService {
 
@@ -43,134 +44,166 @@ public static class NavCompletionService {
             return pathItems;
         }
 
-        if (!ShouldProvideCompletions(unit, source, position)) {
-            return Array.Empty<NavCompletionItem>();
+        var context = NavCompletionContext.Classify(unit, position);
+
+        switch (context.Kind) {
+
+            case NavCompletionContextKind.Suppress:
+                return Array.Empty<NavCompletionItem>();
+
+            case NavCompletionContextKind.MemberLevel:
+                return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
+
+            case NavCompletionContextKind.TaskNodeName:
+                return TaskDeclarationItems(unit);
+
+            case NavCompletionContextKind.ExitConnectionPoint:
+                return ExitConnectionPointItems(context);
+
+            case NavCompletionContextKind.EdgeSlot:
+                return VisibleEdgeKeywordItems();
+
+            case NavCompletionContextKind.TargetSlot:
+                return TargetItems(context);
+
+            case NavCompletionContextKind.StatementStart:
+                return StatementStartItems(context);
+
+            case NavCompletionContextKind.AfterTarget:
+                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword, SyntaxFacts.DoKeyword);
+
+            case NavCompletionContextKind.AfterTrigger:
+                return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.DoKeyword);
+
+            case NavCompletionContextKind.AfterCondition:
+                return KeywordItems(SyntaxFacts.DoKeyword);
+
+            default:
+                return FallbackItems(context);
+        }
+    }
+
+    #region Kategorien
+
+    // Knoten-Deklarations-Keywords (beginnen eine Knoten-Deklaration und taugen zugleich als Transitions-Quelle).
+    static readonly string[] NodeDeclarationKeywords = {
+        SyntaxFacts.InitKeyword,
+        SyntaxFacts.InitKeywordAlt,
+        SyntaxFacts.EndKeyword,
+        SyntaxFacts.ExitKeyword,
+        SyntaxFacts.ChoiceKeyword,
+        SyntaxFacts.DialogKeyword,
+        SyntaxFacts.ViewKeyword,
+        SyntaxFacts.TaskKeyword
+    };
+
+    static List<NavCompletionItem> TaskDeclarationItems(CodeGenerationUnit unit) {
+        var items = new List<NavCompletionItem>();
+        foreach (var decl in unit.TaskDeclarations) {
+            items.Add(FromSymbol(decl));
         }
 
-        var line      = source.GetTextLineAtPosition(position);
-        var lineStart = line.Start;
+        return items;
+    }
 
-        var items = GetSymbolAndKeywordCompletions(unit, source, lineStart, position);
+    static List<NavCompletionItem> ExitConnectionPointItems(NavCompletionContext context) {
 
-        // Edge-Keywords (VS-Quelle EdgeCompletionSource): nur anbieten, wenn vor der (evtl. bereits
-        // angefangenen) Edge ein Whitespace oder der Zeilenanfang steht — sonst keine Edge-Mitten.
-        if (IsEdgeContext(source, lineStart, position)) {
+        var items = new List<NavCompletionItem>();
 
-            foreach (var keyword in SyntaxFacts.EdgeKeywords
-                                               .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
-                                               .OrderBy(k => k, StringComparer.Ordinal)) {
-                items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+        if (string.IsNullOrEmpty(context.ExitNodeName)) {
+            return items;
+        }
+
+        if (context.Task.TryFindNode(context.ExitNodeName) is ITaskNodeSymbol { Declaration: not null } exitNode) {
+            // Erst die noch nicht verbundenen Exits, dann die bereits verbundenen.
+            foreach (var cp in exitNode.GetUnconnectedExits()) {
+                items.Add(FromSymbol(cp));
+            }
+
+            foreach (var cp in exitNode.GetConnectedExits()) {
+                items.Add(FromSymbol(cp));
             }
         }
 
         return items;
     }
 
-    static List<NavCompletionItem> GetSymbolAndKeywordCompletions(CodeGenerationUnit unit, SourceText source, int lineStart, int position) {
-
-        var startOfIdentifier     = GetStartOfIdentifier(source, lineStart, position);
-        var previousNonWhitespace = PreviousNonWhitespaceChar(source, lineStart, startOfIdentifier);
-        var previousIdentifier    = GetPreviousIdentifier(source, lineStart, startOfIdentifier);
-
+    // Hinter einer Edge: die Knoten (als Ziel) — unreferenzierte zuerst — plus das Ziel-Keyword `end`.
+    static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task);
+        items.Add(new NavCompletionItem(SyntaxFacts.EndKeyword, NavCompletionItemKind.Keyword));
+        return items;
+    }
 
-        // Task-Knoten: nach dem Schlüsselwort `task` die deklarierten Tasks anbieten.
-        if (previousIdentifier == SyntaxFacts.TaskKeyword) {
+    // Satzanfang im Body: die vorhandenen Knoten (als Quelle) plus die Knoten-Deklarations-Keywords.
+    static List<NavCompletionItem> StatementStartItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task);
 
-            foreach (var decl in unit.TaskDeclarations) {
-                items.Add(FromSymbol(decl));
-            }
-
-            if (items.Count > 0) {
-                return items;
-            }
-        }
-
-        var caret          = TextExtent.FromBounds(position, position);
-        var taskDefinition = unit.TaskDefinitions.FirstOrDefault(td => td.Syntax.Extent.IntersectsWith(caret))
-                          ?? unit.TaskDefinitions.LastOrDefault(td => caret.Start > td.Syntax.Start);
-
-        if (taskDefinition != null) {
-
-            // Exit-Connection-Points: nach `knoten:` die Exits des referenzierten Task-Knotens.
-            if (previousNonWhitespace == SyntaxFacts.Colon) {
-
-                var exitNodeEnd = startOfIdentifier - 1;
-                var nodeName    = GetPreviousIdentifier(source, lineStart, exitNodeEnd);
-
-                if (!string.IsNullOrEmpty(nodeName)) {
-
-                    var exitNode = taskDefinition.TryFindNode(nodeName) as ITaskNodeSymbol;
-
-                    if (exitNode?.Declaration != null) {
-                        // Erst die noch nicht verbundenen Exits, dann die bereits verbundenen.
-                        foreach (var cp in exitNode.GetUnconnectedExits()) {
-                            items.Add(FromSymbol(cp));
-                        }
-
-                        foreach (var cp in exitNode.GetConnectedExits()) {
-                            items.Add(FromSymbol(cp));
-                        }
-                    }
-
-                    if (items.Count > 0) {
-                        return items;
-                    }
-                }
-            }
-
-            // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch.
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count == 0)
-                                               .OrderBy(n => n.Name, StringComparer.Ordinal)) {
-                items.Add(FromSymbol(node));
-            }
-
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count != 0)
-                                               .OrderBy(n => n.Name, StringComparer.Ordinal)) {
-                items.Add(FromSymbol(node));
-            }
-        }
-
-        // Nav-Keywords (ohne versteckte und ohne Edge-Keywords — letztere kommen aus dem Edge-Zweig).
-        foreach (var keyword in SyntaxFacts.NavKeywords
-                                           .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
-                                           .OrderBy(k => k, StringComparer.Ordinal)) {
+        foreach (var keyword in NodeDeclarationKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
         return items;
     }
 
-    static bool ShouldProvideCompletions(CodeGenerationUnit unit, SourceText source, int position) {
+    // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
+    // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task);
 
-        if (position < 0 || position > source.Length) {
-            return false;
+        foreach (var keyword in SyntaxFacts.NavKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
-        // Keine Vervollständigung in Kommentaren — aus der angehängten Trivia (Roslyn-Modell), nicht über
-        // ein FindToken auf den flachen Strom.
-        if (unit.Syntax.SyntaxTree.IsPositionInComment(position)) {
-            return false;
-        }
-
-        var line         = source.GetTextLineAtPosition(position);
-        var lineText      = source.Substring(line.ExtentWithoutLineEndings);
-        var linePosition = position - line.Start;
-
-        // Keine Vervollständigung in Zeichenketten ("…").
-        if (lineText.IsInQuotation(linePosition)) {
-            return false;
-        }
-
-        // Keine Vervollständigung in Code-Blöcken ([ … ]); betrachtet (wie in VS) nur die aktuelle Zeile.
-        if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
-            return false;
-        }
-
-        return true;
+        items.AddRange(VisibleEdgeKeywordItems());
+        return items;
     }
+
+    static List<NavCompletionItem> VisibleEdgeKeywordItems() {
+        var items = new List<NavCompletionItem>();
+        foreach (var keyword in SyntaxFacts.EdgeKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+        }
+
+        return items;
+    }
+
+    static IReadOnlyList<NavCompletionItem> KeywordItems(params string[] keywords) {
+        return keywords.OrderBy(k => k, StringComparer.Ordinal)
+                       .Select(k => new NavCompletionItem(k, NavCompletionItemKind.Keyword))
+                       .ToList();
+    }
+
+    // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch.
+    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol task) {
+
+        if (task == null) {
+            return;
+        }
+
+        foreach (var node in task.NodeDeclarations
+                                 .Where(n => n.References.Count == 0)
+                                 .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+            items.Add(FromSymbol(node));
+        }
+
+        foreach (var node in task.NodeDeclarations
+                                 .Where(n => n.References.Count != 0)
+                                 .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+            items.Add(FromSymbol(node));
+        }
+    }
+
+    #endregion
 
     static NavCompletionItem FromSymbol(ISymbol symbol) {
         return new NavCompletionItem(symbol.Name, KindOf(symbol));
@@ -247,73 +280,6 @@ public static class NavCompletionService {
 
         return items;
     }
-
-    #endregion
-
-    #region Zeilen-Helfer (faithful port der VS-TextSnaphotLineExtensions, offset-basiert)
-
-    // Startindex des Identifiers, der bei position endet — zeilenbegrenzt rückwärts laufend.
-    static int GetStartOfIdentifier(SourceText source, int lineStart, int position) {
-        while (position > lineStart && SyntaxFacts.IsIdentifierCharacter(source[position - 1])) {
-            position -= 1;
-        }
-
-        return position;
-    }
-
-    // Index des vorigen Nicht-Whitespace-Zeichens (oder null), zeilenbegrenzt.
-    static int? PreviousNonWhitespace(SourceText source, int lineStart, int position) {
-
-        if (position <= lineStart) {
-            return null;
-        }
-
-        do {
-            position -= 1;
-        } while (position > lineStart && char.IsWhiteSpace(source[position]));
-
-        return position;
-    }
-
-    static char? PreviousNonWhitespaceChar(SourceText source, int lineStart, int position) {
-        var index = PreviousNonWhitespace(source, lineStart, position);
-        return index.HasValue ? source[index.Value] : null;
-    }
-
-    // Der Identifier-Text, der vor position liegt (oder ""), zeilenbegrenzt.
-    static string GetPreviousIdentifier(SourceText source, int lineStart, int position) {
-
-        var wordEnd = PreviousNonWhitespace(source, lineStart, position);
-        if (wordEnd == null) {
-            return string.Empty;
-        }
-
-        var wordStart = GetStartOfIdentifier(source, lineStart, wordEnd.Value);
-        if (wordEnd.Value + 1 <= wordStart) {
-            return string.Empty;
-        }
-
-        return source.Substring(TextExtent.FromBounds(wordStart, wordEnd.Value + 1));
-    }
-
-    // Startindex der (evtl. angefangenen) Edge, die bei position endet — zeilenbegrenzt über Edge-Zeichen.
-    static int GetStartOfEdge(SourceText source, int lineStart, int position) {
-        while (position > lineStart && IsEdgeChar(source[position - 1])) {
-            position -= 1;
-        }
-
-        return position;
-    }
-
-    // Vor einer Edge muss Whitespace oder der Zeilenanfang stehen (sonst ist es keine Edge-Position).
-    static bool IsEdgeContext(SourceText source, int lineStart, int position) {
-        var start = GetStartOfEdge(source, lineStart, position);
-        return start == lineStart || char.IsWhiteSpace(source[start - 1]);
-    }
-
-    static readonly ImmutableHashSet<char> EdgeChars = SyntaxFacts.EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
-
-    static bool IsEdgeChar(char c) => EdgeChars.Contains(c);
 
     #endregion
 

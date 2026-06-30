@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
@@ -54,34 +54,37 @@ public class NavCompletionServiceTests {
 
         Assert.That(Labels(items), Does.Contain("se"));
         Assert.That(items.Single(i => i.Label == "se").Kind, Is.EqualTo(NavCompletionItemKind.ConnectionPoint));
-        // Nach dem Doppelpunkt steht kein Whitespace vor der Edge-Position → keine Edge-Keywords.
+        // Nach dem Doppelpunkt nur die Exit-Connection-Points — keine Edge-Keywords, keine Knoten.
         Assert.That(Labels(items), Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+        Assert.That(Labels(items), Has.None.EqualTo("i"));
     }
 
     [Test]
-    public void InTaskBody_OffersNodesAndKeywords() {
+    public void TargetSlot_OffersTargetNodesAndEndKeyword() {
 
         var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      --> "); // auf der Knotenreferenz 'Sub'
+        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      --> "); // auf der Ziel-Knotenreferenz 'Sub'
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
 
-        // Knoten der Task-Definition...
+        // Hinter der Edge stehen die Knoten als Ziel...
         Assert.That(labels, Does.Contain("i"));
         Assert.That(labels, Does.Contain("e"));
         Assert.That(labels, Does.Contain("Sub"));
-        // ...Nav-Keywords...
-        Assert.That(labels, Does.Contain("exit"));
-        // ...und (da vor der Position ein Whitespace steht) auch die Edge-Keywords.
-        Assert.That(labels, Does.Contain(SyntaxFacts.GoToEdgeKeyword));
+        // ...plus das Ziel-Keyword `end`.
+        Assert.That(labels, Does.Contain(SyntaxFacts.EndKeyword));
+        // Aber KEINE Deklarations-Keywords, keine Edge-Keywords und keine Folge-Klauseln.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ExitKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
     }
 
     [Test]
-    public void EdgeContext_OffersOnlyVisibleEdgeKeywords() {
+    public void EdgeSlot_OffersOnlyVisibleEdgeKeywords() {
 
         var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // direkt vor der Edge `-->`
+        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, vor der Edge
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -94,6 +97,89 @@ public class NavCompletionServiceTests {
         // Versteckte Edge-Keywords nicht.
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ModalEdgeKeywordAlt)); // *->
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NonModalEdgeKeyword));
+        // Hinter dem Quellknoten kann nur eine Edge folgen — keine Knoten, keine sonstigen Keywords.
+        Assert.That(labels, Has.None.EqualTo("Sub"));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+    }
+
+    [Test]
+    public void StatementStart_OffersNodeDeclarationKeywordsAndNodes() {
+
+        const string nav = "task A\n"            +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    exit e;\n"       +
+                           "    \n"              + // leere, eingerückte Zeile — Cursor hier
+                           "    i --> e;\n"      +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\stmt.nav");
+        var caret = IndexOfToken(nav, "exit e;\n    \n", "exit e;\n    "); // Satzanfang auf der leeren Zeile
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Knoten-Deklarations-Keywords...
+        Assert.That(labels, Does.Contain(SyntaxFacts.InitKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ExitKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.TaskKeyword));
+        // ...und die vorhandenen Knoten (als Quelle einer neuen Transition).
+        Assert.That(labels, Does.Contain("i"));
+        Assert.That(labels, Does.Contain("e"));
+        // Aber KEINE Folge-Klauseln, kein `taskref`, keine Edge-Keywords.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DoKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskrefKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
+    public void AfterTarget_OffersFollowupClauses() {
+
+        const string nav = "task A\n"          +
+                           "{\n"               +
+                           "    init i;\n"     +
+                           "    exit e;\n"     +
+                           "    i --> e ;\n"   + // Cursor hinter dem vollständigen Ziel `e`, vor `;`
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\after.nav");
+        var caret = IndexOfToken(nav, "i --> e ;", "i --> e "); // hinter `e ` (Whitespace), vor `;`
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Folge-Klauseln nach dem Ziel.
+        Assert.That(labels, Does.Contain(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // Keine Knoten, keine Deklarations-Keywords.
+        Assert.That(labels, Has.None.EqualTo("i"));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+    }
+
+    [Test]
+    public void MemberLevel_OffersOnlyTaskAndTaskref() {
+
+        const string nav = "task A\n"          +
+                           "{\n"               +
+                           "    init i;\n"     +
+                           "    exit e;\n"     +
+                           "    i --> e;\n"    +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\member.nav");
+
+        // Cursor ganz am Dateianfang — außerhalb jeder Task-Definition.
+        var items  = NavCompletionService.GetCompletions(unit, 0);
+        var labels = Labels(items);
+
+        Assert.That(labels, Does.Contain(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.TaskrefKeyword));
+        // Keine knoten-/transitionsbezogenen Vorschläge auf Member-Ebene.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+        Assert.That(labels, Has.None.EqualTo("i"));
     }
 
     [Test]
