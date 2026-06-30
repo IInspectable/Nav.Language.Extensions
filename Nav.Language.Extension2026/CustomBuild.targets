@@ -5,40 +5,64 @@
   </PropertyGroup>
   <Import Project="..\_build\WriteThisAssemblyFile.targets" />
   <PropertyGroup>
-    <VsixmanifestFile>$(MSBuildProjectDirectory)\source.extension.vsixmanifest</VsixmanifestFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <XmlConfigUpdates Include="$(VsixmanifestFile)">
-      <Namespaces>"&lt;Namespace Prefix='a' Uri='http://schemas.microsoft.com/developer/vsx-schema/2011' /&gt;"</Namespaces>
-      <XPath>/a:PackageManifest/a:Metadata/a:Identity/@Version</XPath>
-      <NewValue>$(ProductVersion)</NewValue>
-    </XmlConfigUpdates>
-    <!--<XmlConfigUpdates Include="$(VsixmanifestFile)">
-      <Namespaces>"&lt;Namespace Prefix='a' Uri='http://schemas.microsoft.com/developer/vsx-schema/2011' /&gt;"</Namespaces>
-      <XPath>/a:PackageManifest/a:Metadata/a:DisplayName</XPath>
-      <NewValue>$(ProductName)</NewValue>
-    </XmlConfigUpdates>-->
-  </ItemGroup>
-  <PropertyGroup>
     <DeployDirectory>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)\..\deploy\Vsix))</DeployDirectory>
   </PropertyGroup>
+
+  <!-- VSIX-Manifest-Version stempeln: NICHT in die eingecheckte Quelldatei (die bleibt dauerhaft
+       auf dem Platzhalter 0.0.0), sondern in die vom VSSDK erzeugte Output-Kopie
+       ($(OutDir)extension.vsixmanifest), die CreateVsixContainer ins .vsix zippt. So bleibt der
+       Working-Tree sauber und die Version stammt allein aus git (ComputeGitVersion bzw. via -p
+       durchgereicht). -->
+  <Target Name="NavStampVsixManifest"
+          BeforeTargets="CreateVsixContainer"
+          DependsOnTargets="ComputeGitVersion">
+    <PropertyGroup>
+      <!-- $(IntermediateVsixManifest) (= obj\…\extension.vsixmanifest) ist die Kopie, die
+           CreateVsixContainer ins .vsix zippt. Die bin-Kopie ($(OutDir)) wird zur Sicherheit
+           gleich mitgestempelt. -->
+      <_NavObjManifest>$(IntermediateVsixManifest)</_NavObjManifest>
+      <_NavBinManifest>$(OutDir)extension.vsixmanifest</_NavBinManifest>
+      <_NavVsixNamespaces>"&lt;Namespace Prefix='a' Uri='http://schemas.microsoft.com/developer/vsx-schema/2011' /&gt;"</_NavVsixNamespaces>
+    </PropertyGroup>
+    <Message Importance="high" Text="Stamping VSIX manifest '$(_NavObjManifest)' -> $(ProductVersion)" />
+    <XmlPoke XmlInputPath="$(_NavObjManifest)"
+             Namespaces="$(_NavVsixNamespaces)"
+             Query="/a:PackageManifest/a:Metadata/a:Identity/@Version"
+             Value="$(ProductVersion)" />
+    <XmlPoke Condition="Exists('$(_NavBinManifest)')"
+             XmlInputPath="$(_NavBinManifest)"
+             Namespaces="$(_NavVsixNamespaces)"
+             Query="/a:PackageManifest/a:Metadata/a:Identity/@Version"
+             Value="$(ProductVersion)" />
+    <!-- Guard: niemals ein 0.0.0-/leeres VSIX ausliefern (auf der gezippten obj-Kopie prüfen). -->
+    <XmlPeek XmlInputPath="$(_NavObjManifest)"
+             Namespaces="$(_NavVsixNamespaces)"
+             Query="/a:PackageManifest/a:Metadata/a:Identity/@Version">
+      <Output TaskParameter="Result" ItemName="_NavStampedVersion" />
+    </XmlPeek>
+    <Error Condition=" '@(_NavStampedVersion)' == '' or '@(_NavStampedVersion)' == '0.0.0' "
+           Text="VSIX-Manifest-Version wurde nicht gestempelt (steht auf '@(_NavStampedVersion)'). Build abgebrochen, um kein veraltetes/0.0.0-VSIX auszuliefern." />
+  </Target>
+
   <!-- Der VSSDK-Schritt CreateVsixContainer ist nur unzuverlässig inkrementell: seine Up-to-date-
-       Prüfung trackt eine feste Input-Liste. Ändert sich nur diese .targets oder ein eingebetteter
-       Inhalt, dessen Timestamp die Input-Liste nicht erfasst, gilt das bereits gebaute .vsix als
-       aktuell — der Container-Build wird übersprungen und ein VERALTETER Stand weiterdeployt.
-       Deshalb das vorhandene VSIX vorher löschen: fehlt das Output, baut CreateVsixContainer neu. -->
+       Prüfung trackt eine feste Input-Liste, die weder die git-abgeleitete Version noch einen
+       reinen Tag-Wechsel erfasst — ein bereits gebautes .vsix gilt dann fälschlich als aktuell und
+       ein VERALTETER Stand wird weiterdeployt. Deshalb den konkreten Container (plus Glob als
+       Fallback) vorher löschen: fehlt das Output, baut CreateVsixContainer zwingend neu. -->
   <Target Name="ForceVsixRebuild" BeforeTargets="CreateVsixContainer">
     <ItemGroup>
+      <_StaleVsix Include="$(TargetVsixContainer)" Condition=" '$(TargetVsixContainer)' != '' " />
       <_StaleVsix Include="$(OutputPath)\**\*.vsix" />
     </ItemGroup>
     <Delete Files="@(_StaleVsix)" />
   </Target>
+
   <!-- Das gebaute VSIX (Default-Name aus dem VsSDK) ins deploy ziehen und dabei selbst auf den
        versionierten Zielnamen umbenennen. So bleibt der VSSDK-interne Name unangetastet und der
-       Deploy-Name liegt komplett in unserer Hand. ProductVersion stammt aus Version.props
-       (via Directory.Build.props). Für VS ist der Name ohnehin egal (Version kommt aus dem
-       Manifest), aber im deploy\Vsix-Artefakt ist der Stand am Dateinamen erkennbar. -->
-  <Target Name="DeployFiles" AfterTargets="CreateVsixContainer">
+       Deploy-Name liegt komplett in unserer Hand. ProductVersion ist git-abgeleitet. Für VS ist
+       der Name ohnehin egal (Version kommt aus dem Manifest), aber im deploy\Vsix-Artefakt ist der
+       Stand am Dateinamen erkennbar. -->
+  <Target Name="DeployFiles" AfterTargets="CreateVsixContainer" DependsOnTargets="ComputeGitVersion">
     <ItemGroup>
       <_FilesToDelete Include="$(DeployDirectory)\**\*" />
     </ItemGroup>
@@ -47,10 +71,7 @@
     <Copy SourceFiles="$(TargetVsixContainer)"
           DestinationFiles="$(DeployDirectory)\Pharmatechnik.Nav.Language.Extension.2026-$(ProductVersion).vsix" />
   </Target>
-  <Target Name="UpdateProductVersion" BeforeTargets="PrepareForBuild">
-    <Message Text="Updating XML $(VsixVersionNumber) files %(XmlConfigUpdates.FullPath)" Importance="high" />
-    <XmlPoke Namespaces="%(XmlConfigUpdates.Namespaces)" XmlInputPath="%(XmlConfigUpdates.FullPath)" Query="%(XmlConfigUpdates.XPath)" Value="%(XmlConfigUpdates.NewValue)" />
-  </Target>
+
   <!-- Microsoft.VisualStudio.SDK.EmbedInteropTypes sets a bunch of EmbedInteropTypes attributes, but Roslyn is somewhat special
        and has to do things differently. After the NuGet package does its thing, do further changes. -->
   <Target Name="FixVSSDKEmbeddableAssemblies" AfterTargets="LinkVSSDKEmbeddableAssemblies" BeforeTargets="FindReferenceAssembliesForReferences">

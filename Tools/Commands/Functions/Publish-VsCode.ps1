@@ -6,7 +6,7 @@
 .DESCRIPTION
     Kein eigener nav-Command (keine .FUNCTIONALITY) — wird von `nav publish` (Invoke-Publish)
     aufgerufen. Ablauf:
-      1. Version aus Version.props (ProductVersion) lesen — eine Quelle der Wahrheit.
+      1. Git-abgeleitete Version ermitteln (Get-ProductVersion) — eine Quelle der Wahrheit.
       2. LSP-Server self-contained als Single-File direkt nach vscode-nav-lsp\server\nav.lsp.exe
          publizieren (kein Umweg über deploy\lsp). Flags: PublishSingleFile +
          IncludeNativeLibrariesForSelfExtract → alles in eine exe; EnableCompressionInSingleFile →
@@ -41,10 +41,9 @@ function Publish-VsCode {
     $project   = Join-Path $root 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'
     if (-not (Test-Path $project)) { throw "LSP-Projekt nicht gefunden: '$project'." }
 
-    # 1) Version aus Version.props ziehen.
-    $propsFile = Join-Path $root 'Version.props'
-    $version = ([xml](Get-Content -Raw $propsFile)).SelectSingleNode('//ProductVersion').InnerText.Trim()
-    if (-not $version) { throw "Konnte ProductVersion nicht aus Version.props lesen." }
+    # 1) Git-abgeleitete Version ermitteln (eine Quelle der Wahrheit, 3-teilig — passt zu vsce).
+    $version = (Get-ProductVersion -Root $root).Version
+    if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
     $vsixName = "nav-language-$version-win32-x64.vsix"
 
     # 2) Server frisch self-contained als Single-File direkt in die Extension publizieren.
@@ -69,7 +68,7 @@ function Publish-VsCode {
     }
     finally { Pop-Location }
 
-    # 4) VSIX paketieren. Version aus Version.props explizit setzen;
+    # 4) VSIX paketieren. Git-abgeleitete Version explizit setzen;
     #    --no-update-package-json/--no-git-tag-version halten package.json und git unangetastet,
     #    --skip-license unterdrückt die LICENSE-Warnung.
     if (-not (Test-Path $vsixDir)) { New-Item -ItemType Directory -Path $vsixDir | Out-Null }

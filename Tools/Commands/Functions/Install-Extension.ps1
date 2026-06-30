@@ -5,8 +5,9 @@
 .DESCRIPTION
     Nimmt das publizierte VSIX aus dem Deploy-Verzeichnis
     (deploy\Vsix\Pharmatechnik.Nav.Language.Extension.2026-<ProductVersion>.vsix) und startet den
-    VSIXInstaller von Visual Studio (über vswhere ermittelt). Die Version stammt aus Version.props
-    (einzige Quelle der Wahrheit), der Repo-Root wird zur Aufruf-Zeit aufgelöst (Resolve-Root).
+    VSIXInstaller von Visual Studio (über vswhere ermittelt). Die Version wird git-abgeleitet
+    ermittelt (Get-ProductVersion, eine Quelle der Wahrheit), der Repo-Root wird zur Aufruf-Zeit
+    aufgelöst (Resolve-Root).
 
     Bewusst aus deploy\ statt aus bin\: das DeployFiles-Target befüllt deploy\Vsix bei jedem
     Extension-Build (also via `nav build` wie `nav publish`) und benennt das VSIX dabei auf den
@@ -28,13 +29,9 @@ function Install-Extension {
     $root = Resolve-Root
     if (-not $root) { return }
 
-    # Version aus Version.props (einzige Quelle der Wahrheit) lesen — sie ist Teil des Deploy-Namens.
-    $propsFile = Join-Path $root 'Version.props'
-    if (-not (Test-Path $propsFile)) { throw "Version.props nicht gefunden: '$propsFile'." }
-    $xml = [xml](Get-Content -Raw $propsFile)
-    $node = $xml.Project.PropertyGroup.ChildNodes | Where-Object Name -eq 'ProductVersion'
-    if (-not $node) { throw "Kein <ProductVersion> in '$propsFile' gefunden." }
-    $version = $node.InnerText.Trim()
+    # Git-abgeleitete Version ermitteln (eine Quelle der Wahrheit) — sie ist Teil des Deploy-Namens.
+    $version = (Get-ProductVersion -Root $root).Version
+    if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
 
     $vsix = Join-Path $root "deploy\Vsix\Pharmatechnik.Nav.Language.Extension.2026-$version.vsix"
     if (-not (Test-Path $vsix)) {

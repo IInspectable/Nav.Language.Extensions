@@ -52,6 +52,15 @@ function Invoke-Build {
     & $msbuild $solution -t:restore -m
     if ($LASTEXITCODE) { throw "Restore fehlgeschlagen (Exit $LASTEXITCODE)." }
 
-    & $msbuild $solution -p:Configuration=$Configuration -v:n -m @RemainingArgs
+    # Git-abgeleitete Version berechnen und an MSBuild durchreichen (Autorität für die
+    # Deliverable-Builds). Damit ist $(ProductVersion) bereits zur Eval-Zeit gesetzt; das
+    # Fallback-Target ComputeGitVersion rechnet dann nicht erneut, sondern leitet nur die
+    # AssemblyVersion ab.
+    $pv = Get-ProductVersion -Root $root
+    Write-Host "  Produktversion: $($pv.Version)  ($($pv.Informational))" -ForegroundColor DarkGray
+
+    & $msbuild $solution -p:Configuration=$Configuration `
+        "-p:ProductVersion=$($pv.Version)" "-p:ProductVersionInformational=$($pv.Informational)" `
+        -v:n -m @RemainingArgs
     if ($LASTEXITCODE) { throw "Build fehlgeschlagen (Exit $LASTEXITCODE)." }
 }

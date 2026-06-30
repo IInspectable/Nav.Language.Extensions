@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!--
+    Git-abgeleitete Produktversion (löst das frühere statische Version.props ab).
+
+    Schema (striktes 3-teiliges SemVer, weil vsce + VS-VSIX-Manifest + AssemblyVersion nichts
+    anderes akzeptieren):
+      Kern        = Major.Minor.(TagPatch + CommitsSeitTag)   aus `git describe`
+      Assembly    = Major.Minor.0.0                            (stabile Binding-Identität)
+      Informational = Kern + "+" + Branch + "." + KurzSHA      (nur informell)
+
+    Autorität für `n build`/`n publish` ist die PowerShell-Berechnung (Get-ProductVersion), die die
+    Werte als `-p:ProductVersion=…` / `-p:ProductVersionInformational=…` hereinreicht. Sind diese
+    Properties gesetzt, rechnet dieses Target NICHT erneut — es leitet nur noch AssemblyVersion ab.
+    Für Builds ohne diese Properties (VS-IDE, blankes msbuild, `dotnet build`) berechnet
+    ComputeGitVersion die Version selbst aus git. Worktree-fest (gemeinsame History).
+  -->
+  <Target Name="ComputeGitVersion">
+
+    <!-- Nur rechnen, wenn nicht von außen vorgegeben. Der match-Filter greift bewusst nur
+         3-teilige vX.Y.Z-Tags (schließt Alt-Tags wie v4.0 aus). -->
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git describe --tags --long --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitDescribe" />
+      <Output TaskParameter="ExitCode" PropertyName="_NavGitDescribeExit" />
+    </Exec>
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git rev-parse --abbrev-ref HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitBranch" />
+    </Exec>
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git rev-list --count HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitCount" />
+    </Exec>
+
+    <!-- describe parsen: "vMAJOR.MINOR.PATCH-HEIGHT-gSHA" (Tags enthalten kein '-'). -->
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' and '$(_NavGitDescribeExit)' == '0' ">
+      <_NavDesc>$(_NavGitDescribe.Trim())</_NavDesc>
+      <_NavTag>$(_NavDesc.Split('-')[0])</_NavTag>
+      <_NavHeight>$(_NavDesc.Split('-')[1])</_NavHeight>
+      <_NavShaPart>$(_NavDesc.Split('-')[2])</_NavShaPart>
+      <_NavSha>$(_NavShaPart.Substring(1))</_NavSha>
+      <_NavTagNum>$(_NavTag.Substring(1))</_NavTagNum>
+      <_NavMajor>$(_NavTagNum.Split('.')[0])</_NavMajor>
+      <_NavMinor>$(_NavTagNum.Split('.')[1])</_NavMinor>
+      <_NavTagPatch>$(_NavTagNum.Split('.')[2])</_NavTagPatch>
+      <_NavPatch>$([MSBuild]::Add($(_NavTagPatch), $(_NavHeight)))</_NavPatch>
+      <ProductVersion>$(_NavMajor).$(_NavMinor).$(_NavPatch)</ProductVersion>
+    </PropertyGroup>
+
+    <!-- Fallback ohne erreichbares Tag (frischer/shallow Clone): 0.0.<Commit-Anzahl>. -->
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' ">
+      <_NavCount Condition=" '$(_NavGitCount)' != '' ">$(_NavGitCount.Trim())</_NavCount>
+      <_NavCount Condition=" '$(_NavGitCount)' == '' ">0</_NavCount>
+      <ProductVersion>0.0.$(_NavCount)</ProductVersion>
+      <_NavVersionFallback>true</_NavVersionFallback>
+    </PropertyGroup>
+    <Warning Condition=" '$(_NavVersionFallback)' == 'true' "
+             Text="Kein vX.Y.Z-Tag erreichbar – Fallback-Produktversion $(ProductVersion) verwendet." />
+
+    <!-- AssemblyVersion = Major.Minor.0.0 (stabil pro Minor, kein Binding-Churn). -->
+    <PropertyGroup Condition=" '$(AssemblyVersion)' == '' ">
+      <AssemblyVersion>$(ProductVersion.Split('.')[0]).$(ProductVersion.Split('.')[1]).0.0</AssemblyVersion>
+    </PropertyGroup>
+
+    <!-- Informational: Kern + Branch (SemVer-sanitisiert) + KurzSHA. Nur wenn nicht vorgegeben. -->
+    <PropertyGroup Condition=" '$(ProductVersionInformational)' == '' ">
+      <_NavBranch>$(_NavGitBranch.Trim())</_NavBranch>
+      <_NavBranchSan>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavBranch)', '[^0-9A-Za-z-]', '-'))</_NavBranchSan>
+      <ProductVersionInformational Condition=" '$(_NavSha)' != '' ">$(ProductVersion)+$(_NavBranchSan).$(_NavSha)</ProductVersionInformational>
+      <ProductVersionInformational Condition=" '$(ProductVersionInformational)' == '' ">$(ProductVersion)</ProductVersionInformational>
+    </PropertyGroup>
+
+    <Message Importance="low" Text="ComputeGitVersion: ProductVersion=$(ProductVersion) AssemblyVersion=$(AssemblyVersion) Informational=$(ProductVersionInformational)" />
+  </Target>
+
+</Project>

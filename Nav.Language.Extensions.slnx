@@ -13,7 +13,6 @@
     <File Path="Directory.Packages.props" />
     <File Path="LICENSE" />
     <File Path="README.md" />
-    <File Path="Version.props" />
   </Folder>
   <Folder Name="/Tools/Commands/">
     <File Path="Tools/Commands/Import-NavCommands.ps1" />
@@ -21,6 +20,7 @@
   </Folder>
   <Folder Name="/Tools/Commands/Functions/">
     <File Path="Tools/Commands/Functions/Get-NavCommandInfo.ps1" />
+    <File Path="Tools/Commands/Functions/Get-ProductVersion.ps1" />
     <File Path="Tools/Commands/Functions/Get-Worktree.ps1" />
     <File Path="Tools/Commands/Functions/Install-Extension.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Build.ps1" />
@@ -49,6 +49,7 @@
   <Folder Name="/_build/">
     <File Path="_build/CodeGen/GenerateCodeGenFacts.cs" />
     <File Path="_build/GobalAssemblyInfo.cs" />
+    <File Path="_build/Version.targets" />
     <File Path="_build/WriteThisAssemblyFile.targets" />
   </Folder>
   <Folder Name="/doc/">
