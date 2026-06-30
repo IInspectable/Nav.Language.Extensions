@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 
+using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.Extension.QuickInfo;
 using Pharmatechnik.Nav.Utilities.IO;
 
@@ -107,6 +108,22 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         completionItem.Properties.AddProperty(SymbolPropertyName, symbol);
 
         return completionItem;
+    }
+
+    /// <summary>
+    /// Bildet einen neutralen <see cref="NavCompletionItem"/> des Engine-Service auf ein reiches VS-Item ab:
+    /// symbolbasierte Vorschläge behalten Icon und QuickInfo-Tooltip (über das mitgeführte Symbol),
+    /// Keyword-Vorschläge werden zu Keyword-Items.
+    /// </summary>
+    protected CompletionItem ToCompletionItem(NavCompletionItem item) {
+        return item.Symbol != null
+            ? CreateSymbolCompletion(item.Symbol, item.Label)
+            : CreateKeywordCompletion(item.Label);
+    }
+
+    /// <summary>Ob der Vorschlag ein (sichtbares) Edge-Keyword ist — diese liefert die EdgeCompletionSource.</summary>
+    protected static bool IsEdgeKeyword(NavCompletionItem item) {
+        return item.Kind == NavCompletionItemKind.Keyword && SyntaxFacts.IsEdgeKeyword(item.Label);
     }
 
     protected CompletionItem CreateKeywordCompletion(string keyword) {

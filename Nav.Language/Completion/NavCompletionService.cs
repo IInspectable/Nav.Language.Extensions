@@ -206,7 +206,7 @@ public static class NavCompletionService {
     #endregion
 
     static NavCompletionItem FromSymbol(ISymbol symbol) {
-        return new NavCompletionItem(symbol.Name, KindOf(symbol));
+        return new NavCompletionItem(symbol.Name, KindOf(symbol), symbol: symbol);
     }
 
     static NavCompletionItemKind KindOf(ISymbol symbol) => symbol switch {

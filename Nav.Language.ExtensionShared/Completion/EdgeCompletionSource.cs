@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Immutable;
@@ -10,6 +9,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 
+using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.Extension.QuickInfo;
 using Pharmatechnik.Nav.Language.Text;
 
@@ -62,12 +62,13 @@ class EdgeCompletionSource: AsyncCompletionSource {
 
         var completionItems = ImmutableArray.CreateBuilder<CompletionItem>();
 
-        // Edges
-        foreach (var keyword in SyntaxFacts.EdgeKeywords
-                                           .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
-                                           .OrderBy(k => k)) {
+        // Eine Quelle der Wahrheit: der Engine-Service entscheidet kontextsensitiv, ob hier Edge-Keywords
+        // sinnvoll sind (nur hinter einem Quellknoten). Diese Quelle übernimmt genau diese Edge-Keywords.
+        foreach (var item in NavCompletionService.GetCompletions(codeGenerationUnit, triggerLocation)) {
 
-            completionItems.Add(CreateKeywordCompletion(keyword));
+            if (IsEdgeKeyword(item)) {
+                completionItems.Add(CreateKeywordCompletion(item.Label));
+            }
         }
 
         return CreateCompletionContext(completionItems);

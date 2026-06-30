@@ -1,8 +1,6 @@
 ﻿#region Using Directives
 
-using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +9,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 
+using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.Extension.QuickInfo;
 using Pharmatechnik.Nav.Language.Text;
 
@@ -62,102 +61,18 @@ class NavCompletionSource: AsyncCompletionSource {
 
         await Task.Yield();
 
-        var triggerLine       = triggerLocation.GetContainingLine();
-        var startOfIdentifier = triggerLine.GetStartOfIdentifier(triggerLocation);
-
-        var previousNonWhitespacePoint = triggerLine.GetPreviousNonWhitespace(startOfIdentifier);
-        var previousNonWhitespace      = previousNonWhitespacePoint?.GetChar();
-        var previousWordSpan           = triggerLine.GetSpanOfPreviousIdentifier(startOfIdentifier);
-
-        var prevousIdentfier = previousWordSpan?.GetText() ?? "";
-
         var completionItems = ImmutableArray.CreateBuilder<CompletionItem>();
 
-        // Task Nodes
-        if (prevousIdentfier == SyntaxFacts.TaskKeyword) {
-            var taskDecls = codeGenerationUnit.TaskDeclarations;
-            foreach (var decl in taskDecls) {
+        // Eine Quelle der Wahrheit: der Engine-Service entscheidet kontextsensitiv über den Syntaxbaum, was
+        // an dieser Position sinnvoll ist. Diese Quelle zeigt alles AUSSER den Edge-Keywords — die liefert
+        // EdgeCompletionSource mit ihrem eigenen Ersetzungsbereich.
+        foreach (var item in NavCompletionService.GetCompletions(codeGenerationUnit, triggerLocation)) {
 
-                completionItems.Add(CreateSymbolCompletion(decl, "decl"));
-
+            if (IsEdgeKeyword(item)) {
+                continue;
             }
 
-            if (completionItems.Any()) {
-                return CreateCompletionContext(completionItems);
-            }
-
-        }
-
-        var extent = TextExtent.FromBounds(triggerLocation, triggerLocation);
-
-        var taskDefinition = codeGenerationUnit.TaskDefinitions
-                                               .FirstOrDefault(td => td.Syntax.Extent.IntersectsWith(extent))
-                          ?? codeGenerationUnit.TaskDefinitions
-                                               .LastOrDefault(td => extent.Start > td.Syntax.Start);
-
-        if (taskDefinition != null) {
-
-            // Exit Connection Points
-            if (previousNonWhitespace == SyntaxFacts.Colon) {
-
-                var exitNodeEnd   = startOfIdentifier - 1;
-                var exitNodeStart = exitNodeEnd;
-
-                var nodeSpan = triggerLine.GetSpanOfPreviousIdentifier(exitNodeStart);
-                var nodeName = nodeSpan?.GetText();
-
-                if (!String.IsNullOrEmpty(nodeName)) {
-
-                    var exitNodeCandidate = taskDefinition.TryFindNode(nodeName) as ITaskNodeSymbol;
-
-                    if (exitNodeCandidate?.Declaration != null) {
-                        // Erst die noch nicht verbundenen...
-                        foreach (var cp in exitNodeCandidate.GetUnconnectedExits()) {
-
-                            completionItems.Add(CreateSymbolCompletion(cp, cp.Name));
-
-                        }
-
-                        // Dann die bereits verbundenen
-                        foreach (var cp in exitNodeCandidate.GetConnectedExits()) {
-
-                            completionItems.Add(CreateSymbolCompletion(cp, cp.Name));
-                        }
-                    }
-
-                    if (completionItems.Any()) {
-                        return CreateCompletionContext(completionItems);
-                    }
-                }
-            }
-
-            // Erst alle Knoten ohne Referenzen...
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count == 0)
-                                               .OrderBy(n => n.Name)) {
-                var description = node.Syntax.ToString();
-
-                completionItems.Add(CreateSymbolCompletion(node, description));
-            }
-
-            // ...dann alle übrigen
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count != 0)
-                                               .OrderBy(n => n.Name)) {
-
-                var description = node.Syntax.ToString();
-
-                completionItems.Add(CreateSymbolCompletion(node, description));
-            }
-
-        }
-
-        // Nav Keywords ohne Edges
-        foreach (var keyword in SyntaxFacts.NavKeywords
-                                           .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
-                                           .OrderBy(k => k)) {
-
-            completionItems.Add(CreateKeywordCompletion(keyword));
+            completionItems.Add(ToCompletionItem(item));
         }
 
         return CreateCompletionContext(completionItems);

@@ -1,3 +1,5 @@
+﻿using JetBrains.Annotations;
+
 using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Completion;
@@ -23,12 +25,13 @@ public enum NavCompletionItemKind {
 /// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie + optional Einfügetext/Ersetzungsbereich).</summary>
 public sealed class NavCompletionItem {
 
-    public NavCompletionItem(string label, NavCompletionItemKind kind, string insertText = null, TextExtent? replacementExtent = null, string detail = null) {
+    public NavCompletionItem(string label, NavCompletionItemKind kind, string insertText = null, TextExtent? replacementExtent = null, string detail = null, ISymbol symbol = null) {
         Label             = label;
         Kind              = kind;
         InsertText        = insertText ?? label;
         ReplacementExtent = replacementExtent;
         Detail            = detail;
+        Symbol            = symbol;
     }
 
     /// <summary>Der angezeigte Text (Symbol-/Keyword-Name bzw. Datei-/Verzeichnisname).</summary>
@@ -49,5 +52,13 @@ public sealed class NavCompletionItem {
     /// <c>null</c>, wenn der Client den Ersetzungsbereich selbst bestimmen soll.
     /// </summary>
     public TextExtent? ReplacementExtent { get; }
+
+    /// <summary>
+    /// Das zugrunde liegende Symbol bei symbolbasierten Vorschlägen (Knoten, Task-Deklaration,
+    /// Connection-Point) — sonst <c>null</c> (Keyword-/Pfad-Vorschläge). Hosts mit reicher Darstellung
+    /// (VS) bauen daraus Icon und QuickInfo-Tooltip; der LSP-Server ignoriert es.
+    /// </summary>
+    [CanBeNull]
+    public ISymbol Symbol { get; }
 
 }
