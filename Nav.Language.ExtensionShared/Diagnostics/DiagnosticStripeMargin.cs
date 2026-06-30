@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Tagging;
 using Pharmatechnik.Nav.Language.Extension.Common;
 
 #endregion
@@ -38,7 +40,9 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         _diagnosticService = DiagnosticService.GetOrCreate(textView);
 
         ClipToBounds      = true;
-        Background        = null;
+        // Transparent (nicht null), damit der Streifen Maus-Klicks empfängt und nicht durchreicht —
+        // sonst ließen sich die Diagnose-Marken nicht anklicken.
+        Background        = Brushes.Transparent;
         VerticalAlignment = VerticalAlignment.Stretch;
         Focusable         = false;
         Width             = 10;
@@ -51,6 +55,46 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         _scrollBar.TrackSpanChanged            += OnTrackSpanChanged;
         _textView.LayoutChanged                += OnTextViewLayoutChanged;
         _textView.Closed                       += OnTextViewClosed;
+        MouseLeftButtonUp                      += OnMouseLeftButtonUp;
+    }
+
+    // Maximaler vertikaler Abstand (in Pixeln) zwischen Klick und Marke, bis zu dem noch zur
+    // betreffenden Diagnose gesprungen wird. Hält ein Klick ins Leere folgenlos.
+    const double ClickToleranceInPixel = 6.0;
+
+    void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) {
+
+        var clickY = e.GetPosition(this).Y;
+
+        ITagSpan<DiagnosticErrorTag> nearest         = null;
+        double                       nearestDistance = double.MaxValue;
+
+        var severities = new[] {
+            DiagnosticSeverity.Error,
+            DiagnosticSeverity.Warning,
+            DiagnosticSeverity.Suggestion};
+
+        foreach (var severity in severities) {
+            foreach (var mappingTagSpan in _diagnosticService.GetDiagnosticsWithSeverity(severity)) {
+
+                var tagSpan = _textView.MapToSingleSnapshotSpan(mappingTagSpan);
+                if (tagSpan == null) {
+                    continue;
+                }
+
+                var distance = Math.Abs(_scrollBar.GetYCoordinateOfBufferPosition(tagSpan.Span.Start) - clickY);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearest         = tagSpan;
+                }
+            }
+        }
+
+        if (nearest != null && nearestDistance <= ClickToleranceInPixel) {
+            if (_textView.TryMoveCaretToAndEnsureVisible(nearest.Span.Start)) {
+                e.Handled = true;
+            }
+        }
     }
 
     void OnTextViewClosed(object sender, EventArgs e) {
@@ -198,6 +242,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
             _textView.LayoutChanged                -= OnTextViewLayoutChanged;
             _editorFormatMap.FormatMappingChanged  -= OnFormatMappingChanged;
             _textView.Closed                       -= OnTextViewClosed;
+            MouseLeftButtonUp                      -= OnMouseLeftButtonUp;
         }
     }
 
