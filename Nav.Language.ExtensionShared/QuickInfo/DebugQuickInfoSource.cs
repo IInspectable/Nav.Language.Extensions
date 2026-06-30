@@ -39,6 +39,10 @@ sealed class DebugQuickInfoSource: ParserServiceDependent, IAsyncQuickInfoSource
 
         var triggerToken = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(triggerPoint.Value.Position);
 
+        // Bewusst der EXAKTE Lookup (FindAtPosition), nicht das owning FindToken: das Debug-QuickInfo zeigt das
+        // Token genau unter dem Cursor. An einer Trivia-Position liefert FindAtPosition kein Token (Missing) —
+        // sobald die Trivia nicht mehr im flachen Token-Strom liegt; dann gibt es hier nichts zu zeigen, der
+        // Missing-Zweig fängt das ab.
         if (triggerToken.IsMissing || triggerToken.Parent == null) {
             return null;
         }

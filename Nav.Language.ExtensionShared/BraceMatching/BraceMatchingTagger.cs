@@ -113,6 +113,11 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
             yield break;
         }
 
+        // Bewusst der EXAKTE Lookup (FindAtPosition), nicht das owning FindToken: gesucht ist das Zeichen
+        // direkt unter/vor dem Caret, nicht das umgebende Konstrukt. An einer Trivia-Position liefert
+        // FindAtPosition kein Token (Missing) — sobald die Trivia nicht mehr im flachen Token-Strom liegt. Ein
+        // Missing-Token ist weder Klammer noch StringLiteral, daher fallen alle Zweige unten durch (kein
+        // Brace-Highlight) — gewünscht.
         var openToken  = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(currentChar.Position);
         var closeToken = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(currentChar.Position - 1);
 

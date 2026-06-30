@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -78,6 +78,14 @@ public static class NavCodeActionService {
     /// Bereich liegen, was bei Länge 0 unmöglich ist. Daher den Caret auf den Extent des Tokens an dieser
     /// Position ausdehnen, sodass die Provider wie bei einer Selektion auf dem Bezeichner greifen.
     /// </summary>
+    /// <remarks>
+    /// <see cref="SyntaxNode.FindToken"/> hat Roslyn-Owning-Semantik: Steht der Caret in Trivia
+    /// (Einrückung/Leerzeile/Kommentar), liefert es das signifikante Token, an dem die Trivia hängt — der
+    /// Bereich dehnt sich also auf das umgebende Konstrukt aus und die Provider greifen wie bei der
+    /// VS-Lightbulb auch aus dem Zeilen-Whitespace heraus. <see cref="SyntaxToken.IsMissing"/> tritt nur noch
+    /// am Rand auf (Position außerhalb des Texts bzw. ohne tragendes Token) und lässt den Bereich dann
+    /// unverändert nullbreit.
+    /// </remarks>
     static TextExtent ExpandCaret(CodeGenerationUnit unit, TextExtent range) {
         if (range.Start != range.End) {
             return range;

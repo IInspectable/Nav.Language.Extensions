@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
@@ -122,20 +122,67 @@ public class NavCodeActionServiceTests {
     }
 
     [Test]
-    public void EmptyCaret_OnWhitespace_ReturnsNoActions() {
+    public void Caret_InLeadingWhitespace_OffersActionOnFollowingNode() {
+
+        // Owning-Semantik (Roslyn): Der Caret in der Einrückung vor 'view v;' löst auf das 'view'-Token auf —
+        // die Lightbulb greift wie in VS auch aus dem Zeilen-Whitespace heraus.
+        const string nav = "task A\n"        +
+                           "{\n"             +
+                           "    init I1;\n"  +
+                           "    exit e1;\n"  +
+                           "    view v;\n"   +
+                           "\n"              +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = nav.IndexOf("    view v;", StringComparison.Ordinal) + 1; // in der Einrückung vor 'view'
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title == "Remove Unused Nodes"), Is.True,
+                    "Owning-FindToken sollte aus der Einrückung heraus die Aktion auf 'view v;' anbieten.");
+    }
+
+    [Test]
+    public void Caret_InLeadingComment_OffersActionOnFollowingNode() {
+
+        // Owning-Semantik: Ein Kommentar unmittelbar vor 'view v;' ist dessen Leading-Trivia; der Caret im
+        // Kommentar löst daher auf das 'view'-Token auf (anders als eine reine „in Kommentar → nichts"-Regel).
+        const string nav = "task A\n"          +
+                           "{\n"               +
+                           "    init I1;\n"    +
+                           "    exit e1;\n"    +
+                           "    // unbenutzt\n" +
+                           "    view v;\n"     +
+                           "\n"                +
+                           "    I1 --> e1;\n"  +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "// un"); // mitten im Zeilenkommentar vor 'view'
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title == "Remove Unused Nodes"), Is.True,
+                    "Owning-FindToken sollte aus dem Leading-Kommentar heraus die Aktion auf 'view v;' anbieten.");
+    }
+
+    [Test]
+    public void Caret_PastEndOfFile_ReturnsNoActions() {
 
         const string nav = "task A\n"        +
                            "{\n"             +
                            "    init I1;\n"  +
                            "    exit e1;\n"  +
-                           "\n"              + // Leerzeile — symbolfreie Position
                            "    I1 --> e1;\n" +
                            "}\n";
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = nav.IndexOf("e1;\n\n", StringComparison.Ordinal) + "e1;\n".Length; // Leerzeile
+        var unit = ParseModel(nav, @"n:\av\a.nav");
 
-        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+        // Hinter dem letzten Token gibt es kein tragendes Token — FindToken bleibt Missing, der Bereich
+        // unverändert nullbreit, die Provider greifen nicht.
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(nav.Length), Settings);
 
         Assert.That(actions, Is.Empty);
     }

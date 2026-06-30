@@ -191,11 +191,19 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>
-    /// Das Token an der angegebenen <paramref name="position"/> im gesamten Baum, oder
-    /// <see cref="SyntaxToken.Missing"/>, wenn dort keines liegt.
+    /// Das Token, zu dem die angegebene <paramref name="position"/> gehört — nach Roslyn-Vorbild: liegt die
+    /// Position auf dem Extent eines Tokens, ist es dieses; liegt sie in angehängter Trivia
+    /// (Whitespace/Zeilenende/Kommentar), ist es das <b>signifikante Token, an dem die Trivia hängt</b>. Im
+    /// gültigen Bereich wird also nie eine Trivia-Position als „leer" zurückgegeben; außerhalb (oder ohne
+    /// tragendes Token) ist das Ergebnis <see cref="SyntaxToken.Missing"/>.
     /// </summary>
+    /// <remarks>
+    /// Wer das Token <b>exakt</b> an der Position braucht (und an einer Trivia-Position bewusst nichts
+    /// erhalten will), nutzt <see cref="SyntaxTokenList.FindAtPosition"/>. Ein <c>findInsideTrivia</c>-Pendant
+    /// (Abstieg in strukturierte Trivia) gibt es nicht — Nav führt keine strukturierte Trivia.
+    /// </remarks>
     public SyntaxToken FindToken(int position) {
-        return SyntaxTree.Tokens.FindAtPosition(position);
+        return SyntaxTree.Tokens.FindOwningToken(position);
     }
 
     /// <summary>

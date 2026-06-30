@@ -56,12 +56,73 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
     [NotNull]
     public IEnumerable<SyntaxToken> this[TextExtent extent, bool includeOverlapping = false] => _tokens.GetElements(extent, includeOverlapping);
 
+    /// <summary>
+    /// Das Token, dessen <b>eigener</b> Extent (Halbintervall <c>[Start, End)</c>) die <paramref name="position"/>
+    /// abdeckt, oder <see cref="SyntaxToken.Missing"/>, wenn dort kein Token steht. Liegt die Position in
+    /// angehängter Trivia (Whitespace/Kommentar), wird das die Trivia tragende signifikante Token <b>nicht</b>
+    /// mitgeliefert — dafür gibt es <see cref="FindOwningToken"/>. Dies ist der exakte Low-Level-Lookup
+    /// (z.B. für BraceMatching), der an einer Trivia-Position <see cref="SyntaxToken.Missing"/> liefert,
+    /// sobald die Trivia nicht mehr im flachen Token-Strom geführt wird.
+    /// </summary>
     public SyntaxToken FindAtPosition(int position) {
         if (position < 0) {
             return SyntaxToken.Missing;
         }
 
         return _tokens.FindElementAtPosition(position, defaultIfNotFound: true);
+    }
+
+    /// <summary>
+    /// Das Token, zu dem die <paramref name="position"/> gehört — nach Roslyn-Vorbild (<c>FindToken</c>): liegt
+    /// die Position auf dem Extent eines Tokens, ist es dieses; liegt sie in angehängter Trivia
+    /// (Whitespace/Zeilenende/Kommentar), ist es das <b>signifikante Token, an dem die Trivia hängt</b>. Damit
+    /// liefert dieser Lookup — anders als <see cref="FindAtPosition"/> — im gültigen Bereich nie eine
+    /// Trivia-Position als „leer" zurück. Für Positionen außerhalb des Texts (negativ oder ohne tragendes
+    /// Token) wird <see cref="SyntaxToken.Missing"/> geliefert (Nav wirft hier — anders als Roslyn — nicht).
+    /// </summary>
+    public SyntaxToken FindOwningToken(int position) {
+        if (position < 0) {
+            return SyntaxToken.Missing;
+        }
+
+        // Exakter Treffer auf dem eigenen Extent eines Tokens. Ein Trivia-Token (solange Trivia noch im flachen
+        // Strom liegt) darf hier NICHT für sich selbst stehen — es muss auf seinen Eigentümer auflösen; daher
+        // fällt es durch zum Trivia-Scan unten.
+        var exact = FindAtPosition(position);
+        if (!exact.IsMissing && !SyntaxFacts.IsTrivia(exact.Type)) {
+            return exact;
+        }
+
+        // Die Position liegt in Trivia. Sie hängt an genau einem Token (signifikant, Trenner oder EOF) — als
+        // dessen Leading- oder Trailing-Trivia. Trivia-Token selbst tragen keine angehängte Trivia und werden
+        // übersprungen (solange sie noch im flachen Strom mitlaufen): erst dadurch ist der Trivia-Vorlauf der
+        // verbleibenden Token monoton steigend, sodass ab dem ersten Token, dessen Vorlauf bereits hinter der
+        // Position liegt, abgebrochen werden kann.
+        foreach (var token in _tokens) {
+            if (SyntaxFacts.IsTrivia(token.Type)) {
+                continue;
+            }
+
+            var leading        = token.LeadingTrivia;
+            var footprintStart = leading.IsEmpty ? token.Start : leading[0].Start;
+            if (footprintStart > position) {
+                break;
+            }
+
+            foreach (var trivia in leading) {
+                if (trivia.Start <= position && position < trivia.End) {
+                    return token;
+                }
+            }
+
+            foreach (var trivia in token.TrailingTrivia) {
+                if (trivia.Start <= position && position < trivia.End) {
+                    return token;
+                }
+            }
+        }
+
+        return SyntaxToken.Missing;
     }
 
     internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {

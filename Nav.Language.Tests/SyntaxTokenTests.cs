@@ -241,4 +241,57 @@ task B;
         var tokens     = syntaxTree.Tokens;
         Assert.That(tokens[tokens.Count - 1].Type, Is.EqualTo(SyntaxTokenType.EndOfFile));
     }
+
+    #region FindToken (Roslyn-Owning-Semantik) vs. FindAtPosition (exakt)
+
+    [Test]
+    public void FindToken_OnSignificantToken_ReturnsThatToken() {
+        const string src = "task A   // c\n{\n    init I1;\n}\n";
+
+        var tree  = Syntax.ParseTaskDefinition(src).SyntaxTree;
+        var aPos  = src.IndexOf("A", System.StringComparison.Ordinal);
+        var token = tree.Root.FindToken(aPos);
+
+        Assert.That(Text(tree, token), Is.EqualTo("A"));
+        // Auf einer Nicht-Trivia-Position fällt Owning mit dem exakten Lookup zusammen.
+        Assert.That(token.Extent, Is.EqualTo(tree.Tokens.FindAtPosition(aPos).Extent));
+    }
+
+    [Test]
+    public void FindToken_InTrailingTrivia_ReturnsOwningToken() {
+        const string src = "task A   // c\n{\n    init I1;\n}\n";
+
+        var tree       = Syntax.ParseTaskDefinition(src).SyntaxTree;
+        var spacePos   = src.IndexOf("   //", System.StringComparison.Ordinal) + 1; // im Whitespace nach 'A'
+        var commentPos = src.IndexOf("// c",  System.StringComparison.Ordinal) + 1; // im Zeilenkommentar
+
+        Assert.That(Text(tree, tree.Root.FindToken(spacePos)),   Is.EqualTo("A"), "Whitespace nach 'A' gehört zu 'A'");
+        Assert.That(Text(tree, tree.Root.FindToken(commentPos)), Is.EqualTo("A"), "Trailing-Kommentar gehört zu 'A'");
+    }
+
+    [Test]
+    public void FindToken_InLeadingIndentation_ReturnsFollowingToken() {
+        const string src = "task A\n{\n    init I1;\n}\n";
+
+        var tree      = Syntax.ParseTaskDefinition(src).SyntaxTree;
+        var indentPos = src.IndexOf("    init", System.StringComparison.Ordinal) + 2; // in der Einrückung vor 'init'
+        var initToken = tree.Root.FindToken(src.IndexOf("init", System.StringComparison.Ordinal));
+
+        Assert.That(tree.Root.FindToken(indentPos).Extent, Is.EqualTo(initToken.Extent));
+        Assert.That(Text(tree, tree.Root.FindToken(indentPos)), Is.EqualTo("init"));
+    }
+
+    [Test]
+    public void FindToken_OutOfRange_ReturnsMissing() {
+        const string src = "task A\n{\n    init I1;\n}\n";
+
+        var tree = Syntax.ParseTaskDefinition(src).SyntaxTree;
+
+        Assert.That(tree.Root.FindToken(-1).IsMissing,             Is.True);
+        Assert.That(tree.Root.FindToken(src.Length + 5).IsMissing, Is.True);
+    }
+
+    static string Text(SyntaxTree tree, SyntaxToken token) => tree.SourceText.Substring(token.Extent);
+
+    #endregion
 }
