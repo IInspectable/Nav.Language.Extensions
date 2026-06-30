@@ -15,6 +15,7 @@ using Microsoft.VisualStudio.Text.Classification;
 using Pharmatechnik.Nav.Language.Extension.Classification;
 using Pharmatechnik.Nav.Language.Extension.Common;
 using Pharmatechnik.Nav.Language.Extension.Images;
+using Pharmatechnik.Nav.Language.QuickInfo;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -65,6 +66,51 @@ sealed partial class QuickinfoBuilderService {
             TextContent = {Content = $"{dirInfo.FullName}"}
         };
         return control;
+    }
+
+    /// <summary>
+    /// Hängt — falls über der Deklaration des Symbols ein Kommentar steht — diesen als zusätzliche
+    /// Zeile unter den eigentlichen QuickInfo-Inhalt (Roslyn-Doku-Stil). Ohne Kommentar bzw. ohne
+    /// Inhalt bleibt das ursprüngliche Element unverändert.
+    /// </summary>
+    [CanBeNull]
+    public UIElement AppendDocumentation([CanBeNull] UIElement content, ISymbol symbol) {
+
+        if (content == null) {
+            return null;
+        }
+
+        var documentation = NavSymbolDocumentation.GetDocumentation(symbol);
+        if (string.IsNullOrEmpty(documentation)) {
+            return content;
+        }
+
+        var docBlock = CreateDocumentationTextBlock(documentation);
+
+        var panel = new StackPanel {Orientation = Orientation.Vertical};
+        panel.Children.Add(content);
+        panel.Children.Add(docBlock);
+
+        return panel;
+    }
+
+    TextBlock CreateDocumentationTextBlock(string documentation) {
+
+        var textBlock = new TextBlock {TextWrapping = TextWrapping.Wrap};
+
+        textBlock.SetDefaultTextProperties(ClassificationFormatMap);
+
+        // Mehrzeilige Kommentare zeilenweise mit echten Umbrüchen (WPF normalisiert sonst '\n' zu Leerraum).
+        var lines = documentation.Split('\n');
+        for (var i = 0; i < lines.Length; i++) {
+            if (i > 0) {
+                textBlock.Inlines.Add(new LineBreak());
+            }
+
+            textBlock.Inlines.Add(ToInline(lines[i], TextClassification.Comment, ClassificationFormatMap));
+        }
+
+        return textBlock;
     }
 
     [CanBeNull]

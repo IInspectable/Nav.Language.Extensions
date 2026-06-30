@@ -39,11 +39,12 @@ public static class NavHoverService {
                 continue;
             }
 
-            var parts = GetDisplayParts(symbol);
-            var calls = GetReachableCalls(symbol);
+            var parts         = GetDisplayParts(symbol);
+            var calls         = GetReachableCalls(symbol);
+            var documentation = NavSymbolDocumentation.GetDocumentation(symbol);
 
-            if (!parts.IsDefaultOrEmpty || calls.Count > 0) {
-                return new NavHoverInfo(parts, symbol.Location, calls);
+            if (!parts.IsDefaultOrEmpty || calls.Count > 0 || !String.IsNullOrEmpty(documentation)) {
+                return new NavHoverInfo(parts, symbol.Location, calls, documentation);
             }
         }
 
@@ -93,10 +94,11 @@ public static class NavHoverService {
 public sealed class NavHoverInfo {
 
     public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, [CanBeNull] Location location,
-                        [NotNull] IReadOnlyList<Call> calls) {
-        DisplayParts = displayParts;
-        Location     = location;
-        Calls        = calls;
+                        [NotNull] IReadOnlyList<Call> calls, [CanBeNull] string documentation = null) {
+        DisplayParts  = displayParts;
+        Location      = location;
+        Calls         = calls;
+        Documentation = documentation;
     }
 
     /// <summary>Die klassifizierten Signatur-Bestandteile (z.B. <c>task</c> + <c> </c> + <c>Foo</c>).</summary>
@@ -105,6 +107,13 @@ public sealed class NavHoverInfo {
     /// <summary>Der Namens-Bereich des Symbols unter dem Caret; kann <c>null</c> sein.</summary>
     [CanBeNull]
     public Location Location { get; }
+
+    /// <summary>
+    /// Der aufbereitete Kommentartext direkt über der Deklaration des Symbols (siehe
+    /// <see cref="NavSymbolDocumentation"/>); <c>null</c>, wenn dort kein Kommentar steht.
+    /// </summary>
+    [CanBeNull]
+    public string Documentation { get; }
 
     /// <summary>
     /// Die von hier aus erreichbaren Knoten (Choices/Edges); leer für gewöhnliche Symbole. Jeder

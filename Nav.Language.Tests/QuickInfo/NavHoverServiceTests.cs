@@ -142,6 +142,131 @@ public class NavHoverServiceTests {
         Assert.That(info, Is.Null);
     }
 
+    [Test]
+    public void Hover_WithCommentAboveTask_CapturesDocumentation() {
+
+        const string nav = "// Beschreibt die Aufgabe A\n" +
+                           "task A\n"                        +
+                           "{\n"                             +
+                           "    init I1;\n"                  +
+                           "    exit e1;\n"                  +
+                           "    I1 --> e1;\n"                +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "task A", "task ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.EqualTo("Beschreibt die Aufgabe A"));
+    }
+
+    [Test]
+    public void Hover_WithIndentedCommentAboveNode_CapturesDocumentation() {
+
+        const string nav = "task A\n"               +
+                           "{\n"                     +
+                           "    init I1;\n"          +
+                           "    // Der Ausgang\n"    +
+                           "    exit e1;\n"          +
+                           "    I1 --> e1;\n"        +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "exit e1", "exit ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.EqualTo("Der Ausgang"));
+    }
+
+    [Test]
+    public void Hover_OnNodeReference_CapturesDeclarationDocumentation() {
+
+        const string nav = "task A\n"               +
+                           "{\n"                     +
+                           "    init I1;\n"          +
+                           "    // Der Ausgang\n"    +
+                           "    exit e1;\n"          +
+                           "    I1 --> e1;\n"        +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "--> e1", "--> "); // auf der Referenz 'e1'
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        // Die Referenz erbt die Doku ihrer Deklaration.
+        Assert.That(info.Documentation, Is.EqualTo("Der Ausgang"));
+    }
+
+    [Test]
+    public void Hover_WithBlankLineBetweenCommentAndNode_HasNoDocumentation() {
+
+        const string nav = "// Fernkommentar\n" +
+                           "\n"                  + // Leerzeile trennt ab
+                           "task A\n"            +
+                           "{\n"                 +
+                           "    init I1;\n"      +
+                           "    exit e1;\n"      +
+                           "    I1 --> e1;\n"    +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "task A", "task ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.Null);
+    }
+
+    [Test]
+    public void Hover_WithMultiLineCommentAboveTask_CapturesEachLine() {
+
+        const string nav = "/* Zeile 1\n"   +
+                           "   Zeile 2 */\n" +
+                           "task A\n"        +
+                           "{\n"             +
+                           "    init I1;\n"  +
+                           "    exit e1;\n"  +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "task A", "task ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.EqualTo("Zeile 1\nZeile 2"));
+    }
+
+    [Test]
+    public void Hover_WithOnlyAdjacentCommentBlock_IgnoresEarlierBlock() {
+
+        const string nav = "// weit oben\n"        +
+                           "\n"                     +
+                           "// direkt darüber\n"    +
+                           "task A\n"               +
+                           "{\n"                    +
+                           "    init I1;\n"         +
+                           "    exit e1;\n"         +
+                           "    I1 --> e1;\n"       +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(nav, "task A", "task ");
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(info.Documentation, Is.EqualTo("direkt darüber"));
+    }
+
     #region Helpers
 
     static string Signature(NavHoverInfo info) {

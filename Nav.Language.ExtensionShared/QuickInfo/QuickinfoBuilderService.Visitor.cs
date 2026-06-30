@@ -31,7 +31,9 @@ partial class QuickinfoBuilderService {
         [CanBeNull]
         public static UIElement Build(ISymbol source, QuickinfoBuilderService quickinfoBuilderService) {
             var builder = new SymbolQuickInfoVisitor(source, quickinfoBuilderService);
-            return builder.Visit(source);
+            var content = builder.Visit(source);
+            // Der Kommentar über der Deklaration als zusätzliche Zeile unter der Signatur (Roslyn-Doku-Stil).
+            return quickinfoBuilderService.AppendDocumentation(content, source);
         }
 
         #endregion

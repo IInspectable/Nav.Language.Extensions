@@ -500,15 +500,30 @@ class NavLanguageServer {
         }
 
         var content = BuildHoverContent(info);
-        if (content == null) {
+        if (content == null && String.IsNullOrEmpty(info.Documentation)) {
             return null;
         }
 
-        var hover = new Protocol.Hover {
+        var markdown = new System.Text.StringBuilder();
+        if (content != null) {
             // Die Signatur als Nav-Codeblock; VS Code rendert sie monospace.
+            markdown.Append("```nav\n").Append(content).Append("\n```");
+        }
+
+        if (!String.IsNullOrEmpty(info.Documentation)) {
+            if (markdown.Length > 0) {
+                markdown.Append("\n\n");
+            }
+
+            // Der Knoten-Kommentar als Fließtext unter der Signatur; Zeilenumbrüche als harte
+            // Markdown-Breaks (zwei abschließende Leerzeichen) erhalten.
+            markdown.Append(info.Documentation.Replace("\n", "  \n"));
+        }
+
+        var hover = new Protocol.Hover {
             Contents = new Protocol.MarkupContent {
                 Kind  = Protocol.MarkupKind.Markdown,
-                Value = $"```nav\n{content}\n```"
+                Value = markdown.ToString()
             }
         };
 

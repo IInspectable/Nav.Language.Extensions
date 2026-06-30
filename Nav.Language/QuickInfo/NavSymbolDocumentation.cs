@@ -1,0 +1,153 @@
+﻿#region Using Directives
+
+using System.Collections.Generic;
+using System.Text;
+
+using JetBrains.Annotations;
+
+#endregion
+
+namespace Pharmatechnik.Nav.Language.QuickInfo;
+
+/// <summary>
+/// Gewinnt die „Dokumentation" eines Symbols aus den Quelltext-Kommentaren unmittelbar über seiner
+/// Deklaration — das Nav-Pendant zu Roslyns Doc-Comments. Maßgeblich ist allein der zusammenhängende
+/// Kommentarblock direkt vor dem Knoten; eine Leerzeile trennt ihn ab, weiter oben stehende Kommentare
+/// gehören nicht mehr dazu. Grundlage sind die Leading-Trivia des Deklarations-Knotens (echtes
+/// Roslyn-Trivia-Modell). Protokoll-frei und damit gemeinsam von VS-QuickInfo und LSP-Hover nutzbar
+/// („eine Engine").
+/// </summary>
+public static class NavSymbolDocumentation {
+
+    /// <summary>
+    /// Liefert den aufbereiteten Kommentartext über der Deklaration des <paramref name="symbol"/>
+    /// (Kommentar-Marker entfernt, je Quellzeile eine Zeile) — oder <c>null</c>, wenn dort kein
+    /// Kommentar steht bzw. das Symbol keine im Speicher gehaltene Deklaration besitzt (z.B. aus einer
+    /// inkludierten Datei stammende TaskDeclarations). Referenzen lösen auf ihre Deklaration auf.
+    /// </summary>
+    [CanBeNull]
+    public static string GetDocumentation([NotNull] ISymbol symbol) {
+
+        var syntax = GetDeclarationSyntax(symbol);
+        if (syntax == null) {
+            return null;
+        }
+
+        var comments = GetLeadingCommentBlock(syntax);
+        if (comments.Count == 0) {
+            return null;
+        }
+
+        var sourceText = syntax.SyntaxTree.SourceText;
+
+        var sb = new StringBuilder();
+        foreach (var comment in comments) {
+            AppendCommentText(sb, comment.ToString(sourceText));
+        }
+
+        var text = sb.ToString().Trim();
+        return text.Length == 0 ? null : text;
+    }
+
+    /// <summary>
+    /// Der Deklarations-Knoten, dessen Leading-Trivia die Kommentare trägt. Für Knoten- und
+    /// Task-Symbole ihr eigener Deklarations-Knoten; für Referenzen der ihrer Deklaration.
+    /// </summary>
+    [CanBeNull]
+    static SyntaxNode GetDeclarationSyntax([NotNull] ISymbol symbol) {
+        return symbol switch {
+            INodeReferenceSymbol { Declaration: { } decl } => decl.Syntax,
+            INodeSymbol node                               => node.Syntax,
+            ITaskDefinitionSymbol task                     => task.Syntax,
+            ITaskDeclarationSymbol { Syntax: { } declSyntax } => declSyntax,
+            _                                              => null
+        };
+    }
+
+    /// <summary>
+    /// Der zusammenhängende Kommentarblock, der unmittelbar an den Knoten grenzt: gesammelt werden die
+    /// letzten aufeinanderfolgenden Kommentarzeilen vor dem Knoten. Eine Leerzeile (zwei Zeilenenden in
+    /// Folge) trennt einen vorangehenden Block ab; steht zwischen letztem Kommentar und Knoten eine
+    /// Leerzeile, gehört der Block nicht mehr zum Knoten.
+    /// </summary>
+    [NotNull]
+    static IReadOnlyList<SyntaxTrivia> GetLeadingCommentBlock([NotNull] SyntaxNode syntax) {
+
+        var block                = new List<SyntaxTrivia>();
+        var newLinesSinceComment = 0;
+
+        foreach (var trivia in syntax.GetLeadingTrivia()) {
+            switch (trivia.Type) {
+                case SyntaxTokenType.SingleLineComment:
+                case SyntaxTokenType.MultiLineComment:
+                    // Eine Leerzeile vor diesem Kommentar trennt einen vorigen Block ab — neu anfangen.
+                    if (newLinesSinceComment >= 2) {
+                        block.Clear();
+                    }
+
+                    block.Add(trivia);
+                    newLinesSinceComment = 0;
+                    break;
+
+                case SyntaxTokenType.NewLine:
+                    newLinesSinceComment++;
+                    break;
+
+                case SyntaxTokenType.Whitespace:
+                    // Whitespace zählt nicht als Zeilengrenze.
+                    break;
+
+                default:
+                    // Anderes (sollte in Trivia nicht vorkommen) bricht die Block-Adjazenz.
+                    block.Clear();
+                    newLinesSinceComment = 0;
+                    break;
+            }
+        }
+
+        // Trennt eine Leerzeile den letzten Kommentar vom Knoten, ist der Block nicht „direkt darüber".
+        if (newLinesSinceComment >= 2) {
+            block.Clear();
+        }
+
+        return block;
+    }
+
+    /// <summary>
+    /// Hängt den von Kommentar-Markern befreiten Text einer Kommentar-Trivia an — eine Zeile je
+    /// Quellzeile (mehrzeilige Block-Kommentare werden zeilenweise aufgeschlüsselt).
+    /// </summary>
+    static void AppendCommentText([NotNull] StringBuilder sb, [NotNull] string raw) {
+
+        raw = raw.Trim();
+
+        if (raw.StartsWith("//")) {
+            AppendLine(sb, raw.Substring(2).Trim());
+            return;
+        }
+
+        if (raw.StartsWith("/*")) {
+            var inner = raw.Substring(2);
+            if (inner.EndsWith("*/")) {
+                inner = inner.Substring(0, inner.Length - 2);
+            }
+
+            foreach (var line in inner.Split('\n')) {
+                AppendLine(sb, line.Trim().TrimStart('*').Trim());
+            }
+
+            return;
+        }
+
+        AppendLine(sb, raw);
+    }
+
+    static void AppendLine([NotNull] StringBuilder sb, [NotNull] string line) {
+        if (sb.Length > 0) {
+            sb.Append('\n');
+        }
+
+        sb.Append(line);
+    }
+
+}
