@@ -121,24 +121,6 @@ public class SyntaxTreeNavigationTests {
     }
 
     [Test]
-    [Ignore("Enablen sobald Trivias unterstützt werden.")]
-    public void TestCommentToken() {
-        var syntaxTree = SyntaxTree.ParseText("task /* Kommentar*/ \r\nTest { init I;}");
-
-        Assert.That(syntaxTree.Diagnostics.Length,                Is.EqualTo(0));
-        Assert.That(syntaxTree.Tokens.Count(t=>t.Parent == null), Is.EqualTo(0));
-
-        var task = syntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>().First();
-
-        Assert.That(task.ChildTokens().Count(), Is.EqualTo(4));
-
-        var comments = task.ChildTokens().OfClassification(TextClassification.Comment).ToList();
-        Assert.That(comments.Count,             Is.EqualTo(1));
-        Assert.That(comments[0].ToString(),     Is.EqualTo("/* Kommentar*/"));
-        Assert.That(comments[0].Classification, Is.EqualTo(TextClassification.Comment));
-    }
-
-    [Test]
     public void TestPrevNextToken() {
         var syntaxTree = SyntaxTree.ParseText("task Test {}");
 
