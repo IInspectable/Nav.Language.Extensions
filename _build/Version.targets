@@ -10,11 +10,13 @@
       Assembly    = Major.Minor.0.0                            (stabile Binding-Identität)
       Informational = Kern + "+" + Branch + "." + KurzSHA      (nur informell)
 
-    Autorität für `n build`/`n publish` ist die PowerShell-Berechnung (Get-ProductVersion), die die
-    Werte als `-p:ProductVersion=…` / `-p:ProductVersionInformational=…` hereinreicht. Sind diese
-    Properties gesetzt, rechnet dieses Target NICHT erneut — es leitet nur noch AssemblyVersion ab.
-    Für Builds ohne diese Properties (VS-IDE, blankes msbuild, `dotnet build`) berechnet
-    ComputeGitVersion die Version selbst aus git. Worktree-fest (gemeinsame History).
+    Dieses Target ist die EINZIGE Autorität: Es berechnet die Version in jedem Build-Pfad selbst aus
+    git (über Directory.Build.props in jedem Projekt aktiv — `n build`/MSBuild.exe, `dotnet build`,
+    `dotnet publish`, VS-IDE). PowerShell rechnet nichts mehr nach und reicht auch kein
+    `-p:ProductVersion` durch; Get-ProductVersion liest die hier berechneten Werte lesend per
+    `dotnet msbuild -getProperty` (für vsce-/VSIX-Dateinamen). Die `ProductVersion`-Bedingungen
+    erlauben weiterhin ein Override von außen (z.B. Release-Pinning per `-p`), sind aber im
+    Normalbetrieb leer. Worktree-fest (gemeinsame History).
   -->
   <Target Name="ComputeGitVersion">
 
@@ -38,27 +40,39 @@
           WorkingDirectory="$(MSBuildThisFileDirectory).."
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_NavGitCountExit" />
     </Exec>
 
-    <!-- describe parsen: "vMAJOR.MINOR.PATCH-HEIGHT-gSHA" (Tags enthalten kein '-'). -->
+    <!-- describe parsen: "vMAJOR.MINOR.PATCH-HEIGHT-gSHA". Strenger Shape-Check per Regex, exakt
+         identisch zum PowerShell-Pendant in Get-ProductVersion.ps1 — der match-Glob ist
+         zwangsläufig grob (git-Wildmatch kann „nur Ziffern, genau 3 Gruppen" nicht ausdrücken),
+         daher liegt die Strenge im Parser. Nicht-konforme Tags (z.B. ein Pre-Release v1.2.3-beta,
+         das der Glob durchließe) fallen so genauso sauber in den 0.0.<count>-Fallback wie in
+         PowerShell, statt positionell per Split fehlinterpretiert zu werden. Tag-Format-Regex an
+         beiden Stellen synchron halten (Konsistenz per Test abgesichert). -->
     <PropertyGroup Condition=" '$(ProductVersion)' == '' and '$(_NavGitDescribeExit)' == '0' ">
       <_NavDesc>$(_NavGitDescribe.Trim())</_NavDesc>
-      <_NavTag>$(_NavDesc.Split('-')[0])</_NavTag>
-      <_NavHeight>$(_NavDesc.Split('-')[1])</_NavHeight>
-      <_NavShaPart>$(_NavDesc.Split('-')[2])</_NavShaPart>
-      <_NavSha>$(_NavShaPart.Substring(1))</_NavSha>
-      <_NavTagNum>$(_NavTag.Substring(1))</_NavTagNum>
-      <_NavMajor>$(_NavTagNum.Split('.')[0])</_NavMajor>
-      <_NavMinor>$(_NavTagNum.Split('.')[1])</_NavMinor>
-      <_NavTagPatch>$(_NavTagNum.Split('.')[2])</_NavTagPatch>
+      <_NavDescOk>$([System.Text.RegularExpressions.Regex]::IsMatch('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$'))</_NavDescOk>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' and '$(_NavDescOk)' == 'true' ">
+      <_NavMajor>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$1'))</_NavMajor>
+      <_NavMinor>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$2'))</_NavMinor>
+      <_NavTagPatch>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$3'))</_NavTagPatch>
+      <_NavHeight>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$4'))</_NavHeight>
+      <_NavSha>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$5'))</_NavSha>
       <_NavPatch>$([MSBuild]::Add($(_NavTagPatch), $(_NavHeight)))</_NavPatch>
       <ProductVersion>$(_NavMajor).$(_NavMinor).$(_NavPatch)</ProductVersion>
     </PropertyGroup>
 
-    <!-- Fallback ohne erreichbares Tag (frischer/shallow Clone): 0.0.<Commit-Anzahl>. -->
+    <!-- Fallback ohne erreichbares Tag (frischer/shallow Clone) ODER bei git-Ausfall: 0.0.<Anzahl>.
+         Die Commit-Anzahl wird NUR übernommen, wenn rev-list mit 0 endete UND die Ausgabe eine reine
+         Zahl ist. Schlägt git fehl (z.B. „fatal: detected dubious ownership"), landet dessen
+         Fehlertext via ConsoleToMSBuild sonst in _NavGitCount und damit in der Version — exakt die
+         Lücke, die PowerShell per `2>$null` + Exit-Check vermeidet. -->
     <PropertyGroup Condition=" '$(ProductVersion)' == '' ">
-      <_NavCount Condition=" '$(_NavGitCount)' != '' ">$(_NavGitCount.Trim())</_NavCount>
-      <_NavCount Condition=" '$(_NavGitCount)' == '' ">0</_NavCount>
+      <_NavCountRaw>$(_NavGitCount.Trim())</_NavCountRaw>
+      <_NavCount Condition=" '$(_NavGitCountExit)' == '0' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_NavCountRaw)', '^[0-9]+$')) ">$(_NavCountRaw)</_NavCount>
+      <_NavCount Condition=" '$(_NavCount)' == '' ">0</_NavCount>
       <ProductVersion>0.0.$(_NavCount)</ProductVersion>
       <_NavVersionFallback>true</_NavVersionFallback>
     </PropertyGroup>

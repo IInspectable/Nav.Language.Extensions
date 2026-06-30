@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Interner Helfer: publiziert den LSP-Server self-contained direkt in die VS-Code-Extension
     und paketiert daraus ein VSIX nach deploy\vscode.
@@ -41,13 +41,15 @@ function Publish-VsCode {
     $project   = Join-Path $root 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'
     if (-not (Test-Path $project)) { throw "LSP-Projekt nicht gefunden: '$project'." }
 
-    # 1) Git-abgeleitete Version ermitteln (eine Quelle der Wahrheit, 3-teilig — passt zu vsce).
+    # 1) Git-abgeleitete Version lesen (für vsce-Dateiname + Paket-Version). Berechnet wird sie im
+    #    MSBuild-Target ComputeGitVersion (einzige Autorität); Get-ProductVersion liest sie nur.
     $version = (Get-ProductVersion -Root $root).Version
     if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
     $vsixName = "nav-language-$version-win32-x64.vsix"
 
     # 2) Server frisch self-contained als Single-File direkt in die Extension publizieren.
     #    Zielverzeichnis vorher leeren — der self-contained Publish räumt Altbestand nicht selbst auf.
+    #    Die Version stempelt der Build selbst (ComputeGitVersion) — kein -p-Durchreichen.
     if (Test-Path $serverDir) { Remove-Item -Recurse -Force $serverDir }
 
     & dotnet publish $project -c $Configuration -r $rid --self-contained true `

@@ -1,31 +1,25 @@
-<#
+﻿<#
 .SYNOPSIS
-    Leitet die Produktversion aus git ab (einzige Quelle der Wahrheit — löst das frühere
-    Version.props ab).
+    Liest die git-abgeleitete Produktversion aus dem MSBuild-Target ComputeGitVersion.
 
 .DESCRIPTION
-    Interner Helper (Verb-Noun ohne .FUNCTIONALITY → kein nav-Command). Die Version entsteht
-    „on the fly" aus `git describe`:
-      Kern (3-teilig)        = Major.Minor.(TagPatch + CommitsSeitTag)
-      Informational          = Kern + "+" + Branch (SemVer-sanitisiert) + "." + KurzSHA
+    Interner Helper (Verb-Noun ohne .FUNCTIONALITY → kein nav-Command). Die Version wird an genau
+    EINER Stelle berechnet: im MSBuild-Target `ComputeGitVersion` (`_build\Version.targets`), das
+    über `Directory.Build.props` in jedem Projekt/Build-Pfad aktiv ist und die Werte aus
+    `git describe` ableitet. Diese Funktion RECHNET NICHTS selbst — sie liest die dort berechneten
+    Properties per `dotnet msbuild … -getProperty` (MSBuild 17.8+/.NET-SDK). Dadurch gibt es keinen
+    zweiten Versions-Parser in PowerShell und kein `-p`-Durchreichen mehr; der Target ist die
+    einzige Autorität.
 
-    Striktes 3-teiliges SemVer, weil vsce (VS-Code-VSIX), das VS-VSIX-Manifest und AssemblyVersion
-    nichts anderes akzeptieren. Branch und SHA landen daher NUR im Informational-Feld, nie im Kern.
-
-    Major/Minor werden über Tags gesteuert (`git tag vX.Y.0`, siehe Invoke-IncreaseMinor/Major),
-    der Patch zählt automatisch die Commits seit dem letzten Tag. Ein getaggter Commit ist exakt
-    die Tag-Version. Fehlt ein erreichbares vX.Y.Z-Tag (frischer/shallow Clone), greift der
-    Fallback 0.0.<Commit-Anzahl> mit Warnung.
-
-    Diese Berechnung ist die Autorität für `n build`/`n publish`: Invoke-Build reicht die Werte als
-    `-p:ProductVersion=…` / `-p:ProductVersionInformational=…` an MSBuild durch (siehe auch das
-    spiegelnde Fallback-Target in _build\Version.targets).
+    Verwender brauchen die Version nur lesend (vsce-Dateiname/Paket-Version in Publish-VsCode,
+    VSIX-Dateiname in Install-Extension, Anzeige in Invoke-Build) — das eigentliche Stempeln von
+    Binaries und VSIX-Manifest macht der Build selbst.
 
 .PARAMETER Root
     Repo-/Worktree-Root. Default: via Resolve-Root.
 
 .OUTPUTS
-    PSCustomObject mit Version, Informational, Branch, Sha.
+    PSCustomObject mit Version und Informational.
 #>
 function Get-ProductVersion {
     [CmdletBinding()]
@@ -38,33 +32,22 @@ function Get-ProductVersion {
     if (-not $Root) { $Root = Resolve-Root }
     if (-not $Root) { throw "Repo-Root nicht auflösbar." }
 
-    # describe greift bewusst nur 3-teilige vX.Y.Z-Tags (schließt Alt-Tags wie v4.0 aus).
-    $desc = (& git -C $Root describe --tags --long --match 'v[0-9]*.[0-9]*.[0-9]*' 2>$null)
-    if ($LASTEXITCODE -eq 0 -and $desc -match '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$') {
-        $major   = [int] $Matches[1]
-        $minor   = [int] $Matches[2]
-        $patch   = [int] $Matches[3] + [int] $Matches[4]
-        $sha     = $Matches[5]
-        $version = "$major.$minor.$patch"
-    }
-    else {
-        $count = (& git -C $Root rev-list --count HEAD 2>$null)
-        if ($LASTEXITCODE -ne 0 -or -not $count) { $count = '0' }
-        $version = "0.0.$($count.ToString().Trim())"
-        $sha     = ''
-        Write-Warning "Kein vX.Y.Z-Tag erreichbar – Fallback-Produktversion $version."
+    $targets = Join-Path $Root '_build\Version.targets'
+    if (-not (Test-Path $targets)) { throw "Version.targets nicht gefunden: '$targets'." }
+
+    # Werte aus dem Target lesen. -getProperty liefert bei mehreren Properties JSON; die git-Aufrufe
+    # im Target schreiben ihre Ausgabe in Properties (nicht nach stdout), sodass stdout reines JSON
+    # bleibt. stderr verwerfen (mögliche Fallback-Warnung beeinflusst die JSON-Ausgabe nicht).
+    $json = & dotnet msbuild $targets -t:ComputeGitVersion -nologo `
+        -getProperty:ProductVersion -getProperty:ProductVersionInformational 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $json) {
+        throw "Versionsermittlung via MSBuild fehlgeschlagen (Exit $LASTEXITCODE)."
     }
 
-    $branch = (& git -C $Root rev-parse --abbrev-ref HEAD 2>$null)
-    if (-not $branch) { $branch = '' }
-    $branchSan = ($branch -replace '[^0-9A-Za-z-]', '-')
-
-    $informational = if ($sha) { "$version+$branchSan.$sha" } else { $version }
+    $props = ($json | ConvertFrom-Json).Properties
 
     [pscustomobject]@{
-        Version       = $version
-        Informational = $informational
-        Branch        = $branch
-        Sha           = $sha
+        Version       = $props.ProductVersion
+        Informational = $props.ProductVersionInformational
     }
 }

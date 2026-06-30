@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Interner Helfer: veröffentlicht die Nav-CLI self-contained als Single-File nach deploy\Build Tools.
 
@@ -38,6 +38,8 @@ function Publish-Cli {
     $project    = Join-Path $root 'Nav.Cli\Nav.Cli.csproj'
     if (-not (Test-Path $project)) { throw "CLI-Projekt nicht gefunden: '$project'." }
 
+    # Die Version berechnet der Build selbst im MSBuild-Target ComputeGitVersion (einzige Autorität);
+    # hier wird bewusst nichts durchgereicht.
     & dotnet publish $project -c $Configuration -r $rid --self-contained true `
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en `

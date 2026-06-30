@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Interner Helfer: veröffentlicht den Nav-MCP-Server self-contained als Single-File nach deploy\mcp.
 
@@ -33,6 +33,8 @@ function Publish-Mcp {
     # Zielverzeichnis vorher leeren — der self-contained Publish räumt Altbestand nicht selbst auf.
     if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
 
+    # Die Version berechnet der Build selbst im MSBuild-Target ComputeGitVersion (einzige Autorität);
+    # hier wird bewusst nichts durchgereicht.
     & dotnet publish $project -c $Configuration -r $rid --self-contained true `
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true -p:SatelliteResourceLanguages=en `

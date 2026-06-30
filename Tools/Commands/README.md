@@ -1,4 +1,4 @@
-# NavCommands
+﻿# NavCommands
 
 Deklaratives PowerShell-Command-System für `Nav.Language.Extensions` — ein Dispatcher mit
 Alias **`nav`**, der seine Sub-Commands generisch aus den Dateien in `Functions/` ableitet.
@@ -63,10 +63,12 @@ Die Version wird **git-abgeleitet** (`git describe`) — kein `Version.props` me
 ist `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor werden über Tags
 gesteuert: `incminor`/`incmajor` legen das nächste `vX.Y.0`-Tag auf HEAD an (Clean-Tree-Check,
 Monotonie-Absicherung, Bestätigung, optional `-Push`); der Patch zählt automatisch — ein `incbuild`
-gibt es nicht mehr. Die Berechnung liefert `Get-ProductVersion` (Autorität); `build`/`publish`
-reichen sie als `-p:ProductVersion=…` an MSBuild durch, `_build\Version.targets` ist der Fallback.
-Die `version` in `vscode-nav-lsp\package.json` bleibt Platzhalter (`0.0.0`): `publish` ruft
-`vsce package <version> --no-update-package-json` mit der git-abgeleiteten Version.
+gibt es nicht mehr. Berechnet wird die Version an genau einer Stelle: im MSBuild-Target
+`ComputeGitVersion` (`_build\Version.targets`, via `Directory.Build.props` in jedem Build-Pfad
+aktiv). `build`/`publish` reichen **nichts** durch — der Build rechnet selbst; `Get-ProductVersion`
+**liest** die Werte nur per `dotnet msbuild … -getProperty`. Die `version` in
+`vscode-nav-lsp\package.json` bleibt Platzhalter (`0.0.0`): `publish` ruft
+`vsce package <version> --no-update-package-json` mit der gelesenen Version.
 
 ## Branching (Worktree-basiert)
 

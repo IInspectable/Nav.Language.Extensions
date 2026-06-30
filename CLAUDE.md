@@ -122,12 +122,17 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   AssemblyVersion): `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor
   werden per Tag gesteuert (`n incminor`/`incmajor` → `git tag vX.Y.0`), der Patch zählt automatisch;
   ein getaggter Commit ist exakt die Release-Version. Branch + Kurz-SHA landen nur in
-  `AssemblyInformationalVersion`/CLI, nie im Kern. Autorität ist die PowerShell-Berechnung
-  (`Get-ProductVersion`), die `Invoke-Build` als `-p:ProductVersion=…` an MSBuild durchreicht;
-  `_build\Version.targets` (`ComputeGitVersion`) ist der Fallback für IDE-/blanke-msbuild-Builds.
-  Die `version` in `vscode-nav-lsp\package.json` bleibt Platzhalter (`0.0.0`). `AssemblyVersion`
-  ist bewusst `Major.Minor.0.0` (stabile Binding-Identität); die volle Buildnummer steht in
-  `AssemblyFileVersion`.
+  `AssemblyInformationalVersion`/CLI, nie im Kern. **Einzige Autorität ist das MSBuild-Target
+  `ComputeGitVersion`** (`_build\Version.targets`, über `Directory.Build.props` in jedem Build-Pfad
+  aktiv) — es rechnet die Version selbst aus git, in `n build`/MSBuild.exe genauso wie in
+  `dotnet build`/`dotnet publish`/VS-IDE. PowerShell rechnet **nichts** nach und reicht **kein**
+  `-p:ProductVersion` durch; `Get-ProductVersion` liest die berechneten Werte nur per
+  `dotnet msbuild … -getProperty` (für vsce-/VSIX-Dateinamen). Bei git-Ausfall fällt das Target
+  robust auf `0.0.<Commit-Anzahl>` zurück (nur reine Zahlen, kein git-Fehlertext). Für SDK-Hosts
+  ohne `GobalAssemblyInfo.cs` (LSP/MCP) speist `SetSdkVersionFromGit` die Werte in die
+  SDK-Assembly-Info-Pipeline. Die `version` in `vscode-nav-lsp\package.json` bleibt Platzhalter
+  (`0.0.0`). `AssemblyVersion` ist bewusst `Major.Minor.0.0` (stabile Binding-Identität); die volle
+  Buildnummer steht in `AssemblyFileVersion`.
 - **Stdio-Protokoll-Hosts (LSP, MCP):** `stdout` ist **exklusiv** fürs JSON-RPC-Protokoll. Alle Logs
   MÜSSEN nach `stderr` — sonst zerstören sie die Protokoll-Frames.
 - **URI-Fallstrick (Windows):** LSP-Clients prozent-kodieren den Laufwerks-Doppelpunkt
