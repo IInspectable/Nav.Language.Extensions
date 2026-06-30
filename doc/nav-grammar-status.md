@@ -94,7 +94,9 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
   `/p:EmitCompilerGeneratedFiles=true /p:CompilerGeneratedFilesOutputPath=obj\GeneratedDbg`, dann
   `Nav.Language\obj\GeneratedDbg\…\NavGrammar.g.cs` (Inspektions-Ordner danach löschen — liegt unter obj).
 
-## Stand: offen (Schritt 5) — hier weitermachen
+## Stand: offen — nur noch Optionales
+
+(Schritte 1–5 erledigt; verbleibend nur der optionale zweite Generator, siehe unten.)
 
 ### Schritt 4 — MCP-Tool `nav_grammar` — ERLEDIGT (uncommittet)
 Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto-Registrierung via
@@ -112,12 +114,22 @@ Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto
 - **Verifikation:** `dotnet build Nav.Language.Mcp` → 0/0; stdio-Smoke (volle Grammatik / `taskDefinition`
   + Terminals / `arrayType`→Fehler) grün.
 
-### Schritt 5 — CLI `nav grammar` + Deploy-Artefakt  ← NÄCHSTER SCHRITT
-- `Nav.Cli` (FluentCommandLineParser): Subcommand `nav grammar [--rule X]`, druckt `NavGrammar.Ebnf`
-  (bzw. eine Regel) nach stdout.
-- `Tools\Commands\Functions\Invoke-Publish.ps1` (Vorbild `Publish-Cli.ps1`): `nav grammar` ausführen und
-  nach **`deploy\Build Tools\NavGrammar.ebnf`** schreiben — derselbe Zielort wie früher die `.g4`
-  (Commit `ad32d451`).
+### Schritt 5 — CLI `nav grammar` + Deploy-Artefakt — ERLEDIGT (uncommittet)
+- `Nav.Cli` nutzt **`NDesk.Options`** (nicht FluentCommandLineParser — Statusdoc war hier falsch).
+  Neuer Subcommand `nav grammar [--rule X]` in `Nav.Cli\GrammarCommand.cs`, in `Program.Main` als Verb
+  vor der normalen Optionsauswertung abgefangen (`args[0] == "grammar"`). Druckt `NavGrammar.Ebnf` nach
+  stdout, mit `--rule X` eine einzelne Produktion über `NavGrammar.Rules`; unbekannte Regel → Fehlertext
+  + Liste der bekannten Regeln nach **stderr**, Exit ≠ 0. (Projekt ist nullable-**aus** → `string` statt
+  `string?`.)
+- Deploy: neuer interner Helfer `Tools\Commands\Functions\Export-Grammar.ps1` (Vorbild `Publish-Cli.ps1`),
+  führt die publishte `nav.exe grammar` aus und schreibt nach **`deploy\Build Tools\NavGrammar.ebnf`**
+  (UTF-8 **ohne** BOM — reines Daten-Artefakt; derselbe Zielort wie früher die `.g4`, Commit `ad32d451`).
+  In `Invoke-Publish.ps1` als Schritt **1c** nach `Publish-Cli` eingehängt (braucht die `nav.exe` in
+  `deploy\Build Tools`). Veraltete „Grammatik kommt aus DeployFiles"-Kommentare in `Publish-Cli.ps1` /
+  `Invoke-Publish.ps1` richtiggestellt (DeployFiles liefert nur Task-DLL + Targets).
+- **Verifikation:** `dotnet build Nav.Cli` → 0/0; `nav grammar` / `--rule taskDefinition` / `--rule
+  arrayType`(→Fehler) geprüft; `Publish-Cli` + `Export-Grammar` isoliert ausgeführt → `NavGrammar.ebnf`
+  (148 Zeilen, kein BOM, `codeGenerationUnit ::=` … `stringLiteral ::=`).
 
 ### Optional/später — zweiter Generator
 Visitor-/Walker-Generator unter `_build\SourceGenerators\`, der `SyntaxNodeVisitor`/`SyntaxNodeWalker` aus
@@ -146,7 +158,13 @@ reproduzierbar). Validiert das Shared-Projekt als gemeinsame Basis.
 
 ## Commit-Stand
 
-Schritte 1–3 sind committet (siehe oben). Schritt 4 ist im Working Tree fertig, aber **uncommittet**:
-`Nav.Language.Mcp\Tools\NavGrammarTool.cs`, `Nav.Language.Mcp\Tools\NavGrammarResult.cs`,
-`doc\nav-mcp-status.md`, `doc\nav-grammar-status.md` (sowie ggf. die offene `.slnx`-Ergänzung aus 1–3).
+Schritte 1–3 sind committet (siehe oben). Schritte 4 **und 5** sind im Working Tree fertig, aber
+**uncommittet**:
+- Schritt 4: `Nav.Language.Mcp\Tools\NavGrammarTool.cs`, `Nav.Language.Mcp\Tools\NavGrammarResult.cs`,
+  `doc\nav-mcp-status.md`.
+- Schritt 5: `Nav.Cli\GrammarCommand.cs`, `Nav.Cli\Program.cs` (Verb-Dispatch),
+  `Tools\Commands\Functions\Export-Grammar.ps1`, `Tools\Commands\Functions\Invoke-Publish.ps1`,
+  `Tools\Commands\Functions\Publish-Cli.ps1`.
+- Beide: `doc\nav-grammar-status.md` (sowie ggf. die offene `.slnx`-Ergänzung aus 1–3).
+
 Der Nutzer committet selbst.

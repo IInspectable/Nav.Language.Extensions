@@ -5,10 +5,11 @@
 .DESCRIPTION
     Kein eigener nav-Command (keine .FUNCTIONALITY) — wird von `nav publish` (Invoke-Publish) NACH dem
     Solution-Build aufgerufen. Spiegelbild des LSP-/MCP-Publishs, nur mit anderem Ziel: Der
-    Solution-Build (DeployFiles-Target) leert deploy\Build Tools und legt Task-DLL, Targets und
-    Grammatik hinein; dieser Schritt ergänzt die self-contained nav.exe (trägt .NET-Runtime + Engine
-    selbst, keine separate Runtime-Installation nötig). Damit entfällt der net472-Binding-Redirect-
-    Konflikt der früheren framework-abhängigen nav.exe.
+    Solution-Build (DeployFiles-Target) leert deploy\Build Tools und legt Task-DLL und Targets hinein;
+    dieser Schritt ergänzt die self-contained nav.exe (trägt .NET-Runtime + Engine selbst, keine
+    separate Runtime-Installation nötig). Damit entfällt der net472-Binding-Redirect-Konflikt der
+    früheren framework-abhängigen nav.exe. Die Grammatik (NavGrammar.ebnf) legt anschließend
+    Export-Grammar dazu.
 
     Flags wie beim LSP-/MCP-Publish: PublishSingleFile + IncludeNativeLibrariesForSelfExtract → eine
     exe; EnableCompressionInSingleFile → kleinere exe; SatelliteResourceLanguages=en → keine
@@ -16,7 +17,7 @@
 
     WICHTIG (Reihenfolge): Muss NACH Invoke-Build laufen, weil das DeployFiles-Target
     deploy\Build Tools\**\* vorher löscht. Das Verzeichnis wird hier bewusst NICHT geleert —
-    Task-DLL/Targets/Grammatik stammen aus dem Solution-Build und müssen erhalten bleiben.
+    Task-DLL/Targets stammen aus dem Solution-Build und müssen erhalten bleiben.
 
 .PARAMETER Configuration
     Build-Konfiguration. Default: Debug.

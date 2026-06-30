@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Collections.Generic;
 
@@ -25,8 +26,13 @@ static class Program  {
             var fileName = args[0].Substring(1);
             cmdArgs = LoadArgs(fileName);
         }
-            
-        var cl = CommandLine.Parse(cmdArgs);            
+
+        // Subcommand: nav grammar [--rule X] — druckt die EBNF-Grammatik nach stdout.
+        if (cmdArgs.Length >= 1 && string.Equals(cmdArgs[0], "grammar", StringComparison.OrdinalIgnoreCase)) {
+            return GrammarCommand.Run(cmdArgs.Skip(1).ToArray());
+        }
+
+        var cl = CommandLine.Parse(cmdArgs);
         if (cl == null) {
             return -1;
         }
