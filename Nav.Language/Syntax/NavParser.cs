@@ -2050,22 +2050,33 @@ sealed class NavParser {
 
     #region Extent-Hilfen
 
-    TextExtent Span(params object[] parts) {
+    TextExtent Span(params ExtentPart[] parts) {
         var builder = new ExtentBuilder();
         foreach (var part in parts) {
-            switch (part) {
-                case null:
-                    break;
-                case RawToken raw:
-                    builder.Add(raw);
-                    break;
-                case SyntaxNode node:
-                    builder.Add(node);
-                    break;
-            }
+            builder.Add(part.Extent);
         }
 
         return builder.ToExtent();
+    }
+
+    /// <summary>
+    /// Ein Bestandteil eines <see cref="Span(ExtentPart[])"/>-Aufrufs: trägt nur den <see cref="TextExtent"/>
+    /// eines (optionalen) Tokens oder Kindknotens. Die impliziten Konvertierungen halten die Aufrufstellen
+    /// unverändert lesbar (<c>Span(keyword, name, …)</c>), vermeiden aber das Boxing, das ein
+    /// <c>params object[]</c> für jedes <see cref="RawToken"/>? (Nullable-Struct) erzeugen würde. Fehlende
+    /// (<c>null</c>) Bestandteile tragen <see cref="TextExtent.Missing"/> bei — <see cref="ExtentBuilder"/>
+    /// überspringt sie.
+    /// </summary>
+    readonly struct ExtentPart {
+
+        ExtentPart(TextExtent extent) {
+            Extent = extent;
+        }
+
+        public TextExtent Extent { get; }
+
+        public static implicit operator ExtentPart(RawToken? raw)   => new(raw?.Extent  ?? TextExtent.Missing);
+        public static implicit operator ExtentPart(SyntaxNode node) => new(node?.Extent ?? TextExtent.Missing);
     }
 
     /// <summary>
@@ -2099,7 +2110,7 @@ sealed class NavParser {
             }
         }
 
-        void Add(TextExtent extent) {
+        public void Add(TextExtent extent) {
             if (extent.IsMissing) {
                 return;
             }

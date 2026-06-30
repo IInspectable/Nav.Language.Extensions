@@ -58,7 +58,10 @@ sealed class NavLexer {
     NavLexer(string text) {
         _text   = text ?? String.Empty;
         _length = _text.Length;
-        _tokens = ImmutableArray.CreateBuilder<RawToken>();
+        // Heuristische Vorab-Kapazität (~1 Token je 4 Zeichen über den realen Korpus gemessen) erspart dem
+        // Builder die wiederholten Verdopplungen beim Wachsen. RawToken ist ein Wert-Struct — der Puffer ist
+        // ein einziges Array, kein Heap-Objekt je Token.
+        _tokens = ImmutableArray.CreateBuilder<RawToken>(Math.Max(16, _length / 4));
     }
 
     public static ImmutableArray<RawToken> Lex(string text) {
@@ -232,12 +235,29 @@ sealed class NavLexer {
 
     void ScanIdentifierOrKeyword() {
         var start = _pos;
+
+        // Alle Schlüsselwörter bestehen ausschließlich aus ASCII-Kleinbuchstaben. Schon während des Scans
+        // mitführen, ob der Lauf überhaupt ein Keyword sein *kann* — sobald ein Zeichen außerhalb 'a'..'z'
+        // auftaucht (Großbuchstabe, Ziffer, '.', '_', Umlaut), ist es sicher ein Identifier. Dann entfällt
+        // der string-Substring nur fürs Dictionary-Lookup — bei nahezu allen Identifiern (Typnamen,
+        // gepunktete Namespaces, camelCase-Namen) die häufigste vermeidbare Allokation des Lexers.
+        var couldBeKeyword = true;
         while (_pos < _length && SyntaxFacts.IsIdentifierCharacter(_text[_pos])) {
+            var ch = _text[_pos];
+            if (ch < 'a' || ch > 'z') {
+                couldBeKeyword = false;
+            }
+
             _pos++;
         }
 
-        var text = _text.Substring(start, _pos - start);
-        var type = Keywords.TryGetValue(text, out var keyword) ? keyword : SyntaxTokenType.Identifier;
+        var length = _pos - start;
+        var type   = SyntaxTokenType.Identifier;
+        if (couldBeKeyword && length is >= MinKeywordLength and <= MaxKeywordLength &&
+            Keywords.TryGetValue(_text.Substring(start, length), out var keyword)) {
+            type = keyword;
+        }
+
         Add(type, start, _pos);
     }
 
@@ -391,6 +411,11 @@ sealed class NavLexer {
                 return false;
         }
     }
+
+    // Längen-Schranken der Wort-Schlüsselwörter ('do'/'if'/'on' = 2 … 'namespaceprefix' = 15) — als
+    // billiger Vorab-Filter vor dem Dictionary-Lookup (siehe ScanIdentifierOrKeyword).
+    const int MinKeywordLength = 2;
+    const int MaxKeywordLength = 15;
 
     // Die Wort-Schlüsselwörter der Grammatik (exakt die literalen, kleingeschriebenen Formen).
     // Mehrzeichen-Kanten ('-->', 'o->', '==>') sind hier bewusst nicht enthalten — sie werden vor
