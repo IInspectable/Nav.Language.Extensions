@@ -8,7 +8,7 @@ public class Nav0105ExitNode0MustOnlyReachedByGoTo: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        // Exit node '{0}' must only be reached by -->
+        // Exit node '{0}' can only be reached by a goto edge (-->)
         //==============================
         foreach (var transition in taskDefinition.Edges()) {
 

@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Erzeugt die Markdown-Tabelle der Diagnose-Fehler (Semantic + DeadCode).
+    Erzeugt die Markdown-Tabelle der Diagnose-Fehler (Syntax + Semantic + DeadCode).
 
 .DESCRIPTION
     Lädt die gebaute Pharmatechnik.Nav.Language.dll, ermittelt per Reflection alle
-    DiagnosticDescriptors (Semantic und DeadCode) und gibt eine Markdown-Tabelle
+    DiagnosticDescriptors (Syntax, Semantic und DeadCode) und gibt eine Markdown-Tabelle
     (Id/Category/Severity/Message) auf die Pipeline aus — z. B. zum Umleiten in eine Datei:
 
         nav generateerrors > doc\diagnostics.md
@@ -44,6 +44,7 @@ function Invoke-GenerateErrors {
     "|---|--------|----------|----------|----------| "
 
     $sources = @(
+        [Pharmatechnik.Nav.Language.DiagnosticDescriptors+Syntax].GetFields([Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Static)
         [Pharmatechnik.Nav.Language.DiagnosticDescriptors+Semantic].GetFields([Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Static)
         [Pharmatechnik.Nav.Language.DiagnosticDescriptors+DeadCode].GetFields([Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Static)
     )

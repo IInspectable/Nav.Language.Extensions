@@ -8,7 +8,7 @@ public class Nav0221OnlyIfConditionsAllowedInExitTransitions: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        // Only if conditions allowed in exit transitions
+        // Only 'if' conditions are allowed in exit transitions
         //==============================
         foreach (var exitTransition in taskDefinition.ExitTransitions) {
 

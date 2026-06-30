@@ -8,7 +8,7 @@ public class Nav0104ChoiceNode0MustOnlyReachedByGoTo: NavAnalyzer {
 
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
-        // Choice node '{0}' must only be reached by -->
+        // Choice node '{0}' can only be reached by a goto edge (-->)
         //==============================
         foreach (var transition in taskDefinition.Edges()) {
 
