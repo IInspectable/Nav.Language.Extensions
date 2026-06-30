@@ -17,11 +17,11 @@ public abstract class GeneratorTestBase {
     protected static CSharpCompilation CreateCompilation(string source) {
         return CSharpCompilation.Create(
             assemblyName: "NavGrammarGeneratorTestAssembly",
-            syntaxTrees: new[] { CSharpSyntaxTree.ParseText(source) },
-            references: new[] {
+            syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
+            references: [
                 MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location)
-            },
+            ],
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 
