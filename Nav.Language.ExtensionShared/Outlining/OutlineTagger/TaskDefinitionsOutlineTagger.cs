@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
@@ -18,12 +17,9 @@ class TaskDefinitionsOutlineTagger {
                 continue;
             }
 
-            var rgnStartToken = nameToken.NextToken();
-            if (rgnStartToken.IsMissing) {
-                continue;
-            }
-
-            var start  = Math.Min(nameToken.End + 1, rgnStartToken.Start);
+            // Die Region beginnt unmittelbar hinter dem Namen (dessen Trailing-Trivia eingeschlossen) und reicht
+            // bis zum Knotenende — so bleibt der Name als Kopf der eingeklappten Region sichtbar.
+            int start  = nameToken.End;
             int length = extent.End - start;
 
             if (length <= 0) {

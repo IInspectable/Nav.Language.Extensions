@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
@@ -24,12 +23,9 @@ class TaskReferenceOutlineTagger {
                 continue;
             }
 
-            var rgnStartToken = nameToken.NextToken();
-            if (rgnStartToken.IsMissing) {
-                continue;
-            }
-
-            int start  = Math.Min(nameToken.End +1, rgnStartToken.Start);
+            // Die Region beginnt unmittelbar hinter dem Namen (dessen Trailing-Trivia eingeschlossen) und reicht
+            // bis zum Knotenende — so bleibt der Name als Kopf der eingeklappten Region sichtbar.
+            int start  = nameToken.End;
             int length = extent.End - start;
 
             if (length <= 0) {
@@ -44,7 +40,7 @@ class TaskReferenceOutlineTagger {
         }
 
 
-        // Zusammenh�ngende Bl�cke von taskref "file" als Region zusammenfassen
+        // Zusammenhängende Blöcke von taskref "file" als Region zusammenfassen
         var allRelevant = syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>().Concat<SyntaxNode>(
                                                     syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes <TaskDeclarationSyntax>())
                                                .Concat(

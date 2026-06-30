@@ -718,7 +718,7 @@ wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
 
 ---
 
-## Schritt 5.4 — Detail-Handoff (Stand: 5.4.1–5.4.4 erledigt, nächste Session = 5.5)
+## Schritt 5.4 — Detail-Handoff (Stand: 5.4.1–5.4.4 + 5.5 erledigt — Schritt 5 komplett)
 
 > **Zweck:** Selbsttragender Einstieg für eine **frische Session ohne Gesprächskontext.** Quelle der
 > Wahrheit bleibt der Code; Pfade/Zeilen als Einstieg (zum Erhebungszeitpunkt verifiziert).
@@ -831,13 +831,21 @@ gegen gleiche Starts) — liegt die Position nicht auf einem Token-Extent, wird 
 `FindAtPosition` (Trivia-Position ⇒ `Missing`) auf Gegenwart umgestellt. Beide TFMs grün (net10 1013/0, net472 1021/0).
 Einziger Heißpfad-Aufrufer wäre `NavCodeActionService.ExpandCaret` (nicht heiß), daher reine Aufräum-Optimierung.
 
-### 5.5 — Nebenprodukte (kosmetisch / Aufräumen)
+### 5.5 — Nebenprodukte (kosmetisch / Aufräumen) — **erledigt (uncommitted)**
 
-- `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` `FirstNoneWhitespaceToken`: `SkipWhile(Whitespace)` wird gegenstandslos
-  → `FirstOrDefault()`. (U+FFFD in der Datei mitreparieren.)
-- OutlineTagger `TaskReferenceOutlineTagger.cs`/`TaskDefinitionsOutlineTagger.cs`: `nameToken.NextToken()`+`End+1`-Arithmetik
-  → aus Trailing-Trivia/Extent ableiten. **Achtung:** nach dem Ziehen liefert `NextToken()` das nächste signifikante Token
-  statt der unmittelbaren Trivia → die Region-Startgrenze verschiebt sich um 1 Zeichen (rein kosmetisch). (U+FFFD mitreparieren.)
+- `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` `FirstNoneWhitespaceToken`: bereits in 5.4.3 durch
+  `FirstNonWhitespacePosition(extent)` ersetzt (samt U+FFFD/BOM-Reparatur) — nichts mehr offen.
+- OutlineTagger `TaskReferenceOutlineTagger.cs`/`TaskDefinitionsOutlineTagger.cs`: Die `nameToken.NextToken()`-Abhängigkeit
+  entfernt. Befund: im alten lückenlosen Flachstrom begann das Folgetoken stets exakt bei `nameToken.End`, sodass
+  `Math.Min(nameToken.End + 1, rgnStartToken.Start)` **immer** `nameToken.End` ergab. Nach dem Ziehen liefert `NextToken()`
+  das nächste **signifikante** Token (Trivia ist nicht mehr im Strom) → der `Math.Min` wäre auf `nameToken.End + 1`
+  gesprungen (1-Zeichen-Verschiebung). Statt das hinzunehmen ist die Region-Startgrenze jetzt direkt `nameToken.End` —
+  **verhaltensgleich zu vorher**, ohne `NextToken()`. Die `rgnStartToken.IsMissing`-Guard entfällt (der `length <= 0`-Guard
+  deckt den Randfall ab); ungenutztes `using System;` (nur für `Math.Min`) entfernt; beide Dateien auf UTF-8 mit BOM
+  gebracht und die U+FFFD-Umlaute in `TaskReferenceOutlineTagger.cs` repariert. Der zweite Block dort
+  (`keywordToken.End + 1` für zusammenhängende `taskref`-Include-Regionen) ist reine Keyword-Arithmetik, vom Ziehen
+  **nicht** betroffen und bewusst unverändert gelassen. Einzige no-arg-`NextToken()`/`PreviousToken()`-Caller sind danach
+  nur noch zwei `SyntaxTokenTests` (testen `Missing.NextToken()`).
 
 ### Verifikationsprotokoll (jeder Teilschritt)
 
