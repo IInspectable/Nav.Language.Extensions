@@ -64,7 +64,6 @@
   <ItemGroup>
     <None Include="Generated Tests\TokenPropertyNameTests.tt" />
     <None Include="Generated Tests\ParseEmptyStringTests.tt" />
-    <None Include="Generated Tests\SyntaxWalkerTests.tt" />
     <None Include="Generated Tests\SyntaxTest.tt" />
   </ItemGroup>
 
