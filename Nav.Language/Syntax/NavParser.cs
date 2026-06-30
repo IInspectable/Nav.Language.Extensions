@@ -821,18 +821,27 @@ sealed class NavParser {
     /// </remarks>
     ExitTransitionDefinitionSyntax ParseExitTransitionDefinition() {
 
-        var source    = ParseIdentifierSourceNode();
-        var colon     = Eat(SyntaxTokenType.Colon);
-        var name      = Eat(SyntaxTokenType.Identifier);
+        var source = ParseIdentifierSourceNode();
+        var colon  = Eat(SyntaxTokenType.Colon);
 
-        var edge = StartsEdge() ? ParseEdge() : null;
-        if (edge == null) {
+        // Nach ':' steht der Name des Exit-Konnektors auf derselben Zeile. Beginnt der Kandidat auf einer
+        // neuen Zeile bereits eine neue Transition (Kante/':' voraus), fehlt der Name: hier abbrechen,
+        // statt den Quellknoten der Folgezeile als Namen einzusaugen (eine Diagnose, kein Folgefehler).
+        var abort = TargetStartsNextTransition();
+        if (abort) {
+            ReportMissing(Describe(SyntaxTokenType.Identifier));
+        }
+
+        var name = abort ? null : Eat(SyntaxTokenType.Identifier);
+
+        var edge = !abort && StartsEdge() ? ParseEdge() : null;
+        if (!abort && edge == null) {
             ReportMissing("edge");
         }
 
-        // Beginnt der Zielknoten-Kandidat auf einer neuen Zeile eine neue Transition (Kante/':' voraus),
-        // gehört er nicht mehr zur laufenden Transition: hier abbrechen, statt die Folgezeile einzusaugen.
-        var continues = !TargetStartsNextTransition();
+        // Auch nach dem Namen kann die Folgezeile eine neue Transition beginnen (Zielknoten-Kandidat):
+        // dann hier abbrechen, statt die Folgezeile einzusaugen.
+        var continues = !abort && !TargetStartsNextTransition();
 
         var target = continues && StartsTargetNode() ? ParseTargetNode() : null;
         if (target == null && edge != null) {

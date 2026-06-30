@@ -213,9 +213,15 @@ Zeile** und leitet das **darauffolgende** Token eine neue Transition ein — ein
 (Exit-Transition) —, dann gehört er zur nächsten Transition; die laufende endet hier
 (`NavParser.TargetStartsNextTransition`). Es bleibt **eine** treffende Diagnose (`missing edge` bzw.
 `missing target node`); das mechanisch ebenfalls fehlende `;` wird auf der abgebrochenen Zeile
-unterdrückt (`TryEatSemicolonQuiet`, analog zur EOF-Kaskade `_reportedMissingAtEof`). Same-line-Fälle
-(`I1 e1;`) bleiben unverändert; echter Nav-Code bricht eine Transition nie über Zeilen um (Korpus:
-1104/1104 einzeilig). Golden: `IncompleteEdgeBleed.nav` / `IncompleteTargetBleed.nav`.
+unterdrückt (`TryEatSemicolonQuiet`, analog zur EOF-Kaskade `_reportedMissingAtEof`).
+
+Dieselbe Stellschraube greift in der Exit-Transition (`Node:Name …`) auch **eine Stufe früher**: nach
+dem `:` erwartet der Parser den Exit-Konnektor-Namen (Pflicht-`Eat(Identifier)`). Beginnt der Kandidat
+auf einer neuen Zeile bereits eine neue Transition (`TargetStartsNextTransition`), würde sonst der
+Quellknoten der Folgezeile als Name eingesaugt. Stattdessen: **eine** Diagnose `missing identifier`
+direkt hinter dem `:`, Transition endet. Same-line-Fälle (`I1 e1;`, `Node:OK -->…`) bleiben unverändert;
+echter Nav-Code bricht eine Transition nie über Zeilen um (Korpus: 1104/1104 einzeilig). Golden:
+`IncompleteEdgeBleed.nav` / `IncompleteTargetBleed.nav` / `IncompleteExitColonBleed.nav`.
 
 ---
 
