@@ -7,8 +7,6 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
-using Pharmatechnik.Nav.Language.Extension.Common;
-
 #endregion
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics;
@@ -24,14 +22,6 @@ sealed class DiagnosticErrorTagger : SemanticModelServiceDependent, ITagger<Diag
 
     public IEnumerable<ITagSpan<DiagnosticErrorTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
-        // Nur Buffer mit echtem Dateipfad diagnostizieren. Read-only-Ansichten wie Annotate/Blame,
-        // Diff/Vergleich und History stellen den .nav-Inhalt ohne hinterlegtes ITextDocument dar —
-        // ohne Pfad scheitert die taskref-/Include-Auflösung, was eine Lawine kontextloser
-        // Semantikfehler erzeugen würde.
-        if (string.IsNullOrEmpty(TextBuffer.GetTextDocument()?.FilePath)) {
-            yield break;
-        }
-
         var codeGenerationUnitAndSnapshot = SemanticModelService.CodeGenerationUnitAndSnapshot;
         if(codeGenerationUnitAndSnapshot == null) {
             yield break;
@@ -39,6 +29,12 @@ sealed class DiagnosticErrorTagger : SemanticModelServiceDependent, ITagger<Diag
 
         var syntaxTree         = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Syntax.SyntaxTree;
         var codeGenerationUnit = codeGenerationUnitAndSnapshot.CodeGenerationUnit;
+
+        // In read-only-Ansichten (Annotate/Blame, Diff/Vergleich, History) fehlt der Workspace-Kontext.
+        // Die kontextabhängige Semantikanalyse (z.B. die taskref-/Include-Auflösung) erzeugt dort nur
+        // eine Lawine von Falsch-Fehlern. Syntaxfehler hingegen sind unabhängig vom Kontext gültig und
+        // bleiben sichtbar.
+        var includeSemanticDiagnostics = !TextBuffer.IsReadOnly(0);
 
         foreach (var span in spans) {
 
@@ -56,13 +52,18 @@ sealed class DiagnosticErrorTagger : SemanticModelServiceDependent, ITagger<Diag
                     yield return errorTag;
                 }
             }
+
+            if (!includeSemanticDiagnostics) {
+                continue;
+            }
+
             //==================
             // Semantic Fehler
             foreach (var diagnostic in codeGenerationUnit.Diagnostics.SelectMany(diag => diag.ExpandLocations())) {
                 if (diagnostic.Location.Start <= span.End && diagnostic.Location.End >= span.Start) {
-                
+
                     var errorSpan = new SnapshotSpan(codeGenerationUnitAndSnapshot.Snapshot, new Span(diagnostic.Location.Start, diagnostic.Location.Length));
-                
+
                     var errorTag = new TagSpan<DiagnosticErrorTag>(
                         errorSpan.TranslateTo(span.Snapshot, SpanTrackingMode.EdgeExclusive),
                         new DiagnosticErrorTag(diagnostic));

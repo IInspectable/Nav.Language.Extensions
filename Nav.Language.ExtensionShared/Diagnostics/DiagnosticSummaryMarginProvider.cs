@@ -13,11 +13,7 @@ namespace Pharmatechnik.Nav.Language.Extension.Diagnostics;
 [Order(Before = PredefinedMarginNames.VerticalScrollBarContainer)]
 [MarginContainer(PredefinedMarginNames.RightControl)]
 [Name(DiagnosticSummaryMargin.MarginName)]
-// "Editable" (nicht "Interactive"): Die Diagnose-UI gehört nur in den echten Dokument-Editor.
-// Read-only-Ansichten (Annotate/Blame, Diff/Vergleich, History) tragen diese Rolle nicht — dort
-// produziert der DiagnosticErrorTagger ohnehin keine Diagnosen (kein Dateipfad), sodass das
-// Summary-Icon sinnlos wäre.
-[TextViewRole(PredefinedTextViewRoles.Editable)]
+[TextViewRole(PredefinedTextViewRoles.Interactive)]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 class DiagnosticSummaryMarginProvider: IWpfTextViewMarginProvider {
 
