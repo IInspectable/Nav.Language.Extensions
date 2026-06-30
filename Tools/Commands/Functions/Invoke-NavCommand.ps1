@@ -21,7 +21,7 @@
     (Show-Commands) ausgegeben.
 
 .PARAMETER Command
-    Der Sub-Command (Token), z. B. build, test, incbuild, newbranch, rmbranch, publish.
+    Der Sub-Command (Token), z. B. build, test, incminor, newbranch, rmbranch, publish.
 #>
 function Invoke-NavCommand {
     param(
