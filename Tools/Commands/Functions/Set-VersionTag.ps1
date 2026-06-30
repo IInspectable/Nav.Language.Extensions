@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Legt das nächste Major-/Minor-Version-Tag (vX.Y.0) auf HEAD an.
 

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Leitet die Produktversion aus git ab (einzige Quelle der Wahrheit — löst das frühere
     Version.props ab).

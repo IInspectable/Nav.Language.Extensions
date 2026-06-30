@@ -81,7 +81,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 | `n publish` | Solution (Debug) bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
 | `n install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
 | `n snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
-| `n incbuild` / `incminor` / `incmajor` | Version in `Version.props` hochzählen. |
+| `n incminor` / `incmajor` | Nächstes Minor-/Major-Version-Tag (`vX.Y.0`) auf HEAD anlegen (`-Push`/`-Force`). Der Patch zählt automatisch — kein `incbuild` mehr. |
 | `n newbranch <name>` / `rmbranch` | Branch + Geschwister-Worktree anlegen/entfernen. |
 | `n help` / `n` | Übersicht / interaktives Menü. |
 
@@ -117,9 +117,17 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 
 ## Konventionen
 
-- **Versionierung:** `Version.props` (`<ProductVersion>`) ist die **einzige** Quelle der Wahrheit.
-  Die `version` in `vscode-nav-lsp\package.json` ist nur Platzhalter (`0.0.0`); das VSIX bekommt seine
-  Version beim Paketieren aus `Version.props`.
+- **Versionierung:** Die Version wird **git-abgeleitet** (`git describe`) — es gibt kein
+  `Version.props` mehr. Kern (3-teiliges SemVer, Pflicht für vsce + VS-VSIX-Manifest +
+  AssemblyVersion): `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor
+  werden per Tag gesteuert (`n incminor`/`incmajor` → `git tag vX.Y.0`), der Patch zählt automatisch;
+  ein getaggter Commit ist exakt die Release-Version. Branch + Kurz-SHA landen nur in
+  `AssemblyInformationalVersion`/CLI, nie im Kern. Autorität ist die PowerShell-Berechnung
+  (`Get-ProductVersion`), die `Invoke-Build` als `-p:ProductVersion=…` an MSBuild durchreicht;
+  `_build\Version.targets` (`ComputeGitVersion`) ist der Fallback für IDE-/blanke-msbuild-Builds.
+  Die `version` in `vscode-nav-lsp\package.json` bleibt Platzhalter (`0.0.0`). `AssemblyVersion`
+  ist bewusst `Major.Minor.0.0` (stabile Binding-Identität); die volle Buildnummer steht in
+  `AssemblyFileVersion`.
 - **Stdio-Protokoll-Hosts (LSP, MCP):** `stdout` ist **exklusiv** fürs JSON-RPC-Protokoll. Alle Logs
   MÜSSEN nach `stderr` — sonst zerstören sie die Protokoll-Frames.
 - **URI-Fallstrick (Windows):** LSP-Clients prozent-kodieren den Laufwerks-Doppelpunkt

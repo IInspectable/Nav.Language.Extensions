@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Erhöht die Major-Version: setzt das Tag v(X+1).0.0 auf HEAD.
 

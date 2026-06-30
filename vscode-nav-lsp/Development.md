@@ -75,9 +75,9 @@ Unter der Haube (gekürzt): `dotnet publish …Nav.Language.Lsp.csproj -r win-x6
 -p:SatelliteResourceLanguages=en -p:DebugType=embedded -o …\vscode-nav-lsp\server`.
 
 Ergebnis: `deploy\vscode\nav-language-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
-kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` zieht das Skript aus
-`Version.props` (`ProductVersion`) im Repo-Root — eine Quelle der Wahrheit; `package.json` wird beim
-Paketieren nicht verändert. Voraussetzung: **Node/npm im PATH**.
+kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` ermittelt das Skript
+git-abgeleitet (`Get-ProductVersion`, aus `git describe`) — eine Quelle der Wahrheit; `package.json`
+wird beim Paketieren nicht verändert. Voraussetzung: **Node/npm im PATH**.
 
 Installieren in VS Code: **Extensions ▸ ⋯ ▸ „Install from VSIX…"** → die obige Datei wählen. Danach eine
 `.nav`-Datei öffnen; der Server startet aus dem eingebetteten `server/nav.lsp.exe`.

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Erhöht die Minor-Version: setzt das Tag vX.(Y+1).0 auf HEAD.
 
