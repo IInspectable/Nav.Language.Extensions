@@ -20,32 +20,55 @@ public static class ClassifiedTextExtensions {
 
     public static IEnumerable<ClassifiedText> GetClassifiedText(this SyntaxTree syntaxTree, TextExtent extent) {
 
-        foreach (var token in syntaxTree.Tokens[extent, includeOverlapping: true]) {
-            yield return new ClassifiedText(ToString(token, extent), token.Classification);
+        var source = syntaxTree.SourceText;
 
+        // Klassifizierte Stücke in Quelltext-Reihenfolge: je signifikantem bzw. Trenner-Token seine
+        // Leading-Trivia, der Token selbst und seine Trailing-Trivia (Roslyn-Modell). Die flachen Trivia-Token
+        // werden übersprungen — ihr Text und ihre Klassifikation kommen über die angehängte Trivia. So bleibt
+        // das Ergebnis identisch, auch wenn die Trivia nicht mehr im flachen Token-Strom geführt wird.
+        foreach (var token in syntaxTree.Tokens) {
+
+            if (SyntaxFacts.IsTrivia(token.Type)) {
+                continue;
+            }
+
+            foreach (var trivia in token.LeadingTrivia) {
+                if (TryClip(trivia.Extent, extent, out var clip)) {
+                    yield return new ClassifiedText(source.Substring(clip), ClassificationOf(trivia.Type));
+                }
+            }
+
+            if (TryClip(token.Extent, extent, out var tokenClip)) {
+                yield return new ClassifiedText(source.Substring(tokenClip), token.Classification);
+            }
+
+            foreach (var trivia in token.TrailingTrivia) {
+                if (TryClip(trivia.Extent, extent, out var clip)) {
+                    yield return new ClassifiedText(source.Substring(clip), ClassificationOf(trivia.Type));
+                }
+            }
         }
-
     }
 
-    static string ToString(SyntaxToken token, TextExtent extent) {
+    /// <summary>Schnittmenge aus Stück- und Fenster-Ausschnitt (Überlappung wie <c>includeOverlapping: true</c>).</summary>
+    static bool TryClip(TextExtent piece, TextExtent window, out TextExtent clipped) {
 
-        int startOffset = 0;
-        if (extent.Start > token.Start) {
-            startOffset = extent.Start - token.Start;
+        var start = piece.Start > window.Start ? piece.Start : window.Start;
+        var end   = piece.End   < window.End   ? piece.End   : window.End;
+
+        if (start < end) {
+            clipped = TextExtent.FromBounds(start, end);
+            return true;
         }
 
-        int endOffset = 0;
-        if (extent.End < token.End) {
-            endOffset = token.End - extent.End;
-        }
+        clipped = default;
+        return false;
+    }
 
-        var text = token.ToString();
-
-        if (startOffset == 0 && endOffset == 0) {
-            return text;
-        }
-
-        return text.Substring(startOffset, text.Length - startOffset - endOffset);
+    static TextClassification ClassificationOf(SyntaxTokenType triviaType) {
+        return triviaType == SyntaxTokenType.SingleLineComment || triviaType == SyntaxTokenType.MultiLineComment
+            ? TextClassification.Comment
+            : TextClassification.Whitespace;
     }
 
 }
