@@ -61,11 +61,14 @@ sealed class NavParser {
     readonly ImmutableArray<Diagnostic>.Builder  _diagnostics;
     readonly int                                 _eofPos;
 
-    // Vorab aus _raw berechnete Token-Trivia (echtes Roslyn-Modell): je signifikantem RawToken — Schlüssel
-    // ist seine eindeutige Start-Position — die Leading/Trailing-Trivia, plus separat die Leading-Trivia des
-    // abschließenden EndOfFile (die finale Datei-Trivia). Wird in Tok() bzw. beim EOF-Anhängen nachgeschlagen.
-    readonly Dictionary<int, TokenTrivia> _tokenTrivia;
-    readonly ImmutableArray<SyntaxTrivia> _eofLeadingTrivia;
+    // Vorab aus _raw berechnete Token-Trivia (echtes Roslyn-Modell): alle Trivia der Datei liegen in genau
+    // einem geteilten Array (_allTrivia, Strom-Reihenfolge); je signifikantem Token — Schlüssel ist seine
+    // eindeutige Start-Position — merkt _tokenTrivia nur Index-Bereiche (Leading/Trailing) hinein, plus
+    // separat die Leading-Trivia des abschließenden EndOfFile (die finale Datei-Trivia). Wird in Tok() bzw.
+    // beim EOF-Anhängen nachgeschlagen — als allokationsfreie Sicht (siehe LookupTrivia).
+    readonly ImmutableArray<SyntaxTrivia> _allTrivia;
+    readonly Dictionary<int, TriviaRange> _tokenTrivia;
+    readonly SyntaxTriviaList             _eofLeadingTrivia;
 
     int  _pos;                     // Index in _raw; Invariante: zeigt stets auf ein parser-sichtbares Token (signifikant oder EOF).
     int? _firstSignificantStart;   // Start des ersten konsumierten signifikanten Tokens (für den Wurzel-Extent).
@@ -78,7 +81,8 @@ sealed class NavParser {
         _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         _eofPos      = _raw[_raw.Length - 1].Start; // Das abschließende EndOfFile ist nullbreit am Textende.
 
-        _tokenTrivia = BuildTokenTrivia(_raw, out _eofLeadingTrivia);
+        _allTrivia        = BuildTrivia(_raw, out _tokenTrivia, out var eofStart, out var eofLength);
+        _eofLeadingTrivia = new SyntaxTriviaList(_allTrivia, eofStart, eofLength);
 
         _pos = 0;
         SkipHidden();
@@ -1779,7 +1783,7 @@ sealed class NavParser {
     /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, Präprozessor-Token, vom Panic-Mode
     /// übersprungene signifikante Token und das abschließende <see cref="SyntaxTokenType.EndOfFile"/>.
     /// Trivia (Whitespace/Zeilenende/Kommentare) wird hier <b>nicht</b> mehr in den Strom aufgenommen —
-    /// sie liegt ausschließlich als Leading/Trailing an den Token (siehe <see cref="BuildTokenTrivia"/>).
+    /// sie liegt ausschließlich als Leading/Trailing an den Token (siehe <see cref="BuildTrivia"/>).
     /// Dabei werden auch die rein lexikalischen Diagnosen gemeldet (unerwartetes Zeichen, nicht
     /// unterstützte Präprozessor-Direktive).
     /// </summary>
@@ -1794,7 +1798,7 @@ sealed class NavParser {
 
         foreach (var raw in _raw) {
             // Trivia (Whitespace/Zeilenende/Kommentar) hängt ausschließlich als Leading/Trailing an
-            // den signifikanten bzw. Trenner-Token (siehe BuildTokenTrivia) — sie wird nicht mehr als
+            // den signifikanten bzw. Trenner-Token (siehe BuildTrivia) — sie wird nicht mehr als
             // eigenes Token in den flachen Strom aufgenommen.
             if (SyntaxFacts.IsTrivia(raw.Type)) {
                 continue;
@@ -1803,18 +1807,18 @@ sealed class NavParser {
             if (TryClassifyNonSignificant(raw.Type, out var classification)) {
                 // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
                 // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
-                // als Leading (siehe BuildTokenTrivia).
+                // als Leading (siehe BuildTrivia).
                 var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : LookupTrivia(raw.Extent.Start).Leading;
                 _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root,
-                                                           leading, ImmutableArray<SyntaxTrivia>.Empty));
+                                                           leading, SyntaxTriviaList.Empty));
 
                 ReportLexicalDiagnostics(raw);
             } else if (!consumedStarts.Contains(raw.Extent.Start)) {
                 // Signifikantes Token, das der Parser nicht konsumiert hat (Panic-Mode-Skip): wie die Trivia
                 // als Skiped-Token an die Wurzel — so deckt der Token-Strom lückenlos den ganzen Text ab.
-                var trivia = LookupTrivia(raw.Extent.Start);
+                var (leading, trailing) = LookupTrivia(raw.Extent.Start);
                 _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, TextClassification.Skiped, root,
-                                                           trivia.Leading, trivia.Trailing));
+                                                           leading, trailing));
             }
         }
     }
@@ -1894,31 +1898,41 @@ sealed class NavParser {
             return;
         }
 
-        var trivia = LookupTrivia(raw.Value.Start);
-        var token  = SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent,
-                                                    trivia.Leading, trivia.Trailing);
+        var (leading, trailing) = LookupTrivia(raw.Value.Start);
+        var token = SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent,
+                                                   leading, trailing);
         if (!token.IsMissing) {
             _tokens.Add(token);
         }
     }
 
-    /// <summary>Die vorab berechnete Trivia eines signifikanten Tokens (per Start-Position), sonst leer.</summary>
-    TokenTrivia LookupTrivia(int start) {
-        return _tokenTrivia.TryGetValue(start, out var trivia) ? trivia : TokenTrivia.Empty;
-    }
-
-    /// <summary>Leading/Trailing-Trivia eines Tokens — das vorab aus <c>_raw</c> berechnete Roslyn-Bündel.</summary>
-    readonly struct TokenTrivia {
-
-        public TokenTrivia(ImmutableArray<SyntaxTrivia> leading, ImmutableArray<SyntaxTrivia> trailing) {
-            Leading  = leading;
-            Trailing = trailing;
+    /// <summary>
+    /// Leading/Trailing-Trivia eines Tokens (per Start-Position) als allokationsfreie Sicht auf das geteilte
+    /// <see cref="_allTrivia"/>; leer, wenn dem Token keine Trivia zugeordnet ist.
+    /// </summary>
+    (SyntaxTriviaList Leading, SyntaxTriviaList Trailing) LookupTrivia(int start) {
+        if (_tokenTrivia.TryGetValue(start, out var range)) {
+            return (new SyntaxTriviaList(_allTrivia, range.LeadingStart,  range.LeadingLength),
+                    new SyntaxTriviaList(_allTrivia, range.TrailingStart, range.TrailingLength));
         }
 
-        public ImmutableArray<SyntaxTrivia> Leading  { get; }
-        public ImmutableArray<SyntaxTrivia> Trailing { get; }
+        return (SyntaxTriviaList.Empty, SyntaxTriviaList.Empty);
+    }
 
-        public static readonly TokenTrivia Empty = new(ImmutableArray<SyntaxTrivia>.Empty, ImmutableArray<SyntaxTrivia>.Empty);
+    /// <summary>Leading-/Trailing-Bereich eines Tokens als Start/Länge in das geteilte <see cref="_allTrivia"/>.</summary>
+    readonly struct TriviaRange {
+
+        public TriviaRange(int leadingStart, int leadingLength, int trailingStart, int trailingLength) {
+            LeadingStart   = leadingStart;
+            LeadingLength  = leadingLength;
+            TrailingStart  = trailingStart;
+            TrailingLength = trailingLength;
+        }
+
+        public int LeadingStart   { get; }
+        public int LeadingLength  { get; }
+        public int TrailingStart  { get; }
+        public int TrailingLength { get; }
     }
 
     /// <summary>
@@ -1936,93 +1950,83 @@ sealed class NavParser {
     /// Nicht-Trivia-, aber dennoch nicht-signifikante Token (unbekannte Zeichen, Präprozessor-Token) wirken —
     /// wie signifikante Token — als Trenner einer Trivia-Folge, erhalten selbst aber keine angehängte Trivia.
     /// </summary>
-    static Dictionary<int, TokenTrivia> BuildTokenTrivia(ImmutableArray<RawToken> raw, out ImmutableArray<SyntaxTrivia> eofLeadingTrivia) {
+    static ImmutableArray<SyntaxTrivia> BuildTrivia(ImmutableArray<RawToken> raw, out Dictionary<int, TriviaRange> tokenTrivia,
+                                                    out int eofLeadingStart, out int eofLeadingLength) {
 
-        var result  = new Dictionary<int, TokenTrivia>();
-        var leading = new Dictionary<int, ImmutableArray<SyntaxTrivia>>();
+        // Alle Trivia der Datei in genau einem Array (Strom-Reihenfolge). Leading/Trailing eines Tokens sind
+        // zusammenhängende Teilbereiche darin — sie werden nicht mehr je Token in eigene Arrays kopiert.
+        // raw.Length/2 ist eine grobe Vorab-Kapazität (Trivia macht etwa die Hälfte des Stroms aus).
+        var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(System.Math.Max(16, raw.Length / 2));
 
-        var pending             = new List<SyntaxTrivia>(); // Trivia seit dem letzten Trenner (Kandidat für Trailing/Leading).
-        var lastSignificantKey  = -1;                       // Start des letzten Tokens, das noch Trailing-Trivia aufnimmt; -1 = keins.
-        eofLeadingTrivia = ImmutableArray<SyntaxTrivia>.Empty;
+        // Genau ein Dictionary Token-Start -> Bereiche. Die Leading-Trivia wird beim Erreichen des Tokens
+        // eingetragen, die Trailing-Trivia beim nächsten Trenner per Read-Modify-Write nachgezogen.
+        tokenTrivia = new Dictionary<int, TriviaRange>();
+
+        var pendingStart       = 0;  // Index in 'all', an dem der aktuelle pending-Lauf (Trivia seit letztem Trenner) beginnt.
+        var lastSignificantKey = -1; // Start des letzten Tokens, das noch Trailing-Trivia aufnimmt; -1 = keins.
+
+        eofLeadingStart  = 0;
+        eofLeadingLength = 0;
 
         foreach (var token in raw) {
 
             if (token.IsTrivia) {
-                pending.Add(new SyntaxTrivia(token.Type, token.Extent));
+                all.Add(new SyntaxTrivia(token.Type, token.Extent));
                 continue;
             }
 
-            // Trenner erreicht: zuerst die Trailing-Trivia des vorigen signifikanten Tokens vom Anfang von
-            // pending abspalten (bis einschließlich des ersten Zeilenendes; sonst — kein Zeilenende — alles).
+            var pendingEnd = all.Count;
+
+            // Trenner erreicht: zuerst die Trailing-Trivia des vorigen signifikanten Tokens vom Anfang des
+            // pending-Laufs abspalten (bis einschließlich des ersten Zeilenendes; sonst — kein Zeilenende — alles).
+            var splitCount = 0;
             if (lastSignificantKey >= 0) {
-                var trailing = SplitTrailing(pending);
-                result[lastSignificantKey] = new TokenTrivia(
-                    leading.TryGetValue(lastSignificantKey, out var lead) ? lead : ImmutableArray<SyntaxTrivia>.Empty,
-                    trailing);
+                splitCount = SplitTrailingCount(all, pendingStart, pendingEnd);
+                var lead   = tokenTrivia[lastSignificantKey]; // beim Token-Eintritt gesetzt, daher stets vorhanden
+                tokenTrivia[lastSignificantKey] = new TriviaRange(lead.LeadingStart, lead.LeadingLength, pendingStart, splitCount);
             }
 
-            // Der Rest von pending ist die Leading-Trivia des aktuellen Trenners (sofern er welche aufnimmt).
-            var remaining = pending.ToImmutableArray();
-            pending.Clear();
+            // Der Rest des pending-Laufs ist die Leading-Trivia des aktuellen Trenners (sofern er welche aufnimmt).
+            var remainingStart  = pendingStart + splitCount;
+            var remainingLength = pendingEnd - remainingStart;
 
             if (token.Type == SyntaxTokenType.EndOfFile) {
-                eofLeadingTrivia   = remaining;
+                eofLeadingStart    = remainingStart;
+                eofLeadingLength   = remainingLength;
                 lastSignificantKey = -1;
             } else if (IsHidden(token.Type)) {
                 // Trenner (unbekanntes Zeichen / Präprozessor-Token): nimmt selbst keine Trailing-Trivia auf,
                 // trägt die restliche Trivia aber als Leading. Sonst ginge der Text zwischen dem vorigen Token
                 // und dem Trenner verloren, sobald die Trivia nicht mehr separat im flachen Strom geführt wird.
-                if (!remaining.IsEmpty) {
-                    leading[token.Start] = remaining;
+                if (remainingLength > 0) {
+                    tokenTrivia[token.Start] = new TriviaRange(remainingStart, remainingLength, 0, 0);
                 }
 
                 lastSignificantKey = -1;
             } else {
-                leading[token.Start] = remaining;
-                lastSignificantKey   = token.Start;
+                tokenTrivia[token.Start] = new TriviaRange(remainingStart, remainingLength, 0, 0);
+                lastSignificantKey       = token.Start;
             }
+
+            pendingStart = pendingEnd; // Nächster Lauf beginnt hinter der eben zugeordneten Trivia (am Trenner selbst wurde keine ergänzt).
         }
 
-        // Signifikante Token, die keine Trailing-Trivia bekommen haben (z.B. letztes Token vor EOF ohne
-        // nachfolgende Trivia), tragen dennoch ihre Leading-Trivia.
-        foreach (var entry in leading) {
-            if (!result.ContainsKey(entry.Key)) {
-                result[entry.Key] = new TokenTrivia(entry.Value, ImmutableArray<SyntaxTrivia>.Empty);
-            }
-        }
-
-        return result;
+        return all.ToImmutable();
     }
 
     /// <summary>
-    /// Spaltet vom Anfang von <paramref name="pending"/> die Trailing-Trivia ab: alle Elemente bis
-    /// <b>einschließlich</b> des ersten Zeilenendes. Enthält <paramref name="pending"/> kein Zeilenende
-    /// (der nächste Trenner steht in derselben Zeile), wird alles als Trailing-Trivia genommen. Die
-    /// abgespaltenen Elemente werden aus <paramref name="pending"/> entfernt.
+    /// Zählt am Anfang des pending-Laufs <c>[start, end)</c> in <paramref name="all"/> die Trailing-Trivia:
+    /// alle Elemente bis <b>einschließlich</b> des ersten Zeilenendes. Enthält der Lauf kein Zeilenende
+    /// (der nächste Trenner steht in derselben Zeile), zählt alles als Trailing-Trivia.
     /// </summary>
-    static ImmutableArray<SyntaxTrivia> SplitTrailing(List<SyntaxTrivia> pending) {
-
-        var count       = 0;
-        var sawNewLine  = false;
-        for (var i = 0; i < pending.Count; i++) {
-            count++;
-            if (pending[i].Type == SyntaxTokenType.NewLine) {
-                sawNewLine = true;
-                break;
+    static int SplitTrailingCount(ImmutableArray<SyntaxTrivia>.Builder all, int start, int end) {
+        for (var i = start; i < end; i++) {
+            if (all[i].Type == SyntaxTokenType.NewLine) {
+                return i - start + 1;
             }
         }
 
-        if (!sawNewLine) {
-            count = pending.Count;
-        }
-
-        var builder = ImmutableArray.CreateBuilder<SyntaxTrivia>(count);
-        for (var i = 0; i < count; i++) {
-            builder.Add(pending[i]);
-        }
-
-        pending.RemoveRange(0, count);
-        return builder.MoveToImmutable();
+        return end - start;
     }
 
     static bool IsEdge(SyntaxTokenType type) {

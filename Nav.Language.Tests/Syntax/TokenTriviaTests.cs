@@ -1,7 +1,6 @@
 ﻿#region Using Directives
 
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 
@@ -163,7 +162,7 @@ public class TokenTriviaTests {
                type == SyntaxTokenType.MultiLineComment;
     }
 
-    static string TriviaText(ImmutableArray<SyntaxTrivia> trivia, SyntaxTree tree) {
+    static string TriviaText(SyntaxTriviaList trivia, SyntaxTree tree) {
         var sb = new StringBuilder();
         Append(sb, trivia, tree);
         return sb.ToString();

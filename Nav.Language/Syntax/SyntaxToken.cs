@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Immutable;
 using System.Diagnostics;
 
 using JetBrains.Annotations;
@@ -16,16 +15,16 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
     const int TypeBitShift           = 8;
     const int ClassificationBitShift = 0;
 
-    readonly int                          _classificationAndType;
-    readonly ImmutableArray<SyntaxTrivia> _leadingTrivia;
-    readonly ImmutableArray<SyntaxTrivia> _trailingTrivia;
+    readonly int              _classificationAndType;
+    readonly SyntaxTriviaList _leadingTrivia;
+    readonly SyntaxTriviaList _trailingTrivia;
 
     internal SyntaxToken(SyntaxNode parent, SyntaxTokenType type, TextClassification classification, TextExtent extent)
         : this(parent, type, classification, extent, leadingTrivia: default, trailingTrivia: default) {
     }
 
     internal SyntaxToken(SyntaxNode parent, SyntaxTokenType type, TextClassification classification, TextExtent extent,
-                         ImmutableArray<SyntaxTrivia> leadingTrivia, ImmutableArray<SyntaxTrivia> trailingTrivia) {
+                         SyntaxTriviaList leadingTrivia, SyntaxTriviaList trailingTrivia) {
         Extent          = extent;
         Parent          = parent;
         _leadingTrivia  = leadingTrivia;
@@ -72,13 +71,13 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
     /// Die Leading-Trivia dieses Tokens (Whitespace/Zeilenende/Kommentare bis hierher) — das echte
     /// Roslyn-Modell. Liefert nie <c>default</c>, sondern eine leere Sequenz, wenn keine Trivia anhängt.
     /// </summary>
-    public ImmutableArray<SyntaxTrivia> LeadingTrivia => _leadingTrivia.IsDefault ? ImmutableArray<SyntaxTrivia>.Empty : _leadingTrivia;
+    public SyntaxTriviaList LeadingTrivia => _leadingTrivia;
 
     /// <summary>
     /// Die Trailing-Trivia dieses Tokens (Whitespace/Kommentare bis einschließlich des ersten Zeilenendes) —
     /// das echte Roslyn-Modell. Liefert nie <c>default</c>, sondern eine leere Sequenz, wenn keine Trivia anhängt.
     /// </summary>
-    public ImmutableArray<SyntaxTrivia> TrailingTrivia => _trailingTrivia.IsDefault ? ImmutableArray<SyntaxTrivia>.Empty : _trailingTrivia;
+    public SyntaxTriviaList TrailingTrivia => _trailingTrivia;
 
     [CanBeNull]
     public Location GetLocation() {
@@ -138,8 +137,8 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
 
     // Gleichheit bewusst nur über Identität des Tokens (Parent, Extent, Typ/Klassifikation) — die
     // angehängte Trivia bleibt ausgeklammert. So bleibt die Gleichheits-Semantik trotz der zusätzlichen
-    // Felder exakt wie vor der Trivia-Erweiterung; außerdem vermeidet das die reflektive (und für
-    // ImmutableArray fehleranfällige) Default-Struct-Gleichheit.
+    // Felder exakt wie vor der Trivia-Erweiterung; außerdem vermeidet das die reflektive (und für die
+    // Trivia-Sichten fehleranfällige) Default-Struct-Gleichheit.
     public bool Equals(SyntaxToken other) {
         return _classificationAndType == other._classificationAndType &&
                Extent.Equals(other.Extent)                            &&

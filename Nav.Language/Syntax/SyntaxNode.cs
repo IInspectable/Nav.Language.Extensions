@@ -262,13 +262,13 @@ public abstract partial class SyntaxNode: IExtent {
     /// einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten Extent,
     /// ist sie leer.
     /// </summary>
-    public ImmutableArray<SyntaxTrivia> GetLeadingTrivia() {
+    public SyntaxTriviaList GetLeadingTrivia() {
         if (Extent.IsMissing) {
-            return ImmutableArray<SyntaxTrivia>.Empty;
+            return SyntaxTriviaList.Empty;
         }
 
         var first = SyntaxTree.Tokens.FindAtPosition(Start);
-        return first.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : first.LeadingTrivia;
+        return first.IsMissing ? SyntaxTriviaList.Empty : first.LeadingTrivia;
     }
 
     /// <summary>
@@ -277,13 +277,13 @@ public abstract partial class SyntaxNode: IExtent {
     /// gehört es einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten
     /// Extent, ist sie leer.
     /// </summary>
-    public ImmutableArray<SyntaxTrivia> GetTrailingTrivia() {
+    public SyntaxTriviaList GetTrailingTrivia() {
         if (Extent.IsMissing) {
-            return ImmutableArray<SyntaxTrivia>.Empty;
+            return SyntaxTriviaList.Empty;
         }
 
         var last = SyntaxTree.Tokens.FindAtPosition(End - 1);
-        return last.IsMissing ? ImmutableArray<SyntaxTrivia>.Empty : last.TrailingTrivia;
+        return last.IsMissing ? SyntaxTriviaList.Empty : last.TrailingTrivia;
     }
 
     /// <summary>

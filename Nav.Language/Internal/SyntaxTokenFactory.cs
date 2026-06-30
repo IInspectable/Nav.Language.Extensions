@@ -1,7 +1,5 @@
 ﻿#region Using Directives
 
-using System.Collections.Immutable;
-
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -13,8 +11,8 @@ static class SyntaxTokenFactory {
     public static SyntaxToken CreateToken(TextExtent extend, SyntaxTokenType type,
                                           TextClassification classification,
                                           SyntaxNode parent,
-                                          ImmutableArray<SyntaxTrivia> leadingTrivia = default,
-                                          ImmutableArray<SyntaxTrivia> trailingTrivia = default) {
+                                          SyntaxTriviaList leadingTrivia = default,
+                                          SyntaxTriviaList trailingTrivia = default) {
 
         if (extend.IsMissing) {
             return SyntaxToken.Missing;
