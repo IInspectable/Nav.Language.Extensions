@@ -12,7 +12,7 @@ namespace Nav.Language.Tests;
 [TestFixture]
 public class PerformanceTests {
 
-    [Ignore("Too slow on CI build"), Test, MaxTime(200)]
+    [Explicit("Wall-Clock-Schranke (MaxTime) ist auf geteilter CI-Hardware flaky — lokal/bei Bedarf ausführen."), Test, MaxTime(200)]
     public void TestPerformance() {
 
         SyntaxTree.ParseText(Resources.LargeNav);
