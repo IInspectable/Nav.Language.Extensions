@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$d = $env:CLAUDE_PROJECT_DIR; if (-not $d) { $d = (Get-Location).Path }; & \"$d/.claude/hooks/Ensure-Utf8Bom.ps1\"",
+            "statusMessage": "UTF-8-BOM sicherstellen",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
