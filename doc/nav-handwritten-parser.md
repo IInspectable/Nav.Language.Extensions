@@ -718,7 +718,7 @@ wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
 
 ---
 
-## Schritt 5.4 — Detail-Handoff (Stand: 5.4.1–5.4.3 erledigt, nächste Session = 5.4.4 / 5.5)
+## Schritt 5.4 — Detail-Handoff (Stand: 5.4.1–5.4.4 erledigt, nächste Session = 5.5)
 
 > **Zweck:** Selbsttragender Einstieg für eine **frische Session ohne Gesprächskontext.** Quelle der
 > Wahrheit bleibt der Code; Pfade/Zeilen als Einstieg (zum Erhebungszeitpunkt verifiziert).
@@ -820,13 +820,16 @@ Trivia-Typen. **`BuildTokenTrivia` bleibt unverändert** (die Attachment-Berechn
 (liefern das nächste signifikante/Trenner-Token) — `NextToken(type)`/`NextToken(classification)`-Aufrufer unberührt;
 die einzigen no-arg-Aufrufer sind die OutlineTagger (siehe 5.5, nur kosmetisch).
 
-### 5.4.4 — `FindOwningToken` auf Binärsuche (nach dem Ziehen)
+### 5.4.4 — `FindOwningToken` auf Binärsuche (nach dem Ziehen) — **erledigt (uncommitted)**
 
-`SyntaxTokenList.FindOwningToken` scannt heute linear (mit monotonem Early-Out). Sobald der Strom trivia-frei ist,
-kacheln die `FullSpan`s der signifikanten/Trenner-Token den Text lückenlos (Trenner sind die einzigen „Löcher", die
-`FindAtPosition` exakt trifft). Dann reicht eine Binärsuche auf das Nachbar-Token (erstes mit `Start > position` und
-dessen Vorgänger), deren Leading/Trailing geprüft wird — O(log n) statt O(n). Einziger Heißpfad-Aufrufer ist
-`NavCodeActionService.ExpandCaret` (nicht heiß), daher reine Aufräum-Optimierung.
+`SyntaxTokenList.FindOwningToken` scannte bisher linear (mit monotonem Early-Out). Da der Strom jetzt trivia-frei ist,
+kacheln die FullSpans (Leading + Extent + Trailing) der signifikanten/Trenner-Token den Text lückenlos. Umgesetzt:
+neue private Lower-Bound-Binärsuche `FindFirstIndexAfterPosition(position)` (erstes Token mit `Start > position`, robust
+gegen gleiche Starts) — liegt die Position nicht auf einem Token-Extent, wird sie als Trailing-Trivia des Vorgängers
+(`next-1`) **oder** Leading-Trivia des Nachfolgers (`next`) aufgelöst → O(log n) statt O(n). Der frühere
+`SyntaxFacts.IsTrivia`-Filter im Exact-Zweig entfällt (es gibt keine Trivia-Token mehr im Strom); der Doku-Kommentar von
+`FindAtPosition` (Trivia-Position ⇒ `Missing`) auf Gegenwart umgestellt. Beide TFMs grün (net10 1013/0, net472 1021/0).
+Einziger Heißpfad-Aufrufer wäre `NavCodeActionService.ExpandCaret` (nicht heiß), daher reine Aufräum-Optimierung.
 
 ### 5.5 — Nebenprodukte (kosmetisch / Aufräumen)
 
