@@ -715,3 +715,132 @@ wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
 > **Nebenbei:** `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` und
 > `Nav.Language.ExtensionShared\Outlining\OutlineTagger\TaskReferenceOutlineTagger.cs` enthalten zerstörte
 > Umlaute (U+FFFD: „gel�schte", „Zusammenh�ngende Bl�cke") — beim Anfassen gleich mitreparieren.
+
+---
+
+## Schritt 5.4 — Detail-Handoff (Stand: 5.4.1–5.4.3 erledigt, nächste Session = 5.4.4 / 5.5)
+
+> **Zweck:** Selbsttragender Einstieg für eine **frische Session ohne Gesprächskontext.** Quelle der
+> Wahrheit bleibt der Code; Pfade/Zeilen als Einstieg (zum Erhebungszeitpunkt verifiziert).
+
+### Wo wir stehen (Schritt 5 insgesamt)
+
+`SyntaxToken` trägt seit Schritt 4 Leading/Trailing-Trivia (echtes Roslyn-Modell); zusätzlich liegen
+Whitespace/Zeilenende/Kommentar **noch** als eigene Token im flachen `SyntaxTokenList` (`SyntaxTree.Tokens`)
+— **dual-track**. Schritt 5 zieht die Trivia aus diesem flachen Strom, sodass sie **nur** noch angehängt ist.
+
+- **5.1** (committed) — additive Trivia-Sicht am Baum: `SyntaxTree.DescendantTrivia()`/`Comments()`/`FindTrivia(int)`/`IsPositionInComment(int)`, `SyntaxTrivia.IsComment`.
+- **5.2** (committed) — Kommentar-Konsumenten auf angehängte Trivia: `SyntacticClassificationTagger`, `SemanticTokensBuilder` (`CollectSpans`: signifikante Token + `Comments()`), Folding (`MultilineCommentOutlineTagger`/`FoldingRangeBuilder` via `DescendantTrivia()`), Completion (`IsPositionInComment`).
+- **5.3** (committed) — Positions-Lookup nach Roslyn: `SyntaxNode.FindToken` = **owning** (`SyntaxTokenList.FindOwningToken`), `SyntaxTokenList.FindAtPosition` bleibt exakt. Neuer Helfer `SyntaxFacts.IsTrivia(SyntaxTokenType)`.
+- **5.4.1** (committed) — Trivia-Attachment **vollständig**: die Trivia vor einem Trenner (Präprozessor/Unknown) wird als dessen Leading angehängt (`NavParser.BuildTokenTrivia` IsHidden-Zweig; `AttachNonSignificantTokens` zieht Trenner-Leading aus `_tokenTrivia`). Jetzt hängt **jedes** Zeichen an genau einem Strom-Token. Gate-Test: `SyntaxGoldenTests.TokenStreamRoundTripsFromAttachedTrivia` (grün über den Korpus).
+- **5.4.2** (committed) — `ClassifiedTextExtensions.GetClassifiedText` auf das angehängte Modell (Stücke aus signifikant/Trenner-Token + Leading/Trailing-Trivia, flache Trivia-Token übersprungen). Test `ClassifiedTextExtensionsTests`.
+- **5.4.3** (erledigt, uncommitted) — Trivia tatsächlich aus dem flachen Strom gezogen: `NavParser.AttachNonSignificantTokens` überspringt jetzt die Trivia-Typen (`if (SyntaxFacts.IsTrivia(raw.Type)) continue;`), `_tokens` enthält nur noch signifikante Token + Trenner + `EndOfFile`. Trivia liegt **ausschließlich** angehängt vor. Golden via `UpdateGolden` neu (`.tokens` schrumpft; `.diag`/`.trivia` byte-identisch). Beide TFMs grün (net10 1013/0, net472 1021/0). Details/Abweichungen siehe unten.
+
+### 5.4.3 — Trivia tatsächlich aus dem flachen Strom ziehen — **erledigt**
+
+> **Durchgeführt wie unten geplant**, mit drei Befunden, die der Plan nicht vorhersah:
+>
+> 1. **`.tree`-Golden ändern sich doch** (Plan sagte „byte-identisch"): genau **eine** Zeile je Datei — die
+>    Wurzel `CodeGenerationUnitSyntax` listete die Trivia-Token bisher als ihre Child-Tokens (Parent==Root),
+>    jetzt nur noch `{EndOfFile}` (+ etwaige Trenner). Das ist die korrekte, gewollte Folge des Ziehens.
+>    `.diag`/`.trivia` bleiben byte-identisch.
+> 2. **Rename-Pfad war NICHT in der „Produktion bereits geprüft"-Liste, brach aber:**
+>    `CodeFixes\SyntaxTreeExtensions.cs` `FirstNoneWhitespaceToken` (`Tokens[extent].SkipWhile(Whitespace).FirstOrDefault()`)
+>    stoppte früher am Kommentar-**Token** zwischen Quellname und Kante; da Kommentare jetzt Trivia sind, fand
+>    `SkipWhile` direkt die Kante und der Kommentar landete im Replace-Extent → ging verloren
+>    (`RenameChoiceCodeFixTests` „Rename with comment between source and edge"). **Fix:** Helfer ersetzt durch
+>    `FirstNonWhitespacePosition(extent) : int?`, der die erste Kommentar-Trivia **oder** das erste signifikante
+>    Token (Minimum der Startpositionen) liefert; beide `GetRenameSourceChanges` darauf umgestellt (Location via
+>    `SourceText.GetLocation`).
+> 3. **Weitere Strom-Coverage-Tests gefunden** (nicht in der 5.4.3-Liste): `SyntaxTreeNavigationTests`
+>    `TestTokenGaps`/`TestTokenGapsWithError` (Lückenlosigkeit) und `SyntaxStressTests` `CheckRoundTrip` — alle
+>    drei auf trivia-bewusste Rekonstruktion (Leading + Token + Trailing) umgestellt.
+>
+> **Nebenbei mitrepariert** (Kodierungs-Hygiene, vom Anfassen ausgelöst): ein echtes **NUL-Byte** in
+> `NavLexer.cs` (`'\0'`-Sentinel war als rohes 0x00 statt Escape gespeichert → Datei galt als „binär", Grep
+> blockiert) zu `'\0'` korrigiert; `CodeFixes\SyntaxTreeExtensions.cs` (fehlendes BOM + Latin-1-`ö` in
+> „gelöschte") und `SyntaxTreeNavigationTests.cs` (fehlendes BOM + U+FFFD in „unterstützt") auf UTF-8-mit-BOM
+> gebracht; `SyntaxStressTests.cs` BOM ergänzt.
+
+**Geplant war (Referenz):**
+
+**Kern-Änderung (eine Stelle):** `Nav.Language\Syntax\NavParser.cs`, `AttachNonSignificantTokens` — im
+`if (TryClassifyNonSignificant(...))`-Zweig die **Trivia-Typen nicht mehr** zu `_tokens` hinzufügen. Konkret:
+Whitespace/NewLine/SingleLineComment/MultiLineComment **überspringen** (z.B. `if (SyntaxFacts.IsTrivia(raw.Type)) continue;`
+**bevor** das Token erzeugt wird). **Behalten** im Strom: `EndOfFile` (mit `_eofLeadingTrivia`), die Trenner
+`Unknown`/`HashToken`/`PreprocessorKeyword`/`PreprocessorText`/`PreprocessorNewLine` (jeweils mit ihrer in 5.4.1
+angehängten Leading) sowie die `Skiped`-Token (Panic-Mode) und die signifikanten Token. `ReportLexicalDiagnostics`
+für `Unknown`/`HashToken` **muss weiter laufen** — also nicht den ganzen Trenner-Pfad überspringen, nur die
+Trivia-Typen. **`BuildTokenTrivia` bleibt unverändert** (die Attachment-Berechnung braucht den `_raw`-Strom, nicht `_tokens`).
+
+**Folge-Anpassungen (Tests/Helfer, die den flachen Strom als „enthält Trivia" lesen):**
+
+1. **Round-Trip trivia-bewusst.** `Nav.Language.Tests\Syntax\SyntaxGoldenTests.cs`: `RoundTrip(tree)` (concat `token.ToString()`
+   über `tree.Tokens`) wird nach dem Ziehen **verlustbehaftet**. Body durch die Logik von `RoundTripFromAttachedTrivia`
+   ersetzen (Trivia-Token überspringen, je Token Leading + eigener Text + Trailing). Danach sind `TokenStreamRoundTrips`
+   und `TokenStreamRoundTripsFromAttachedTrivia` äquivalent — einen der beiden behalten (Empfehlung: `RoundTrip` wird
+   trivia-bewusst, `TokenStreamRoundTripsFromAttachedTrivia` als redundant entfernen, oder als expliziten Invarianten-Test
+   lassen). `ParsesAndRoundTripsAllTypingPrefixes` nutzt denselben `RoundTrip` → muss für **Präfixe** verlustfrei bleiben
+   (Attachment ist auch für Teil-Eingaben total — der Prefix-Test verifiziert das).
+2. **`.tokens`-Golden neu.** `DumpTokens` (ebenda) listet `tree.Tokens` → schrumpft (keine Trivia-Zeilen mehr). Über den
+   `[Explicit]`-Test `SyntaxGoldenTests.UpdateGolden` neu erzeugen. **Erwarteter Diff:** nur entfernte Trivia-Zeilen in
+   `*.nav.tokens`; `*.nav.tree`, `*.nav.diag`, `*.nav.trivia` **byte-identisch** (mit `git status` prüfen — ändern sich
+   `.tree/.diag/.trivia`, stimmt etwas nicht). Den Doku-Kommentar oben in `SyntaxGoldenTests` anpassen (`.tokens` ist
+   dann **nicht mehr** „inkl. Trivia").
+3. **Strom-Form-Tests anpassen** (pinnen heute Trivia im Strom — werden rot):
+   - `Nav.Language.Tests\SyntaxTokenTests.cs`: `TestFindAtPositionWith{Odd,Even}NumberOfTokens` (erwarten `Whitespace`
+     an Position 0/7/10… → jetzt `Missing`), `TestFindAtExtent`/`TestFindAtExtentIncludeOverlapping` (erwarten
+     `Whitespace`-Token im Extent → weg), `TestNewLineAfterSingleLineComments`/`…2`/`TestNewLineAfterMultiLineComments`
+     (erwarten `tokens[0]=Comment`, `tokens[1]=NewLine` … → das ist **Lexer-Verhalten**, siehe Punkt 4), `Count % 2`-Asserts.
+     **Nicht betroffen** (bleiben grün): die 5.3-`FindToken_*`-Owning-Tests, `TestCommentAtEndOfFile`/`TestEndOfFile*`
+     (prüfen nur das letzte `EndOfFile`-Token). `FindAtPosition` an einer Trivia-Position liefert nach dem Ziehen `Missing`
+     — Erwartungen entsprechend umschreiben (bzw. auf signifikante Positionen testen).
+   - `Nav.Language.Tests\SyntaxTreeAllRulesTests.cs:71-73`: `tree.Tokens.OfClassification(Comment).Count()==2` →
+     auf `tree.Comments().Count()==2` umstellen (Kommentare kommen aus der angehängten Trivia).
+   - `Nav.Language.Tests\SyntaxNodeTriviaTests.cs`: Helfer `tree.Tokens.Where(IsTriviaToken)` (Z.179),
+     `tree.Tokens.Single(t => t.ToString()==zs)` (Z.271, ein `Zs`-Whitespace), `SignificantTokens`/Z.292/297 — die
+     Trivia-bezogenen über `DescendantTrivia()` beziehen statt über den Strom.
+   - `Nav.Language.Tests\Syntax\TriviaViewTests.cs:41`: `tree.Tokens`-Rekonstruktion prüfen/umstellen.
+   - `Nav.Language.Tests\Syntax\TokenTriviaTests.cs`: Z.119 (`Where(HashToken|Preprocessor…)`) und Z.141
+     (`Where(!IsTriviaType && !=EndOfFile)`) bleiben gültig (Trenner bleiben im Strom, Trivia war dort schon ausgefiltert) —
+     nur gegenprüfen.
+4. **Lexer-Tests auf `NavLexer` umlenken** (sie testen den **Lexer**, lesen aber `tree.Tokens`):
+   - `Nav.Language.Tests\Syntax\SyntaxLexerTests.cs` (`AssertSequence`/`Significant(tree)`/`RoundTrip(tree)`, Z.198-219)
+     und `Nav.Language.Tests\Syntax\SyntaxNewLineTests.cs` (analoge Helfer, Z.98/103) erwarten die rohe Lex-Folge
+     **inkl. Whitespace/NewLine/Kommentar**. Quelle umstellen auf **`NavLexer.Lex(source)`** (`public static
+     ImmutableArray<RawToken>`; `RawToken` ist intern, Testprojekt hat `InternalsVisibleTo`): Typ-Sequenz aus
+     `NavLexer.Lex(source).Where(t => t.Type != EndOfFile).Select(t => t.Type)`, Round-Trip aus dem Concat der
+     `RawToken`-Ausschnitte (`source.Substring(t.Extent)`), bleibt verlustfrei. So testen diese Dateien wieder den
+     Lexer und nicht den (jetzt trivia-freien) Parser-Strom.
+
+**Produktion — bereits geprüft, kein weiterer Eingriff nötig:** `SyntaxNode.ChildTokens()` (`Tokens[Extent].Where(Parent==this)`
+— Trivia hatte nie `Parent==node`), `CodeFixContext.FindTokens` (`Tokens[Range]` → `.Parent.OfType<T>`), die `FindToken`/
+`FindAtPosition`-Konsumenten (5.3 gehärtet/owning), `SemanticTokensBuilder`/`SyntacticClassificationTagger` (5.2),
+`GetClassifiedText` (5.4.2). **`NextToken()`/`PreviousToken()` ohne Argument** überspringen nach dem Ziehen Trivia
+(liefern das nächste signifikante/Trenner-Token) — `NextToken(type)`/`NextToken(classification)`-Aufrufer unberührt;
+die einzigen no-arg-Aufrufer sind die OutlineTagger (siehe 5.5, nur kosmetisch).
+
+### 5.4.4 — `FindOwningToken` auf Binärsuche (nach dem Ziehen)
+
+`SyntaxTokenList.FindOwningToken` scannt heute linear (mit monotonem Early-Out). Sobald der Strom trivia-frei ist,
+kacheln die `FullSpan`s der signifikanten/Trenner-Token den Text lückenlos (Trenner sind die einzigen „Löcher", die
+`FindAtPosition` exakt trifft). Dann reicht eine Binärsuche auf das Nachbar-Token (erstes mit `Start > position` und
+dessen Vorgänger), deren Leading/Trailing geprüft wird — O(log n) statt O(n). Einziger Heißpfad-Aufrufer ist
+`NavCodeActionService.ExpandCaret` (nicht heiß), daher reine Aufräum-Optimierung.
+
+### 5.5 — Nebenprodukte (kosmetisch / Aufräumen)
+
+- `Nav.Language\CodeFixes\SyntaxTreeExtensions.cs` `FirstNoneWhitespaceToken`: `SkipWhile(Whitespace)` wird gegenstandslos
+  → `FirstOrDefault()`. (U+FFFD in der Datei mitreparieren.)
+- OutlineTagger `TaskReferenceOutlineTagger.cs`/`TaskDefinitionsOutlineTagger.cs`: `nameToken.NextToken()`+`End+1`-Arithmetik
+  → aus Trailing-Trivia/Extent ableiten. **Achtung:** nach dem Ziehen liefert `NextToken()` das nächste signifikante Token
+  statt der unmittelbaren Trivia → die Region-Startgrenze verschiebt sich um 1 Zeichen (rein kosmetisch). (U+FFFD mitreparieren.)
+
+### Verifikationsprotokoll (jeder Teilschritt)
+
+`nav build` (volle Solution inkl. VSIX, MSBuild.exe) **und** net10 (`dotnet test … -f net10.0`) **und** net472
+(net472-Testassembly bauen, dann `nav test` — `nav test` baut **nicht** selbst, sonst läuft die alte DLL!) je 0 Fehler;
+Regression (`.expected.cs`) grün. Golden nur über `UpdateGolden` neu, Diffs reviewen. Neue/überschriebene `.cs` als
+**UTF-8 mit BOM** (Write erzeugt keins → nachkodieren), auf `U+FFFD` scannen. **Alias ist `nav`** (nicht `n`); im
+nicht-interaktiven Shell vorher `. "Tools\Commands\Import-NavCommands.ps1"` dot-sourcen. **Nicht selbst committen** —
+Commit-Message liefern, Nutzer checkt nach Review ein.

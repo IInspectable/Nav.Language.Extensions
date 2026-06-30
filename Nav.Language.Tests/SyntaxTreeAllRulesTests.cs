@@ -68,12 +68,14 @@ public class SyntaxTreeTests {
     public void TestCommentTokens() {
         var syntaxTree = SyntaxTree.ParseText(Resources.AllRules);
 
-        Assert.That(syntaxTree.Tokens.OfClassification(TextClassification.Comment).Count(), Is.EqualTo(2));
+        // Kommentare liegen seit Schritt 5.4 nicht mehr im flachen Token-Strom, sondern als angehängte
+        // Trivia — Zugriff über die Trivia-Sicht am Baum.
+        var comments = syntaxTree.Comments().ToList();
+        Assert.That(comments.Count, Is.EqualTo(2));
 
-        var firstComment = syntaxTree.Tokens.OfClassification(TextClassification.Comment).First();
-        Assert.That(firstComment.Parent,         Is.EqualTo(syntaxTree.Root));
-        Assert.That(firstComment.Type,           Is.EqualTo(SyntaxTokenType.SingleLineComment));
-        Assert.That(firstComment.Classification, Is.EqualTo(TextClassification.Comment));
+        var firstComment = comments.First();
+        Assert.That(firstComment.Type,      Is.EqualTo(SyntaxTokenType.SingleLineComment));
+        Assert.That(firstComment.IsComment, Is.True);
     }
         
     [Test]

@@ -1,54 +1,27 @@
 ﻿    0    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
-    4    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
     5    1  Identifier              TaskName                     TaskDefinitionSyntax
-    6    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
     7    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
-    8    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-    9    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    13    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-   17    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    18    2  Identifier              Identifier                   InitNodeDeclarationSyntax
    20    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
-   21    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   22    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    26    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
-   30    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    31    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
    33    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
-   34    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   35    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    39    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
    42    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
-   43    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   44    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    48    4  ViewKeyword             Keyword                      ViewNodeDeclarationSyntax
-   52    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    53    2  Identifier              GuiNode                      ViewNodeDeclarationSyntax
    55    1  Semicolon               Punctuation                  ViewNodeDeclarationSyntax
-   56    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   57    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   58    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    62    4  InitKeyword             Keyword                      InitSourceNodeSyntax
-   66    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    67    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-   70    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    71    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-   73    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    74    2  OnKeyword               ControlKeyword               SignalTriggerSyntax
-   76    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    77    9  Identifier              Identifier                   IdentifierSyntax
    86    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-   87    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   88    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    92    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-   94    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    95    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-   98    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    99    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  101    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   102    5  SpontKeyword            Keyword                      SpontaneousTriggerSyntax
   107    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  108    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   109    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-  110    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   111    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

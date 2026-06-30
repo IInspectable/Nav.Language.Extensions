@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
@@ -22,7 +22,7 @@ static class SyntaxTreeExtensions {
 
         var lineExtent = syntaxTree.SourceText.GetTextLineAtPosition(fullExtent.End - 1).Extent;
         // Prinzipiell enthalten die TrailingTrivia auch das NL Token. Wenn wir aber nicht die einzige Syntax in der Zeile sind,
-        // soll das NL erhalten bleiben. Deswegen schieben wir das durch den fullExtent gel�schte NL hier wieder ein.
+        // soll das NL erhalten bleiben. Deswegen schieben wir das durch den fullExtent gelöschte NL hier wieder ein.
         if (fullExtent.Start > lineExtent.Start && fullExtent.End == lineExtent.End) {
             yield return TextChange.NewInsert(lineExtent.End, textEditorSettings.NewLine);
         }
@@ -40,12 +40,14 @@ static class SyntaxTreeExtensions {
 
         var replaceExtent = replaceLocation.Extent;
         if (transition.EdgeMode != null && transition.SourceReference.Location.EndLine == transition.EdgeMode.Location.StartLine) {
-            // Find the First non-Whitespace Token after Source Edge
-            var firstNoneWhitespaceToken = syntaxTree.FirstNoneWhitespaceToken(TextExtent.FromBounds(replaceLocation.End, transition.EdgeMode.End));
-            if (!firstNoneWhitespaceToken.IsMissing) {
-                var availableSpace = replaceLocation.Length + syntaxTree.SourceText.ColumnsBetweenLocations(replaceLocation, firstNoneWhitespaceToken.GetLocation(), textEditorSettings);
+            // Erste Nicht-Whitespace-Position nach dem Quellnamen (Kommentar oder Kante) — alles ab dort
+            // bleibt erhalten, nur der Abstand zum Quellnamen wird neu gesetzt.
+            var firstNonWhitespace = syntaxTree.FirstNonWhitespacePosition(TextExtent.FromBounds(replaceLocation.End, transition.EdgeMode.End));
+            if (firstNonWhitespace != null) {
+                var contentLocation = syntaxTree.SourceText.GetLocation(TextExtent.FromBounds(firstNonWhitespace.Value, firstNonWhitespace.Value));
+                var availableSpace  = replaceLocation.Length + syntaxTree.SourceText.ColumnsBetweenLocations(replaceLocation, contentLocation, textEditorSettings);
 
-                replaceExtent = TextExtent.FromBounds(replaceLocation.Start, firstNoneWhitespaceToken.Start);
+                replaceExtent = TextExtent.FromBounds(replaceLocation.Start, firstNonWhitespace.Value);
 
                 var spaces = Math.Max(1, availableSpace - newSourceName.Length);
 
@@ -73,13 +75,15 @@ static class SyntaxTreeExtensions {
 
         var replaceExtent = replaceLocation.Extent;
         if (transition.EdgeMode != null && transition.SourceReference.Location.EndLine == transition.EdgeMode.Location.StartLine) {
-            // Find the First non-Whitespace Token after Source Edge
-            var firstNoneWhitespaceToken = syntaxTree.FirstNoneWhitespaceToken(TextExtent.FromBounds(replaceLocation.End, transition.EdgeMode.End));
-            if (!firstNoneWhitespaceToken.IsMissing) {
+            // Erste Nicht-Whitespace-Position nach dem Quellnamen (Kommentar oder Kante) — alles ab dort
+            // bleibt erhalten, nur der Abstand zum Quellnamen wird neu gesetzt.
+            var firstNonWhitespace = syntaxTree.FirstNonWhitespacePosition(TextExtent.FromBounds(replaceLocation.End, transition.EdgeMode.End));
+            if (firstNonWhitespace != null) {
 
-                var availableSpace = replaceLocation.Length + syntaxTree.SourceText.ColumnsBetweenLocations(replaceLocation, firstNoneWhitespaceToken.GetLocation(), textEditorSettings);
+                var contentLocation = syntaxTree.SourceText.GetLocation(TextExtent.FromBounds(firstNonWhitespace.Value, firstNonWhitespace.Value));
+                var availableSpace  = replaceLocation.Length + syntaxTree.SourceText.ColumnsBetweenLocations(replaceLocation, contentLocation, textEditorSettings);
 
-                replaceExtent = TextExtent.FromBounds(replaceLocation.Start, firstNoneWhitespaceToken.Start);
+                replaceExtent = TextExtent.FromBounds(replaceLocation.Start, firstNonWhitespace.Value);
 
                 var spaces = Math.Max(1, availableSpace - replaceText.Length);
 
@@ -130,10 +134,34 @@ static class SyntaxTreeExtensions {
         return new String(' ', offset);
     }
 
-    public static SyntaxToken FirstNoneWhitespaceToken(this SyntaxTree syntaxTree, TextExtent extent) {
-        return syntaxTree.Tokens[extent]
-                         .SkipWhile(token => token.Type == SyntaxTokenType.Whitespace)
-                         .FirstOrDefault();
+    /// <summary>
+    /// Die Position des ersten Nicht-Whitespace-Inhalts im Bereich — der Beginn des ersten Kommentars
+    /// (Kommentare liegen im angehängten Trivia-Modell als Trivia vor, nicht mehr als Strom-Token) oder,
+    /// falls kein Kommentar vorausgeht, des ersten signifikanten Tokens. <c>null</c>, wenn der Bereich nur
+    /// aus Whitespace/Zeilenende besteht.
+    /// </summary>
+    public static int? FirstNonWhitespacePosition(this SyntaxTree syntaxTree, TextExtent extent) {
+
+        int? result = null;
+
+        var token = syntaxTree.Tokens[extent]
+                             .FirstOrDefault(t => !SyntaxFacts.IsTrivia(t.Type) && t.Type != SyntaxTokenType.EndOfFile);
+        if (!token.IsMissing) {
+            result = token.Start;
+        }
+
+        foreach (var trivia in syntaxTree.DescendantTrivia()) {
+            if (trivia.Start >= extent.End) {
+                break; // Trivia kommen aufsteigend — ab hier liegt nichts mehr im Bereich.
+            }
+
+            if (trivia.IsComment && trivia.Start >= extent.Start) {
+                result = result == null ? trivia.Start : Math.Min(result.Value, trivia.Start);
+                break;
+            }
+        }
+
+        return result;
     }
 
     public static int ColumnsBetweenKeywordAndIdentifier(this SyntaxTree syntaxTree, INodeSymbol node, string newKeyword, TextEditorSettings textEditorSettings) {

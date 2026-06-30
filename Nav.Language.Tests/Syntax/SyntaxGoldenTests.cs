@@ -21,8 +21,9 @@ namespace Nav.Language.Tests;
 ///
 /// Vier Golden-Stränge:
 /// <list type="bullet">
-///   <item><description><c>.tokens</c> — der vollständige Token-Strom (inkl. Trivia), plus
-///   Full-Fidelity-Round-Trip.</description></item>
+///   <item><description><c>.tokens</c> — der flache Token-Strom (signifikante Token plus Trenner
+///   und das abschließende <c>EndOfFile</c>; Trivia hängt angehängt an den Token, nicht im Strom),
+///   plus Full-Fidelity-Round-Trip aus Strom <i>und</i> angehängter Trivia.</description></item>
 ///   <item><description><c>.tree</c> — die Baumstruktur (Verschachtelung, Extents, angehängte
 ///   Token), plus reine Struktur-Invarianten über den ganzen Korpus (Parent-Zuordnung,
 ///   Kind-in-Parent-Extent, überlappungsfreie Geschwister).</description></item>
@@ -68,18 +69,6 @@ public class SyntaxGoldenTests {
 
         Assert.That(RoundTrip(tree), Is.EqualTo(source),
                     $"Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
-    }
-
-    [Test, TestCaseSource(nameof(GetCorpusFiles))]
-    public void TokenStreamRoundTripsFromAttachedTrivia(CorpusFile corpus) {
-
-        var tree = ParseCorpusFile(corpus, out var source);
-
-        // Beweist die Totalität der angehängten Trivia (Voraussetzung dafür, die Trivia aus dem flachen Strom
-        // zu ziehen): Rekonstruktion allein aus signifikanten/Trenner-Token plus ihrer angehängten
-        // Leading/Trailing-Trivia — ohne die flachen Trivia-Token — reproduziert den Quelltext lückenlos.
-        Assert.That(RoundTripFromAttachedTrivia(tree), Is.EqualTo(source),
-                    $"Trivia-bewusster Round-Trip von '{corpus}' reproduziert den Quelltext nicht lückenlos.");
     }
 
     /// <summary>
@@ -238,9 +227,10 @@ public class SyntaxGoldenTests {
     }
 
     /// <summary>
-    /// Serialisiert den kompletten Token-Strom (inkl. Trivia) — eine Zeile je Token mit Start, Länge,
-    /// Typ, Klassifikation, IsMissing und dem Knotentyp des Parents. Die Liste ist bereits stabil
-    /// nach Position sortiert.
+    /// Serialisiert den flachen Token-Strom (signifikante Token, Trenner und <c>EndOfFile</c> — Trivia
+    /// liegt angehängt an den Token, nicht im Strom) — eine Zeile je Token mit Start, Länge, Typ,
+    /// Klassifikation, IsMissing und dem Knotentyp des Parents. Die Liste ist bereits stabil nach
+    /// Position sortiert.
     /// </summary>
     static string DumpTokens(SyntaxTree tree) {
 
@@ -378,27 +368,15 @@ public class SyntaxGoldenTests {
         return text.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
     }
 
+    /// <summary>
+    /// Rekonstruiert den Quelltext aus dem reinen Roslyn-Modell: je Strom-Token dessen Leading-Trivia,
+    /// der eigene Text und die Trailing-Trivia. Trivia (Whitespace/Zeilenende/Kommentar) liegt seit dem
+    /// Ziehen aus dem flachen Strom ausschließlich angehängt vor — stimmt das Ergebnis mit dem Quelltext
+    /// überein, deckt der Strom plus seine Trivia lückenlos den ganzen Text ab.
+    /// </summary>
     static string RoundTrip(SyntaxTree tree) {
         var sb = new StringBuilder();
         foreach (var token in tree.Tokens) {
-            sb.Append(token.ToString());
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Rekonstruiert den Quelltext aus dem reinen Roslyn-Modell: je signifikantem bzw. Trenner-Token dessen
-    /// Leading-Trivia, der eigene Text und die Trailing-Trivia. Die noch im flachen Strom mitlaufenden
-    /// Trivia-Token werden übersprungen — ihr Text kommt ausschließlich über die angehängte Trivia. Stimmt das
-    /// Ergebnis mit dem Quelltext überein, ist die Trivia lückenlos angehängt (Voraussetzung für Schritt 5.4).
-    /// </summary>
-    static string RoundTripFromAttachedTrivia(SyntaxTree tree) {
-        var sb = new StringBuilder();
-        foreach (var token in tree.Tokens) {
-            if (SyntaxFacts.IsTrivia(token.Type)) {
-                continue;
-            }
 
             foreach (var trivia in token.LeadingTrivia) {
                 sb.Append(trivia.ToString(tree.SourceText));

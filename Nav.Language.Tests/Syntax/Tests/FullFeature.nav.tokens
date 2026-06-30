@@ -1,312 +1,174 @@
 ﻿    0    1  OpenBracket             Punctuation                  CodeNamespaceDeclarationSyntax
     1   15  NamespaceprefixKeyword  Keyword                      CodeNamespaceDeclarationSyntax
-   16    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    17    4  Identifier              Identifier                   IdentifierSyntax
    21    1  CloseBracket            Punctuation                  CodeNamespaceDeclarationSyntax
-   22    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   24    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    26    1  OpenBracket             Punctuation                  CodeUsingDeclarationSyntax
    27    5  UsingKeyword            Keyword                      CodeUsingDeclarationSyntax
-   32    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    33    2  Identifier              Identifier                   IdentifierSyntax
    35    1  CloseBracket            Punctuation                  CodeUsingDeclarationSyntax
-   36    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    38    1  OpenBracket             Punctuation                  CodeUsingDeclarationSyntax
    39    5  UsingKeyword            Keyword                      CodeUsingDeclarationSyntax
-   44    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    45    2  Identifier              Identifier                   IdentifierSyntax
    47    1  CloseBracket            Punctuation                  CodeUsingDeclarationSyntax
-   48    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   50    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    52    7  TaskrefKeyword          Keyword                      IncludeDirectiveSyntax
-   59    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    60    4  StringLiteral           StringLiteral                IncludeDirectiveSyntax
    64    1  Semicolon               Punctuation                  IncludeDirectiveSyntax
-   65    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    67    7  TaskrefKeyword          Keyword                      IncludeDirectiveSyntax
-   74    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    75    4  StringLiteral           StringLiteral                IncludeDirectiveSyntax
    79    1  Semicolon               Punctuation                  IncludeDirectiveSyntax
-   80    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   82    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    84    7  TaskrefKeyword          Keyword                      TaskDeclarationSyntax
-   91    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    92    3  Identifier              TaskName                     TaskDeclarationSyntax
-   95    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    96    1  OpenBracket             Punctuation                  CodeNamespaceDeclarationSyntax
    97   15  NamespaceprefixKeyword  Keyword                      CodeNamespaceDeclarationSyntax
-  112    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   113    4  Identifier              Identifier                   IdentifierSyntax
   117    1  CloseBracket            Punctuation                  CodeNamespaceDeclarationSyntax
-  118    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  120   12  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   132    1  OpenBracket             Punctuation                  CodeNotImplementedDeclarationSyntax
   133   14  NotimplementedKeyword   Keyword                      CodeNotImplementedDeclarationSyntax
   147    1  CloseBracket            Punctuation                  CodeNotImplementedDeclarationSyntax
-  148    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  150   12  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   162    1  OpenBracket             Punctuation                  CodeResultDeclarationSyntax
   163    6  ResultKeyword           Keyword                      CodeResultDeclarationSyntax
-  169    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   170    3  Identifier              TypeName                     SimpleTypeSyntax
-  173    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   174    2  Identifier              ParameterName                ParameterSyntax
   176    1  CloseBracket            Punctuation                  CodeResultDeclarationSyntax
-  177    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   179    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
-  180    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  182    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   186    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-  190    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   191    2  Identifier              Identifier                   InitNodeDeclarationSyntax
-  193    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   194    1  OpenBracket             Punctuation                  CodeAbstractMethodDeclarationSyntax
   195   14  AbstractmethodKeyword   Keyword                      CodeAbstractMethodDeclarationSyntax
   209    1  CloseBracket            Punctuation                  CodeAbstractMethodDeclarationSyntax
-  210    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   211    1  OpenBracket             Punctuation                  CodeParamsDeclarationSyntax
   212    6  ParamsKeyword           Keyword                      CodeParamsDeclarationSyntax
-  218    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   219    2  Identifier              TypeName                     SimpleTypeSyntax
-  221    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   222    6  Identifier              ParameterName                ParameterSyntax
   228    1  Comma                   Punctuation                  ParameterListSyntax
-  229    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   230    2  Identifier              TypeName                     GenericTypeSyntax
   232    1  LessThan                Punctuation                  GenericTypeSyntax
   233    2  Identifier              TypeName                     SimpleTypeSyntax
   235    1  Comma                   Punctuation                  GenericTypeSyntax
-  236    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   237    2  Identifier              TypeName                     GenericTypeSyntax
   239    1  LessThan                Punctuation                  GenericTypeSyntax
   240    2  Identifier              TypeName                     SimpleTypeSyntax
   242    1  GreaterThan             Punctuation                  GenericTypeSyntax
   243    1  GreaterThan             Punctuation                  GenericTypeSyntax
-  244    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   245    6  Identifier              ParameterName                ParameterSyntax
   251    1  Comma                   Punctuation                  ParameterListSyntax
-  252    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   253    2  Identifier              TypeName                     SimpleTypeSyntax
   255    1  OpenBracket             Punctuation                  ArrayRankSpecifierSyntax
   256    1  CloseBracket            Punctuation                  ArrayRankSpecifierSyntax
   257    1  OpenBracket             Punctuation                  ArrayRankSpecifierSyntax
   258    1  CloseBracket            Punctuation                  ArrayRankSpecifierSyntax
-  259    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   260    6  Identifier              ParameterName                ParameterSyntax
   266    1  CloseBracket            Punctuation                  CodeParamsDeclarationSyntax
-  267    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   268    2  DoKeyword               ControlKeyword               DoClauseSyntax
-  270    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   271    4  StringLiteral           StringLiteral                StringLiteralSyntax
   275    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
-  276    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  278    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   282    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
-  286    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   287    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
   289    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
-  290    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  292    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   296    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
   299    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
-  300    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   302    1  CloseBrace              Punctuation                  TaskDeclarationSyntax
-  303    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  305    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  307   59  SingleLineComment       Comment                      CodeGenerationUnitSyntax
-  366    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   367    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
-  371    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   372    2  Identifier              TaskName                     TaskDefinitionSyntax
-  374    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   375    1  OpenBracket             Punctuation                  CodeDeclarationSyntax
   376    4  CodeKeyword             Keyword                      CodeDeclarationSyntax
-  380    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   381    7  StringLiteral           Text                         CodeDeclarationSyntax
   388    1  CloseBracket            Punctuation                  CodeDeclarationSyntax
-  389    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  391    8  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   399    1  OpenBracket             Punctuation                  CodeBaseDeclarationSyntax
   400    4  BaseKeyword             Keyword                      CodeBaseDeclarationSyntax
-  404    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   405    2  Identifier              TypeName                     SimpleTypeSyntax
   407    1  Colon                   Punctuation                  CodeBaseDeclarationSyntax
-  408    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   409    2  Identifier              TypeName                     SimpleTypeSyntax
   411    1  Comma                   Punctuation                  CodeBaseDeclarationSyntax
-  412    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   413    2  Identifier              TypeName                     SimpleTypeSyntax
   415    1  CloseBracket            Punctuation                  CodeBaseDeclarationSyntax
-  416    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  418    8  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   426    1  OpenBracket             Punctuation                  CodeGenerateToDeclarationSyntax
   427   10  GeneratetoKeyword       Keyword                      CodeGenerateToDeclarationSyntax
-  437    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   438    4  StringLiteral           StringLiteral                CodeGenerateToDeclarationSyntax
   442    1  CloseBracket            Punctuation                  CodeGenerateToDeclarationSyntax
-  443    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  445    8  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   453    1  OpenBracket             Punctuation                  CodeParamsDeclarationSyntax
   454    6  ParamsKeyword           Keyword                      CodeParamsDeclarationSyntax
-  460    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   461    2  Identifier              TypeName                     SimpleTypeSyntax
-  463    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   464    2  Identifier              ParameterName                ParameterSyntax
   466    1  Comma                   Punctuation                  ParameterListSyntax
-  467    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   468    2  Identifier              TypeName                     SimpleTypeSyntax
-  470    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   471    2  Identifier              ParameterName                ParameterSyntax
   473    1  CloseBracket            Punctuation                  CodeParamsDeclarationSyntax
-  474    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  476    8  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   484    1  OpenBracket             Punctuation                  CodeResultDeclarationSyntax
   485    6  ResultKeyword           Keyword                      CodeResultDeclarationSyntax
-  491    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   492    2  Identifier              TypeName                     SimpleTypeSyntax
-  494    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   495    2  Identifier              ParameterName                ParameterSyntax
   497    1  CloseBracket            Punctuation                  CodeResultDeclarationSyntax
-  498    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   500    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
-  501    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  503    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   507    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-  511    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   512    2  Identifier              Identifier                   InitNodeDeclarationSyntax
   514    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
-  515    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  517    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   521    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
-  525    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   526    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
   528    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
-  529    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  531    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   535    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
   538    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
-  539    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  541    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   545    4  TaskKeyword             Keyword                      TaskNodeDeclarationSyntax
-  549    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   550    2  Identifier              TaskName                     TaskNodeDeclarationSyntax
-  552    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   553    2  Identifier              Identifier                   TaskNodeDeclarationSyntax
-  555    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   556    1  OpenBracket             Punctuation                  CodeDoNotInjectDeclarationSyntax
   557   11  DonotinjectKeyword      Keyword                      CodeDoNotInjectDeclarationSyntax
   568    1  CloseBracket            Punctuation                  CodeDoNotInjectDeclarationSyntax
-  569    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   570    1  OpenBracket             Punctuation                  CodeAbstractMethodDeclarationSyntax
   571   14  AbstractmethodKeyword   Keyword                      CodeAbstractMethodDeclarationSyntax
   585    1  CloseBracket            Punctuation                  CodeAbstractMethodDeclarationSyntax
   586    1  Semicolon               Punctuation                  TaskNodeDeclarationSyntax
-  587    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  589    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   593    6  ChoiceKeyword           Keyword                      ChoiceNodeDeclarationSyntax
-  599    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   600    2  Identifier              Identifier                   ChoiceNodeDeclarationSyntax
   602    1  Semicolon               Punctuation                  ChoiceNodeDeclarationSyntax
-  603    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  605    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   609    6  DialogKeyword           Keyword                      DialogNodeDeclarationSyntax
-  615    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   616    2  Identifier              GuiNode                      DialogNodeDeclarationSyntax
   618    1  Semicolon               Punctuation                  DialogNodeDeclarationSyntax
-  619    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  621    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   625    4  ViewKeyword             Keyword                      ViewNodeDeclarationSyntax
-  629    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   630    2  Identifier              GuiNode                      ViewNodeDeclarationSyntax
   632    1  Semicolon               Punctuation                  ViewNodeDeclarationSyntax
-  633    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  635    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  637    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   641    4  InitKeyword             Keyword                      InitSourceNodeSyntax
-  645    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   646    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-  649    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   650    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  652    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   653    2  OnKeyword               ControlKeyword               SignalTriggerSyntax
-  655    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   656    9  Identifier              Identifier                   IdentifierSyntax
-  665    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   666    2  IfKeyword               ControlKeyword               IfConditionClauseSyntax
-  668    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   669   11  StringLiteral           StringLiteral                StringLiteralSyntax
-  680    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   681    2  DoKeyword               ControlKeyword               DoClauseSyntax
-  683    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   684    9  StringLiteral           StringLiteral                StringLiteralSyntax
   693    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  694    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  696    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  698    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   702    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
   704    1  Colon                   Punctuation                  ExitTransitionDefinitionSyntax
   705    4  Identifier              Identifier                   ExitTransitionDefinitionSyntax
-  709    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   710    3  ModalEdgeKeyword        Keyword                      ModalEdgeSyntax
-  713    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   714    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  716    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   717    2  IfKeyword               ControlKeyword               IfConditionClauseSyntax
-  719    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   720   11  StringLiteral           StringLiteral                StringLiteralSyntax
-  731    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   732    2  DoKeyword               ControlKeyword               DoClauseSyntax
-  734    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   735    9  StringLiteral           StringLiteral                StringLiteralSyntax
   744    1  Semicolon               Punctuation                  ExitTransitionDefinitionSyntax
-  745    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  747    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  749    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   753    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-  755    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   756    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-  759    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   760    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  762    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   763    2  IfKeyword               ControlKeyword               IfConditionClauseSyntax
-  765    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   766    3  StringLiteral           StringLiteral                StringLiteralSyntax
   769    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  770    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  772    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   776    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-  778    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   779    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-  782    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   783    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  785    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   786    4  ElseKeyword             ControlKeyword               ElseConditionClauseSyntax
-  790    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   791    2  IfKeyword               ControlKeyword               IfConditionClauseSyntax
-  793    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   794    3  StringLiteral           StringLiteral                StringLiteralSyntax
   797    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  798    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  800    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   804    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-  806    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   807    3  NonModalEdgeKeyword     Keyword                      NonModalEdgeSyntax
-  810    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   811    3  EndKeyword              Keyword                      EndTargetNodeSyntax
-  814    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   815    4  ElseKeyword             ControlKeyword               ElseConditionClauseSyntax
   819    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  820    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-  822    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   826    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-  828    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   829    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
-  832    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   833    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
-  835    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
   836    5  SpontKeyword            Keyword                      SpontaneousTriggerSyntax
   841    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-  842    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   844    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-  845    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
   847    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

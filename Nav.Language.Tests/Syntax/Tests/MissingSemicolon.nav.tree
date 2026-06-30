@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-57]  {Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-57]  {EndOfFile}
   TaskDefinitionSyntax [0-55]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     NodeDeclarationBlockSyntax [15-36]
       InitNodeDeclarationSyntax [15-22]  {InitKeyword, Identifier}

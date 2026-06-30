@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -63,12 +63,22 @@ public class SyntaxStressTests {
         }
     }
 
-    // Full-Fidelity-Invariante: Die (sortierte, Trivia-inklusive) Token-Liste deckt den Quelltext
-    // lückenlos ab — die Konkatenation aller Token-Texte ergibt exakt den Originaltext zurück.
+    // Full-Fidelity-Invariante: Die sortierte Token-Liste plus ihre angehängte Trivia deckt den
+    // Quelltext lückenlos ab — je Token Leading-Trivia, eigener Text und Trailing-Trivia konkateniert
+    // ergeben exakt den Originaltext zurück (Trivia liegt nicht mehr als eigenes Token im Strom).
     static void CheckRoundTrip(SyntaxTree tree, string text) {
         var sb = new StringBuilder();
         foreach (var token in tree.Tokens) {
+
+            foreach (var trivia in token.LeadingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
+
             sb.Append(token.ToString());
+
+            foreach (var trivia in token.TrailingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
         }
 
         Assert.That(sb.ToString(), Is.EqualTo(text));

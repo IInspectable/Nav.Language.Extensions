@@ -1,36 +1,19 @@
 ﻿    0    7  TaskrefKeyword          Keyword                      IncludeDirectiveSyntax
-    7    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
     8    4  StringLiteral           StringLiteral                IncludeDirectiveSyntax
    12    1  Semicolon               Punctuation                  IncludeDirectiveSyntax
-   13    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    14    7  TaskrefKeyword          Keyword                      IncludeDirectiveSyntax
-   21    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    22    4  StringLiteral           StringLiteral                IncludeDirectiveSyntax
    26    1  Semicolon               Punctuation                  IncludeDirectiveSyntax
-   27    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   28    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    29    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
-   33    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    34    1  Identifier              TaskName                     TaskDefinitionSyntax
-   35    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    36    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
-   37    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   38    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    42    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-   46    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    47    2  Identifier              Identifier                   InitNodeDeclarationSyntax
    49    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
-   50    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   51    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    55    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
-   59    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    60    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
    62    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
-   63    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   64    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    68    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
    71    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
-   72    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    73    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-   74    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    75    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

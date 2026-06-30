@@ -44,20 +44,19 @@ public class SyntaxNewLineTests {
     public void PureNewLineIsSingleNewLineToken(string eol) {
 
         var source = "x" + eol;
-        var tree   = SyntaxTree.ParseText(source);
 
-        var tokens = Significant(tree);
+        var tokens = Lex(source);
 
         Assert.That(tokens.Select(t => t.Type),
                     Is.EqualTo(new[] {SyntaxTokenType.Identifier, SyntaxTokenType.NewLine}));
-        Assert.That(tokens[1].ToString(), Is.EqualTo(eol));
-        Assert.That(tokens[1].Length,     Is.EqualTo(eol.Length));
+        Assert.That(Text(tokens[1], source), Is.EqualTo(eol));
+        Assert.That(tokens[1].Length,        Is.EqualTo(eol.Length));
 
-        Assert.That(RoundTrip(tree), Is.EqualTo(source));
+        Assert.That(RoundTrip(source), Is.EqualTo(source));
     }
 
-    // Der Split-Pfad (SplitSingleLineCommenTokens / FindNewLineIndexInSingleLineComment):
-    // Ein '//'-Kommentar verschluckt das EOL und wird nur für '\n'/'\r' wieder aufgetrennt.
+    // Der Split-Pfad: Ein '//'-Kommentar endet vor dem Zeilenende, das nur für '\n'/'\r' als eigenes
+    // NewLine gelext wird (NEL/LS/PS bleiben im Kommentar). Der Lexer macht den Split selbst.
     // Erwartung je Variante: (EOL, Kommentartext, NewLine-Text  — null = KEIN separates NewLine-Token).
     static IEnumerable<TestCaseData> CommentNewLineCases() {
         yield return new TestCaseData("\n",   "//c",     "\n").SetName("cmt LF");
@@ -73,35 +72,39 @@ public class SyntaxNewLineTests {
     public void SingleLineCommentSplitsOnlyOnCrLf(string eol, string expectedComment, string expectedNewLine) {
 
         var source = "//c" + eol;
-        var tree   = SyntaxTree.ParseText(source);
 
-        var tokens = Significant(tree);
+        var tokens = Lex(source);
 
-        Assert.That(tokens[0].Type,       Is.EqualTo(SyntaxTokenType.SingleLineComment));
-        Assert.That(tokens[0].ToString(), Is.EqualTo(expectedComment));
+        Assert.That(tokens[0].Type,          Is.EqualTo(SyntaxTokenType.SingleLineComment));
+        Assert.That(Text(tokens[0], source), Is.EqualTo(expectedComment));
 
         if (expectedNewLine == null) {
             Assert.That(tokens.Count, Is.EqualTo(1), "Es wird KEIN separates NewLine-Token erwartet.");
         } else {
-            Assert.That(tokens.Count,         Is.EqualTo(2));
-            Assert.That(tokens[1].Type,       Is.EqualTo(SyntaxTokenType.NewLine));
-            Assert.That(tokens[1].ToString(), Is.EqualTo(expectedNewLine));
+            Assert.That(tokens.Count,            Is.EqualTo(2));
+            Assert.That(tokens[1].Type,          Is.EqualTo(SyntaxTokenType.NewLine));
+            Assert.That(Text(tokens[1], source), Is.EqualTo(expectedNewLine));
         }
 
-        Assert.That(RoundTrip(tree), Is.EqualTo(source));
+        Assert.That(RoundTrip(source), Is.EqualTo(source));
     }
 
     #region Infrastructure
 
-    // Alle Token außer dem abschließenden EndOfFile (Länge 0).
-    static List<SyntaxToken> Significant(SyntaxTree tree) {
-        return tree.Tokens.Where(t => t.Type != SyntaxTokenType.EndOfFile).ToList();
+    // Reiner Lex-Output (alle RawToken außer dem abschließenden EndOfFile) — direkt aus dem Lexer, da
+    // Trivia (Whitespace/Zeilenende/Kommentar) nicht mehr im flachen Parser-Strom liegt.
+    static List<RawToken> Lex(string source) {
+        return NavLexer.Lex(source).Where(t => t.Type != SyntaxTokenType.EndOfFile).ToList();
     }
 
-    static string RoundTrip(SyntaxTree tree) {
+    static string Text(RawToken token, string source) {
+        return source.Substring(token.Start, token.Length);
+    }
+
+    static string RoundTrip(string source) {
         var sb = new StringBuilder();
-        foreach (var token in tree.Tokens) {
-            sb.Append(token.ToString());
+        foreach (var token in NavLexer.Lex(source)) {
+            sb.Append(source.Substring(token.Start, token.Length));
         }
 
         return sb.ToString();

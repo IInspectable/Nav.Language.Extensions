@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using NUnit.Framework;
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
@@ -48,13 +48,7 @@ public class SyntaxTreeNavigationTests {
 
         var syntaxTree = SyntaxTree.ParseText(s);
 
-        int pos = 0;
-        foreach (var token in syntaxTree.Tokens) {
-            Assert.That(token.Start, Is.EqualTo(pos));
-            pos = token.End;
-        }
-
-        Assert.That(pos, Is.EqualTo(s.Length));          
+        AssertContiguousCoverage(syntaxTree, s);
     }
 
     [Test]
@@ -64,13 +58,32 @@ public class SyntaxTreeNavigationTests {
 
         var syntaxTree = SyntaxTree.ParseText(s);
 
+        AssertContiguousCoverage(syntaxTree, s);
+    }
+
+    // Trivia (Whitespace/Zeilenende/Kommentar) liegt nicht mehr als eigenes Token im flachen Strom,
+    // sondern angehängt an die Token. Der lückenlose Coverage-Check muss die Trivia daher mitlaufen
+    // lassen: je Token Leading-Trivia, eigener Extent und Trailing-Trivia kacheln den Text fortlaufend.
+    static void AssertContiguousCoverage(SyntaxTree syntaxTree, string source) {
+
         int pos = 0;
         foreach (var token in syntaxTree.Tokens) {
+
+            foreach (var trivia in token.LeadingTrivia) {
+                Assert.That(trivia.Start, Is.EqualTo(pos));
+                pos = trivia.End;
+            }
+
             Assert.That(token.Start, Is.EqualTo(pos));
             pos = token.End;
+
+            foreach (var trivia in token.TrailingTrivia) {
+                Assert.That(trivia.Start, Is.EqualTo(pos));
+                pos = trivia.End;
+            }
         }
 
-        Assert.That(pos, Is.EqualTo(s.Length));
+        Assert.That(pos, Is.EqualTo(source.Length));
     }
 
     [Test]
@@ -108,7 +121,7 @@ public class SyntaxTreeNavigationTests {
     }
 
     [Test]
-    [Ignore("Enablen sobald Trivias unterst�tzt werden.")]
+    [Ignore("Enablen sobald Trivias unterstützt werden.")]
     public void TestCommentToken() {
         var syntaxTree = SyntaxTree.ParseText("task /* Kommentar*/ \r\nTest { init I;}");
 

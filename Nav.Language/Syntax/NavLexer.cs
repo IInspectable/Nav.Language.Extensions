@@ -292,7 +292,7 @@ sealed class NavLexer {
 
     char Peek(int offset) {
         var index = _pos + offset;
-        return index < _length ? _text[index] : ' ';
+        return index < _length ? _text[index] : '\0';
     }
 
     bool Match(string s) {

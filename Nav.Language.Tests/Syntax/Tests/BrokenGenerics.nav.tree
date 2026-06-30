@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-77]  {Whitespace, Whitespace, Whitespace, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, Whitespace, NewLine, NewLine, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-77]  {EndOfFile}
   TaskDefinitionSyntax [0-75]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     CodeParamsDeclarationSyntax [7-25]  {OpenBracket, ParamsKeyword, CloseBracket}
       ParameterListSyntax [15-24]

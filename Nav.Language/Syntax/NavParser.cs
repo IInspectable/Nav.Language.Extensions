@@ -1760,12 +1760,13 @@ sealed class NavParser {
     }
 
     /// <summary>
-    /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten Token an die Wurzel:
-    /// Trivia (Whitespace/Zeilenende/Kommentare), unbekannte Zeichen, Präprozessor-Token und das
-    /// abschließende <see cref="SyntaxTokenType.EndOfFile"/>. Reproduziert die Token-Zuordnung der
-    /// bisherigen Pipeline. Dabei werden auch die rein lexikalischen Diagnosen gemeldet (unerwartetes
-    /// Zeichen, nicht unterstützte Präprozessor-Direktive) — derselbe Mechanismus wie im bisherigen
-    /// <c>PostprocessTokens</c>.
+    /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten, aber im flachen
+    /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, Präprozessor-Token, vom Panic-Mode
+    /// übersprungene signifikante Token und das abschließende <see cref="SyntaxTokenType.EndOfFile"/>.
+    /// Trivia (Whitespace/Zeilenende/Kommentare) wird hier <b>nicht</b> mehr in den Strom aufgenommen —
+    /// sie liegt ausschließlich als Leading/Trailing an den Token (siehe <see cref="BuildTokenTrivia"/>).
+    /// Dabei werden auch die rein lexikalischen Diagnosen gemeldet (unerwartetes Zeichen, nicht
+    /// unterstützte Präprozessor-Direktive).
     /// </summary>
     void AttachNonSignificantTokens(SyntaxNode root) {
 
@@ -1777,10 +1778,17 @@ sealed class NavParser {
         }
 
         foreach (var raw in _raw) {
+            // Trivia (Whitespace/Zeilenende/Kommentar) hängt ausschließlich als Leading/Trailing an
+            // den signifikanten bzw. Trenner-Token (siehe BuildTokenTrivia) — sie wird nicht mehr als
+            // eigenes Token in den flachen Strom aufgenommen.
+            if (SyntaxFacts.IsTrivia(raw.Type)) {
+                continue;
+            }
+
             if (TryClassifyNonSignificant(raw.Type, out var classification)) {
                 // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
                 // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
-                // als Leading (siehe BuildTokenTrivia). Die Trivia-Token selbst bleiben ohne angehängte Trivia.
+                // als Leading (siehe BuildTokenTrivia).
                 var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : LookupTrivia(raw.Extent.Start).Leading;
                 _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root,
                                                            leading, ImmutableArray<SyntaxTrivia>.Empty));

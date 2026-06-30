@@ -1,47 +1,29 @@
 ﻿    0    7  TaskrefKeyword          Keyword                      TaskDeclarationSyntax
-    7    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
     8    2  Identifier              TaskName                     TaskDeclarationSyntax
-   10    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    11    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
    12    6  ParamsKeyword           Skiped                       CodeGenerationUnitSyntax
-   18    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    19    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   21    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    22    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    24    1  Comma                   Skiped                       CodeGenerationUnitSyntax
-   25    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    26    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    28    1  LessThan                Skiped                       CodeGenerationUnitSyntax
    29    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    31    1  Comma                   Skiped                       CodeGenerationUnitSyntax
-   32    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    33    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    35    1  LessThan                Skiped                       CodeGenerationUnitSyntax
    36    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    38    1  GreaterThan             Skiped                       CodeGenerationUnitSyntax
    39    1  GreaterThan             Skiped                       CodeGenerationUnitSyntax
-   40    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    41    2  Identifier              Skiped                       CodeGenerationUnitSyntax
    43    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
-   44    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    45    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
-   46    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   47    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    51    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-   55    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    56    2  Identifier              Identifier                   InitNodeDeclarationSyntax
    58    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
-   59    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   60    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    64    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
-   68    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    69    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
    71    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
-   72    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
-   73    4  Whitespace              Whitespace                   CodeGenerationUnitSyntax
    77    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
    80    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
-   81    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    82    1  CloseBrace              Punctuation                  TaskDeclarationSyntax
-   83    1  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    84    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

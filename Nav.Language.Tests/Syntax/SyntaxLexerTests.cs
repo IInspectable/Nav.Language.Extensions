@@ -59,12 +59,11 @@ public class SyntaxLexerTests {
     [Test, TestCaseSource(nameof(SingleIdentifierCases))]
     public void IdentifierCharactersFormSingleIdentifier(string source) {
 
-        var tree   = SyntaxTree.ParseText(source);
-        var tokens = Significant(tree);
+        var tokens = Lex(source);
 
         Assert.That(tokens.Select(t => t.Type), Is.EqualTo(new[] { SyntaxTokenType.Identifier }));
-        Assert.That(tokens[0].ToString(),       Is.EqualTo(source));
-        Assert.That(RoundTrip(tree),            Is.EqualTo(source));
+        Assert.That(Text(tokens[0], source),    Is.EqualTo(source));
+        Assert.That(RoundTrip(source),          Is.EqualTo(source));
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -84,12 +83,11 @@ public class SyntaxLexerTests {
     [Test, TestCaseSource(nameof(KeywordBoundaryCases))]
     public void KeywordWinsOnlyOnFullMatch(string source, SyntaxTokenType expected) {
 
-        var tree   = SyntaxTree.ParseText(source);
-        var tokens = Significant(tree);
+        var tokens = Lex(source);
 
         Assert.That(tokens.Select(t => t.Type), Is.EqualTo(new[] { expected }));
-        Assert.That(tokens[0].ToString(),       Is.EqualTo(source));
-        Assert.That(RoundTrip(tree),            Is.EqualTo(source));
+        Assert.That(Text(tokens[0], source),    Is.EqualTo(source));
+        Assert.That(RoundTrip(source),          Is.EqualTo(source));
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -148,14 +146,13 @@ public class SyntaxLexerTests {
     public void WhitespaceClassFormsSingleWhitespaceToken(string ws) {
 
         var source = "a" + ws + "b";
-        var tree   = SyntaxTree.ParseText(source);
-        var tokens = Significant(tree);
+        var tokens = Lex(source);
 
         Assert.That(tokens.Select(t => t.Type),
                     Is.EqualTo(new[] { SyntaxTokenType.Identifier, SyntaxTokenType.Whitespace, SyntaxTokenType.Identifier }));
-        Assert.That(tokens[1].ToString(), Is.EqualTo(ws));
-        Assert.That(tokens[1].Length,     Is.EqualTo(ws.Length));
-        Assert.That(RoundTrip(tree),      Is.EqualTo(source));
+        Assert.That(Text(tokens[1], source), Is.EqualTo(ws));
+        Assert.That(tokens[1].Length,        Is.EqualTo(ws.Length));
+        Assert.That(RoundTrip(source),       Is.EqualTo(source));
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -197,22 +194,25 @@ public class SyntaxLexerTests {
 
     static void AssertSequence(string source, SyntaxTokenType[] expected) {
 
-        var tree = SyntaxTree.ParseText(source);
-
-        Assert.That(Significant(tree).Select(t => t.Type), Is.EqualTo(expected));
-        Assert.That(RoundTrip(tree), Is.EqualTo(source),
-                    "Der Token-Strom (inkl. Trivia) muss den Quelltext lückenlos reproduzieren.");
+        Assert.That(Lex(source).Select(t => t.Type), Is.EqualTo(expected));
+        Assert.That(RoundTrip(source), Is.EqualTo(source),
+                    "Der Lex-Output (inkl. Trivia) muss den Quelltext lückenlos reproduzieren.");
     }
 
-    // Alle Token außer dem abschließenden EndOfFile (Länge 0) — der reine Lex-Output.
-    static List<SyntaxToken> Significant(SyntaxTree tree) {
-        return tree.Tokens.Where(t => t.Type != SyntaxTokenType.EndOfFile).ToList();
+    // Reiner Lex-Output (alle RawToken außer dem abschließenden EndOfFile) — direkt aus dem Lexer, da
+    // Trivia (Whitespace/Zeilenende/Kommentar) nicht mehr im flachen Parser-Strom liegt.
+    static List<RawToken> Lex(string source) {
+        return NavLexer.Lex(source).Where(t => t.Type != SyntaxTokenType.EndOfFile).ToList();
     }
 
-    static string RoundTrip(SyntaxTree tree) {
+    static string Text(RawToken token, string source) {
+        return source.Substring(token.Start, token.Length);
+    }
+
+    static string RoundTrip(string source) {
         var sb = new StringBuilder();
-        foreach (var token in tree.Tokens) {
-            sb.Append(token.ToString());
+        foreach (var token in NavLexer.Lex(source)) {
+            sb.Append(source.Substring(token.Start, token.Length));
         }
 
         return sb.ToString();

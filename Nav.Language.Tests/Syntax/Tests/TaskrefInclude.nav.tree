@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-75]  {Whitespace, NewLine, Whitespace, NewLine, NewLine, Whitespace, NewLine, NewLine, Whitespace, Whitespace, NewLine, Whitespace, Whitespace, NewLine, Whitespace, NewLine, NewLine, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-75]  {EndOfFile}
   IncludeDirectiveSyntax [0-13]  {TaskrefKeyword, StringLiteral, Semicolon}
   IncludeDirectiveSyntax [14-27]  {TaskrefKeyword, StringLiteral, Semicolon}
   TaskDefinitionSyntax [29-74]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}

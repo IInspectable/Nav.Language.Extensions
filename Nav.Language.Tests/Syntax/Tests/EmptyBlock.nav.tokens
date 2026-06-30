@@ -1,9 +1,5 @@
 ﻿    0    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
-    4    1  Whitespace              Whitespace                   CodeGenerationUnitSyntax
     5    1  Identifier              TaskName                     TaskDefinitionSyntax
-    6    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
     8    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
-    9    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    11    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-   12    2  NewLine                 Whitespace                   CodeGenerationUnitSyntax
    14    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

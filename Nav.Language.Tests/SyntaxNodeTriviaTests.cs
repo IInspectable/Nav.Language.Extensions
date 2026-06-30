@@ -15,11 +15,12 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Nav.Language.Tests;
 
 /// <summary>
-/// Pinnt das Trivia-Verhalten der heutigen (ANTLR-basierten) Syntax-Schicht — der Bereich, der sich
-/// beim Umbau auf strukturierte/angehängte Trivia ändern soll und deshalb vorher dicht festgehalten
-/// werden muss. Abgedeckt: Leading/Trailing-Trivia-Extents (auch an den Dateirändern und in der
-/// <c>onlyWhiteSpace</c>-Variante), die Parent-Zuordnung der Trivia-Token (heute alle am Root), der
-/// SingleLineComment-/EOL-Split, mehrzeilige Kommentare, ein führendes BOM sowie Unicode-Zs-Whitespace.
+/// Pinnt das Trivia-Verhalten der Syntax-Schicht im angehängten Roslyn-Modell — Trivia (Whitespace,
+/// Zeilenende, Kommentar) liegt ausschließlich als Leading/Trailing an den <see cref="SyntaxToken"/>,
+/// nicht mehr als eigene Token im flachen Strom. Abgedeckt: Leading/Trailing-Trivia-Extents (auch an
+/// den Dateirändern und in der <c>onlyWhiteSpace</c>-Variante), dass Kommentare als angehängte Trivia
+/// (statt als Strom-Token) erscheinen, der SingleLineComment-/EOL-Split, mehrzeilige Kommentare, ein
+/// führendes BOM (als Trenner-Token <see cref="SyntaxTokenType.Unknown"/>) sowie Unicode-Zs-Whitespace.
 /// Die reinen Zeilenende-Varianten (LF/CR/CRLF, NEL/LS/PS) pinnt zusätzlich
 /// <see cref="SyntaxNewLineTests"/>.
 /// </summary>
@@ -167,66 +168,61 @@ task C;
         Assert.That(taskDefinition.GetTrailingTriviaExtent().End, Is.EqualTo(source.Length));
     }
 
-    // Parent-Zuordnung: Trivia-Token (Whitespace, NewLine, Kommentare, Unknown) hängen heute allesamt
-    // am Root (CodeGenerationUnitSyntax) — siehe PostprocessTokens ("hier evtl. den echten Parent...").
-    // Genau dieses Verhalten festnageln, damit eine spätere Änderung als Diff sichtbar wird.
+    // Whitespace/Zeilenende/Kommentar liegen nicht mehr als eigene Token im flachen Strom, sondern
+    // ausschließlich als angehängte Trivia. Hier festnageln: die Kommentare sind über die Trivia-Sicht
+    // am Baum erreichbar und tauchen NICHT mehr im Token-Strom auf.
     [Test]
-    public void AllTriviaTokensHangOnTheRoot() {
+    public void CommentsAreAttachedTriviaNotStreamTokens() {
 
         var source = "// lead\r\ntask A /* mid */\r\n{\r\n    init I1;\r\n    exit e1;\r\n    I1 --> e1;\r\n}\r\n";
         var tree   = SyntaxTree.ParseText(source);
 
-        var triviaTokens = tree.Tokens.Where(IsTriviaToken).ToList();
+        var triviaTypes = tree.DescendantTrivia().Select(t => t.Type).ToList();
+        Assert.That(triviaTypes, Does.Contain(SyntaxTokenType.SingleLineComment));
+        Assert.That(triviaTypes, Does.Contain(SyntaxTokenType.MultiLineComment));
 
-        Assert.That(triviaTokens.Select(t => t.Type), Does.Contain(SyntaxTokenType.SingleLineComment));
-        Assert.That(triviaTokens.Select(t => t.Type), Does.Contain(SyntaxTokenType.MultiLineComment));
-
-        foreach (var token in triviaTokens) {
-            Assert.That(token.Parent, Is.SameAs(tree.Root),
-                        $"Trivia-Token {token.Type} @ {token.Extent} sollte am Root hängen.");
-        }
+        Assert.That(tree.Tokens.Any(t => SyntaxFacts.IsTrivia(t.Type)), Is.False,
+                    "Whitespace/Zeilenende/Kommentar dürfen nicht mehr im flachen Token-Strom stehen.");
     }
 
-    // SingleLineComment-/EOL-Split: '//c' + CRLF wird in einen Kommentar-Token OHNE '\n' (das '\r'
-    // bleibt drin) plus ein separates NewLine-Token zerlegt. Hier zusätzlich Classification + Parent
-    // festnageln (die reine Split-Mechanik je NL-Variante pinnt SyntaxNewLineTests).
+    // SingleLineComment-/EOL-Split: '//c' + CRLF wird in eine Kommentar-Trivia OHNE '\n' (das '\r'
+    // bleibt drin) plus eine separate NewLine-Trivia zerlegt — hier an der angehängten Leading-Trivia
+    // des ersten signifikanten Tokens festgenagelt (die reine Split-Mechanik je NL-Variante pinnt
+    // SyntaxNewLineTests).
     [Test]
-    public void SingleLineCommentSplitClassificationAndParent() {
+    public void SingleLineCommentSplitInLeadingTrivia() {
 
         var source = "//comment\r\ntask A\r\n{\r\n    init I1;\r\n    exit e1;\r\n    I1 --> e1;\r\n}\r\n";
         var tree   = SyntaxTree.ParseText(source);
-        var tokens = NonEof(tree);
 
-        var comment = tokens[0];
-        Assert.That(comment.Type,           Is.EqualTo(SyntaxTokenType.SingleLineComment));
-        Assert.That(comment.Classification, Is.EqualTo(TextClassification.Comment));
-        Assert.That(comment.ToString(),     Is.EqualTo("//comment\r")); // '\r' bleibt im Kommentar
-        Assert.That(comment.Parent,         Is.SameAs(tree.Root));
+        var firstToken = NonEof(tree)[0];
+        Assert.That(firstToken.Type, Is.EqualTo(SyntaxTokenType.TaskKeyword));
 
-        var newLine = tokens[1];
-        Assert.That(newLine.Type,           Is.EqualTo(SyntaxTokenType.NewLine));
-        Assert.That(newLine.Classification, Is.EqualTo(TextClassification.Whitespace));
-        Assert.That(newLine.ToString(),     Is.EqualTo("\n"));
-        Assert.That(newLine.Parent,         Is.SameAs(tree.Root));
+        var leading = firstToken.LeadingTrivia;
+        Assert.That(leading.Length, Is.EqualTo(2));
+
+        Assert.That(leading[0].Type,                      Is.EqualTo(SyntaxTokenType.SingleLineComment));
+        Assert.That(leading[0].ToString(tree.SourceText), Is.EqualTo("//comment\r")); // '\r' bleibt im Kommentar
+
+        Assert.That(leading[1].Type,                      Is.EqualTo(SyntaxTokenType.NewLine));
+        Assert.That(leading[1].ToString(tree.SourceText), Is.EqualTo("\n"));
     }
 
-    // MultiLineComment über mehrere Zeilen ist EIN Kommentar-Token; die eingebetteten Zeilenumbrüche
-    // werden NICHT zu eigenen NewLine-Token (kein Split wie beim SingleLineComment).
+    // MultiLineComment über mehrere Zeilen ist EINE Kommentar-Trivia; die eingebetteten Zeilenumbrüche
+    // werden NICHT zu eigenen NewLine-Trivia (kein Split wie beim SingleLineComment).
     [Test]
-    public void MultiLineCommentSpanningLinesIsOneToken() {
+    public void MultiLineCommentSpanningLinesIsOneTriviaPiece() {
 
         var source = "/* a\r\n b\r\n c */task A\r\n{\r\n    init I1;\r\n    exit e1;\r\n    I1 --> e1;\r\n}\r\n";
         var tree   = SyntaxTree.ParseText(source);
-        var tokens = NonEof(tree);
 
-        var comment = tokens[0];
-        Assert.That(comment.Type,           Is.EqualTo(SyntaxTokenType.MultiLineComment));
-        Assert.That(comment.Classification, Is.EqualTo(TextClassification.Comment));
-        Assert.That(comment.ToString(),     Is.EqualTo("/* a\r\n b\r\n c */"));
-        Assert.That(comment.Parent,         Is.SameAs(tree.Root));
+        var firstToken = NonEof(tree)[0];
+        Assert.That(firstToken.Type, Is.EqualTo(SyntaxTokenType.TaskKeyword));
 
-        // Direkt nach dem Kommentar folgt das 'task'-Keyword — kein zwischengeschobenes NewLine-Token.
-        Assert.That(tokens[1].Type, Is.EqualTo(SyntaxTokenType.TaskKeyword));
+        var leading = firstToken.LeadingTrivia;
+        Assert.That(leading.Length, Is.EqualTo(1));
+        Assert.That(leading[0].Type,                      Is.EqualTo(SyntaxTokenType.MultiLineComment));
+        Assert.That(leading[0].ToString(tree.SourceText), Is.EqualTo("/* a\r\n b\r\n c */"));
 
         Assert.That(RoundTrip(tree), Is.EqualTo(source));
     }
@@ -255,7 +251,7 @@ task C;
     }
 
     // Unicode-Whitespace der Klasse Zs (z.B. NBSP, EM SPACE, IDEOGRAPHIC SPACE) ist ein gültiges
-    // Trennzeichen: ein Whitespace-Trivia-Token am Root, keine Diagnose.
+    // Trennzeichen: eine Whitespace-Trivia, keine Diagnose.
     static IEnumerable<TestCaseData> ZsWhitespaceCases() {
         yield return new TestCaseData("\u00A0").SetName("Zs NBSP (U+00A0)");
         yield return new TestCaseData("\u2003").SetName("Zs EM SPACE (U+2003)");
@@ -268,10 +264,8 @@ task C;
         var source = "task A\r\n{\r\n    init" + zs + "I1;\r\n    exit e1;\r\n    I1 --> e1;\r\n}\r\n";
         var tree   = SyntaxTree.ParseText(source);
 
-        var zsToken = tree.Tokens.Single(t => t.ToString() == zs);
-        Assert.That(zsToken.Type,           Is.EqualTo(SyntaxTokenType.Whitespace));
-        Assert.That(zsToken.Classification, Is.EqualTo(TextClassification.Whitespace));
-        Assert.That(zsToken.Parent,         Is.SameAs(tree.Root));
+        var zsTrivia = tree.DescendantTrivia().Single(t => t.ToString(tree.SourceText) == zs);
+        Assert.That(zsTrivia.Type, Is.EqualTo(SyntaxTokenType.Whitespace));
 
         Assert.That(tree.Diagnostics, Is.Empty, "Zs-Whitespace ist gültiges Trennzeichen und darf keine Diagnose erzeugen.");
         Assert.That(RoundTrip(tree),  Is.EqualTo(source));
@@ -279,23 +273,26 @@ task C;
 
     #region Infrastructure
 
-    static bool IsTriviaToken(SyntaxToken token) {
-        return token.Type == SyntaxTokenType.Whitespace        ||
-               token.Type == SyntaxTokenType.NewLine           ||
-               token.Type == SyntaxTokenType.SingleLineComment ||
-               token.Type == SyntaxTokenType.MultiLineComment  ||
-               token.Type == SyntaxTokenType.Unknown;
-    }
-
     // Alle Token außer dem abschließenden EndOfFile (Länge 0).
     static List<SyntaxToken> NonEof(SyntaxTree tree) {
         return tree.Tokens.Where(t => t.Type != SyntaxTokenType.EndOfFile).ToList();
     }
 
+    // Trivia liegt nicht mehr als eigenes Token im Strom — der lückenlose Round-Trip rekonstruiert je
+    // Strom-Token dessen Leading-Trivia, den eigenen Text und die Trailing-Trivia.
     static string RoundTrip(SyntaxTree tree) {
         var sb = new StringBuilder();
         foreach (var token in tree.Tokens) {
+
+            foreach (var trivia in token.LeadingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
+
             sb.Append(token.ToString());
+
+            foreach (var trivia in token.TrailingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
         }
 
         return sb.ToString();
