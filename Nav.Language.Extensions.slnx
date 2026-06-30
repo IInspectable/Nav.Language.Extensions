@@ -54,6 +54,7 @@
   <Folder Name="/doc/">
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
+    <File Path="doc/nav-grammar-status.md" />
     <File Path="doc/nav-handwritten-parser.md" />
     <File Path="doc/nav-lsp-status.md" />
     <File Path="doc/nav-mcp-status.md" />
