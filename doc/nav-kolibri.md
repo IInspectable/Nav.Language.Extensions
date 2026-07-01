@@ -250,17 +250,21 @@ Parserfehler mehr.
 Der erste strukturierte Direktiven-Fall ist implementiert — als Träger einer **Sprach-/Schema-Version**
 je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Elemente):
 
-- **Syntax** `#pragma version <int>` am Dateikopf → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
+- **Syntax** `#pragma version <int>` → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
   Umgesetzt als **Weg A** (siehe „architektonischer Gabelpunkt"), aber konsequent zu Ende gedacht: der
   Direktiv-Knoten hängt als **erster Kindknoten** an der `CodeGenerationUnitSyntax` und **besitzt seine
-  Präprozessor-Token** (re-parentet in `AttachNonSignificantTokens`); der Wurzel-Extent wird bei Bedarf
+  Präprozessor-Token** (im Direktiven-Vorlauf materialisiert); der Wurzel-Extent wird bei Bedarf
   nach vorn gezogen, damit der Knoten im Eltern-Extent liegt. `SyntaxTree.Directives()` listet die
   erkannten Direktiven. `SyntaxTrivia` bleibt schlank (kein `GetStructure()` an der Trivia selbst — das
   bleibt Weg B/„generische Direktiven" vorbehalten, wenn Direktiven **überall** stehen dürfen sollen).
-- **Erkennung** in `NavParser.ScanLanguageVersionDirective()` direkt über den Roh-Strom (der Cursor sieht
-  Präprozessor-Token als „hidden"). Nur `#pragma version` wird erkannt; jedes andere Pragma bleibt
-  unangetastet (weiterhin `Nav3000`). Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall
-  auf `NavLanguageVersion.Default` (= 1).
+- **Erkennung** im Direktiven-Vorlauf `NavParser.ParseDirectives()` über den Roh-Strom (der Cursor sieht
+  Präprozessor-Token als „hidden"): pro `#`-Lauf entscheidet `VersionSubjectIndex` (getipptes `version`-
+  Subjekt), dann setzt `AcceptVersionDirective` die **erste** und nur **ganz oben** stehende Direktive
+  wirksam (Knoten + materialisierte Token). Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`,
+  Rückfall auf `NavLanguageVersion.Default` (= 1). Eine weiter unten stehende Versions-Direktive meldet
+  `Nav3003`, eine doppelte `Nav3004` (erste gewinnt); beide bleiben ohne Wirkung, ihre Token lose (aber
+  normal eingefärbt). Jede **nicht** als Version erkannte Direktive (`#pragma warning …` o.Ä.) meldet
+  `Nav3000`/`Nav3001` (`ReportDirectiveDiagnostics`).
 - **Fallstrick (wichtig):** Der Lexer beendet eine Direktive im Textmodus **nur bei `\r\n`** (einzelnes
   `\n` bleibt `PreprocessorText` — Alt-Grammatik-Verhalten, gilt für **alle** `#`-Direktiven). Ein
   `#pragma version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
@@ -643,8 +647,10 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
 
 ### Kalibrierte Invarianten (an den Golden festgenagelt — beim Recovery-Umbau nicht brechen)
 
-- **Trivia/Unknown/Präprozessor/EOF hängen ausnahmslos an der Wurzel** (`AttachNonSignificantTokens`),
-  nicht am umschließenden Knoten — exakt wie das heutige `PostprocessTokens`. Der Parser selbst sieht
+- **Trivia/Unknown/lose Präprozessor-Token/EOF hängen an der Wurzel** (`AttachNonSignificantTokens`),
+  nicht am umschließenden Knoten — exakt wie das heutige `PostprocessTokens`. **Ausnahme:** die Token einer
+  erkannten `#pragma version`-Direktive gehören ihrem `VersionDirectiveSyntax`-Knoten (im Direktiven-Vorlauf
+  materialisiert) und werden im Sweep via `consumedStarts` übersprungen. Der Parser selbst sieht
   nur signifikante Token (Cursor überspringt die in `IsHidden` gelisteten Typen).
 - **EOF** ist ein nullbreites Token am Textende, Parent = Wurzel, Klassifikation `Whitespace`.
 - **Wurzel-Extent** = `[Start des ersten signifikanten Tokens … EOF-Position]`; ohne signifikante
@@ -668,7 +674,12 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
    Die Location wird über `NavParser.LexicalLocation` gebaut — Start-/End-Zeilenposition **identisch**
    an der Token-Startposition (im Test-Formatter nullbreit), exakt wie ANTLRs `IToken.GetLocation`
    (nicht der Zeilen*bereich* aus `SourceText.GetLocation`). Reihenfolge je `#`: erst `Nav3001`,
-   dann `Nav3000`. Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
+   dann `Nav3000`.
+   **Update (Direktiven-Vorlauf):** `Nav3000`/`Nav3001` entstehen inzwischen strukturiert in
+   `ParseDirectives`/`ReportDirectiveDiagnostics` (genau eine `Nav3000` je `#`-Lauf, nicht mehr je
+   `HashToken`+`PreprocessorKeyword`); `ReportLexicalDiagnostics` meldet nur noch `Nav0000`. Locations und
+   Reihenfolge (`Nav3001` vor `Nav3000`) bleiben identisch.
+   Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
    und stellt nur noch Dateien mit ANTLR-**Parser**-Recovery (`Nav0002`) zurück — die beiden reinen
    Präprozessor-Dateien (`PreprocessorDirective.nav`, `PreprocessorNotAtLineStart.nav`) laufen voll mit.
 2. **`Eat` umgebaut — erledigt (B3):** bei Mismatch meldet `Eat` jetzt `missing '<token>'` (Insertion)

@@ -20,18 +20,18 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 | Feature-Gate (`enum NavLanguageFeature` leer + `NavLanguageFeatures`, `Nav5000`) | `Nav.Language/NavLanguageFeature.cs` |
 | Direktiv-Knoten (abstrakt) | `Nav.Language/Syntax/DirectiveTriviaSyntax.cs` |
 | `#pragma version` als erster konkreter Fall | `Nav.Language/Syntax/VersionDirectiveSyntax.cs` |
-| Erkennung im Parser (`ScanLanguageVersionDirective`), Re-Parenting, Root-Extent, Nav3002 | `Nav.Language/Syntax/NavParser.cs` |
+| Direktiven-Vorlauf im Parser (`ParseDirectives` + `VersionSubjectIndex`/`AcceptVersionDirective`), Token-Materialisierung, Root-Extent, Nav3002/Nav3003/Nav3004 | `Nav.Language/Syntax/NavParser.cs` |
 | Unit-Property `LanguageVersionDirective` + `LanguageVersion` | `Nav.Language/Syntax/CodeGenerationUnitSyntax.cs` |
 | `SyntaxTree.Directives()` | `Nav.Language/Syntax/SyntaxTree.cs` |
 | Semantik-Durchreiche `LanguageVersion` | `Nav.Language/SemanticModel/CodeGenerationUnit.cs` |
 | Codegen-Durchreiche in die Templates | `Nav.Language/CodeGen/CodeGeneratorContext.cs` (+ Aufruf in `CodeGenerator.cs`) |
-| Diagnosen `Nav3002` (malformed) / `Nav5000` (Gate) | `Diagnostic/DiagnosticId.cs`, `…Descriptors.Syntax.cs`, `…Descriptors.Semantic.cs` |
+| Diagnosen `Nav3002` (malformed) / `Nav3003` (nicht ganz oben) / `Nav3004` (doppelt) / `Nav5000` (Gate) | `Diagnostic/DiagnosticId.cs`, `…Descriptors.Syntax.cs`, `…Descriptors.Semantic.cs` |
 | **Rumpf-Tokenisierung im Lexer** (Directive-Mode: Wort→`PreprocessorKeyword`, Ziffern→`PreprocessorNumber`, Rest→`PreprocessorText`) | `Syntax/NavLexer.cs` (`ScanPreprocessor`), neuer Typ `Syntax/SyntaxTokenType.cs` |
 | **Klassifikation rein typ-getrieben** (`PreprocessorNumber`→`NumberLiteral`) | `Syntax/NavParser.cs` (`TryClassifyNonSignificant`, `IsHidden`), `Text/SyntaxTokenClassification.cs` |
 | Editor-Anbindung (beide Hosts, geteilt) | LSP: `SemanticTokensBuilder.cs` (Legende `number`); VS: `Classification/ClassificationType{Names,Definitions}.cs` (`NavNumber`); VS-Code-Client-Fallback: `vscode-nav-lsp/syntaxes/nav.tmLanguage.json` |
 | Tests | `Nav.Language.Tests/Syntax/LanguageVersionTests.cs`, Fixtures `Syntax/Tests/VersionPragma(.Invalid).nav` |
 
-**Verifiziert:** net10 1135/0, net472 1135/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; kein Bestands-Golden
+**Verifiziert:** net10 1141/0, net472 1141/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; kein Bestands-Golden
 verändert; Default ohne Pragma = Version 1 ⇒ Bestand bit-identisch. (VSIX/`n build` noch nicht gebaut.)
 
 ## Design-Entscheidungen (mit dem Nutzer geklärt — nicht ohne Grund umwerfen)
@@ -40,10 +40,18 @@ verändert; Default ohne Pragma = Version 1 ⇒ Bestand bit-identisch. (VSIX/`n 
 - **Schema:** monotone **Ganzzahl** (`1`, `2`, `3` …), entkoppelt von der git-abgeleiteten Assembly-Version.
 - **Gate:** permissiv parsen + **semantische** Diagnose (Roslyn-Stil); ohne Pragma = Version 1.
 - **Repräsentation (Weg A, zu Ende gedacht):** Die Direktive ist ein **echter Kindknoten** der
-  `CodeGenerationUnitSyntax` (erster Child), **besitzt ihre Präprozessor-Token** (re-parentet in
-  `AttachNonSignificantTokens`); der Wurzel-Extent umschließt sie. `SyntaxTrivia` bleibt schlank — **kein**
+  `CodeGenerationUnitSyntax` (erster Child), **besitzt ihre Präprozessor-Token** (im Direktiven-Vorlauf
+  `ParseDirectives` materialisiert); der Wurzel-Extent umschließt sie. `SyntaxTrivia` bleibt schlank — **kein**
   `GetStructure()` an der Trivia selbst (das ist Weg B / „generische Direktiven", erst nötig, wenn
   Direktiven **überall** stehen dürfen sollen).
+- **Direktiven-Vorlauf statt Hand-Scan (`ParseDirectives`):** Der eigentliche Parser-Cursor sieht
+  Präprozessor-Token nicht (sie sind `IsHidden`). Direktiven werden daher **vor** dem Parse in einem eigenen
+  kleinen Durchlauf über den Roh-Strom erkannt: `#pragma version` (getipptes `version`-Subjekt, Argument via
+  `NavLanguageVersion.TryParse`) wird zum Knoten samt materialisierten Token; jede andere Direktive meldet
+  `Nav3000`/`Nav3001`. `AttachNonSignificantTokens` hängt danach nur noch die **losen** (nicht angenommenen)
+  Token an die Wurzel — der frühere Extent-Abgleich (`inVersionDirective`) ist durch ein `consumedStarts`-Skip
+  ersetzt. Dies ist der Andockpunkt für weitere Direktiven (z.B. `#pragma warning disable` → kleine
+  `ParseWarningDirective`-Regel).
 
 ## Zulässige Versionsnummern — Stand & offene Entscheidung
 
@@ -68,9 +76,11 @@ verändert; Default ohne Pragma = Version 1 ⇒ Bestand bit-identisch. (VSIX/`n 
    die Trennung „Syntax vs. Bedeutung" sauber bleibt.
 4. **`Latest` pflegen:** Beim Anheben der Sprache `NavLanguageVersion.Latest` erhöhen (derzeit `1`). Das ist
    die eine Stelle, gegen die Support-/Completion-Logik prüft.
-5. **Doppel-/Platzierung:** Erkannt wird derzeit **eine** Direktive vor dem ersten signifikanten Token.
-   Ein zweites `#pragma version` (oder eines mitten in der Datei) bleibt heute `Nav3000`.
-   → Optional später: gezielte „duplicate/misplaced"-Diagnose statt generischem `Nav3000`.
+5. **Doppel-/Platzierung — erledigt:** `#pragma version` wird an **jeder** Stelle strukturell erkannt;
+   wirksam ist nur die **erste** und nur, wenn ihr ausschließlich Trivia vorausgeht (ganz oben). Eine weiter
+   unten stehende meldet **`Nav3003`**, eine doppelte **`Nav3004`** (das erste gewinnt) — beide bleiben ohne
+   Wirkung, ihre Token lose (aber normal eingefärbt). „Ganz oben" = nur Trivia davor; selbst eine andere
+   Direktive davor verletzt die Regel.
 
 ## Code-Completion — Plan (noch nicht umgesetzt)
 
@@ -103,14 +113,22 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   `PreprocessorKeyword`, die Versionszahl ist ein numerisches Literal (`TextClassification.NumberLiteral`).
   Umsetzung wie Roslyns Directive-Mode: das `#` schaltet `ScanPreprocessor` in den Präprozessor-Modus, der den
   Rumpf **in ganzen Läufen** ausgibt — Wort→`PreprocessorKeyword`, reine Ziffern→neuer `PreprocessorNumber`,
-  Rest (Zwischenraum/Satzzeichen)→`PreprocessorText`. Die Klassifikation folgt dann **allein aus dem Token-Typ**
-  (`TryClassifyNonSignificant`: `PreprocessorNumber`→`NumberLiteral`) — **keine** direktiven-spezifische Logik im
-  Parser (kein Extent-Abgleich, kein Sonder-Pass). Der ungültige Versionswert (`Nav3002`) ist ein Wort, also
+  Rest (Zwischenraum/Satzzeichen)→`PreprocessorText`. Die **Klassifikation** folgt dann **allein aus dem
+  Token-Typ** (`TryClassifyNonSignificant`: `PreprocessorNumber`→`NumberLiteral`) — **keine** direktiven-
+  spezifische Färbe-Logik (kein Extent-Abgleich). Erkennung + Diagnosen der Direktiven liegen dagegen im
+  Direktiven-Vorlauf (`ParseDirectives`), der Färbung und Baumstruktur unberührt lässt. Der ungültige
+  Versionswert (`Nav3002`) ist ein Wort, also
   Keyword-, nicht Zahl-gefärbt. Beide Hosts ziehen automatisch nach (LSP-Token-Typ `number`; VS `NavNumber` auf
   Basis C#-`NumericLiteral`); der VS-Code-Client hat zusätzlich statisches TextMate-Fallback für `#pragma version <N>`.
   Nebeneffekt (gewollt): der Rumpf **jeder** `#`-Direktive ist jetzt sauber tokenisiert (z.B. `#if DEBUG` → `DEBUG`
   ein Wort-Token statt Einzelzeichen).
-- **QuickInfo/Hover** auf der Direktive; **Code-Fix** zu `Nav3002`/`Nav5001` (gültige/`Latest`-Version einsetzen).
+- **`#pragma warning disable <NavXXXX>` (heißer Kandidat):** dank Direktiven-Vorlauf jetzt eine kleine
+  Ergänzung — ein `WarningDirectiveSyntax` (analog `VersionDirectiveSyntax`), im `ParseDirectives`-Dispatch
+  auf das Subjekt `warning` erkannt, plus eine **Diagnose-Filterschicht**, die gemeldete Diagnostics gegen
+  die aktiven Suppressions siebt. Datei-weite Suppression (am Kopf) passt ins bestehende Modell; echte
+  Regionen-Semantik (`disable … restore` mitten im Code) wäre erst der große Umbau (Weg B, s.u.).
+- **QuickInfo/Hover** auf der Direktive; **Code-Fix** zu `Nav3002`/`Nav3003`/`Nav5001` (gültige/`Latest`-Version
+  einsetzen bzw. Direktive an den Dateikopf verschieben).
 - **Lexer-LF-Fallstrick:** Direktiven terminieren im Textmodus **nur bei `\r\n`** (Alt-Grammatik; einzelnes
   `\n` bleibt `PreprocessorText` und verschluckt den Rest bis `\r\n`/EOF). Gilt für **alle** `#`-Direktiven.
   `.nav` sind CRLF, daher praktisch maskiert. Option: Lexer so ändern, dass auch einzelnes `\n` terminiert
