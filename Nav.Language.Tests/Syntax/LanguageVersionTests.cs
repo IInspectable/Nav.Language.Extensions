@@ -196,6 +196,27 @@ public class LanguageVersionTests {
         Assert.That(nav0000.Location.Start, Is.EqualTo(hashPosition));
     }
 
+    [Test]
+    public void DuplicatePragma_BothAtTop_ReportsNav3004_SpanningWholeDirective() {
+
+        // Zwei Versions-Direktiven, beide am Kopf (jede am Zeilenanfang, nur Trivia dazwischen): die zweite
+        // ist ein echtes Duplikat (Nav3004). Die Squiggle soll die ganze zweite Direktive markieren
+        // (# … Versionswert), nicht nur das '#'.
+        var source = "#pragma version 1\r\n#pragma version 1\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var unit   = Parse(source);
+
+        var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3004");
+        var start      = source.LastIndexOf("#pragma", System.StringComparison.Ordinal);
+
+        Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
+        Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 1".Length));
+
+        // Auch die Zeilen-Range muss die volle Breite tragen (nicht nullbreit).
+        Assert.That(diagnostic.Location.StartLine, Is.EqualTo(diagnostic.Location.EndLine));
+        Assert.That(diagnostic.Location.EndCharacter - diagnostic.Location.StartCharacter,
+                    Is.EqualTo("#pragma version 1".Length));
+    }
+
     // Die Token einer Direktive liegen nicht mehr im flachen Strom, sondern lokal am Direktiv-Knoten
     // (strukturierte Trivia) — erreichbar über die Trivia.
     static System.Collections.Generic.IEnumerable<SyntaxToken> DirectiveTokens(SyntaxTree tree) {
