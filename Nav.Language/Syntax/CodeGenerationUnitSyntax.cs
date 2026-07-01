@@ -18,12 +18,14 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
 
     internal CodeGenerationUnitSyntax(
         TextExtent extent,
+        VersionDirectiveSyntax languageVersionDirective,
         CodeNamespaceDeclarationSyntax codeNamespaceDeclaration,
         IReadOnlyList<CodeUsingDeclarationSyntax> codeUsingDeclarations,
         IReadOnlyList<MemberDeclarationSyntax> memberDeclarations
     )
         : base(extent) {
 
+        LanguageVersionDirective = languageVersionDirective;
         AddChildNode(CodeNamespace = codeNamespaceDeclaration);
         AddChildNodes(CodeUsings   = codeUsingDeclarations);
         AddChildNodes(Members      = memberDeclarations);
@@ -31,13 +33,12 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
 
     /// <summary>
     /// Die (optionale) wirksame Sprach-Versions-Direktive <c>#pragma version</c> am Dateikopf, oder
-    /// <c>null</c>, wenn die Datei keine trägt. Eine Direktive ist strukturierte Trivia (kein Kindknoten) —
-    /// gelesen wird daher die erste <see cref="VersionDirectiveSyntax"/> aus den <see cref="SyntaxTree.Directives"/>
-    /// (nur die wirksame Direktive ist eine solche; deplatzierte/wiederholte sind
-    /// <see cref="BadDirectiveTriviaSyntax"/>).
+    /// <c>null</c>, wenn die Datei keine wirksame trägt. Welche Direktive wirksam ist (nur ganz oben, nicht
+    /// doppelt), bestimmt der Parser beim Aufbau; deplatzierte oder wiederholte Versions-Direktiven bleiben
+    /// als Knoten in den <see cref="SyntaxTree.Directives"/> erhalten, sind aber nicht wirksam.
     /// </summary>
     [CanBeNull]
-    public VersionDirectiveSyntax LanguageVersionDirective => SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().FirstOrDefault();
+    public VersionDirectiveSyntax LanguageVersionDirective { get; }
 
     /// <summary>
     /// Die Sprach-Version dieser Datei: der von <see cref="LanguageVersionDirective"/> festgelegte Wert,

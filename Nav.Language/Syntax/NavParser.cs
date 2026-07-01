@@ -264,7 +264,11 @@ sealed class NavParser {
         var rootStart  = _firstSignificantStart ?? _eofPos;
         var rootExtent = TextExtent.FromBounds(rootStart, _eofPos);
 
-        var root = new CodeGenerationUnitSyntax(rootExtent, codeNamespace, codeUsings, members);
+        // Wirksame Versions-Direktive aus den Läufen bestimmen — jetzt, da _firstSignificantStart endgültig
+        // ist (Platzierungs-Semantik) und vor dem Einfrieren der Diagnostics (Nav3003/Nav3004).
+        var languageVersionDirective = ResolveLanguageVersion();
+
+        var root = new CodeGenerationUnitSyntax(rootExtent, languageVersionDirective, codeNamespace, codeUsings, members);
 
         // Trivia/Unknown/EndOfFile hängen — wie in der bisherigen Pipeline — an der Wurzel. Präprozessor-
         // Token stehen nicht mehr im flachen Strom (sie sind zu DirectiveTrivia gefaltet).
@@ -292,6 +296,52 @@ sealed class NavParser {
         foreach (var run in _directiveRuns) {
             run.Node.FinalConstruct(syntaxTree, root);
         }
+    }
+
+    /// <summary>
+    /// Wählt aus den strukturell erkannten Direktiv-Läufen die <b>wirksame</b> <see cref="VersionDirectiveSyntax"/>
+    /// und meldet die Platzierungs-Verstöße: eine Versions-Direktive ist nur <i>ganz oben</i> wirksam (ihr darf
+    /// ausschließlich Trivia vorausgehen — kein Code und keine andere Direktive), und nur die erste am Kopf zählt.
+    /// <list type="bullet">
+    ///   <item><description>hinter echtem Code ⇒ <c>Nav3003</c> (die Deplatzierung sticht eine etwaige
+    ///   Duplikat-Meldung);</description></item>
+    ///   <item><description>am Kopf, aber eine wirksame ging schon voraus ⇒ <c>Nav3004</c> (Duplikat, die
+    ///   erste gewinnt);</description></item>
+    ///   <item><description>am Kopf, aber eine andere Direktive ging voraus ⇒ <c>Nav3003</c> (nicht ganz
+    ///   oben, da nur Trivia vorausgehen dürfte).</description></item>
+    /// </list>
+    /// Die generische Erkennung (jede <c>#pragma version</c> ist ein <see cref="VersionDirectiveSyntax"/>) samt
+    /// <c>Nav3000</c>/<c>Nav3002</c> liefert bereits der <see cref="NavDirectiveParser"/>; hier kommt nur die
+    /// Platzierungs-Semantik hinzu. Läuft <b>nach</b> der Member-Schleife (damit <c>_firstSignificantStart</c>
+    /// endgültig ist) und vor dem Einfrieren der Diagnostics.
+    /// </summary>
+    VersionDirectiveSyntax ResolveLanguageVersion() {
+
+        VersionDirectiveSyntax effective = null;
+        var                    sawAnyDirective = false;
+
+        foreach (var run in _directiveRuns) {
+            if (run.Node is VersionDirectiveSyntax version) {
+                var codeBefore = run.ContentExtent.Start >= (_firstSignificantStart ?? _eofPos);
+
+                if (codeBefore) {
+                    _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
+                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                } else if (effective != null) {
+                    _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
+                                                    DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
+                } else if (sawAnyDirective) {
+                    _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
+                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                } else {
+                    effective = version;
+                }
+            }
+
+            sawAnyDirective = true; // Gilt für JEDE Direktive (Version wie Bad) — sie verschiebt den „Kopf".
+        }
+
+        return effective;
     }
 
     /// <summary>Grammatikregel <c>memberDeclaration</c> → <see cref="MemberDeclarationSyntax"/>.</summary>
