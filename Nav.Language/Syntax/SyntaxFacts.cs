@@ -197,7 +197,8 @@ public static class SyntaxFacts {
         return type is SyntaxTokenType.Whitespace
                     or SyntaxTokenType.NewLine
                     or SyntaxTokenType.SingleLineComment
-                    or SyntaxTokenType.MultiLineComment;
+                    or SyntaxTokenType.MultiLineComment
+                    or SyntaxTokenType.DirectiveTrivia;
     }
 
 }

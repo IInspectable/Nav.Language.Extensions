@@ -101,10 +101,11 @@ public abstract partial class SyntaxNode: IExtent {
     /// <summary>
     /// Die diesem Knoten <b>direkt</b> zugeordneten Token (die der Parser hier konsumiert und angehängt hat) —
     /// in Quelltext-Reihenfolge. Token tiefer liegender Kindknoten gehören nicht dazu; Trivia hängt am
-    /// Wurzelknoten und erscheint hier nur für die Wurzel.
+    /// Wurzelknoten und erscheint hier nur für die Wurzel. Knoten, deren Token nicht im flachen
+    /// <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia), überschreiben diese Methode.
     /// </summary>
     [NotNull]
-    public IEnumerable<SyntaxToken> ChildTokens() {
+    public virtual IEnumerable<SyntaxToken> ChildTokens() {
         return SyntaxTree.Tokens[Extent].Where(token => token.Parent == this);
     }
 

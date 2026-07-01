@@ -5,25 +5,42 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Ein Stück nicht-signifikanter Quelltext (Whitespace, Zeilenende, Kommentar), das als Leading- bzw.
-/// Trailing-Trivia an einem <see cref="SyntaxToken"/> hängt — das echte Roslyn-Modell. Anders als ein
-/// <see cref="SyntaxToken"/> trägt eine Trivia weder eine kontextabhängige <see cref="TextClassification"/>
-/// noch einen Parent; sie ist allein durch ihren lexikalischen <see cref="Type"/> und ihren
-/// <see cref="Extent"/> bestimmt. Die API ist bewusst minimal gehalten und kann später um eine
-/// strukturierte Sicht (z.B. <c>GetStructure()</c> für Direktiven/Doc-Kommentare) wachsen.
+/// Ein Stück nicht-signifikanter Quelltext (Whitespace, Zeilenende, Kommentar, Präprozessor-Direktive), das
+/// als Leading- bzw. Trailing-Trivia an einem <see cref="SyntaxToken"/> hängt — das echte Roslyn-Modell.
+/// Anders als ein <see cref="SyntaxToken"/> trägt eine Trivia weder eine kontextabhängige
+/// <see cref="TextClassification"/> noch einen Parent; sie ist durch ihren lexikalischen <see cref="Type"/>
+/// und ihren <see cref="Extent"/> bestimmt. Eine <see cref="SyntaxTokenType.DirectiveTrivia"/> trägt
+/// zusätzlich einen <see cref="GetStructure">strukturierten Verweis</see> auf den zugehörigen
+/// <see cref="DirectiveTriviaSyntax"/>-Knoten; alle übrigen Trivia-Arten sind strukturlos
+/// (<see cref="HasStructure"/> ist dann <c>false</c>).
 /// </summary>
 [Serializable]
 public readonly struct SyntaxTrivia: IExtent {
 
+    readonly SyntaxNode _structure;
+
     /// <summary>
-    /// Erzeugt eine Trivia mit ihrem lexikalischen Typ und dem von ihr abgedeckten Quelltext-Ausschnitt.
+    /// Erzeugt eine strukturlose Trivia mit ihrem lexikalischen Typ und dem von ihr abgedeckten
+    /// Quelltext-Ausschnitt.
     /// </summary>
     /// <param name="type">Der lexikalische Typ der Trivia (z.B. <see cref="SyntaxTokenType.Whitespace"/>,
     /// <see cref="SyntaxTokenType.NewLine"/>, <see cref="SyntaxTokenType.SingleLineComment"/>).</param>
     /// <param name="extent">Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</param>
-    public SyntaxTrivia(SyntaxTokenType type, TextExtent extent) {
-        Type   = type;
-        Extent = extent;
+    public SyntaxTrivia(SyntaxTokenType type, TextExtent extent): this(type, extent, structure: null) {
+    }
+
+    /// <summary>
+    /// Erzeugt eine strukturierte Trivia (in der Regel eine <see cref="SyntaxTokenType.DirectiveTrivia"/>),
+    /// die neben ihrem lexikalischen Typ und Extent einen Verweis auf den syntaktisch aufgeschlüsselten
+    /// <paramref name="structure"/>-Knoten hält — abrufbar über <see cref="GetStructure"/>.
+    /// </summary>
+    /// <param name="type">Der lexikalische Typ der Trivia.</param>
+    /// <param name="extent">Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</param>
+    /// <param name="structure">Der zugehörige strukturierte Knoten, oder <c>null</c> für strukturlose Trivia.</param>
+    internal SyntaxTrivia(SyntaxTokenType type, TextExtent extent, SyntaxNode structure) {
+        Type       = type;
+        Extent     = extent;
+        _structure = structure;
     }
 
     /// <summary>Der lexikalische Typ dieser Trivia (Whitespace, Zeilenende oder Kommentar).</summary>
@@ -46,6 +63,20 @@ public readonly struct SyntaxTrivia: IExtent {
     /// oder einem Zeilenende. Kommentare sind die einzige semantisch tragende Trivia-Art.
     /// </summary>
     public bool IsComment => Type == SyntaxTokenType.SingleLineComment || Type == SyntaxTokenType.MultiLineComment;
+
+    /// <summary>
+    /// Ob diese Trivia einen strukturierten Knoten trägt (siehe <see cref="GetStructure"/>) — <c>true</c> nur
+    /// für eine <see cref="SyntaxTokenType.DirectiveTrivia"/>, deren Direktivzeile syntaktisch zu einem
+    /// <see cref="DirectiveTriviaSyntax"/> aufgeschlüsselt wurde.
+    /// </summary>
+    public bool HasStructure => _structure != null;
+
+    /// <summary>
+    /// Der zu dieser Trivia gehörende strukturierte Knoten (nach Roslyn-Vorbild), oder <c>null</c>, wenn die
+    /// Trivia strukturlos ist (<see cref="HasStructure"/> <c>false</c>). Für eine
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/> ist dies der zugehörige <see cref="DirectiveTriviaSyntax"/>.
+    /// </summary>
+    public SyntaxNode GetStructure() => _structure;
 
     /// <summary>
     /// Liefert den Quelltext dieser Trivia aus dem übergebenen <paramref name="sourceText"/> — gedacht für
