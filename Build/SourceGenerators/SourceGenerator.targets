@@ -11,7 +11,7 @@
     Opt-in:
       <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     aktiviert den AssemblyInfo-Generator (erzeugt die MyAssembly-Konstanten aus den
-    git-abgeleiteten Versions-Properties, siehe _build/Version.targets).
+    git-abgeleiteten Versions-Properties, siehe Build/Version.targets).
   -->
   <ItemGroup Condition="'$(UseAssemblyInfoGenerator)' == 'true'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)Nav.AssemblyInfo.SourceGenerator\Nav.AssemblyInfo.SourceGenerator.csproj"

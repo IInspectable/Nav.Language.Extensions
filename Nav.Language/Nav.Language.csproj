@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
     
   </ItemGroup>
   <ItemGroup>
@@ -47,12 +47,12 @@
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
     <!-- Quellgenerator: setzt die über die Parse*-EBNF-Fragmente verstreute Grammatik zu NavGrammar.Ebnf
          zusammen. Nur als Analyzer eingebunden, nicht als referenzierte Assembly. -->
-    <ProjectReference Include="..\_build\SourceGenerators\Nav.Grammar.SourceGenerator\Nav.Grammar.SourceGenerator.csproj"
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Grammar.SourceGenerator\Nav.Grammar.SourceGenerator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
     <!-- Quellgenerator: erzeugt SyntaxNodeVisitor/SyntaxNodeWalker und SymbolVisitor aus den *Syntax-/
          *Symbol-Typen (löst die VS-only T4-Templates ab). Nur als Analyzer eingebunden. -->
-    <ProjectReference Include="..\_build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>

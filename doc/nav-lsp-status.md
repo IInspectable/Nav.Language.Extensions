@@ -33,7 +33,7 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
   Läuft über `dotnet publish` (siehe Abschnitt 4 „Toolchain/Deployment"). Ein eigenständiges `deploy\lsp`
   gibt es nicht mehr.
 - **Tests:**
-  - net472: gebündelter NUnit-Console-Runner — `n test` (`_build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe`).
+  - net472: gebündelter NUnit-Console-Runner — `n test` (`Build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe`).
   - .NET 10: `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0 --no-build` (Projekt ist multi-target `net472;net10.0`).
 - **VS-Code-PoC:** `cd vscode-nav-lsp && npm install`, dann Ordner in VS Code öffnen → **F5**.
   **Achtung:** Solange der PoC läuft, ist die Server-DLL gesperrt → vor einem Server-Rebuild den

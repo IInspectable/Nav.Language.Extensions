@@ -10,16 +10,16 @@ Statusdokument zur Versionsnummern-Infrastruktur (Pflichtlektüre vor Arbeiten d
   automatisch.
 - `AssemblyVersion` = `Major.Minor.0.0` (stabile Binding-Identität), `FileVersion` = Kern,
   `AssemblyInformationalVersion` = Kern + Branch + Kurz-SHA.
-- **Einzige Autorität ist das MSBuild-Target `ComputeGitVersion`** (`_build/Version.targets`), über
+- **Einzige Autorität ist das MSBuild-Target `ComputeGitVersion`** (`Build/Version.targets`), über
   `Directory.Build.props` in **jedem** Build-Pfad aktiv (`n build`/MSBuild.exe, `dotnet build`,
   `dotnet publish`, VS). Es rechnet selbst aus git — **kein `-p:ProductVersion`-Durchreichen** mehr.
 - PowerShell `Get-ProductVersion` rechnet **nichts**, sondern **liest** die Werte per
-  `dotnet msbuild _build/Version.targets -t:ComputeGitVersion -getProperty:ProductVersion`
+  `dotnet msbuild Build/Version.targets -t:ComputeGitVersion -getProperty:ProductVersion`
   (nur für vsce-/VSIX-Dateinamen). Damit gibt es keinen zweiten Parser.
 
 ## Die `MyAssembly`-Konstanten (`ProductVersion` & Co.)
 
-`GobalAssemblyInfo.cs` (bleibt hand-geschrieben in `_build/`, je Projekt gelinkt) setzt die
+`GobalAssemblyInfo.cs` (bleibt hand-geschrieben in `Build/`, je Projekt gelinkt) setzt die
 Assembly-Attribute aus den Konstanten `MyAssembly.{ProductVersion, AssemblyVersion,
 ProductVersionInformational, ProductName}`. Dieselben Konstanten liest die Laufzeit. Konsumenten u.a.:
 `Nav.Cli/CommandLine.cs`, `Nav.Cli/GrammarCommand.cs`,
@@ -34,7 +34,7 @@ ProductVersionInformational, ProductName}`. Dieselben Konstanten liest die Laufz
    `GenerateAssemblyInfo=false`). Der Generator liest `ProductVersion` & Co. als `build_property.*`
    (via `CompilerVisibleProperty`, gespeist aus `ComputeGitVersion`) und emittiert `static partial
    class MyAssembly`. **Opt-in mit einer Zeile:** `<UseAssemblyInfoGenerator>true</…>`; das zentrale
-   Wiring (`_build/SourceGenerators/SourceGenerator.targets`, global über `Directory.Build.targets`)
+   Wiring (`Build/SourceGenerators/SourceGenerator.targets`, global über `Directory.Build.targets`)
    hängt Analyzer-`ProjectReference` + `CompilerVisibleProperty` an. Output ist **pro Compilation**
    (nie eine geteilte Datei) → strukturell immun gegen die unten beschriebene Falle.
 2. **Physische obj-Datei** — die **erzwungene Ausnahme** für `Nav.Language.Extension2026` (legacy,
@@ -55,14 +55,14 @@ ProductVersionInformational, ProductName}`. Dieselben Konstanten liest die Laufz
    er läuft — die obj-Datei nur, wo er es nachweislich nicht tut (wpftmp).
 3. **SDK-Assembly-Info** — net10-SDK-Hosts (Nav.Language.Lsp, Nav.Language.Mcp;
    `GenerateAssemblyInfo` default true, **kein** `MyAssembly`). `SetSdkVersionFromGit` (in
-   `_build/Version.targets`) speist `Version`/`FileVersion`/`InformationalVersion` aus
+   `Build/Version.targets`) speist `Version`/`FileVersion`/`InformationalVersion` aus
    `ComputeGitVersion` in die SDK-Pipeline; `AssemblyVersion` kommt ebenfalls aus `ComputeGitVersion`.
    Generierte Assembly-Info landet in **obj**. **Robust** — von der Falle nie betroffen.
 
 **Wichtig (Reihenfolge):** Der Generator liest die Werte aus der von
 `GenerateMSBuildEditorConfigFileCore` erzeugten Analyzer-`.editorconfig` (das TASK heißt
 `GenerateMSBuildEditorConfig`, das TARGET aber `…FileCore`). `ComputeGitVersion` MUSS davor laufen —
-dafür sorgt das gated Target `_NavComputeGitVersionBeforeEditorConfig` in `_build/Version.targets`.
+dafür sorgt das gated Target `_NavComputeGitVersionBeforeEditorConfig` in `Build/Version.targets`.
 Sonst landen leere Werte in der `.editorconfig` und `MyAssembly.ProductVersion` wird `0.0.0`.
 
 ## Robustheit (umgesetzt)
@@ -130,11 +130,11 @@ nicht liefern. Der Quellgenerator liefert weiterhin **Konstanten** und lässt da
 
 | Datei | Rolle |
 |---|---|
-| `_build/Version.targets` | `ComputeGitVersion` (Autorität) + `SetSdkVersionFromGit` (SDK-Hosts) + `_NavComputeGitVersionBeforeEditorConfig` (Reihenfolge für den Generator) |
-| `_build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/` | Quellgenerator: `MyAssembly`-Konstanten aus `build_property.*` |
-| `_build/SourceGenerators/SourceGenerator.targets` | zentrales `UseAssemblyInfoGenerator`-Wiring (Analyzer-Ref + `CompilerVisibleProperty`) |
+| `Build/Version.targets` | `ComputeGitVersion` (Autorität) + `SetSdkVersionFromGit` (SDK-Hosts) + `_NavComputeGitVersionBeforeEditorConfig` (Reihenfolge für den Generator) |
+| `Build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/` | Quellgenerator: `MyAssembly`-Konstanten aus `build_property.*` |
+| `Build/SourceGenerators/SourceGenerator.targets` | zentrales `UseAssemblyInfoGenerator`-Wiring (Analyzer-Ref + `CompilerVisibleProperty`) |
 | `Directory.Build.targets` | importiert das Wiring global (auch im legacy VSIX-Projekt) |
-| `_build/GobalAssemblyInfo.cs` | Assembly-Attribute aus `MyAssembly`-Konstanten (unverändert) |
+| `Build/GobalAssemblyInfo.cs` | Assembly-Attribute aus `MyAssembly`-Konstanten (unverändert) |
 | `Nav.Language.Extension2026/CustomBuild.targets` | `WriteMyAssemblyFile` (obj-lokale `MyAssembly.g.cs`, wpftmp-tauglich) + VSIX-Manifest-Stempelung |
 | `Tools/Commands/Functions/Get-ProductVersion.ps1` | liest Version per `dotnet msbuild -getProperty` |
 | `Tools/Commands/Functions/Invoke-Build.ps1`, `Publish-Cli/Mcp/VsCode.ps1` | bauen/publishen ohne `-p` |

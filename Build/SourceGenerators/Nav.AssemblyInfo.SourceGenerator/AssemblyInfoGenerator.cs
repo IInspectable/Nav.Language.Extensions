@@ -13,7 +13,7 @@ namespace Pharmatechnik.Nav.Language.AssemblyInfo.SourceGenerator;
 /// Inkrementeller Quellgenerator, der die <c>static partial class MyAssembly</c> mit den
 /// Versions- und Produktkonstanten erzeugt. Die Werte stammen aus den MSBuild-Properties
 /// <c>ProductVersion</c>, <c>AssemblyVersion</c>, <c>ProductVersionInformational</c> und
-/// <c>ProductName</c> (git-abgeleitet in <c>_build/Version.targets</c>, über
+/// <c>ProductName</c> (git-abgeleitet in <c>Build/Version.targets</c>, über
 /// <c>CompilerVisibleProperty</c> als <c>build_property.*</c> sichtbar gemacht).
 ///
 /// Löst die frühere, ins Projektverzeichnis geschriebene <c>ThisAssembly.generated.cs</c> ab: Der

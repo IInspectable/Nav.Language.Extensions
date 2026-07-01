@@ -1,9 +1,9 @@
-<#
+﻿<#
 .SYNOPSIS
     Führt die Tests über den NUnit-Console-Runner aus.
 
 .DESCRIPTION
-    Ruft den gebündelten NUnit-Console-Runner (_build\nunit.consolerunner\3.8.0\tools\
+    Ruft den gebündelten NUnit-Console-Runner (Build\nunit.consolerunner\3.8.0\tools\
     nunit3-console.exe) auf die Test-Assemblies von Nav.Language.Tests und
     Nav.Language.Extension.Tests (`<Projekt>\bin\<Configuration>\<Projekt>.dll`). Nur
     tatsächlich vorhandene DLLs werden übergeben — fehlt eine, gibt es einen Hinweis (z. B.
@@ -32,7 +32,7 @@ function Invoke-Test {
     $root = Resolve-Root
     if (-not $root) { return }
 
-    $runner = Join-Path $root '_build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe'
+    $runner = Join-Path $root 'Build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe'
     if (-not (Test-Path $runner)) {
         throw "NUnit-Console-Runner nicht gefunden: '$runner'."
     }

@@ -65,7 +65,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 
 - **Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut mit `dotnet build`/`dotnet publish`.** Der
   StringTemplate-Export in `Nav.Language\CustomBuild.targets` läuft über einen file-based
-  dotnet-Generator (`_build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
+  dotnet-Generator (`Build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
   der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). Die Single-File-Publishes
   (LSP/MCP) in `n publish` nutzen `dotnet publish`.
 - **Die ganze Solution (`n build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
@@ -90,7 +90,7 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 
 ### Tests im Detail
 
-- **net472:** `n test` (NUnit-Console-Runner unter `_build\nunit.consolerunner\`).
+- **net472:** `n test` (NUnit-Console-Runner unter `Build\nunit.consolerunner\`).
 - **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` (baut bei Bedarf
   selbst; `--no-build` nur als Beschleunigung, wenn vorher schon gebaut wurde).
 - `Nav.Language.Tests` ist multi-target (`net472;net10.0`) — neue Engine-Tests müssen auf **beiden**
@@ -123,7 +123,7 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   werden per Tag gesteuert (`n incminor`/`incmajor` → `git tag vX.Y.0`), der Patch zählt automatisch;
   ein getaggter Commit ist exakt die Release-Version. Branch + Kurz-SHA landen nur in
   `AssemblyInformationalVersion`/CLI, nie im Kern. **Einzige Autorität ist das MSBuild-Target
-  `ComputeGitVersion`** (`_build\Version.targets`, über `Directory.Build.props` in jedem Build-Pfad
+  `ComputeGitVersion`** (`Build\Version.targets`, über `Directory.Build.props` in jedem Build-Pfad
   aktiv) — es rechnet die Version selbst aus git, in `n build`/MSBuild.exe genauso wie in
   `dotnet build`/`dotnet publish`/VS-IDE. PowerShell rechnet **nichts** nach und reicht **kein**
   `-p:ProductVersion` durch; `Get-ProductVersion` liest die berechneten Werte nur per
@@ -135,7 +135,7 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   Buildnummer steht in `AssemblyFileVersion`. Die `MyAssembly.{ProductVersion,…}`-Konstanten (von
   `GobalAssemblyInfo.cs` in Attribute gehoben und zur Laufzeit gelesen) erzeugt der Roslyn-Generator
   `Nav.AssemblyInfo.SourceGenerator` — Opt-in je Projekt mit `<UseAssemblyInfoGenerator>true</…>`
-  (zentrales Wiring: `_build\SourceGenerators\SourceGenerator.targets` via `Directory.Build.targets`).
+  (zentrales Wiring: `Build\SourceGenerators\SourceGenerator.targets` via `Directory.Build.targets`).
   Generator-Output ist pro Compilation, nie eine geteilte Projektverzeichnis-Datei → immun gegen die
   frühere VS-Design-Time-Falle. **Erzwungene Ausnahme** `Nav.Language.Extension2026` (legacy, non-SDK,
   WPF): Im WPF-Markup-Temp-Teilprojekt (`…_wpftmp.csproj`) laufen Quellgeneratoren **nicht** — mit dem

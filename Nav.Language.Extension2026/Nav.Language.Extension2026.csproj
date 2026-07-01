@@ -73,7 +73,7 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs">
+    <Compile Include="..\Build\GobalAssemblyInfo.cs">
       <Link>Properties\GobalAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="HACK_ThemeColorFixer.cs" />

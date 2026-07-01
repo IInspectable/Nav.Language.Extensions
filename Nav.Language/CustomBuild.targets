@@ -24,6 +24,6 @@
           Inputs="@(ExportStringTemplates)"
           Outputs="@(ExportStringTemplates-&gt;'%(RelativeDir)%(Filename).generated.cs')">
     <Message Text="Generiere @(ExportStringTemplates -&gt; '%(RelativeDir)%(Filename).generated.cs')" Importance="High" />
-    <Exec Command="dotnet run --file &quot;$(MSBuildThisFileDirectory)..\_build\CodeGen\GenerateCodeGenFacts.cs&quot; -- &quot;%(ExportStringTemplates.FullPath)&quot; &quot;%(ExportStringTemplates.RootDir)%(ExportStringTemplates.Directory)%(ExportStringTemplates.Filename).generated.cs&quot; &quot;%(ExportStringTemplates.CustomToolNamespace)&quot; &quot;%(ExportStringTemplates.Filename)&quot;" />
+    <Exec Command="dotnet run --file &quot;$(MSBuildThisFileDirectory)..\Build\CodeGen\GenerateCodeGenFacts.cs&quot; -- &quot;%(ExportStringTemplates.FullPath)&quot; &quot;%(ExportStringTemplates.RootDir)%(ExportStringTemplates.Directory)%(ExportStringTemplates.Filename).generated.cs&quot; &quot;%(ExportStringTemplates.CustomToolNamespace)&quot; &quot;%(ExportStringTemplates.Filename)&quot;" />
   </Target>
 </Project>

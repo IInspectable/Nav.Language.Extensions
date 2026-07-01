@@ -26,7 +26,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\Options.cs" Link="CommandLine\Options.cs" />
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
   </ItemGroup>
   
   <ItemGroup>

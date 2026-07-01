@@ -487,7 +487,7 @@ ausgebaut wird — **das ist beim noch offenen Teardown (Step 2c) der entscheide
 4. `dotnet build Nav.Language\Nav.Language.csproj -c Debug` → **0 Fehler, 0 Warnungen**. Der Compiler
    listet jede übersehene ANTLR-Referenz; iterativ schließen.
 5. Beide TFMs: net10 `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`; net472
-   bauen + `nunit3-console` (`_build\nunit.consolerunner\3.8.0\tools\`). **Kriterium: 0 Fehler.** Die
+   bauen + `nunit3-console` (`Build\nunit.consolerunner\3.8.0\tools\`). **Kriterium: 0 Fehler.** Die
    Gesamt-Testzahl sinkt (gelöschte Differential-/`.hand.`-Golden-/Mapping-Fälle) und steigt um den
    verschobenen Prefix-Test — die absolute Zahl ist also nicht mehr 1099.
 6. Regression (`RegressionTests`/`.expected.cs`) grün — End-to-End-Netz über die Codegenerierung.
@@ -564,7 +564,7 @@ Runtime-Schalter (so entschieden); die Golden-Diffs sind das Review-Artefakt.
   ANTLR-Pfad-Hälfte von `SyntaxTree.ParseText` und `PostprocessTokens`/`SplitSingleLineCommenTokens`.
 - **Build:** `Nav.Language\Nav.Language.csproj` Zeilen 53–60 (`<Antlr4 Update="Grammar\NavGrammar.g4"/>`
   + `NavTokens.g4`) und die zwei PackageReferences entfernen; `Grammar\*.g4` aus dem Build nehmen.
-  Der `_build\CodeGen\GenerateCodeGenFacts.cs`-Generator (StringTemplate-Facts) hat **nichts** mit der
+  Der `Build\CodeGen\GenerateCodeGenFacts.cs`-Generator (StringTemplate-Facts) hat **nichts** mit der
   Grammatik zu tun — bleibt.
 
 ### Die eine Designfrage: per-Regel-Einstiege (`Syntax.ParseXxx`) ohne ANTLR
@@ -697,7 +697,7 @@ Iterationen) misst.
 
 - net10.0: `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`
 - net472: Testprojekt mit `dotnet build …\Nav.Language.Tests.csproj -f net472` bauen, dann
-  `_build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll`.
+  `Build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll`.
 - **Neue `.cs` als UTF-8 mit BOM anlegen** (der Write-Standard erzeugt *ohne* BOM — danach umkodieren).
 
 ---

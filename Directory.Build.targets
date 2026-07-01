@@ -3,6 +3,6 @@
 
   <!-- Zentrales Quellgenerator-Wiring (Use…-Opt-in je Projekt). Wird von Microsoft.Common.targets am
        Ende automatisch importiert — auch im legacy VS-Extension-Projekt (über Microsoft.CSharp.targets). -->
-  <Import Project="$(MSBuildThisFileDirectory)_build\SourceGenerators\SourceGenerator.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)Build\SourceGenerators\SourceGenerator.targets" />
 
 </Project>

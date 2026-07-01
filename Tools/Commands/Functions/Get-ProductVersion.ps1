@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Interner Helper (Verb-Noun ohne .FUNCTIONALITY → kein nav-Command). Die Version wird an genau
-    EINER Stelle berechnet: im MSBuild-Target `ComputeGitVersion` (`_build\Version.targets`), das
+    EINER Stelle berechnet: im MSBuild-Target `ComputeGitVersion` (`Build\Version.targets`), das
     über `Directory.Build.props` in jedem Projekt/Build-Pfad aktiv ist und die Werte aus
     `git describe` ableitet. Diese Funktion RECHNET NICHTS selbst — sie liest die dort berechneten
     Properties per `dotnet msbuild … -getProperty` (MSBuild 17.8+/.NET-SDK). Dadurch gibt es keinen
@@ -32,7 +32,7 @@ function Get-ProductVersion {
     if (-not $Root) { $Root = Resolve-Root }
     if (-not $Root) { throw "Repo-Root nicht auflösbar." }
 
-    $targets = Join-Path $Root '_build\Version.targets'
+    $targets = Join-Path $Root 'Build\Version.targets'
     if (-not (Test-Path $targets)) { throw "Version.targets nicht gefunden: '$targets'." }
 
     # Werte aus dem Target lesen. -getProperty liefert bei mehreren Properties JSON; die git-Aufrufe

@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription(MyAssembly.ProductName)]
 // AssemblyVersion = stabile Binding-Identität (Major.Minor.0.0); FileVersion trägt die volle
 // Buildnummer, InformationalVersion zusätzlich Branch + Kurz-SHA. Werte stammen aus der
-// git-abgeleiteten Berechnung (siehe _build\Version.targets), generiert nach MyAssembly.
+// git-abgeleiteten Berechnung (siehe Build\Version.targets), generiert nach MyAssembly.
 [assembly: AssemblyVersion(MyAssembly.AssemblyVersion)]
 [assembly: AssemblyFileVersion(MyAssembly.ProductVersion)]
 [assembly: AssemblyInformationalVersion(MyAssembly.ProductVersionInformational)]

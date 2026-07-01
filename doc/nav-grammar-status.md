@@ -26,7 +26,7 @@ maßgeblich** — nichts davon wird verschoben.
   `const` gedeckt.
 - **Roslyn-Source-Generator** liest die Fragmente, backt sie zu `const string NavGrammar.Ebnf` + meldet
   Drift als Compile-Fehler (NAV001/NAV002).
-- **Shared-Projekt** eigenständig auf Top-Level `_build\Shared\Nav.CodeAnalysis.Shared` (Vorbild: die
+- **Shared-Projekt** eigenständig auf Top-Level `Build\Shared\Nav.CodeAnalysis.Shared` (Vorbild: die
   Generator-Infrastruktur in `C:\ws\git\Mfv-Peissenberg.Website\Build` — als Blaupause genutzt, keine
   Branding-Spuren übernommen). Ausgelegt für weitere Generatoren (perspektivisch ein Visitor-Generator,
   der die nur-in-VS laufenden T4-Templates ablöst).
@@ -41,7 +41,7 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
 `82ea124c` SourceBuilder-Nachzug, `19585515` Schritt 2, `6d8f465f` Schritt 3).
 
 ### Schritt 1 — Infrastruktur + Generator (const)
-- `_build\Shared\Nav.CodeAnalysis.Shared\` (Shared Project `.shproj`/`.projitems`,
+- `Build\Shared\Nav.CodeAnalysis.Shared\` (Shared Project `.shproj`/`.projitems`,
   Namespace `Pharmatechnik.Nav.Language.CodeAnalysis.Shared`):
   - `XmlDocExtensions.cs` — extrahiert das EBNF-CDATA aus **rohem Leading-Trivia-Text**
     (`GetLeadingTrivia().ToFullString()`), NICHT aus dem strukturierten Doku-Baum. **Wichtig:** bei
@@ -49,10 +49,10 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
     Trivia-Text ist dagegen immer da. So kein `GenerateDocumentationFile`/CS1591-Lärm an der Engine.
   - `SourceBuilder.cs` — fluenter, einrückungsverwaltender Quelltext-Emitter (gemeinsame Generator-Basis).
   - `CompilerServicesAttributes.cs` — `IsExternalInit`-Polyfill für Records unter netstandard2.0.
-- `_build\SourceGenerators\SourceGenerator.props` — gemeinsame Generator-Props (netstandard2.0,
+- `Build\SourceGenerators\SourceGenerator.props` — gemeinsame Generator-Props (netstandard2.0,
   eigener `LangVersion latest`, `Microsoft.CodeAnalysis.CSharp`/`.Analyzers` mit `PrivateAssets=all`,
   Import der Shared-`.projitems`).
-- `_build\SourceGenerators\Nav.Grammar.SourceGenerator\` (Namespace `Pharmatechnik.Nav.Language.Grammar.SourceGenerator`):
+- `Build\SourceGenerators\Nav.Grammar.SourceGenerator\` (Namespace `Pharmatechnik.Nav.Language.Grammar.SourceGenerator`):
   - `NavGrammarGenerator.cs` — `IIncrementalGenerator`. Sammelt `Parse*`-Methoden in `NavParser` mit
     EBNF-Fragment ein, ordnet nach Quellposition, emittiert `partial class NavGrammar` mit
     `const string Ebnf` (alle Produktionen) und `IReadOnlyDictionary<string,string> Rules`. Emittiert via
@@ -62,7 +62,7 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
 - Verdrahtung: `Directory.Packages.props` (CodeAnalysis.CSharp 4.14.0, Analyzers 3.11.0);
   `Nav.Language.csproj` referenziert den Generator als `OutputItemType="Analyzer" ReferenceOutputAssembly="false"`;
   `.slnx` um shproj + Generator ergänzt.
-- Lokale `.gitignore` (`_build\Shared\`, `_build\SourceGenerators\`): `**/bin/`, `**/obj/`
+- Lokale `.gitignore` (`Build\Shared\`, `Build\SourceGenerators\`): `**/bin/`, `**/obj/`
   (no-BOM CRLF, wie das Geschwister `Nav.Language.BuildTasks.Tests\.gitignore`).
 
 ### Schritt 2 — NAV001/NAV002 + Generator-Tests
@@ -72,7 +72,7 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
   `codeType`+`arrayType`), `ReferencedNonterminals` (RHS-camelCase nach Entfernen von `"…"`-Literalen und
   `(* … *)`-Kommentaren).
 - Generator sammelt zusätzlich die `Rule`-Enum-Member ein und meldet via `rules.Combine(ruleEnumMembers)`.
-- `_build\SourceGenerators\Nav.Grammar.SourceGenerator.Tests\` (net10, NUnit): Harness `GeneratorTestBase`
+- `Build\SourceGenerators\Nav.Grammar.SourceGenerator.Tests\` (net10, NUnit): Harness `GeneratorTestBase`
   (`CSharpGeneratorDriver`) + datei-basierte `SnapshotAssert` (Expected eingecheckt, Actual gitignored —
   `**/Snapshots/Actual/` ergänzt). 3 Tests: Snapshot eines Mini-Parsers, NAV001-Fall, NAV002-Fall.
 
@@ -87,7 +87,7 @@ Datenfluss: Inline-EBNF → `NavGrammarGenerator` (`const NavGrammar.Ebnf` + `Ru
 
 ### Verifikation (aktuell grün)
 - `dotnet build Nav.Language\Nav.Language.csproj` → 0/0 (Generator läuft, keine Falsch-Positiven).
-- `dotnet test _build\SourceGenerators\Nav.Grammar.SourceGenerator.Tests\…` → 3/3.
+- `dotnet test Build\SourceGenerators\Nav.Grammar.SourceGenerator.Tests\…` → 3/3.
 - `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0 --filter NavGrammarConsistencyTests` → 49/49.
 - net472: `nunit3-console.exe Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll --where "class =~ NavGrammarConsistencyTests"` → 49/49.
 - Generierte Grammatik einsehen: Build mit
@@ -132,7 +132,7 @@ Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto
   (148 Zeilen, kein BOM, `codeGenerationUnit ::=` … `stringLiteral ::=`).
 
 ### Zweiter Generator — ERLEDIGT (uncommittet)
-Visitor-/Walker-Generator unter `_build\SourceGenerators\Nav.Visitor.SourceGenerator\` (Namespace
+Visitor-/Walker-Generator unter `Build\SourceGenerators\Nav.Visitor.SourceGenerator\` (Namespace
 `Pharmatechnik.Nav.Language.Visitor.SourceGenerator`), löst die drei nur-in-VS lauffähigen T4-Templates ab
 (`SyntaxNodeVisitor.Generated.tt`, `SyntaxNodeWalker.Generated.tt`, `SymbolVisitor.tt` samt ihren
 eingecheckten `.cs`). Zwei `IIncrementalGenerator` im selben Projekt (eine Analyzer-Referenz lädt beide),
@@ -150,7 +150,7 @@ teilen `SourceBuilder` aus dem Shared-Projekt — das validiert das Shared-Proje
 - Verdrahtung: zweite Analyzer-`ProjectReference` in `Nav.Language.csproj`; T4-Wiring (`<None Update>`/
   `<Compile Update>`/T4-`<Service>`) entfernt; `Nav.Visitor.SourceGenerator(.Tests)` in `.slnx`. `_Readme.txt`
   in `Syntax\Generated` auf den neuen Generator umgeschrieben.
-- Tests: `_build\SourceGenerators\Nav.Visitor.SourceGenerator.Tests\` (Aufbau wie die Grammar-Tests,
+- Tests: `Build\SourceGenerators\Nav.Visitor.SourceGenerator.Tests\` (Aufbau wie die Grammar-Tests,
   Snapshots; Harness referenzlos-semantisch über Mini-`SyntaxNode`-/`ISymbol`-Quelltexte). Der Symbol-
   Snapshot deckt den hierarchischen Fallback ab.
 - **Verifikation:** Äquivalenz-Diff (Methoden-/Dispatch-Set identisch zu den alten `.cs`) vor dem Löschen;
