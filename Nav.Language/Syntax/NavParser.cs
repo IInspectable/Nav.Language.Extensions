@@ -1858,18 +1858,20 @@ sealed class NavParser {
     /// <summary>
     /// Direktiven-Vorlauf: erkennt vor dem eigentlichen Parse die Präprozessor-Direktiven (<c>#…</c>) im
     /// Roh-Strom strukturiert — der Cursor sieht Präprozessor-Token sonst nicht (sie gelten als „hidden").
-    /// <c>#pragma version</c> am Dateikopf wird zum <see cref="VersionDirectiveSyntax"/> samt seinen (hier
-    /// materialisierten) Token und löst kein <c>Nav3000</c>/<c>Nav3001</c> aus; ein fehlender oder
-    /// nicht-ganzzahliger Versionswert erzeugt genau eine <c>Nav3002</c> und fällt auf
-    /// <see cref="NavLanguageVersion.Default"/> zurück. Jede nicht erkannte Direktive
-    /// (<c>#pragma warning …</c> o.Ä.) meldet <c>Nav3000</c> (samt <c>Nav3001</c>, falls ihr in der Zeile
-    /// nicht nur Whitespace vorausgeht); ihre Token bleiben lose und werden in
+    /// <c>#pragma version</c> wird an jeder Stelle strukturell erkannt; wirksam (und zum
+    /// <see cref="VersionDirectiveSyntax"/> samt hier materialisierten Token) wird aber nur die <b>erste</b>
+    /// und nur, wenn ihr ausschließlich Trivia vorausgeht (ganz oben). Ein fehlender oder nicht-ganzzahliger
+    /// Versionswert erzeugt dabei genau eine <c>Nav3002</c> samt Rückfall auf
+    /// <see cref="NavLanguageVersion.Default"/>. Eine weiter unten stehende Versions-Direktive meldet
+    /// <c>Nav3003</c>, eine doppelte <c>Nav3004</c>; beide bleiben ohne Wirkung, ihre Token lose. Jede nicht
+    /// erkannte Direktive (<c>#pragma warning …</c> o.Ä.) meldet <c>Nav3000</c> (samt <c>Nav3001</c>, falls
+    /// ihr in der Zeile nicht nur Whitespace vorausgeht). Lose Token werden in
     /// <see cref="AttachNonSignificantTokens"/> an die Wurzel gehängt.
     /// </summary>
     void ParseDirectives() {
 
-        // Der Kopf gilt, solange noch kein signifikantes Nicht-Trivia-Token vor der Direktive lag. Nur
-        // eine Kopf-Direktive kann #pragma version sein.
+        // Der Kopf gilt, solange noch kein signifikantes Nicht-Trivia-Token vor der Direktive lag — nur
+        // dann darf eine Versions-Direktive wirksam werden (ihr darf ausschließlich Trivia vorausgehen).
         var atHead = true;
 
         for (var i = 0; i < _raw.Length; i++) {
@@ -1884,9 +1886,22 @@ sealed class NavParser {
                 continue;
             }
 
-            var end = DirectiveEnd(i);
+            var end     = DirectiveEnd(i);
+            var subject = VersionSubjectIndex(i, end);
 
-            if (!(atHead && TryParseVersionDirective(i, end))) {
+            if (subject >= 0) {
+                if (_versionDirective != null) {
+                    // Doppeltes #pragma version — das erste gewinnt.
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(_raw[i].Extent),
+                                                    DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
+                } else if (!atHead) {
+                    // #pragma version muss ganz oben stehen (nur Trivia darf ihm vorausgehen).
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(_raw[i].Extent),
+                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                } else {
+                    AcceptVersionDirective(i, subject, end);
+                }
+            } else {
                 ReportDirectiveDiagnostics(_raw[i]);
             }
 
@@ -1919,20 +1934,19 @@ sealed class NavParser {
     }
 
     /// <summary>
-    /// Versucht, den Direktiv-Lauf <c>[hashIndex, end)</c> als <c>#pragma version &lt;N&gt;</c> zu erkennen.
-    /// Trifft es zu, wird der <see cref="VersionDirectiveSyntax"/> gebaut, seine Token materialisiert und
-    /// <c>true</c> geliefert (bei fehlerhaftem Wert zusätzlich eine <c>Nav3002</c> samt Default-Version);
-    /// andernfalls (kein <c>pragma</c>, anderes Subjekt) bleibt der Zustand unberührt und das Ergebnis ist
-    /// <c>false</c>. Das <c>version</c>-Subjekt wird direkt aus dem vom Lexer typisierten Token gelesen, das
-    /// Argument von <see cref="NavLanguageVersion.TryParse"/> validiert (reine Ziffern nach Trim).
+    /// Prüft, ob der Direktiv-Lauf <c>[hashIndex, end)</c> strukturell ein <c>#pragma version …</c> ist, und
+    /// liefert den Roh-Index des <c>version</c>-Subjekt-Tokens (sonst <c>-1</c>). Das Subjekt wird direkt aus
+    /// dem vom Lexer typisierten Token gelesen; zwischen <c>pragma</c> und ihm darf nur Zwischenraum stehen
+    /// (ein <c>#pragma .version</c> o.Ä. ist keine Versions-Direktive). Über Platzierung (ganz oben? doppelt?)
+    /// und Argument entscheiden der Aufrufer bzw. <see cref="AcceptVersionDirective"/>.
     /// </summary>
-    bool TryParseVersionDirective(int hashIndex, int end) {
+    int VersionSubjectIndex(int hashIndex, int end) {
 
         // Direktiven-Schlüsselwort: muss unmittelbar hinter dem '#' stehen und "pragma" lauten.
-        if (hashIndex + 1 >= end                                        ||
+        if (hashIndex + 1 >= end                                            ||
             _raw[hashIndex + 1].Type != SyntaxTokenType.PreprocessorKeyword ||
             _sourceText.Substring(_raw[hashIndex + 1].Extent) != "pragma") {
-            return false;
+            return -1;
         }
 
         var pragma = _raw[hashIndex + 1];
@@ -1943,21 +1957,28 @@ sealed class NavParser {
             subject++;
         }
 
-        // Es muss ein Schlüsselwort "version" sein, und zwischen "pragma" und ihm darf nur Zwischenraum
-        // stehen (ein '#pragma .version' o.Ä. ist keine Versions-Direktive).
+        // Es muss ein Schlüsselwort "version" sein, und zwischen "pragma" und ihm darf nur Zwischenraum stehen.
         if (subject >= end                                                                                                   ||
             _raw[subject].Type != SyntaxTokenType.PreprocessorKeyword                                                         ||
             _sourceText.Substring(_raw[subject].Extent) != "version"                                                          ||
             !string.IsNullOrWhiteSpace(_sourceText.Substring(TextExtent.FromBounds(pragma.Extent.End, _raw[subject].Extent.Start)))) {
-            return false;
+            return -1;
         }
 
-        var directiveEnd = _raw[end - 1].Extent.End;
+        return subject;
+    }
 
-        // Genau ein ganzzahliges Argument hinter "version": TryParse verlangt (nach Trim) reine Ziffern —
-        // ein fehlender Wert, ein Vorzeichen oder mehrere Werte schlagen fehl und lösen genau eine Nav3002
-        // samt Rückfall auf die Default-Version aus. Die Einfärbung (Zahl → NumberLiteral) ergibt sich
-        // allein aus dem vom Lexer bereits korrekt typisierten Rumpf-Token — hier ist dafür nichts zu tun.
+    /// <summary>
+    /// Nimmt den als Versions-Direktive erkannten Lauf <c>[hashIndex, end)</c> als wirksame
+    /// <see cref="VersionDirectiveSyntax"/> an: baut den Knoten und materialisiert seine Token. Das Argument
+    /// hinter <paramref name="subject"/> (<c>version</c>) validiert <see cref="NavLanguageVersion.TryParse"/>
+    /// — reine Ziffern nach Trim; ein fehlender Wert, ein Vorzeichen oder mehrere Werte lösen genau eine
+    /// <c>Nav3002</c> samt Rückfall auf <see cref="NavLanguageVersion.Default"/> aus. Die Einfärbung
+    /// (Zahl → NumberLiteral) folgt allein aus dem bereits korrekt typisierten Rumpf-Token.
+    /// </summary>
+    void AcceptVersionDirective(int hashIndex, int subject, int end) {
+
+        var directiveEnd = _raw[end - 1].Extent.End;
         var newLineStart = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? _raw[end - 1].Extent.Start : directiveEnd;
         var argument     = _sourceText.Substring(TextExtent.FromBounds(_raw[subject].Extent.End, newLineStart));
         if (!NavLanguageVersion.TryParse(argument, out var version)) {
@@ -1970,7 +1991,6 @@ sealed class NavParser {
 
         _versionDirective = new VersionDirectiveSyntax(span, version);
         MaterializeDirectiveTokens(_versionDirective, hashIndex, end);
-        return true;
     }
 
     /// <summary>

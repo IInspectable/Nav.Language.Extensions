@@ -89,6 +89,63 @@ public class LanguageVersionTests {
     }
 
     [Test]
+    public void MisplacedPragma_AfterMember_ReportsNav3003_AndDefaults() {
+
+        var unit = Parse("task A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 2");
+
+        // Nicht ganz oben ⇒ unwirksam (Default) und als Nav3003 gemeldet — nicht als Nav3000.
+        Assert.That(unit.LanguageVersionDirective, Is.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(1));
+
+        var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
+        Assert.That(ids, Does.Contain("Nav3003"));
+        Assert.That(ids, Does.Not.Contain("Nav3000"));
+        Assert.That(ids, Does.Not.Contain("Nav3002"));
+    }
+
+    [Test]
+    public void PragmaAfterOtherDirective_ReportsNav3003() {
+
+        var unit = Parse("#pragma warning disable Nav1\r\n#pragma version 2\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        // Vor der Versions-Direktive steht eine andere Direktive (kein Trivia) ⇒ nicht ganz oben (Nav3003);
+        // die vorangehende Direktive bleibt eine nicht erkannte (Nav3000).
+        Assert.That(unit.LanguageVersionDirective, Is.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(1));
+
+        var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
+        Assert.That(ids, Does.Contain("Nav3003"));
+        Assert.That(ids, Does.Contain("Nav3000"));
+    }
+
+    [Test]
+    public void DuplicatePragma_ReportsNav3004_FirstWins() {
+
+        var unit = Parse("#pragma version 2\r\n#pragma version 3\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        // Die erste (wirksame) Versions-Direktive bestimmt die Version; die zweite ist ein Duplikat (Nav3004)
+        // und wird kein eigener Knoten.
+        Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
+        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(1));
+
+        var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
+        Assert.That(ids, Does.Contain("Nav3004"));
+        Assert.That(ids, Does.Not.Contain("Nav3000"));
+        Assert.That(ids, Does.Not.Contain("Nav3003"));
+    }
+
+    [Test]
+    public void MisplacedPragma_StillClassifiesNumberValue() {
+
+        // Auch eine deplatzierte Versions-Direktive (Nav3003) behält die Färbung ihrer Rumpf-Token: der Wert
+        // wird weiterhin als Zahl klassifiziert, obwohl die Direktive unwirksam ist.
+        var tree = SyntaxTree.ParseText("task A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 7");
+
+        Assert.That(tree.Tokens.Any(t => t.Classification == TextClassification.NumberLiteral), Is.True);
+    }
+
+    [Test]
     public void WellFormedPragma_ClassifiesVersionKeywordAndNumber() {
 
         // Positionen in "#pragma version 12": '#'=0, 'pragma'=1..6, ' '=7, 'version'=8..14, ' '=15, '12'=16..17.
