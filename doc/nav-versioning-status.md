@@ -6,12 +6,12 @@ Statusdokument zur Versionsnummern-Infrastruktur (Pflichtlektüre vor Arbeiten d
 
 - Version **git-abgeleitet** via `git describe` — kein `Version.props` mehr.
 - Kern (3-teiliges SemVer): `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`.
-  Major/Minor werden per Tag gesteuert (`vX.Y.0`, `n incminor`/`incmajor`), der Patch zählt
+  Major/Minor werden per Tag gesteuert (`vX.Y.0`, `nav incminor`/`incmajor`), der Patch zählt
   automatisch.
 - `AssemblyVersion` = `Major.Minor.0.0` (stabile Binding-Identität), `FileVersion` = Kern,
   `AssemblyInformationalVersion` = Kern + Branch + Kurz-SHA.
 - **Einzige Autorität ist das MSBuild-Target `ComputeGitVersion`** (`Build/Version.targets`), über
-  `Directory.Build.props` in **jedem** Build-Pfad aktiv (`n build`/MSBuild.exe, `dotnet build`,
+  `Directory.Build.props` in **jedem** Build-Pfad aktiv (`nav build`/MSBuild.exe, `dotnet build`,
   `dotnet publish`, VS). Es rechnet selbst aus git — **kein `-p:ProductVersion`-Durchreichen** mehr.
 - PowerShell `Get-ProductVersion` rechnet **nichts**, sondern **liest** die Werte per
   `dotnet msbuild Build/Version.targets -t:ComputeGitVersion -getProperty:ProductVersion`
@@ -76,7 +76,7 @@ Sonst landen leere Werte in der `.editorconfig` und `MyAssembly.ProductVersion` 
 
 ## Die Visual-Studio-Design-Time-Falle (zentrale Lektion)
 
-**Symptom:** Nach `n publish` trägt `nav.exe` (oder eine andere GobalAssemblyInfo-Assembly)
+**Symptom:** Nach `nav publish` trägt `nav.exe` (oder eine andere GobalAssemblyInfo-Assembly)
 sporadisch Version `0.0.0`, obwohl der Build nachweislich `6.0.x` berechnet **und** schreibt — im
 MSBuild-Log taucht `0.0.0` **nie** auf.
 

@@ -96,9 +96,9 @@ Nav.Language.ExtensionShared\
 
 ### Build / Test
 
-- Bauen der VSIX braucht **Full-Framework MSBuild** → `n build` (nicht `dotnet build`; die VS-Extension
-  baut `dotnet build` nicht). Debug bevorzugen (`n publish`/`n build` bauen Debug).
-- Manueller Test: VSIX in die experimentelle VS-Instanz deployen (`n install` bzw. F5-Debug der VSIX),
+- Bauen der VSIX braucht **Full-Framework MSBuild** → `nav build` (nicht `dotnet build`; die VS-Extension
+  baut `dotnet build` nicht). Debug bevorzugen (`nav publish`/`nav build` bauen Debug).
+- Manueller Test: VSIX in die experimentelle VS-Instanz deployen (`nav install` bzw. F5-Debug der VSIX),
   eine `.nav`-Datei öffnen, Cursor in eine Task, Ctrl+K, Ctrl+T.
 - Sprache: **echte Umlaute** in Code-Kommentaren/Texten (Projektkonvention).
 - **Nicht committen** — am Ende jedes Steps nur Review + Build + fertige Commit-Message als Text liefern.
@@ -189,7 +189,7 @@ angenommenen Kontrakt markiert.
    `IsRoot`, `NavigateTo` via `GoToLocationService`/`LocationExtensions`). `SupportedSearchCommands` darf
    in diesem Step noch leer sein (Such-Kommandos kommen in Step 2/3).
 
-**Definition of Done:** Build grün (`n build`); in der exp. VS-Instanz öffnet Ctrl+K,Ctrl+T auf einer
+**Definition of Done:** Build grün (`nav build`); in der exp. VS-Instanz öffnet Ctrl+K,Ctrl+T auf einer
 Task das Toolfenster mit korrekt benanntem Wurzelknoten; Doppelklick navigiert zur Task.
 Commit-Message als Text liefern.
 

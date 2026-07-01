@@ -140,7 +140,7 @@ Umlaute (ä ö ü ß). Nicht auf „Steps" in dauerhafter Code-Doku verweisen.
   Folge-Tokens fließen, sonst bricht `TokenStreamRoundTrips`/`…AllTypingPrefixes`.
 - **Codegen-Parität**: Versions-Durchreiche identisch (byte-identische `.expected.cs`).
 - **LF-Fallstrick**: Direktiven terminieren nur bei `\r\n` (`NavLexer.ScanPreprocessor`) — beibehalten.
-- **VS-Extension** (net472/VSIX): Einfärbung erst mit `n build` verifizierbar (kein `dotnet build`).
+- **VS-Extension** (net472/VSIX): Einfärbung erst mit `nav build` verifizierbar (kein `dotnet build`).
 
 ## Verifikation
 - Engine: `dotnet build Nav.Language\Nav.Language.csproj`.
@@ -149,7 +149,7 @@ Umlaute (ä ö ü ß). Nicht auf „Steps" in dauerhafter Code-Doku verweisen.
 - Golden: `[Explicit] SyntaxGoldenTests.UpdateGolden`, dann `git diff` — nur `.tokens`/`.tree`/`.trivia`
   ändern sich, `.diag` unverändert, kein Korpus-`.expected.cs` verändert.
 - LSP-stdio-Smoke: `#pragma version` weiterhin farblich klassifiziert.
-- `n build` (VSIX) für den VS-Klassifizierungspfad.
+- `nav build` (VSIX) für den VS-Klassifizierungspfad.
 
 ## Umsetzung (erledigt)
 

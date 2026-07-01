@@ -531,7 +531,7 @@ ausgebaut wird — **das ist beim noch offenen Teardown (Step 2c) der entscheide
    Gesamt-Testzahl sinkt (gelöschte Differential-/`.hand.`-Golden-/Mapping-Fälle) und steigt um den
    verschobenen Prefix-Test — die absolute Zahl ist also nicht mehr 1099.
 6. Regression (`RegressionTests`/`.expected.cs`) grün — End-to-End-Netz über die Codegenerierung.
-7. **Volle Solution `n build`** (MSBuild.exe wegen VSIX) — fängt, falls doch ein Host an ANTLR hing
+7. **Volle Solution `nav build`** (MSBuild.exe wegen VSIX) — fängt, falls doch ein Host an ANTLR hing
    (sollte nicht: nur `Nav.Language` nutzte `Antlr4.Runtime`).
 8. Neue/verschobene `.cs` als **UTF-8 mit BOM, CRLF** (`.gitattributes`: `eol=crlf`).
 
@@ -621,7 +621,7 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
 
 1. `SyntaxTree.ParseText(text, filePath, ct)` (Whole-File) intern auf `NavParser.Parse` umlegen, ANTLR-Pfad
    daneben **vorerst stehen lassen**, Solution baut (`dotnet build` für den .NET-Teil; volle Solution via
-   `n build` / MSBuild.exe wegen der VSIX).
+   `nav build` / MSBuild.exe wegen der VSIX).
 2. **Golden-Cutover:** Die bestehenden ANTLR-Golden `Syntax\Tests\*.nav.{tokens,tree,diag}` werden jetzt
    vom Handparser erzeugt. Praktisch: `SyntaxGoldenTests.UpdateGolden` neu laufen lassen und die Diffs
    gegen die schon reviewten `*.hand.*` prüfen (müssen identisch sein → die `.hand.*` werden redundant und
@@ -976,7 +976,7 @@ Einziger Heißpfad-Aufrufer wäre `NavCodeActionService.ExpandCaret` (nicht hei�
 `nav build` (volle Solution inkl. VSIX, MSBuild.exe) **und** net10 (`dotnet test … -f net10.0`) **und** net472
 (net472-Testassembly bauen, dann `nav test` — `nav test` baut **nicht** selbst, sonst läuft die alte DLL!) je 0 Fehler;
 Regression (`.expected.cs`) grün. Golden nur über `UpdateGolden` neu, Diffs reviewen. Neue/überschriebene `.cs` als
-**UTF-8 mit BOM** (Write erzeugt keins → nachkodieren), auf `U+FFFD` scannen. **Alias ist `nav`** (nicht `n`); im
+**UTF-8 mit BOM** (Write erzeugt keins → nachkodieren), auf `U+FFFD` scannen. **Alias ist `nav`** (nicht `nav`); im
 nicht-interaktiven Shell vorher `. "Tools\Commands\Import-NavCommands.ps1"` dot-sourcen. **Nicht selbst committen** —
 Commit-Message liefern, Nutzer checkt nach Review ein.
 

@@ -27,13 +27,13 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 - **Server starten (framework-dependent):** `dotnet Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll`
   (.NET-10-Runtime ist installiert). **AssemblyName ist `nav.lsp`** (nicht mehr `Pharmatechnik.Nav.Language.Lsp`);
   `RootNamespace` bleibt `Pharmatechnik.Nav.Language.Lsp`, die Namespaces im Code sind unverändert.
-- **Self-contained Server publizieren:** `n publish` bettet den LSP als **genau eine Datei**
+- **Self-contained Server publizieren:** `nav publish` bettet den LSP als **genau eine Datei**
   (`nav.lsp.exe`, Single-File, inkl. .NET-Runtime, ~39 MB komprimiert; keine separate Runtime nötig)
   direkt in die VS-Code-Extension ein (`vscode-nav-lsp\server\nav.lsp.exe`) und paketiert sie ins VSIX.
   Läuft über `dotnet publish` (siehe Abschnitt 4 „Toolchain/Deployment"). Ein eigenständiges `deploy\lsp`
   gibt es nicht mehr.
 - **Tests:**
-  - net472: gebündelter NUnit-Console-Runner — `n test` (`Build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe`).
+  - net472: gebündelter NUnit-Console-Runner — `nav test` (`Build\nunit.consolerunner\3.8.0\tools\nunit3-console.exe`).
   - .NET 10: `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0 --no-build` (Projekt ist multi-target `net472;net10.0`).
 - **VS-Code-PoC:** `cd vscode-nav-lsp && npm install`, dann Ordner in VS Code öffnen → **F5**.
   **Achtung:** Solange der PoC läuft, ist die Server-DLL gesperrt → vor einem Server-Rebuild den
@@ -277,7 +277,7 @@ diesen Kern auf und ergänzen nur UI/Codegen; der LSP-Server nutzt ihn direkt f�
 - Severity-Mapping `Suggestion → Information` ggf. auf `Hint` ändern (Geschmack).
 
 **Toolchain / Deployment:**
-- ~~**Self-contained Publish:**~~ **erledigt.** Der LSP wird beim `n publish` als **Single-File**
+- ~~**Self-contained Publish:**~~ **erledigt.** Der LSP wird beim `nav publish` als **Single-File**
   (`win-x64`, **genau 1 Datei**, ~39 MB komprimiert, inkl. .NET-Runtime) **direkt** in die VS-Code-Extension
   (`vscode-nav-lsp\server\nav.lsp.exe`) publiziert — kein eigenständiges `deploy\lsp` mehr.
   Kern: `dotnet publish …Nav.Language.Lsp.csproj -r win-x64 --self-contained true`
@@ -290,7 +290,7 @@ diesen Kern auf und ergänzen nur UI/Codegen; der LSP-Server nutzt ihn direkt f�
   (Engine-Templates) funktioniert im Bundle. Verifiziert: stdio-Smoke gegen die Single-File-`nav.lsp.exe`
   (`initialize` → volle Capabilities, sauberer `exit`). `deploy` ist gitignored. Extension findet die Ausgabe
   automatisch (s. u.).
-- ~~**VS-Code-Paketierung (installierbares VSIX):**~~ **erledigt.** `n publish` erzeugt ein fertiges,
+- ~~**VS-Code-Paketierung (installierbares VSIX):**~~ **erledigt.** `nav publish` erzeugt ein fertiges,
   self-contained VSIX: publiziert den Server frisch direkt als
   `vscode-nav-lsp\server\nav.lsp.exe` in die Extension (relativ zu `__dirname` aufgelöst) und paketiert plattform-spezifisch via
   `npx @vscode/vsce package <version> --no-update-package-json --no-git-tag-version --skip-license --target win32-x64 --out deploy\vscode\nav-language-<version>-win32-x64.vsix`.

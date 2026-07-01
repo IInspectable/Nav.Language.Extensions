@@ -36,7 +36,7 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 **Verifiziert:** net10 1145/0, net472 grün; Engine + CodeAnalysis/LSP/MCP/CLI bauen; Default ohne Pragma =
 Version 1 ⇒ Bestand bit-identisch. Direktiven sind seit dem Weg-B-Umbau **strukturierte Trivia**
 (`doc/nav-weg-b-structured-trivia.md`) — `.tokens`/`.tree`/`.trivia`-Golden entsprechend neu, `.diag`
-byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`n build` für den VS-Klassifizierungspfad.)
+byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`nav build` für den VS-Klassifizierungspfad.)
 
 ## Design-Entscheidungen (mit dem Nutzer geklärt — nicht ohne Grund umwerfen)
 

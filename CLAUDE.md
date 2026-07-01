@@ -67,30 +67,30 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
   StringTemplate-Export in `Nav.Language\CustomBuild.targets` läuft über einen file-based
   dotnet-Generator (`Build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
   der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). Die Single-File-Publishes
-  (LSP/MCP) in `n publish` nutzen `dotnet publish`.
-- **Die ganze Solution (`n build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
+  (LSP/MCP) in `nav publish` nutzen `dotnet publish`.
+- **Die ganze Solution (`nav build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
   VS-Extension (`Nav.Language.Extension2026`, VSIX/`VSSDK.BuildTools`), die `dotnet build` nicht baut.
-- **Bevorzugt das `n`-Command-System** (PowerShell-Dispatcher, Alias `n`) statt MSBuild von Hand —
+- **Bevorzugt das `nav`-Command-System** (PowerShell-Dispatcher, Alias `nav`) statt MSBuild von Hand —
   es löst MSBuild via `vswhere` und den Repo-Root via `git rev-parse` selbst auf (funktioniert auch
   aus jedem Worktree). Setup: `Tools\Commands\Import-NavCommands.ps1` im `$PROFILE` dot-sourcen.
 
 | Command | Zweck |
 |---|---|
-| `n build` | Solution bauen (Restore + Build, MSBuild.exe). `-Configuration Release` wird durchgereicht. |
-| `n test` | Tests via gebündeltem NUnit-Console-Runner (net472). |
-| `n publish` | Solution (Debug) bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
-| `n install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
-| `n snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
-| `n incminor` / `incmajor` | Nächstes Minor-/Major-Version-Tag (`vX.Y.0`) auf HEAD anlegen (`-Push`/`-Force`). Der Patch zählt automatisch — kein `incbuild` mehr. |
-| `n newbranch <name>` / `rmbranch` | Branch + Geschwister-Worktree anlegen/entfernen. |
-| `n help` / `n` | Übersicht / interaktives Menü. |
+| `nav build` | Solution bauen (Restore + Build, MSBuild.exe). `-Configuration Release` wird durchgereicht. |
+| `nav test` | Tests via gebündeltem NUnit-Console-Runner (net472). |
+| `nav publish` | Solution (Debug) bauen und alle Deliverables unter `deploy\` bereitstellen: `Build Tools`, VS-Code-Extension (`deploy\vscode`, mit eingebettetem LSP) und MCP-Single-File (`deploy\mcp\nav.mcp.exe`). |
+| `nav install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
+| `nav snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
+| `nav incminor` / `incmajor` | Nächstes Minor-/Major-Version-Tag (`vX.Y.0`) auf HEAD anlegen (`-Push`/`-Force`). Der Patch zählt automatisch — kein `incbuild` mehr. |
+| `nav newbranch <name>` / `rmbranch` | Branch + Geschwister-Worktree anlegen/entfernen. |
+| `nav help` / `nav` | Übersicht / interaktives Menü. |
 
 Quelle der Wahrheit für Commands sind die `.FUNCTIONALITY`-Tokens in `Tools\Commands\Functions\` —
 neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen automatisch nach).
 
 ### Tests im Detail
 
-- **net472:** `n test` (NUnit-Console-Runner unter `Build\nunit.consolerunner\`).
+- **net472:** `nav test` (NUnit-Console-Runner unter `Build\nunit.consolerunner\`).
 - **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` (baut bei Bedarf
   selbst; `--no-build` nur als Beschleunigung, wenn vorher schon gebaut wurde).
 - `Nav.Language.Tests` ist multi-target (`net472;net10.0`) — neue Engine-Tests müssen auf **beiden**
@@ -120,11 +120,11 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 - **Versionierung:** Die Version wird **git-abgeleitet** (`git describe`) — es gibt kein
   `Version.props` mehr. Kern (3-teiliges SemVer, Pflicht für vsce + VS-VSIX-Manifest +
   AssemblyVersion): `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor
-  werden per Tag gesteuert (`n incminor`/`incmajor` → `git tag vX.Y.0`), der Patch zählt automatisch;
+  werden per Tag gesteuert (`nav incminor`/`incmajor` → `git tag vX.Y.0`), der Patch zählt automatisch;
   ein getaggter Commit ist exakt die Release-Version. Branch + Kurz-SHA landen nur in
   `AssemblyInformationalVersion`/CLI, nie im Kern. **Einzige Autorität ist das MSBuild-Target
   `ComputeGitVersion`** (`Build\Version.targets`, über `Directory.Build.props` in jedem Build-Pfad
-  aktiv) — es rechnet die Version selbst aus git, in `n build`/MSBuild.exe genauso wie in
+  aktiv) — es rechnet die Version selbst aus git, in `nav build`/MSBuild.exe genauso wie in
   `dotnet build`/`dotnet publish`/VS-IDE. PowerShell rechnet **nichts** nach und reicht **kein**
   `-p:ProductVersion` durch; `Get-ProductVersion` liest die berechneten Werte nur per
   `dotnet msbuild … -getProperty` (für vsce-/VSIX-Dateinamen). Bei git-Ausfall fällt das Target

@@ -174,7 +174,7 @@ teilen `SourceBuilder` aus dem Shared-Projekt — das validiert das Shared-Proje
   daher kein Parametertyp einer public Testmethode sein → Regel-Namen als `string` übergeben.
 - **`?`-Terminal** (Questionmark) ist NICHT in `SyntaxFacts.Punctuations` — beim Terminal-Check
   gesondert zulassen.
-- **Voll-Solution-Build** (`n build`) braucht weiterhin `MSBuild.exe` (VS-Extension). Der .NET-Teil (inkl.
+- **Voll-Solution-Build** (`nav build`) braucht weiterhin `MSBuild.exe` (VS-Extension). Der .NET-Teil (inkl.
   Generator + Tests) baut mit `dotnet build`/`dotnet test`. Voll-Build mit MSBuild.exe ist noch nicht
   verifiziert (Generator ist Standard-netstandard2.0 — sollte laufen).
 

@@ -58,13 +58,13 @@ Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hinter
 
 1. Konfigurierter Pfad (`navLanguageServer.serverPath`) — `.exe` direkt, `.dll` via `dotnet`.
 2. **Eingebettet:** `server/nav.lsp.exe` in der Extension-Wurzel (greift im installierten VSIX).
-3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (nur falls dorthin manuell publiziert — `n publish`
+3. **Repo (F5):** `../deploy/lsp/nav.lsp.exe` (nur falls dorthin manuell publiziert — `nav publish`
    legt den Server nicht mehr dort ab, sondern direkt in `server/`).
 4. **Repo (F5):** `../Nav.Language.Lsp/bin/Debug/net10.0/nav.lsp.dll` via `dotnet`.
 
 ## VSIX paketieren & installieren
 
-`n publish` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**: es publiziert den LSP-Server
+`nav publish` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**: es publiziert den LSP-Server
 als **self-contained Single-File** (`win-x64`, **genau eine Datei**, inkl. gebündelter .NET-Runtime,
 ~39 MB komprimiert — keine separate Runtime, keine losen DLLs, keine Satellite-Ordner) **direkt** als
 `vscode-nav-lsp/server/nav.lsp.exe` in die Extension und paketiert plattform-spezifisch via

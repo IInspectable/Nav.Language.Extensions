@@ -230,7 +230,7 @@ mit `ResolveLanguageVersion()` speisen. Aus `NavParser.cs` löschen: `ParseDirec
 - net10: `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`
 - net472: NUnit-Console-Runner (`Build\nunit.consolerunner\...\nunit3-console.exe … bin\Debug\net472\Nav.Language.Tests.dll`)
 - Golden: `[Explicit] SyntaxGoldenTests.UpdateGolden` + `git diff` (nur `PreprocessorNotAtLineStart.*`)
-- VS-Färbepfad: `n build` (VSIX, net472 — validiert `ExtensionShared`/`Lsp` gegen den unveränderten Trivia-Seam)
+- VS-Färbepfad: `nav build` (VSIX, net472 — validiert `ExtensionShared`/`Lsp` gegen den unveränderten Trivia-Seam)
 
 ## Risiken / Randfälle
 - **Lexer-Gate:** `#` an Datei-/Zeilenanfang (Präfix leer → Direktive); eingerückt (`    #pragma …` → Direktive);

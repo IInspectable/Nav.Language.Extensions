@@ -33,7 +33,7 @@ spätere Verhaltensänderungen erscheinen dann als **reviewbare Diffs** an den G
 
 ### Tests ausführen
 
-- **net472:** `n test` (gebündelter NUnit-Console-Runner).
+- **net472:** `nav test` (gebündelter NUnit-Console-Runner).
 - **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0`.
 - Beim Hinzufügen neuer Golden-Dateien als eingebettete Ressourcen / Test-Daten daran denken, dass
   sie via Copy-to-Output bzw. `TestDataDirectory.Resolve(...)` gefunden werden müssen (siehe wie
