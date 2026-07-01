@@ -29,6 +29,5 @@
     <PackageReference Include="NLog.Targets.Network"/>
     <PackageReference Include="System.Collections.Immutable" />
   </ItemGroup>
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="CustomBuild.targets" />
 </Project>

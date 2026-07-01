@@ -72,7 +72,6 @@
     <File Path="doc/nav-parser-test-plan.md" />
     <File Path="doc/vs-call-hierarchy-plan.md" />
   </Folder>
-  <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
   <Project Path="Nav.Language.BuildTasks.Tests/Nav.Language.BuildTasks.Tests.csproj" />

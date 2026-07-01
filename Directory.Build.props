@@ -11,4 +11,10 @@
     <NoWarn>$(NoWarn);NU1507</NoWarn>
   </PropertyGroup>
 
+  <!-- JetBrains-Annotationen projektübergreifend. Rein design-time (siehe Directory.Packages.props);
+       PrivateAssets="all" hält sie aus der transitiven Abhängigkeitskette der erzeugten Assemblies. -->
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>

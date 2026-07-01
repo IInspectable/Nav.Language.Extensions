@@ -38,6 +38,5 @@
     <PackageReference Include="Microsoft.CodeAnalysis" />
   </ItemGroup>
 
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="CustomBuild.targets" />
 </Project>

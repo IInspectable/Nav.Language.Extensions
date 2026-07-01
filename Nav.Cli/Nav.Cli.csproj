@@ -39,8 +39,7 @@
     <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
   </ItemGroup>
-  
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
+
   <Import Project="CustomBuild.targets" />
 
 </Project>
