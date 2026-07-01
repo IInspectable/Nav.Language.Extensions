@@ -1883,7 +1883,7 @@ sealed class NavParser {
         var end = i + 1;
         while (end < _raw.Length) {
             var type = _raw[end].Type;
-            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText) {
+            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText or SyntaxTokenType.PreprocessorNumber) {
                 end++;
                 continue;
             }
@@ -1919,7 +1919,9 @@ sealed class NavParser {
 
         var span = TextExtent.FromBounds(hash.Extent.Start, directiveEnd);
 
-        // Genau ein ganzzahliges Argument; sonst eine Nav3002 und Rückfall auf die Default-Version.
+        // Genau ein ganzzahliges Argument; sonst eine Nav3002 und Rückfall auf die Default-Version. Die
+        // Einfärbung (Wort → PreprocessorKeyword, Zahl → NumberLiteral) ergibt sich allein aus den vom
+        // Lexer bereits korrekt typisierten Rumpf-Token — hier ist dafür nichts weiter zu tun.
         if (parts.Length != 2 || !NavLanguageVersion.TryParse(parts[1], out var version)) {
             _diagnostics.Add(new Diagnostic(LexicalLocation(hash.Extent),
                                             DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
@@ -2047,6 +2049,9 @@ sealed class NavParser {
             case SyntaxTokenType.PreprocessorText:
             case SyntaxTokenType.PreprocessorNewLine:
                 classification = TextClassification.PreprocessorText;
+                return true;
+            case SyntaxTokenType.PreprocessorNumber:
+                classification = TextClassification.NumberLiteral;
                 return true;
             default:
                 classification = TextClassification.Unknown;
@@ -2205,6 +2210,7 @@ sealed class NavParser {
             case SyntaxTokenType.PreprocessorKeyword:
             case SyntaxTokenType.PreprocessorText:
             case SyntaxTokenType.PreprocessorNewLine:
+            case SyntaxTokenType.PreprocessorNumber:
                 return true;
             default:
                 return false;

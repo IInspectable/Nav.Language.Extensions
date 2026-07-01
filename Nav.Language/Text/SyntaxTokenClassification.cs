@@ -22,5 +22,6 @@ public enum TextClassification {
     PreprocessorKeyword,
     Text,
     ParameterName,
+    NumberLiteral,
 
 }

@@ -56,6 +56,7 @@ public enum SyntaxTokenType {
     PreprocessorKeyword    = 48,
     PreprocessorText       = 50,
     PreprocessorNewLine    = 49,
+    PreprocessorNumber     = 51,
     EndOfFile              = 255
 
 }

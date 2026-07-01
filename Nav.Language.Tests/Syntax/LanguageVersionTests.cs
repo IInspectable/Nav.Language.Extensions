@@ -5,6 +5,7 @@ using System.Linq;
 using NUnit.Framework;
 
 using Pharmatechnik.Nav.Language;
+using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -85,6 +86,33 @@ public class LanguageVersionTests {
 
         var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
         Assert.That(ids, Does.Contain("Nav3000"));
+    }
+
+    [Test]
+    public void WellFormedPragma_ClassifiesVersionKeywordAndNumber() {
+
+        // Positionen in "#pragma version 12": '#'=0, 'pragma'=1..6, ' '=7, 'version'=8..14, ' '=15, '12'=16..17.
+        var tree = SyntaxTree.ParseText("#pragma version 12\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        TextClassification At(int position) {
+            return tree.Tokens.Single(t => t.Extent.Contains(TextExtent.FromBounds(position, position + 1))).Classification;
+        }
+
+        Assert.That(At(0),  Is.EqualTo(TextClassification.PreprocessorKeyword), "'#'");
+        Assert.That(At(1),  Is.EqualTo(TextClassification.PreprocessorKeyword), "'pragma'");
+        Assert.That(At(8),  Is.EqualTo(TextClassification.PreprocessorKeyword), "Anfang von 'version'");
+        Assert.That(At(14), Is.EqualTo(TextClassification.PreprocessorKeyword), "Ende von 'version'");
+        Assert.That(At(16), Is.EqualTo(TextClassification.NumberLiteral),       "erste Ziffer von '12'");
+        Assert.That(At(17), Is.EqualTo(TextClassification.NumberLiteral),       "zweite Ziffer von '12'");
+    }
+
+    [Test]
+    public void InvalidVersion_DoesNotClassifyAsNumber() {
+
+        // 'version' bleibt Präprozessor-Schlüsselwort, aber der ungültige Wert wird nicht als Zahl gefärbt.
+        var tree = SyntaxTree.ParseText("#pragma version abc\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        Assert.That(tree.Tokens.Any(t => t.Classification == TextClassification.NumberLiteral), Is.False);
     }
 
     [Test]

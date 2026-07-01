@@ -368,6 +368,25 @@ static class ClassificationTypeDefinitions {
 
     #endregion
 
+    #region NumberLiteral
+
+    [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.NumberLiteral)] [BaseDefinition(CSharpClassificationTypeNames.NumericLiteral)]
+    public static ClassificationTypeDefinition NumberLiteral;
+
+    [Export(typeof(EditorFormatDefinition))]
+    [Name(ClassificationTypeNames.NumberLiteral)]
+    [UserVisible(Is.UserVisible)]
+    [Order(Before = Priority.Default)]
+    public sealed class NumberLiteralClassificationFormatDefinition: ClassificationFormatDefinition {
+
+        public NumberLiteralClassificationFormatDefinition() {
+            DisplayName = "Nav Number";
+        }
+
+    }
+
+    #endregion
+
     public static ImmutableDictionary<TextClassification, IClassificationType> GetSyntaxTokenClassificationMap(IClassificationTypeRegistryService registry) {
 
         var classificationMap = new Dictionary<TextClassification, IClassificationType> {
@@ -388,6 +407,7 @@ static class ClassificationTypeDefinitions {
             {TextClassification.ParameterName      , registry.GetClassificationType(ClassificationTypeNames.ParameterName)},
             {TextClassification.PreprocessorKeyword, registry.GetClassificationType(ClassificationTypeNames.PreprocessorKeyword)},
             {TextClassification.PreprocessorText   , registry.GetClassificationType(ClassificationTypeNames.PreprocessorText)},
+            {TextClassification.NumberLiteral      , registry.GetClassificationType(ClassificationTypeNames.NumberLiteral)},
         };
 
         return classificationMap.ToImmutableDictionary();

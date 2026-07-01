@@ -26,6 +26,9 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 | Semantik-Durchreiche `LanguageVersion` | `Nav.Language/SemanticModel/CodeGenerationUnit.cs` |
 | Codegen-Durchreiche in die Templates | `Nav.Language/CodeGen/CodeGeneratorContext.cs` (+ Aufruf in `CodeGenerator.cs`) |
 | Diagnosen `Nav3002` (malformed) / `Nav5000` (Gate) | `Diagnostic/DiagnosticId.cs`, `…Descriptors.Syntax.cs`, `…Descriptors.Semantic.cs` |
+| **Rumpf-Tokenisierung im Lexer** (Directive-Mode: Wort→`PreprocessorKeyword`, Ziffern→`PreprocessorNumber`, Rest→`PreprocessorText`) | `Syntax/NavLexer.cs` (`ScanPreprocessor`), neuer Typ `Syntax/SyntaxTokenType.cs` |
+| **Klassifikation rein typ-getrieben** (`PreprocessorNumber`→`NumberLiteral`) | `Syntax/NavParser.cs` (`TryClassifyNonSignificant`, `IsHidden`), `Text/SyntaxTokenClassification.cs` |
+| Editor-Anbindung (beide Hosts, geteilt) | LSP: `SemanticTokensBuilder.cs` (Legende `number`); VS: `Classification/ClassificationType{Names,Definitions}.cs` (`NavNumber`); VS-Code-Client-Fallback: `vscode-nav-lsp/syntaxes/nav.tmLanguage.json` |
 | Tests | `Nav.Language.Tests/Syntax/LanguageVersionTests.cs`, Fixtures `Syntax/Tests/VersionPragma(.Invalid).nav` |
 
 **Verifiziert:** net10 1135/0, net472 1135/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; kein Bestands-Golden
@@ -96,9 +99,17 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
 - **Erstes echtes v2-Feature einziehen:** Wert in `NavLanguageFeature` ergänzen, Mindestversion in
   `NavLanguageFeatures.RequiredVersion` eintragen, `ReportIfUnavailable(...)` im Semantik-Lauf aufrufen
   (Parser bleibt permissiv). `Nav5000` wird damit erstmals real ausgelöst.
-- **Editor-Klassifikation verfeinern:** heute sind `#`/`pragma`/Rumpf `PreprocessorKeyword`/`…Text`. Optional
-  `version` als Keyword und die Zahl als numerisches Literal färben (bräuchte Lexer-Rumpf-Tokenisierung oder
-  einen Klassifikations-Pass).
+- **Editor-Klassifikation verfeinern — erledigt (C#-treu, im Lexer):** `#`, `pragma` **und** `version` sind
+  `PreprocessorKeyword`, die Versionszahl ist ein numerisches Literal (`TextClassification.NumberLiteral`).
+  Umsetzung wie Roslyns Directive-Mode: das `#` schaltet `ScanPreprocessor` in den Präprozessor-Modus, der den
+  Rumpf **in ganzen Läufen** ausgibt — Wort→`PreprocessorKeyword`, reine Ziffern→neuer `PreprocessorNumber`,
+  Rest (Zwischenraum/Satzzeichen)→`PreprocessorText`. Die Klassifikation folgt dann **allein aus dem Token-Typ**
+  (`TryClassifyNonSignificant`: `PreprocessorNumber`→`NumberLiteral`) — **keine** direktiven-spezifische Logik im
+  Parser (kein Extent-Abgleich, kein Sonder-Pass). Der ungültige Versionswert (`Nav3002`) ist ein Wort, also
+  Keyword-, nicht Zahl-gefärbt. Beide Hosts ziehen automatisch nach (LSP-Token-Typ `number`; VS `NavNumber` auf
+  Basis C#-`NumericLiteral`); der VS-Code-Client hat zusätzlich statisches TextMate-Fallback für `#pragma version <N>`.
+  Nebeneffekt (gewollt): der Rumpf **jeder** `#`-Direktive ist jetzt sauber tokenisiert (z.B. `#if DEBUG` → `DEBUG`
+  ein Wort-Token statt Einzelzeichen).
 - **QuickInfo/Hover** auf der Direktive; **Code-Fix** zu `Nav3002`/`Nav5001` (gültige/`Latest`-Version einsetzen).
 - **Lexer-LF-Fallstrick:** Direktiven terminieren im Textmodus **nur bei `\r\n`** (Alt-Grammatik; einzelnes
   `\n` bleibt `PreprocessorText` und verschluckt den Rest bis `\r\n`/EOF). Gilt für **alle** `#`-Direktiven.

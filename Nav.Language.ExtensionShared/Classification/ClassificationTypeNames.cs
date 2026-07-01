@@ -1,4 +1,4 @@
-namespace Pharmatechnik.Nav.Language.Extension.Classification; 
+﻿namespace Pharmatechnik.Nav.Language.Extension.Classification; 
 
 static class ClassificationTypeNames {
 
@@ -20,5 +20,6 @@ static class ClassificationTypeNames {
     public const string ParameterName       = "NavParameterName";
     public const string PreprocessorText    = "NavPreprocessorText";
     public const string PreprocessorKeyword = "NavPreprocessorKeyword";
+    public const string NumberLiteral       = "NavNumber";
 
 }

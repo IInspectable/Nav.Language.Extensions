@@ -118,7 +118,8 @@ public class TokenTriviaTests {
         foreach (var token in tree.Tokens.Where(t => t.Type == SyntaxTokenType.HashToken            ||
                                                       t.Type == SyntaxTokenType.PreprocessorKeyword ||
                                                       t.Type == SyntaxTokenType.PreprocessorText    ||
-                                                      t.Type == SyntaxTokenType.PreprocessorNewLine)) {
+                                                      t.Type == SyntaxTokenType.PreprocessorNewLine ||
+                                                      t.Type == SyntaxTokenType.PreprocessorNumber)) {
             Assert.That(token.LeadingTrivia,  Is.Empty, $"Präprozessor-Token {token.Type} darf keine Leading-Trivia tragen.");
             Assert.That(token.TrailingTrivia, Is.Empty, $"Präprozessor-Token {token.Type} darf keine Trailing-Trivia tragen.");
         }

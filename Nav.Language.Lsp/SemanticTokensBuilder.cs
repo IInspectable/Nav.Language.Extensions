@@ -30,7 +30,8 @@ static class SemanticTokensBuilder {
         "operator",   //  7
         "macro",      //  8
         "enumMember", //  9
-        "property"    // 10
+        "property",   // 10
+        "number"      // 11
     };
 
     public static readonly string[] TokenModifiers = Array.Empty<string>();
@@ -53,6 +54,7 @@ static class SemanticTokensBuilder {
         TextClassification.ChoiceNode          => 9,
         TextClassification.GuiNode             => 9,
         TextClassification.ConnectionPoint     => 10,
+        TextClassification.NumberLiteral       => 11,
         _                                      => None // Whitespace, Skiped, Unknown, Text, DeadCode
     };
 

@@ -1,11 +1,7 @@
 ﻿    0    1  HashToken               PreprocessorKeyword          CodeGenerationUnitSyntax
     1    2  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
     3    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    4    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    5    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    6    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    7    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    8    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
+    4    5  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
     9    2  PreprocessorNewLine     PreprocessorText             CodeGenerationUnitSyntax
    11    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
    16    1  Identifier              TaskName                     TaskDefinitionSyntax

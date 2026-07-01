@@ -279,9 +279,12 @@ sealed class NavLexer {
             inTextMode = true;
         }
 
-        // Direktiven-Rumpf je Zeichen. Ein '\r\n' beendet die Direktive immer als PreprocessorNewLine
-        // (Längstmatch). Ein Einzelzeichen-Zeilenende beendet sie nur VOR dem Keyword; im Textmodus
-        // bleibt es PreprocessorText (Regel-Reihenfolge der bisherigen Lexer-Grammatik).
+        // Direktiven-Rumpf in ganzen Läufen (wie der Directive-Mode eines echten Lexers): Wort-Läufe als
+        // PreprocessorKeyword, reine Ziffern-Läufe als PreprocessorNumber, alles Übrige (Zwischenraum,
+        // Satzzeichen) als PreprocessorText. So fallen die korrekt typisierten Token direkt hier an und die
+        // Klassifikation folgt allein aus dem Token-Typ — es braucht keine Sonderbehandlung im Parser.
+        // Ein '\r\n' beendet die Direktive immer als PreprocessorNewLine (Längstmatch); ein Einzelzeichen-
+        // Zeilenende beendet sie nur VOR dem Keyword — im Textmodus bleibt es Rumpf (Alt-Grammatik).
         while (_pos < _length) {
             var nlLength = NewLineLength(_pos);
 
@@ -295,7 +298,31 @@ sealed class NavLexer {
                 return;
             }
 
-            AddAndAdvance(SyntaxTokenType.PreprocessorText, 1);
+            var c = _text[_pos];
+            if (c is >= '0' and <= '9') {
+                var start = _pos;
+                while (_pos < _length && _text[_pos] is >= '0' and <= '9') {
+                    _pos++;
+                }
+
+                Add(SyntaxTokenType.PreprocessorNumber, start, _pos);
+            } else if (IsLetterCharacter(c)) {
+                var start = _pos;
+                while (_pos < _length && (IsLetterCharacter(_text[_pos]) || _text[_pos] is >= '0' and <= '9')) {
+                    _pos++;
+                }
+
+                Add(SyntaxTokenType.PreprocessorKeyword, start, _pos);
+            } else if (IsWhitespace(c)) {
+                var start = _pos;
+                while (_pos < _length && IsWhitespace(_text[_pos])) {
+                    _pos++;
+                }
+
+                Add(SyntaxTokenType.PreprocessorText, start, _pos);
+            } else {
+                AddAndAdvance(SyntaxTokenType.PreprocessorText, 1);
+            }
         }
     }
 

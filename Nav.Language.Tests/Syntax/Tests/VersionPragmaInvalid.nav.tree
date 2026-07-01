@@ -1,5 +1,5 @@
 ﻿CodeGenerationUnitSyntax [0-75]  {EndOfFile}
-  VersionDirectiveSyntax [0-17]  {HashToken, PreprocessorKeyword, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorNewLine}
+  VersionDirectiveSyntax [0-17]  {HashToken, PreprocessorKeyword, PreprocessorText, PreprocessorKeyword, PreprocessorNewLine}
   TaskDefinitionSyntax [17-73]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     NodeDeclarationBlockSyntax [32-54]
       InitNodeDeclarationSyntax [32-40]  {InitKeyword, Identifier, Semicolon}

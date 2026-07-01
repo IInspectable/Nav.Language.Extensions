@@ -1,13 +1,7 @@
 ﻿    0    1  HashToken               PreprocessorKeyword          VersionDirectiveSyntax
     1    6  PreprocessorKeyword     PreprocessorKeyword          VersionDirectiveSyntax
     7    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-    8    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-    9    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-   10    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-   11    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-   12    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-   13    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
-   14    1  PreprocessorText        PreprocessorText             VersionDirectiveSyntax
+    8    7  PreprocessorKeyword     PreprocessorKeyword          VersionDirectiveSyntax
    15    2  PreprocessorNewLine     PreprocessorText             VersionDirectiveSyntax
    17    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
    22    1  Identifier              TaskName                     TaskDefinitionSyntax
