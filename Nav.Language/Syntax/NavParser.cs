@@ -2087,7 +2087,7 @@ sealed class NavParser {
         var localTokens = new List<SyntaxToken>();
         for (var k = hashIndex; k < tokenEnd; k++) {
             var raw = _raw[k];
-            if (TryClassifyNonSignificant(raw.Type, out var classification)) {
+            if (SyntaxTokenFactory.TryClassifyNonSignificant(raw.Type, out var classification)) {
                 localTokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, node,
                                                                SyntaxTriviaList.Empty, SyntaxTriviaList.Empty));
             }
@@ -2152,7 +2152,7 @@ sealed class NavParser {
                 continue;
             }
 
-            if (TryClassifyNonSignificant(raw.Type, out var classification)) {
+            if (SyntaxTokenFactory.TryClassifyNonSignificant(raw.Type, out var classification)) {
                 // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
                 // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
                 // als Leading (siehe BuildTrivia).
@@ -2196,37 +2196,6 @@ sealed class NavParser {
         var line         = _sourceText.GetTextLineAtPosition(extent.Start);
         var linePosition = new LinePosition(line.Line, extent.Start - line.Start);
         return new Location(extent, linePosition, _sourceText.FileInfo?.FullName);
-    }
-
-    static bool TryClassifyNonSignificant(SyntaxTokenType type, out TextClassification classification) {
-        switch (type) {
-            case SyntaxTokenType.Whitespace:
-            case SyntaxTokenType.NewLine:
-            case SyntaxTokenType.EndOfFile:
-                classification = TextClassification.Whitespace;
-                return true;
-            case SyntaxTokenType.SingleLineComment:
-            case SyntaxTokenType.MultiLineComment:
-                classification = TextClassification.Comment;
-                return true;
-            case SyntaxTokenType.Unknown:
-                classification = TextClassification.Skiped;
-                return true;
-            case SyntaxTokenType.HashToken:
-            case SyntaxTokenType.PreprocessorKeyword:
-                classification = TextClassification.PreprocessorKeyword;
-                return true;
-            case SyntaxTokenType.PreprocessorText:
-            case SyntaxTokenType.PreprocessorNewLine:
-                classification = TextClassification.PreprocessorText;
-                return true;
-            case SyntaxTokenType.PreprocessorNumber:
-                classification = TextClassification.NumberLiteral;
-                return true;
-            default:
-                classification = TextClassification.Unknown;
-                return false;
-        }
     }
 
     void Tok(SyntaxNode parent, RawToken? raw, TextClassification classification) {
