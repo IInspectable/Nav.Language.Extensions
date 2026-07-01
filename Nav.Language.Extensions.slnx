@@ -7,7 +7,6 @@
   <Folder Name="/Solution Items/">
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
-    <File Path="appveyor.yml" />
     <File Path="CLAUDE.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
@@ -50,7 +49,18 @@
     <File Path="Build/GobalAssemblyInfo.cs" />
     <File Path="Build/Version.targets" />
     <File Path="Directory.Build.targets" />
+  </Folder>
+  <Folder Name="/Build/Shared/">
+    <Project Path="Build/Shared/Nav.CodeAnalysis.Shared/Nav.CodeAnalysis.Shared.shproj" />
+  </Folder>
+  <Folder Name="/Build/SourceGenerators/">
+    <File Path="Build/SourceGenerators/SourceGenerator.props" />
     <File Path="Build/SourceGenerators/SourceGenerator.targets" />
+    <Project Path="Build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/Nav.AssemblyInfo.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator/Nav.Visitor.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator.Tests/Nav.Visitor.SourceGenerator.Tests.csproj" />
   </Folder>
   <Folder Name="/doc/">
     <File Path="doc/Errors.md" />
@@ -62,12 +72,6 @@
     <File Path="doc/nav-parser-test-plan.md" />
     <File Path="doc/vs-call-hierarchy-plan.md" />
   </Folder>
-  <Project Path="Build/Shared/Nav.CodeAnalysis.Shared/Nav.CodeAnalysis.Shared.shproj" />
-  <Project Path="Build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/Nav.AssemblyInfo.SourceGenerator.csproj" />
-  <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
-  <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />
-  <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator/Nav.Visitor.SourceGenerator.csproj" />
-  <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator.Tests/Nav.Visitor.SourceGenerator.Tests.csproj" />
   <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
