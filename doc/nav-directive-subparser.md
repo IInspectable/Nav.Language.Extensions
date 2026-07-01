@@ -1,12 +1,40 @@
 ﻿# Handoff: Direktiv-Sub-Parser (`NavDirectiveParser`) + Lexer-Gate + Versions-Semantik
 
-> **Selbsttragender Einstieg für eine frische Session ohne Gesprächskontext.** Branch `feature/nav-parser`.
+> **UMGESETZT** (Branch `feature/nav-parser`). Der Direktiv-Sub-Parser lebt in
+> `Nav.Language\Syntax\NavDirectiveParser.cs`; die Versions-Platzierungs-Semantik in
+> `NavParser.ResolveLanguageVersion`. Die alte Index-Arithmetik-Vorlaufmechanik (`ParseDirectives` &
+> Helfer) in `NavParser` ist entfernt. Der aktuelle Zustand ist unten unter **„Endzustand"** zusammengefasst;
+> die darauf folgende Step-Gliederung dokumentiert den Weg dorthin (historisch).
+>
+> **Selbsttragender Einstieg für eine frische Session ohne Gesprächskontext.**
 > Quelle der Wahrheit ist der Code; die Zeilennummern sind Einstieg (zum Erhebungszeitpunkt verifiziert, können
 > durch frühere Edits driften). Verwandte Handoffs: `doc/nav-weg-b-structured-trivia.md`,
 > `doc/nav-pragmas-versioning-status.md`, `doc/nav-kolibri.md`.
 > **Konventionen (Pflicht):** neue Dateien UTF-8 **mit BOM**; echte Umlaute (ä ö ü ß); **keine** Plan-„Step"-Verweise
 > in Code/XML-Doku; **nie selbst committen** (nach jedem Step Review + Build/Tests, dann Commit-Message als Text
 > liefern); Tests auf **net472 UND net10.0** grün. Bei Abschluss diese Doku + `MEMORY.md` fortschreiben.
+
+## Endzustand (umgesetzt)
+
+- **`NavDirectiveParser`** (`Nav.Language\Syntax\NavDirectiveParser.cs`, `sealed class`, `internal` Ctor):
+  cursor-basierter Sub-Parser über den Roh-Token-Strom. `Parse()` scannt auf `HashToken`, bildet je `#`-Lauf
+  `[hashIndex, RunEnd)` genau einen `DirectiveRun`. Keyword-Dispatch (`switch` über das Wort direkt hinter `#`):
+  `"pragma"` → `ParsePragma` (Subjekt `version` mit reinem Zwischenraum davor → **immer**
+  `VersionDirectiveSyntax`; Nav3002 bei fehlend/ungültig, Rückfall `Default`), alles andere → `BadDirective`
+  + **Nav3000**. Portierte Helfer lokal: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`,
+  `PopulateLocalTokens` (lokale Token via geteiltes `SyntaxTokenFactory.TryClassifyNonSignificant`).
+- **Lexer-Gate** (`NavLexer`): `#` beginnt eine Direktive nur als erstes Nicht-Whitespace-Zeichen der Zeile;
+  mid-line-`#` → `Unknown`/**Nav0000**. **Nav3001 existiert nicht mehr** (aus `DiagnosticId`,
+  `DiagnosticDescriptors.Syntax`, `doc/Errors.md` entfernt).
+- **Platzierungs-Semantik** (`NavParser.ResolveLanguageVersion`, aufgerufen in `ParseCodeGenerationUnit` nach
+  der Member-Schleife, vor dem Wurzel-Ctor / dem Einfrieren der Diagnostics): iteriert `_directiveRuns` in
+  Quelltext-Reihenfolge und wählt die **wirksame** `VersionDirectiveSyntax` — nur ganz oben (nur Trivia davor),
+  nur die erste. Verstöße: hinter Code → Nav3003; Duplikat am Kopf → Nav3004; andere Direktive davor → Nav3003.
+- **Knotentyp-Umkehr:** **jede** `#pragma version` ist strukturell `VersionDirectiveSyntax` (auch deplatzierte/
+  doppelte) — sie bleiben als Knoten in `SyntaxTree.Directives()`, sind aber unwirksam.
+  `CodeGenerationUnitSyntax.LanguageVersionDirective` ist der gespeicherte wirksame Wert (kein
+  `Directives().First()` mehr). `BadDirectiveTriviaSyntax` = nur noch **unbekannte** Direktive.
+- **Verifiziert:** net10 1146/0, net472 1146/0 (je 3 `[Explicit]` skipped); `UpdateGolden` ohne Bestands-Diff.
 
 ## Warum
 

@@ -8,6 +8,13 @@
 > **Status: umgesetzt** (net10 1145/0, net472 grün; `.diag` byte-identisch). Steps 1–5 erledigt —
 > siehe „Umsetzung" am Ende. Der folgende Plan bleibt als Begründung/Nachschlagewerk stehen; die
 > geltende Quelle ist der Code.
+>
+> **Nachfolge-Umbau (siehe `doc/nav-directive-subparser.md`):** Der hier als „Region in `NavParser`"
+> skizzierte Direktiv-Sub-Parser wurde inzwischen in die eigene Klasse `NavDirectiveParser` extrahiert; die
+> Zeilenanfang-Regel erzwingt jetzt der **Lexer** (`Nav3001` ist entfallen), und **jede** `#pragma version`
+> wird strukturell `VersionDirectiveSyntax` (deplatzierte/doppelte bleiben Knoten, sind aber unwirksam —
+> `Nav3003`/`Nav3004` liefert `NavParser.ResolveLanguageVersion`). Die unten stehenden Erwähnungen von
+> `Nav3001` bzw. „andere Direktive → `BadDirectiveTriviaSyntax`" sind entsprechend überholt.
 
 ## Warum
 

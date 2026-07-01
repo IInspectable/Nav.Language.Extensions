@@ -227,10 +227,11 @@ echter Nav-Code bricht eine Transition nie über Zeilen um (Korpus: 1104/1104 ei
 
 ## Präprozessor-Direktiven
 
-**Ist-Zustand:** Nav lext `#` über `HashToken` → `PreprocessorMode` → Keyword + Text bis EOL,
-klassifiziert das, und meldet es als **nicht unterstützt** (`Nav3000InvalidPreprocessorDirective`,
-`Nav3001…MustAppearOnFirstNonWhitespacePosition`). Es gibt **keine** echte Direktiven-Semantik.
-Includes laufen bewusst auf **Grammatik**-Ebene (`taskref "…"`), nicht über den Präprozessor.
+**Ist-Zustand:** Nav lext `#` über `HashToken` → `PreprocessorMode` → Keyword + Text bis EOL (das `#`
+beginnt eine Direktive **nur** als erstes Nicht-Whitespace-Zeichen der Zeile, sonst `Unknown`/`Nav0000`),
+klassifiziert das, und meldet Unbekanntes als **nicht unterstützt** (`Nav3000InvalidPreprocessorDirective`).
+Es gibt (außer der Sprach-Version, s.u.) **keine** echte Direktiven-Semantik. Includes laufen bewusst auf
+**Grammatik**-Ebene (`taskref "…"`), nicht über den Präprozessor.
 
 **Wie Roslyn es macht:** Direktiven sind **Trivia** — der Hauptparser sieht sie nie. Aber
 **strukturierte** Trivia: `#if DEBUG` ist ein kleiner Syntaxteilbaum (`DirectiveTriviaSyntax`:
@@ -256,15 +257,17 @@ je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Ele
   in einer **eigenen, lokalen** `SyntaxTokenList` (`SetLocalTokens`/`ChildTokens()`-Override), **nicht**
   im flachen `SyntaxTree.Tokens`-Strom, und ist **kein** Kindknoten der Wurzel mehr.
   `SyntaxTree.Directives()` sammelt sie über `DescendantTrivia().Where(HasStructure)`.
-- **Erkennung** durch einen cursor-basierten Direktiv-Sub-Parser (`NavParser`), der pro `#`-Lauf
-  entscheidet: `#pragma version <int>` → `VersionDirectiveSyntax` (wirksam nur als **erste** und nur, wenn
-  ihr ausschließlich Trivia vorausgeht); **jede andere** Direktive → `BadDirectiveTriviaSyntax`. Fehlender/
-  nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall auf `NavLanguageVersion.Default` (= 1). Eine
-  weiter unten stehende Versions-Direktive meldet `Nav3003`, eine doppelte `Nav3004` (erste gewinnt);
-  beide werden zu `BadDirectiveTriviaSyntax`, bleiben ohne Wirkung, ihre Token aber normal eingefärbt.
-  Jede unbekannte Direktive (`#pragma warning …` o.Ä.) meldet `Nav3000`/`Nav3001`. `BuildTrivia` faltet
-  jeden Präprozessor-Lauf zu einem `DirectiveTrivia`-Stück und hängt es als Leading-Trivia des Folge-Tokens
-  (bzw. `EndOfFile`) an.
+- **Erkennung** durch einen cursor-basierten Direktiv-Sub-Parser (`NavDirectiveParser`,
+  `Nav.Language\Syntax\NavDirectiveParser.cs`), der pro `#`-Lauf per **Keyword-Dispatch** entscheidet:
+  `#pragma version <int>` → **immer** `VersionDirectiveSyntax`; **jede andere, unbekannte** Direktive →
+  `BadDirectiveTriviaSyntax` + `Nav3000`. Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall
+  auf `NavLanguageVersion.Default` (= 1). Welche Versions-Direktive **wirksam** ist, entscheidet **separat**
+  `NavParser.ResolveLanguageVersion` (nur die erste ganz oben, nur Trivia davor): eine weiter unten stehende
+  meldet `Nav3003`, eine doppelte `Nav3004` (erste gewinnt) — beide bleiben eigenständige
+  `VersionDirectiveSyntax`-Knoten, aber unwirksam, ihre Token normal eingefärbt. Die Zeilenanfang-Regel
+  erzwingt der **Lexer** (mid-line-`#` → `Unknown`/`Nav0000`); ein eigenes `Nav3001` gibt es nicht mehr.
+  `BuildTrivia` faltet jeden Präprozessor-Lauf zu einem `DirectiveTrivia`-Stück und hängt es als
+  Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an.
 - **Fallstrick (wichtig):** Der Lexer beendet eine Direktive im Textmodus **nur bei `\r\n`** (einzelnes
   `\n` bleibt `PreprocessorText` — Alt-Grammatik-Verhalten, gilt für **alle** `#`-Direktiven). Ein
   `#pragma version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
@@ -342,7 +345,7 @@ Hier musste eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia
    gleich mit anhängen; flaches Token-Modell beibehalten. — **erledigt (Schritt A, Happy Path)**
    (`Nav.Language\Syntax\NavParser.cs`, Gate `NavParserDifferentialTests`).
 3. Error-Recovery + Diagnostics-Parität; Golden-/Snapshot-Tests als Gate. — **erledigt (Schritt B)**:
-   B1 (lexikalische Diagnostics `Nav0000`/`Nav3000`/`Nav3001`) **erledigt** (Commit `e0d35c99`);
+   B1 (lexikalische Diagnostics `Nav0000`/`Nav3000`; `Nav3001` inzwischen entfallen) **erledigt** (Commit `e0d35c99`);
    B2 (Golden-Verifikationsstrang für den Handparser, `*.hand.*`) **erledigt**; B3 (Error-Recovery:
    Missing-/Skipped-Token, gestaffelte Sync-Sets, missing edge/target) inkl. Tipp-Präfix-Robustheit
    **erledigt**.
@@ -676,18 +679,18 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
 1. **Lexikalische Diagnostics** (heute in `SyntaxTree.cs` `PostprocessTokens` erzeugt) — **erledigt (B1)**:
    - `Nav0000UnexpectedCharacter` je `Unknown`-Token.
    - `Nav3000InvalidPreprocessorDirective` je `HashToken` **und** je `PreprocessorKeyword`.
-   - `Nav3001…MustAppearOnFirstNonWhitespacePosition` für `HashToken`, wenn vor dem `#` in der Zeile
-     nicht nur Whitespace steht (`SourceText.SliceFromLineStartToPosition(...).IsWhiteSpace()`).
+   - *(historisch)* `Nav3001…MustAppearOnFirstNonWhitespacePosition` für `HashToken`, wenn vor dem `#` in der
+     Zeile nicht nur Whitespace stand.
    Umgesetzt in `NavParser.ReportLexicalDiagnostics` (aufgerufen aus `AttachNonSignificantTokens`).
    Die Location wird über `NavParser.LexicalLocation` gebaut — Start-/End-Zeilenposition **identisch**
    an der Token-Startposition (im Test-Formatter nullbreit), exakt wie ANTLRs `IToken.GetLocation`
-   (nicht der Zeilen*bereich* aus `SourceText.GetLocation`). Reihenfolge je `#`: erst `Nav3001`,
-   dann `Nav3000`.
-   **Update (Direktiv-Sub-Parser, Weg B):** `Nav3000`/`Nav3001` entstehen strukturiert im Direktiv-Sub-Parser
-   (genau eine `Nav3000` je `#`-Lauf, nicht mehr je `HashToken`+`PreprocessorKeyword`);
-   `ReportLexicalDiagnostics` meldet nur noch `Nav0000`. Locations und Reihenfolge (`Nav3001` vor `Nav3000`)
-   bleiben identisch. (Die frühere `ParseDirectives`/`ReportDirectiveDiagnostics`-Vorlaufmechanik entfiel mit
-   Weg B — siehe `doc/nav-weg-b-structured-trivia.md`.)
+   (nicht der Zeilen*bereich* aus `SourceText.GetLocation`).
+   **Update (Direktiv-Sub-Parser `NavDirectiveParser`):** `Nav3000` entsteht strukturiert im Direktiv-Sub-Parser
+   (genau eine je `#`-Lauf, nicht mehr je `HashToken`+`PreprocessorKeyword`); `ReportLexicalDiagnostics` meldet
+   nur noch `Nav0000`. **`Nav3001` ist entfallen:** die Zeilenanfang-Regel erzwingt jetzt der **Lexer** (ein `#`
+   mitten in der Zeile ist gar keine Direktive, sondern ein `Unknown`/`Nav0000`), nicht mehr eine Parser-Diagnose.
+   (Die frühere `ParseDirectives`/`ReportDirectiveDiagnostics`-Vorlaufmechanik ist durch `NavDirectiveParser`
+   ersetzt — siehe `doc/nav-directive-subparser.md`.)
    Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
    und stellt nur noch Dateien mit ANTLR-**Parser**-Recovery (`Nav0002`) zurück — die beiden reinen
    Präprozessor-Dateien (`PreprocessorDirective.nav`, `PreprocessorNotAtLineStart.nav`) laufen voll mit.
