@@ -50,5 +50,25 @@ public static partial class DiagnosticDescriptors {
             defaultSeverity: DiagnosticSeverity.Error
         );
 
+        /// <summary>
+        /// '#pragma version' must appear at the top of the file
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav3003PragmaVersionMustAppearAtTopOfFile = new(
+            id             : DiagnosticId.Nav3003,
+            messageFormat  : "'#pragma version' must appear at the top of the file, preceded only by comments or whitespace",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
+        /// Duplicate '#pragma version' directive
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav3004DuplicatePragmaVersion = new(
+            id             : DiagnosticId.Nav3004,
+            messageFormat  : "Duplicate '#pragma version' directive; only the first one is used",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
     }
 }
