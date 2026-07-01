@@ -44,6 +44,8 @@ static class SyntaxTokenFactory {
                 return true;
             case SyntaxTokenType.HashToken:
             case SyntaxTokenType.PreprocessorKeyword:
+            case SyntaxTokenType.PragmaKeyword:
+            case SyntaxTokenType.VersionKeyword:
                 classification = TextClassification.PreprocessorKeyword;
                 return true;
             case SyntaxTokenType.PreprocessorText:

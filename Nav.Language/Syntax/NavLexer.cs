@@ -278,7 +278,7 @@ sealed class NavLexer {
                 _pos++;
             }
 
-            Add(SyntaxTokenType.PreprocessorKeyword, kwStart, _pos);
+            Add(PreprocessorWordType(kwStart, _pos), kwStart, _pos);
             inTextMode = true;
         }
 
@@ -315,7 +315,7 @@ sealed class NavLexer {
                     _pos++;
                 }
 
-                Add(SyntaxTokenType.PreprocessorKeyword, start, _pos);
+                Add(PreprocessorWordType(start, _pos), start, _pos);
             } else if (IsWhitespace(c)) {
                 var start = _pos;
                 while (_pos < _length && IsWhitespace(_text[_pos])) {
@@ -327,6 +327,15 @@ sealed class NavLexer {
                 AddAndAdvance(SyntaxTokenType.PreprocessorText, 1);
             }
         }
+    }
+
+    // Bestimmt den Token-Typ eines Wort-Laufs [start, end) im Präprozessor-Modus: erkannte Direktiv-
+    // Schlüsselwörter (pragma, version) bekommen ihren eigenen Token-Typ, jedes andere Wort bleibt der
+    // generische PreprocessorKeyword. Analog zur Keywords-Tabelle des Hauptlexers, aber direktiv-lokal.
+    SyntaxTokenType PreprocessorWordType(int start, int end) {
+        return PreprocessorKeywords.TryGetValue(_text.Substring(start, end - start), out var keyword)
+                   ? keyword
+                   : SyntaxTokenType.PreprocessorKeyword;
     }
 
     void Add(SyntaxTokenType type, int start, int end) {
@@ -498,6 +507,13 @@ sealed class NavLexer {
         ["notimplemented"]  = SyntaxTokenType.NotimplementedKeyword,
         ["abstractmethod"]  = SyntaxTokenType.AbstractmethodKeyword,
         ["donotinject"]     = SyntaxTokenType.DonotinjectKeyword,
+    };
+
+    // Die Schlüsselwörter, die nur im Präprozessor-Modus (innerhalb einer '#'-Direktive) als eigene Token
+    // erkannt werden. Jedes hier nicht gelistete Wort bleibt der generische PreprocessorKeyword.
+    static readonly Dictionary<string, SyntaxTokenType> PreprocessorKeywords = new() {
+        ["pragma"]  = SyntaxTokenType.PragmaKeyword,
+        ["version"] = SyntaxTokenType.VersionKeyword,
     };
 
 }

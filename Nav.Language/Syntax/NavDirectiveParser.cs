@@ -64,10 +64,12 @@ sealed class NavDirectiveParser {
     }
 
     /// <summary>
-    /// Erkennt aus dem Direktiv-Lauf <c>[hashIndex, end)</c> anhand des Schlüsselworts unmittelbar hinter dem
-    /// <c>#</c> den passenden Knoten. Der Keyword-Dispatch ist der Erweiterungspunkt für spätere Direktiven
-    /// (<c>#if</c>, <c>#region</c>, …). Ein unbekanntes oder fehlendes Schlüsselwort ergibt eine
-    /// <see cref="BadDirectiveTriviaSyntax"/> samt <c>Nav3000</c>.
+    /// Erkennt aus dem Direktiv-Lauf <c>[hashIndex, end)</c> anhand des Schlüsselwort-Tokens unmittelbar
+    /// hinter dem <c>#</c> den passenden Knoten. Der Lexer hat die Direktiv-Schlüsselwörter bereits als
+    /// eigene Token-Typen erkannt (<see cref="SyntaxTokenType.PragmaKeyword"/> …); der Dispatch läuft daher
+    /// über die Token-Art, nicht über einen Textvergleich. Der Keyword-Dispatch ist der Erweiterungspunkt für
+    /// spätere Direktiven (<c>#if</c>, <c>#region</c>, …). Ein unbekanntes oder fehlendes Schlüsselwort ergibt
+    /// eine <see cref="BadDirectiveTriviaSyntax"/> samt <c>Nav3000</c>.
     /// </summary>
     DirectiveTriviaSyntax ParseDirective(int hashIndex, int end) {
 
@@ -76,13 +78,12 @@ sealed class NavDirectiveParser {
 
         TryEat(SyntaxTokenType.HashToken, out _);
 
-        // Direktiven-Schlüsselwort: ein reines Wort-Token unmittelbar hinter dem '#'.
-        var keyword = At(SyntaxTokenType.PreprocessorKeyword) ? _sourceText.Substring(Current.Extent) : null;
+        // Direktiven-Schlüsselwort: ein eigenes Keyword-Token unmittelbar hinter dem '#'.
+        if (At(SyntaxTokenType.PragmaKeyword)) {
+            return ParsePragma(hashIndex, end);
+        }
 
-        return keyword switch {
-            "pragma" => ParsePragma(hashIndex, end),
-            _        => BadDirective(hashIndex, end),
-        };
+        return BadDirective(hashIndex, end);
     }
 
     /// <summary>
@@ -94,17 +95,17 @@ sealed class NavDirectiveParser {
     /// </summary>
     DirectiveTriviaSyntax ParsePragma(int hashIndex, int end) {
 
-        TryEat(SyntaxTokenType.PreprocessorKeyword, out var pragma);
+        TryEat(SyntaxTokenType.PragmaKeyword, out var pragma);
 
-        // Zwischenraum bis zum Subjekt überspringen; das Subjekt ist das erste Wort-/Zahl-Token danach.
+        // Zwischenraum bis zum Subjekt überspringen; das Subjekt ist das erste signifikante Token danach.
         SkipPreprocessorText();
 
-        // Ein Subjekt "version" — und zwischen "pragma" und ihm ausschließlich Zwischenraum (ein
-        // '#pragma .version' o.Ä. ist keine Versions-Direktive) — macht die Direktive zur Versions-Direktive.
-        if (At(SyntaxTokenType.PreprocessorKeyword)                                                             &&
-            _sourceText.Substring(Current.Extent) == "version"                                                 &&
+        // Ein Subjekt "version" (vom Lexer als eigenes Token erkannt) — und zwischen "pragma" und ihm
+        // ausschließlich Zwischenraum (ein '#pragma .version' o.Ä. ist keine Versions-Direktive) — macht die
+        // Direktive zur Versions-Direktive. Der Gap-Check ist eine reine Layout-Prüfung, keine Text-Erkennung.
+        if (At(SyntaxTokenType.VersionKeyword) &&
             string.IsNullOrWhiteSpace(_sourceText.Substring(TextExtent.FromBounds(pragma.Extent.End, Current.Extent.Start)))) {
-            return AcceptVersion(hashIndex, end, Current);
+            return AcceptVersion(hashIndex, end);
         }
 
         return BadDirective(hashIndex, end);
@@ -112,17 +113,19 @@ sealed class NavDirectiveParser {
 
     /// <summary>
     /// Baut aus dem als Versions-Direktive erkannten Lauf <c>[hashIndex, end)</c> die
-    /// <see cref="VersionDirectiveSyntax"/> samt lokalen Token. Das Argument hinter <paramref name="subject"/>
-    /// (<c>version</c>) validiert <see cref="NavLanguageVersion.TryParse"/> — reine Ziffern nach Trim; ein
-    /// fehlender Wert, ein Vorzeichen oder mehrere Werte lösen genau eine <c>Nav3002</c> samt Rückfall auf
+    /// <see cref="VersionDirectiveSyntax"/> samt lokalen Token. Das Argument ist genau <b>ein</b>
+    /// <see cref="SyntaxTokenType.PreprocessorNumber"/>-Token (vom Lexer erkannt), dem bis zum Zeilenende nur
+    /// Zwischenraum folgen darf; <see cref="NavLanguageVersion.TryParse"/> validiert seinen Wert (Ziffern,
+    /// kein Überlauf). Ein fehlender Wert, ein Nicht-Zahl-Token oder ein weiteres Token nach der Zahl
+    /// (<c>#pragma version 1 2</c>) lösen genau eine <c>Nav3002</c> samt Rückfall auf
     /// <see cref="NavLanguageVersion.Default"/> aus.
     /// </summary>
-    VersionDirectiveSyntax AcceptVersion(int hashIndex, int end, RawToken subject) {
+    VersionDirectiveSyntax AcceptVersion(int hashIndex, int end) {
 
-        var last         = _raw[end - 1];
-        var newLineStart = last.Type == SyntaxTokenType.PreprocessorNewLine ? last.Extent.Start : last.Extent.End;
-        var argument     = _sourceText.Substring(TextExtent.FromBounds(subject.Extent.End, newLineStart));
-        if (!NavLanguageVersion.TryParse(argument, out var version)) {
+        TryEat(SyntaxTokenType.VersionKeyword, out _);
+        SkipPreprocessorText();
+
+        if (!TryReadVersion(out var version)) {
             _diagnostics.Add(new Diagnostic(DirectiveLocation(hashIndex, end),
                                             DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
             version = NavLanguageVersion.Default;
@@ -131,6 +134,29 @@ sealed class NavDirectiveParser {
         var node = new VersionDirectiveSyntax(DirectiveExtent(hashIndex, end), version);
         PopulateLocalTokens(node, hashIndex, end);
         return node;
+    }
+
+    /// <summary>
+    /// Liest das Versions-Argument aus dem Cursor: genau ein <see cref="SyntaxTokenType.PreprocessorNumber"/>-
+    /// Token, dem bis zum Zeilenende (bzw. Lauf-Ende) nur Zwischenraum folgt. Liefert <c>false</c> bei
+    /// fehlender Zahl oder einem weiteren signifikanten Token danach — beides ist ein <c>Nav3002</c>-Fall.
+    /// </summary>
+    bool TryReadVersion(out NavLanguageVersion version) {
+
+        version = NavLanguageVersion.Default;
+
+        if (!TryEat(SyntaxTokenType.PreprocessorNumber, out var number)) {
+            return false;
+        }
+
+        SkipPreprocessorText();
+
+        // Nach der Zahl darf nur noch das terminierende Zeilenende (oder das Lauf-Ende) folgen.
+        if (!AtRunEnd && !At(SyntaxTokenType.PreprocessorNewLine)) {
+            return false;
+        }
+
+        return NavLanguageVersion.TryParse(_sourceText.Substring(number.Extent), out version);
     }
 
     /// <summary>
@@ -249,7 +275,8 @@ sealed class NavDirectiveParser {
         var end = hashIndex + 1;
         while (end < _raw.Length) {
             var type = _raw[end].Type;
-            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText or SyntaxTokenType.PreprocessorNumber) {
+            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText or SyntaxTokenType.PreprocessorNumber
+                     or SyntaxTokenType.PragmaKeyword       or SyntaxTokenType.VersionKeyword) {
                 end++;
                 continue;
             }

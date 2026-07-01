@@ -18,10 +18,13 @@
 
 - **`NavDirectiveParser`** (`Nav.Language\Syntax\NavDirectiveParser.cs`, `sealed class`, `internal` Ctor):
   cursor-basierter Sub-Parser über den Roh-Token-Strom. `Parse()` scannt auf `HashToken`, bildet je `#`-Lauf
-  `[hashIndex, RunEnd)` genau einen `DirectiveRun`. Keyword-Dispatch (`switch` über das Wort direkt hinter `#`):
-  `"pragma"` → `ParsePragma` (Subjekt `version` mit reinem Zwischenraum davor → **immer**
-  `VersionDirectiveSyntax`; Nav3002 bei fehlend/ungültig, Rückfall `Default`), alles andere → `BadDirective`
-  + **Nav3000**. Portierte Helfer lokal: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`,
+  `[hashIndex, RunEnd)` genau einen `DirectiveRun`. Keyword-Dispatch über die **Token-Art** (der Lexer erkennt
+  die Direktiv-Schlüsselwörter bereits tabellengesteuert als eigene Token — `PragmaKeyword`, `VersionKeyword`):
+  `At(PragmaKeyword)` → `ParsePragma` (Subjekt `VersionKeyword` mit reinem Zwischenraum davor → **immer**
+  `VersionDirectiveSyntax`; das Argument ist genau ein `PreprocessorNumber`-Token, dem bis zum Zeilenende nur
+  Zwischenraum folgt — sonst Nav3002, Rückfall `Default`), alles andere → `BadDirective` + **Nav3000**. Kein
+  `Substring`-Textvergleich mehr im Sub-Parser (nur noch der Layout-Gap-Check zwischen `pragma` und `version`).
+  Portierte Helfer lokal: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`, `TryReadVersion`,
   `PopulateLocalTokens` (lokale Token via geteiltes `SyntaxTokenFactory.TryClassifyNonSignificant`).
 - **Lexer-Gate** (`NavLexer`): `#` beginnt eine Direktive nur als erstes Nicht-Whitespace-Zeichen der Zeile;
   mid-line-`#` → `Unknown`/**Nav0000**. **Nav3001 existiert nicht mehr** (aus `DiagnosticId`,

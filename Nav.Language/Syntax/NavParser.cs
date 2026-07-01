@@ -2182,6 +2182,8 @@ sealed class NavParser {
             case SyntaxTokenType.PreprocessorText:
             case SyntaxTokenType.PreprocessorNewLine:
             case SyntaxTokenType.PreprocessorNumber:
+            case SyntaxTokenType.PragmaKeyword:
+            case SyntaxTokenType.VersionKeyword:
                 return true;
             default:
                 return false;
@@ -2198,7 +2200,9 @@ sealed class NavParser {
                     or SyntaxTokenType.PreprocessorKeyword
                     or SyntaxTokenType.PreprocessorText
                     or SyntaxTokenType.PreprocessorNewLine
-                    or SyntaxTokenType.PreprocessorNumber;
+                    or SyntaxTokenType.PreprocessorNumber
+                    or SyntaxTokenType.PragmaKeyword
+                    or SyntaxTokenType.VersionKeyword;
     }
 
     #endregion

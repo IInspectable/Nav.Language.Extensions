@@ -121,7 +121,9 @@ public class TokenTriviaTests {
                                          t.Type == SyntaxTokenType.PreprocessorKeyword ||
                                          t.Type == SyntaxTokenType.PreprocessorText    ||
                                          t.Type == SyntaxTokenType.PreprocessorNewLine ||
-                                         t.Type == SyntaxTokenType.PreprocessorNumber),
+                                         t.Type == SyntaxTokenType.PreprocessorNumber  ||
+                                         t.Type == SyntaxTokenType.PragmaKeyword       ||
+                                         t.Type == SyntaxTokenType.VersionKeyword),
                     Is.False, "Präprozessor-Token dürfen nicht mehr im flachen Token-Strom stehen.");
 
         // Die Direktive erscheint als strukturierte DirectiveTrivia (+ Zeilenende) in der Leading-Trivia von 'task'.

@@ -58,6 +58,8 @@ public enum SyntaxTokenType {
     PreprocessorNewLine    = 49,
     PreprocessorNumber     = 51,
     DirectiveTrivia        = 52,
+    PragmaKeyword          = 53,
+    VersionKeyword         = 54,
     EndOfFile              = 255
 
 }

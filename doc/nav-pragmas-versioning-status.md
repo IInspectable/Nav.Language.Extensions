@@ -53,10 +53,13 @@ byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`nav build` für de
   Direktive als Kindknoten mit flachen Token; siehe `doc/nav-weg-b-structured-trivia.md` für den Umbau.)
 - **Direktiv-Sub-Parser (`NavDirectiveParser`) statt Hand-Scan:** Der Hauptparser-Cursor sieht Präprozessor-
   Token nicht (sie sind Trivia). Der cursor-basierte `NavDirectiveParser` (`Nav.Language/Syntax/
-  NavDirectiveParser.cs`) erkennt pro `#`-Lauf generisch per **Keyword-Dispatch**: `#pragma version`
-  (getipptes `version`-Subjekt, Argument via `NavLanguageVersion.TryParse`) → `VersionDirectiveSyntax`
-  (`Nav3002` bei fehlend/ungültig), alles andere → `BadDirectiveTriviaSyntax` (`Nav3000`). Der **Lexer**
-  erzwingt die Zeilenanfang-Regel (`#` nur als erstes Nicht-Whitespace der Zeile, sonst `Unknown`/`Nav0000`) —
+  NavDirectiveParser.cs`) erkennt pro `#`-Lauf generisch per **Keyword-Dispatch über die Token-Art**: der
+  Lexer erkennt die Direktiv-Schlüsselwörter bereits tabellengesteuert als eigene Token (`PragmaKeyword`,
+  `VersionKeyword`; kein `Substring`-Vergleich mehr im Sub-Parser). `At(PragmaKeyword)` mit `VersionKeyword`-
+  Subjekt und genau einem `PreprocessorNumber`-Argument (validiert via `NavLanguageVersion.TryParse`) →
+  `VersionDirectiveSyntax` (`Nav3002` bei fehlend/ungültig/mehrfach), alles andere → `BadDirectiveTriviaSyntax`
+  (`Nav3000`). Der **Lexer** erzwingt die Zeilenanfang-Regel (`#` nur als erstes Nicht-Whitespace der Zeile,
+  sonst `Unknown`/`Nav0000`) —
   ein eigenes `Nav3001` gibt es **nicht mehr**. Die **Platzierungs-Semantik** (welche Versions-Direktive
   wirksam ist, `Nav3003`/`Nav3004`) liegt separat in `NavParser.ResolveLanguageVersion` (aus den erzeugten
   Läufen, nicht im generischen Sub-Parser). `BuildTrivia` faltet den Lauf zu einem `DirectiveTrivia`-Stück und

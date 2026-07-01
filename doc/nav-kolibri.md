@@ -258,9 +258,13 @@ je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Ele
   im flachen `SyntaxTree.Tokens`-Strom, und ist **kein** Kindknoten der Wurzel mehr.
   `SyntaxTree.Directives()` sammelt sie über `DescendantTrivia().Where(HasStructure)`.
 - **Erkennung** durch einen cursor-basierten Direktiv-Sub-Parser (`NavDirectiveParser`,
-  `Nav.Language\Syntax\NavDirectiveParser.cs`), der pro `#`-Lauf per **Keyword-Dispatch** entscheidet:
+  `Nav.Language\Syntax\NavDirectiveParser.cs`), der pro `#`-Lauf per **Keyword-Dispatch über die Token-Art**
+  entscheidet. Der **Lexer** erkennt die Direktiv-Schlüsselwörter bereits tabellengesteuert
+  (`PreprocessorKeywords`) als eigene Token (`PragmaKeyword`, `VersionKeyword`) — der Sub-Parser dispatcht
+  über `At(PragmaKeyword)`/`At(VersionKeyword)` statt per `Substring`-Textvergleich, und das Argument ist
+  genau ein bereits gelextes `PreprocessorNumber`-Token:
   `#pragma version <int>` → **immer** `VersionDirectiveSyntax`; **jede andere, unbekannte** Direktive →
-  `BadDirectiveTriviaSyntax` + `Nav3000`. Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall
+  `BadDirectiveTriviaSyntax` + `Nav3000`. Fehlender/nicht-ganzzahliger/mehrfacher Wert → genau eine `Nav3002`, Rückfall
   auf `NavLanguageVersion.Default` (= 1). Welche Versions-Direktive **wirksam** ist, entscheidet **separat**
   `NavParser.ResolveLanguageVersion` (nur die erste ganz oben, nur Trivia davor): eine weiter unten stehende
   meldet `Nav3003`, eine doppelte `Nav3004` (erste gewinnt) — beide bleiben eigenständige

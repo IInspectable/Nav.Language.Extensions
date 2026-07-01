@@ -20,7 +20,7 @@ public sealed partial class VersionDirectiveSyntax: DirectiveTriviaSyntax {
     }
 
     /// <summary>Das <c>pragma</c>-Schlüsselwort unmittelbar hinter dem <c>#</c>.</summary>
-    public SyntaxToken PragmaKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.PreprocessorKeyword);
+    public SyntaxToken PragmaKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.PragmaKeyword);
 
     /// <summary>
     /// Die von dieser Direktive festgelegte Sprach-Version. Bei fehlerhaftem Versionswert (bereits per
