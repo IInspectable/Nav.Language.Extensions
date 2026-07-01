@@ -167,6 +167,20 @@ public class LanguageVersionTests {
     }
 
     [Test]
+    public void DuplicatePragma_MidLineAfterCode_ReportsNav3003_SpanningWholeDirective() {
+
+        // Wie im Editor beobachtet: eine zweite Direktive steht mitten in der Zeile hinter Code.
+        var source = "#pragma version 1\r\ntask A { init I1; exit e1; I1 --> e1; } #pragma version 1";
+        var unit   = Parse(source);
+
+        var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3003");
+        var start      = source.LastIndexOf("#pragma", System.StringComparison.Ordinal);
+
+        Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
+        Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 1".Length));
+    }
+
+    [Test]
     public void MisplacedPragma_StillClassifiesNumberValue() {
 
         // Auch eine deplatzierte Versions-Direktive (Nav3003) behält die Färbung ihrer Rumpf-Token: der Wert
