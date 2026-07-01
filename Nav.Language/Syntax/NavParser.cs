@@ -2426,29 +2426,6 @@ sealed class NavParser {
                     or SyntaxTokenType.PreprocessorNumber;
     }
 
-    /// <summary>
-    /// Ein im Vorlauf (<see cref="ParseDirectives"/>) erkannter Präprozessor-Direktiv-Lauf: sein Roh-Index-
-    /// Bereich <c>[RawStart, RawEnd)</c>, sein Inhalts-Extent (die <see cref="SyntaxTokenType.DirectiveTrivia"/>-
-    /// Breite ohne Zeilenende), das terminierende Zeilenende (oder <see cref="TextExtent.Missing"/>) und der
-    /// zugehörige Knoten. <see cref="BuildTrivia"/> faltet daraus das strukturierte Trivia-Stück.
-    /// </summary>
-    readonly struct DirectiveRun {
-
-        public DirectiveRun(int rawStart, int rawEnd, TextExtent contentExtent, TextExtent newLineExtent, DirectiveTriviaSyntax node) {
-            RawStart      = rawStart;
-            RawEnd        = rawEnd;
-            ContentExtent = contentExtent;
-            NewLineExtent = newLineExtent;
-            Node          = node;
-        }
-
-        public int                   RawStart      { get; }
-        public int                   RawEnd        { get; }
-        public TextExtent            ContentExtent { get; }
-        public TextExtent            NewLineExtent { get; }
-        public DirectiveTriviaSyntax Node          { get; }
-    }
-
     #endregion
 
     #region Extent-Hilfen
