@@ -3,7 +3,6 @@
   <PropertyGroup>
     <ProductName>Nav Language Library</ProductName>
   </PropertyGroup>
-  <Import Project="..\_build\WriteThisAssemblyFile.targets" />
   <ItemGroup>
     <AvailableItemName Include="ExportStringTemplates" />
   </ItemGroup>

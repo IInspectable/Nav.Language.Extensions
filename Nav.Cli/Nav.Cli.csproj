@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
     <!-- Apphost/Assembly heißt nav → self-contained Single-File-Publish liefert nav.exe.
          SelfContained/PublishSingleFile/RID werden beim Publish per Kommandozeile gesetzt

@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Configurations>
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
@@ -49,7 +49,8 @@
     <File Path="_build/CodeGen/GenerateCodeGenFacts.cs" />
     <File Path="_build/GobalAssemblyInfo.cs" />
     <File Path="_build/Version.targets" />
-    <File Path="_build/WriteThisAssemblyFile.targets" />
+    <File Path="Directory.Build.targets" />
+    <File Path="_build/SourceGenerators/SourceGenerator.targets" />
   </Folder>
   <Folder Name="/doc/">
     <File Path="doc/Errors.md" />
@@ -62,6 +63,7 @@
     <File Path="doc/vs-call-hierarchy-plan.md" />
   </Folder>
   <Project Path="_build/Shared/Nav.CodeAnalysis.Shared/Nav.CodeAnalysis.Shared.shproj" />
+  <Project Path="_build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/Nav.AssemblyInfo.SourceGenerator.csproj" />
   <Project Path="_build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
   <Project Path="_build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />
   <Project Path="_build/SourceGenerators/Nav.Visitor.SourceGenerator/Nav.Visitor.SourceGenerator.csproj" />

@@ -97,8 +97,8 @@
 
   <!--
     Git-Version in die SDK-Assembly-Info-Pipeline einspeisen. Hosts wie der LSP- (nav.lsp) und der
-    MCP-Server (nav.mcp) binden weder GobalAssemblyInfo.cs noch WriteThisAssemblyFile ein und trügen
-    sonst die SDK-Default-Version 1.0.0.0. Dieses Target greift nur bei SDK-Assembly-Info-Generierung
+    MCP-Server (nav.mcp) binden weder GobalAssemblyInfo.cs noch den AssemblyInfo-Quellgenerator ein und
+    trügen sonst die SDK-Default-Version 1.0.0.0. Dieses Target greift nur bei SDK-Assembly-Info-Generierung
     (GenerateAssemblyInfo != false); die GobalAssemblyInfo-Projekte setzen GenerateAssemblyInfo=false,
     bei ihnen läuft GetAssemblyVersion gar nicht erst — sie bleiben unberührt. BeforeTargets greift
     nur, wenn die SDK-Targets existieren (SDK-Projekte); für das legacy VS-Extension-Projekt
@@ -119,5 +119,18 @@
            übernimmt den vorhandenen Wert und leitet nichts mehr aus Version ab. -->
     </PropertyGroup>
   </Target>
+
+  <!--
+    Der AssemblyInfo-Quellgenerator (UseAssemblyInfoGenerator) liest ProductVersion & Co. als
+    build_property.* aus der Analyzer-.editorconfig, die das SDK-Ziel GenerateMSBuildEditorConfigFileCore
+    schreibt (das TASK heißt GenerateMSBuildEditorConfig, das TARGET aber …FileCore). Dieses Ziel
+    materialisiert die @(CompilerVisibleProperty)-Werte zum Zeitpunkt seines Laufs — ComputeGitVersion
+    MUSS also vorher gelaufen sein, sonst landen leere Werte in der .editorconfig. Nur aktiv, wenn der
+    Generator eingebunden ist (sonst keine git-Exec-Kosten im Design-Time-Build fremder Projekte).
+  -->
+  <Target Name="_NavComputeGitVersionBeforeEditorConfig"
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore"
+          DependsOnTargets="ComputeGitVersion"
+          Condition=" '$(UseAssemblyInfoGenerator)' == 'true' " />
 
 </Project>

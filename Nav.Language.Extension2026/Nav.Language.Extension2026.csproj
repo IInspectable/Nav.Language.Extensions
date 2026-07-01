@@ -78,7 +78,6 @@
     </Compile>
     <Compile Include="HACK_ThemeColorFixer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ThisAssembly.generated.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icons.pkgdef">

@@ -3,7 +3,6 @@
   <PropertyGroup>
     <ProductName>Nav Language MSBuild Tasks</ProductName>
   </PropertyGroup>
-  <Import Project="..\_build\WriteThisAssemblyFile.targets" />
   <PropertyGroup>
     <DeployDirectory>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)\..\deploy\Build Tools))</DeployDirectory>
   </PropertyGroup>

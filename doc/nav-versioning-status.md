@@ -17,28 +17,45 @@ Statusdokument zur Versionsnummern-Infrastruktur (Pflichtlektüre vor Arbeiten d
   `dotnet msbuild _build/Version.targets -t:ComputeGitVersion -getProperty:ProductVersion`
   (nur für vsce-/VSIX-Dateinamen). Damit gibt es keinen zweiten Parser.
 
-## Zwei AssemblyInfo-Pfade (Kern der Fragilität)
+## Die `MyAssembly`-Konstanten (`ProductVersion` & Co.)
 
-1. **GobalAssemblyInfo + WriteThisAssemblyFile** — net472/netstandard-Projekte (Nav.Language,
-   Nav.Utilities, Nav.Cli, Nav.Language.CodeAnalysis, Nav.Language.BuildTasks,
-   Nav.Language.Extension2026; alle `GenerateAssemblyInfo=false`):
-   - `_build/WriteThisAssemblyFile.targets` generiert `<Projekt>/ThisAssembly.generated.cs` mit
-     `static partial class MyAssembly { ProductVersion, AssemblyVersion,
-     ProductVersionInformational, ProductName }`.
-   - `_build/GobalAssemblyInfo.cs` setzt die Assembly-Attribute aus diesen Konstanten.
-   - Laufzeit liest die Konstante `MyAssembly.ProductVersion`. Konsumenten u.a.:
-     `Nav.Cli/CommandLine.cs`, `Nav.Cli/GrammarCommand.cs`, `Nav.Cli/Analyzer/CodeFixPipeline.cs`,
-     `Nav.Language/Generator/NavCodeGeneratorPipeline.LoggerAdapter.cs`,
-     `Nav.Language/CodeGen/CodeGeneratorContext.cs`, `Nav.Language.ExtensionShared/NavLanguagePackage.cs`.
-   - **Schwäche: die generierte Datei liegt im PROJEKTVERZEICHNIS, geteilt zwischen allen
-     Build-Prozessen.** (Dateiname-Tippfehler „Gobal" statt „Global" historisch.)
-2. **SDK-Assembly-Info** — net10-SDK-Hosts (Nav.Language.Lsp, Nav.Language.Mcp;
-   `GenerateAssemblyInfo` default true):
-   - `SetSdkVersionFromGit` (in `_build/Version.targets`) speist `Version`/`FileVersion`/
-     `InformationalVersion` aus `ComputeGitVersion` in die SDK-Pipeline; `AssemblyVersion` kommt
-     ebenfalls aus `ComputeGitVersion`.
-   - Generierte Assembly-Info landet in **obj**, pro Konfiguration getrennt. **Robust** — von der
-     unten beschriebenen Falle nie betroffen.
+`GobalAssemblyInfo.cs` (bleibt hand-geschrieben in `_build/`, je Projekt gelinkt) setzt die
+Assembly-Attribute aus den Konstanten `MyAssembly.{ProductVersion, AssemblyVersion,
+ProductVersionInformational, ProductName}`. Dieselben Konstanten liest die Laufzeit. Konsumenten u.a.:
+`Nav.Cli/CommandLine.cs`, `Nav.Cli/GrammarCommand.cs`,
+`Nav.Language/Generator/NavCodeGeneratorPipeline.LoggerAdapter.cs`,
+`Nav.Language/CodeGen/CodeGeneratorContext.cs`,
+`Nav.Language.ExtensionShared/NavLanguagePackage.cs` (Attribut-Argument → **braucht** die Konstante).
+
+**Woher die Konstanten kommen (seit der Umstellung weg von der Projektverzeichnis-Datei):**
+
+1. **Roslyn-Quellgenerator** `Nav.AssemblyInfo.SourceGenerator` — die fünf SDK-Projekte
+   (Nav.Language, Nav.Utilities, Nav.Cli, Nav.Language.CodeAnalysis, Nav.Language.BuildTasks; alle
+   `GenerateAssemblyInfo=false`). Der Generator liest `ProductVersion` & Co. als `build_property.*`
+   (via `CompilerVisibleProperty`, gespeist aus `ComputeGitVersion`) und emittiert `static partial
+   class MyAssembly`. **Opt-in mit einer Zeile:** `<UseAssemblyInfoGenerator>true</…>`; das zentrale
+   Wiring (`_build/SourceGenerators/SourceGenerator.targets`, global über `Directory.Build.targets`)
+   hängt Analyzer-`ProjectReference` + `CompilerVisibleProperty` an. Output ist **pro Compilation**
+   (nie eine geteilte Datei) → strukturell immun gegen die unten beschriebene Falle.
+2. **Physische obj-Datei** — nur `Nav.Language.Extension2026` (legacy, non-SDK, WPF). Die
+   WPF-Markup-Compilierung baut ein temporäres Teilprojekt (`…_wpftmp.csproj`), in dem
+   Quellgeneratoren **nicht** laufen; ein generiertes `MyAssembly` fehlte dort und der Markup-Pass
+   bräche mit CS0122 (der Compiler zieht die internen `MyAssembly` der referenzierten Nav.*-Assemblies,
+   die nicht zugänglich sind). Deshalb schreibt hier `WriteMyAssemblyFile` (in der Projekt-
+   `CustomBuild.targets`) die Konstanten in `$(IntermediateOutputPath)MyAssembly.g.cs` und nimmt sie
+   als **physisches** `@(Compile)`-Item auf — dadurch im wpftmp-Teilprojekt sichtbar. Liegt in **obj/**
+   (pro Konfiguration, kein eingechecktes File) plus Design-Time-Guard → ebenfalls trap-immun.
+3. **SDK-Assembly-Info** — net10-SDK-Hosts (Nav.Language.Lsp, Nav.Language.Mcp;
+   `GenerateAssemblyInfo` default true, **kein** `MyAssembly`). `SetSdkVersionFromGit` (in
+   `_build/Version.targets`) speist `Version`/`FileVersion`/`InformationalVersion` aus
+   `ComputeGitVersion` in die SDK-Pipeline; `AssemblyVersion` kommt ebenfalls aus `ComputeGitVersion`.
+   Generierte Assembly-Info landet in **obj**. **Robust** — von der Falle nie betroffen.
+
+**Wichtig (Reihenfolge):** Der Generator liest die Werte aus der von
+`GenerateMSBuildEditorConfigFileCore` erzeugten Analyzer-`.editorconfig` (das TASK heißt
+`GenerateMSBuildEditorConfig`, das TARGET aber `…FileCore`). `ComputeGitVersion` MUSS davor laufen —
+dafür sorgt das gated Target `_NavComputeGitVersionBeforeEditorConfig` in `_build/Version.targets`.
+Sonst landen leere Werte in der `.editorconfig` und `MyAssembly.ProductVersion` wird `0.0.0`.
 
 ## Robustheit (umgesetzt)
 
@@ -55,19 +72,22 @@ Statusdokument zur Versionsnummern-Infrastruktur (Pflichtlektüre vor Arbeiten d
 sporadisch Version `0.0.0`, obwohl der Build nachweislich `6.0.x` berechnet **und** schreibt — im
 MSBuild-Log taucht `0.0.0` **nie** auf.
 
-**Ursache:** **Visual Studio.** Bei offener Solution startet VS im Hintergrund laufend eigene
-**Design-Time-Builds**. In deren Kontext läuft der git-`Exec` in `ComputeGitVersion` leer, sodass die
-Version auf den Fallback `0.0.0` fällt. Da `ThisAssembly.generated.cs` im **Projektverzeichnis**
-liegt (geteilt zwischen allen Build-Prozessen), überschreibt VS' Design-Time-Build mitten im echten
-(CLI-)Build den frisch gestempelten korrekten Wert mit `0.0.0` — der anschließende `csc` kompiliert
-die `0.0.0`-Variante. Nachgewiesen per Datei-Polling während des Builds: `6.0.124` → `0.0.0` ~1,3 s
-nach dem korrekten Write, aus einem Fremdprozess (`devenv`). MCP/LSP waren **nie** betroffen, weil
-sie die Version über obj/SDK-Assembly-Info führen — kein geteiltes Projektverzeichnis-File.
+**Ursache (historisch):** **Visual Studio.** Bei offener Solution startete VS im Hintergrund laufend
+eigene **Design-Time-Builds**. In deren Kontext läuft der git-`Exec` in `ComputeGitVersion` leer,
+sodass die Version auf den Fallback `0.0.0` fällt. Da die damals genutzte `ThisAssembly.generated.cs`
+im **Projektverzeichnis** lag (geteilt zwischen allen Build-Prozessen), überschrieb VS'
+Design-Time-Build mitten im echten (CLI-)Build den frisch gestempelten korrekten Wert mit `0.0.0` —
+der anschließende `csc` kompilierte die `0.0.0`-Variante. Nachgewiesen per Datei-Polling während des
+Builds: `6.0.124` → `0.0.0` ~1,3 s nach dem korrekten Write, aus einem Fremdprozess (`devenv`).
+MCP/LSP waren **nie** betroffen, weil sie die Version über obj/SDK-Assembly-Info führen — kein
+geteiltes Projektverzeichnis-File.
 
-**Fix (umgesetzt):** `WriteThisAssemblyFile` bei Design-Time-Builds nicht ausführen —
-`Condition="('$(DesignTimeBuild)' != 'true' and '$(BuildingProject)' != 'false') or
-!Exists('$(AssemblyInfoFile)')"`. Fehlt die Datei auf einem frischen Clone noch ganz, wird sie
-einmalig erzeugt (sonst schlüge der Compile auf die nicht existente Datei fehl).
+**Fix (umgesetzt — Ursache strukturell entfernt):** Die Projektverzeichnis-Datei
+(`WriteThisAssemblyFile.targets` → `ThisAssembly.generated.cs`) ist **abgeschafft**. `MyAssembly`
+kommt jetzt aus dem Roslyn-Quellgenerator (pro Compilation, keine geteilte Datei) bzw. — nur für das
+legacy WPF-Extension-Projekt — aus einer obj-lokalen Datei mit Design-Time-Guard (siehe Abschnitt
+oben). Es gibt kein geteiltes, eingechecktes Stempel-File mehr, das ein Fremdprozess überschreiben
+könnte.
 
 **Diagnose-Rezept** (falls so etwas wiederkommt):
 - Datei-Inhalt **während** des Builds pollen → fängt das `6.0.x` → `0.0.0`-Flip aus dem Fremdprozess.
@@ -86,32 +106,24 @@ Das betrifft auch VS' Build-Kontext: Der Design-Time-Guard schützt nur die **Hi
 baut man **explizit in VS** (Build-Menü) und git scheitert dort, könnte auch ein echter VS-Build
 `0.0.0` schreiben. Dann Ownership/`safe.directory` korrigieren.
 
-## Zukunft: AssemblyInfo anders lösen
+## Warum Quellgenerator statt Laufzeit-Reflection
 
-Idee: den fragilen **GobalAssemblyInfo/WriteThisAssemblyFile-Pfad ganz abschaffen** und — wie
-MCP/LSP — **alles über SDK-Assembly-Info + MSBuild-Properties** führen (obj-basiert, von VS'
-Design-Time-Builds strukturell nicht teilbar).
-
-- **Vorteil:** keine geteilte Projektverzeichnis-Datei → VS-Falle strukturell weg; **eine** Mechanik
-  statt zwei; Tippfehler-Dateiname `GobalAssemblyInfo.cs` verschwindet mit.
-- **Hürde:** Die Laufzeit liest die Konstante `MyAssembly.ProductVersion`. Lösungen:
-  1. zur Laufzeit das `AssemblyInformationalVersionAttribute` (bzw. `AssemblyFileVersion`) per
-     Reflection lesen — Standardweg, entfernt `MyAssembly`/`ThisAssembly` komplett; oder
-  2. die Konstante weiterhin generieren, aber **obj-lokal** (`$(IntermediateOutputPath)`) statt ins
-     Projektverzeichnis — Achtung: `IntermediateOutputPath` ist zum Import-Zeitpunkt der Targets noch
-     leer (SDK setzt ihn später), die Datei darf also nicht früh als Property fixiert, sondern muss
-     spät (im Target / nach SDK-Props) gebunden werden.
-- Variante 1 ist sauberer. Konsumenten (s.o.) umstellen; bei der VS-Extension (net472) zusätzlich
-  `ProductName` beachten (Title/Product aus einer `$(ProductName)`-Property statt aus der
-  MyAssembly-Konstante).
+Naheliegend wäre gewesen, `MyAssembly` ganz zu streichen und die Version zur Laufzeit per Reflection
+aus `AssemblyInformationalVersionAttribute`/`AssemblyFileVersion` zu lesen. Das scheitert an **einer**
+Stelle: `NavLanguagePackage.cs` nutzt `MyAssembly.ProductVersion` als **Attribut-Argument**
+(`InstalledProductRegistration`) — das muss eine Compile-Zeit-Konstante sein, Reflection kann sie
+nicht liefern. Der Quellgenerator liefert weiterhin **Konstanten** und lässt damit alle Konsumenten
+(inkl. dieser Attribut-Stelle) unverändert — und ist zugleich trap-immun (Output pro Compilation).
 
 ## Relevante Dateien
 
 | Datei | Rolle |
 |---|---|
-| `_build/Version.targets` | `ComputeGitVersion` (Autorität) + `SetSdkVersionFromGit` (SDK-Hosts) |
-| `_build/WriteThisAssemblyFile.targets` | GobalAssemblyInfo-Generierung + Design-Time-Guard |
-| `_build/GobalAssemblyInfo.cs` | Assembly-Attribute aus `MyAssembly`-Konstanten |
+| `_build/Version.targets` | `ComputeGitVersion` (Autorität) + `SetSdkVersionFromGit` (SDK-Hosts) + `_NavComputeGitVersionBeforeEditorConfig` (Reihenfolge für den Generator) |
+| `_build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/` | Quellgenerator: `MyAssembly`-Konstanten aus `build_property.*` |
+| `_build/SourceGenerators/SourceGenerator.targets` | zentrales `UseAssemblyInfoGenerator`-Wiring (Analyzer-Ref + `CompilerVisibleProperty`) |
+| `Directory.Build.targets` | importiert das Wiring global (auch im legacy VSIX-Projekt) |
+| `_build/GobalAssemblyInfo.cs` | Assembly-Attribute aus `MyAssembly`-Konstanten (unverändert) |
+| `Nav.Language.Extension2026/CustomBuild.targets` | `WriteMyAssemblyFile` (obj-lokale `MyAssembly.g.cs`, wpftmp-tauglich) + VSIX-Manifest-Stempelung |
 | `Tools/Commands/Functions/Get-ProductVersion.ps1` | liest Version per `dotnet msbuild -getProperty` |
 | `Tools/Commands/Functions/Invoke-Build.ps1`, `Publish-Cli/Mcp/VsCode.ps1` | bauen/publishen ohne `-p` |
-| `Nav.Language.Extension2026/CustomBuild.targets` | VSIX-Manifest-Stempelung (DependsOn `ComputeGitVersion`) |

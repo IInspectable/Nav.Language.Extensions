@@ -3,7 +3,45 @@
   <PropertyGroup>
     <ProductName>Nav Language Extensions</ProductName>
   </PropertyGroup>
-  <Import Project="..\_build\WriteThisAssemblyFile.targets" />
+
+  <!--
+    MyAssembly-Konstanten für dieses (legacy, non-SDK, WPF) Projekt.
+
+    Der AssemblyInfo-Quellgenerator (UseAssemblyInfoGenerator) wird hier NICHT verwendet: Die
+    WPF-Markup-Compilierung erzeugt ein temporäres Teilprojekt (…_wpftmp.csproj), in dem
+    Quellgeneratoren nicht laufen — MyAssembly fehlte dort und der Markup-Pass bräche mit CS0122
+    (statt der eigenen internen MyAssembly zieht der Compiler die internen MyAssembly der
+    referenzierten Nav.*-Assemblies, die nicht zugänglich sind). Deshalb hier eine PHYSISCHE
+    Compile-Datei, die auch das wpftmp-Teilprojekt über @(Compile) sieht.
+
+    Anders als früher liegt sie in $(IntermediateOutputPath) (obj\), NICHT im Projektverzeichnis:
+    obj ist ein pro-Konfiguration getrenntes Build-Artefakt, kein geteiltes, eingechecktes File —
+    die alte VS-Design-Time-Falle (ein Hintergrund-DT-Build überschreibt die geteilte Datei mit
+    0.0.0) ist damit ausgeschlossen. Zusätzlich schreibt der DT-Guard-Condition gar nicht erst bei
+    Design-Time-Builds; nur beim echten Build (der unmittelbar vor csc neu stempelt).
+  -->
+  <PropertyGroup>
+    <NavMyAssemblyFile>$(IntermediateOutputPath)MyAssembly.g.cs</NavMyAssemblyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(NavMyAssemblyFile)" />
+  </ItemGroup>
+  <Target Name="WriteMyAssemblyFile" BeforeTargets="PrepareForBuild" DependsOnTargets="ComputeGitVersion"
+          Condition="('$(DesignTimeBuild)' != 'true' and '$(BuildingProject)' != 'false') or !Exists('$(NavMyAssemblyFile)')">
+    <Message Text="Updating $(NavMyAssemblyFile) -> $(ProductVersion)" Importance="high" />
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <ItemGroup>
+      <NavMyAssemblyLine Include="// &lt;auto-generated /&gt;" />
+      <NavMyAssemblyLine Include="static partial class MyAssembly {" />
+      <NavMyAssemblyLine Include="%20%20%20%20public const string ProductVersion = &quot;$(ProductVersion)&quot;%3b" />
+      <NavMyAssemblyLine Include="%20%20%20%20public const string AssemblyVersion = &quot;$(AssemblyVersion)&quot;%3b" />
+      <NavMyAssemblyLine Include="%20%20%20%20public const string ProductVersionInformational = &quot;$(ProductVersionInformational)&quot;%3b" />
+      <NavMyAssemblyLine Include="%20%20%20%20public const string ProductName = &quot;$(ProductName)&quot;%3b" />
+      <NavMyAssemblyLine Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(NavMyAssemblyFile)" Overwrite="true" Lines="@(NavMyAssemblyLine)" />
+  </Target>
+
   <PropertyGroup>
     <DeployDirectory>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)\..\deploy\Vsix))</DeployDirectory>
   </PropertyGroup>

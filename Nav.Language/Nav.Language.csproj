@@ -6,6 +6,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
     <AssemblyName>Pharmatechnik.Nav.Language</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    

@@ -132,7 +132,14 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   ohne `GobalAssemblyInfo.cs` (LSP/MCP) speist `SetSdkVersionFromGit` die Werte in die
   SDK-Assembly-Info-Pipeline. Die `version` in `vscode-nav-lsp\package.json` bleibt Platzhalter
   (`0.0.0`). `AssemblyVersion` ist bewusst `Major.Minor.0.0` (stabile Binding-Identität); die volle
-  Buildnummer steht in `AssemblyFileVersion`.
+  Buildnummer steht in `AssemblyFileVersion`. Die `MyAssembly.{ProductVersion,…}`-Konstanten (von
+  `GobalAssemblyInfo.cs` in Attribute gehoben und zur Laufzeit gelesen) erzeugt der Roslyn-Generator
+  `Nav.AssemblyInfo.SourceGenerator` — Opt-in je Projekt mit `<UseAssemblyInfoGenerator>true</…>`
+  (zentrales Wiring: `_build\SourceGenerators\SourceGenerator.targets` via `Directory.Build.targets`).
+  Generator-Output ist pro Compilation, nie eine geteilte Projektverzeichnis-Datei → immun gegen die
+  frühere VS-Design-Time-Falle. **Ausnahme** `Nav.Language.Extension2026` (legacy WPF): Quellgeneratoren
+  laufen nicht im Markup-Compile-Teilprojekt (`_wpftmp`), daher schreibt dort `WriteMyAssemblyFile`
+  (in `CustomBuild.targets`) `MyAssembly` als physische obj-Datei. Details: `doc/nav-versioning-status.md`.
 - **Stdio-Protokoll-Hosts (LSP, MCP):** `stdout` ist **exklusiv** fürs JSON-RPC-Protokoll. Alle Logs
   MÜSSEN nach `stderr` — sonst zerstören sie die Protokoll-Frames.
 - **URI-Fallstrick (Windows):** LSP-Clients prozent-kodieren den Laufwerks-Doppelpunkt
