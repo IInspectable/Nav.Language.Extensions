@@ -20,7 +20,9 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 | Feature-Gate (`enum NavLanguageFeature` leer + `NavLanguageFeatures`, `Nav5000`) | `Nav.Language/NavLanguageFeature.cs` |
 | Direktiv-Knoten (abstrakt) | `Nav.Language/Syntax/DirectiveTriviaSyntax.cs` |
 | `#pragma version` als erster konkreter Fall | `Nav.Language/Syntax/VersionDirectiveSyntax.cs` |
-| Direktiven-Vorlauf im Parser (`ParseDirectives` + `VersionSubjectIndex`/`AcceptVersionDirective`), Token-Materialisierung, Root-Extent, Nav3002/Nav3003/Nav3004 | `Nav.Language/Syntax/NavParser.cs` |
+| Nicht-wirksame Direktive (unbekannt/deplatziert/doppelt) | `Nav.Language/Syntax/BadDirectiveTriviaSyntax.cs` |
+| Direktiv-Sub-Parser + `BuildTrivia` (Direktive → strukturierte `DirectiveTrivia`, Token lokal), Nav3002/Nav3003/Nav3004 | `Nav.Language/Syntax/NavParser.cs` |
+| Strukturierte Trivia (`GetStructure()`/`HasStructure`, `DirectiveTrivia`) | `Nav.Language/Syntax/SyntaxTrivia.cs`, `SyntaxTokenType.cs`, `SyntaxFacts.cs` |
 | Unit-Property `LanguageVersionDirective` + `LanguageVersion` | `Nav.Language/Syntax/CodeGenerationUnitSyntax.cs` |
 | `SyntaxTree.Directives()` | `Nav.Language/Syntax/SyntaxTree.cs` |
 | Semantik-Durchreiche `LanguageVersion` | `Nav.Language/SemanticModel/CodeGenerationUnit.cs` |
@@ -31,27 +33,31 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 | Editor-Anbindung (beide Hosts, geteilt) | LSP: `SemanticTokensBuilder.cs` (Legende `number`); VS: `Classification/ClassificationType{Names,Definitions}.cs` (`NavNumber`); VS-Code-Client-Fallback: `vscode-nav-lsp/syntaxes/nav.tmLanguage.json` |
 | Tests | `Nav.Language.Tests/Syntax/LanguageVersionTests.cs`, Fixtures `Syntax/Tests/VersionPragma(.Invalid).nav` |
 
-**Verifiziert:** net10 1141/0, net472 1141/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; kein Bestands-Golden
-verändert; Default ohne Pragma = Version 1 ⇒ Bestand bit-identisch. (VSIX/`n build` noch nicht gebaut.)
+**Verifiziert:** net10 1145/0, net472 grün; Engine + CodeAnalysis/LSP/MCP/CLI bauen; Default ohne Pragma =
+Version 1 ⇒ Bestand bit-identisch. Direktiven sind seit dem Weg-B-Umbau **strukturierte Trivia**
+(`doc/nav-weg-b-structured-trivia.md`) — `.tokens`/`.tree`/`.trivia`-Golden entsprechend neu, `.diag`
+byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`n build` für den VS-Klassifizierungspfad.)
 
 ## Design-Entscheidungen (mit dem Nutzer geklärt — nicht ohne Grund umwerfen)
 
 - **Syntax:** `#pragma version <int>` — generisches, extensibles Pragma-Muster `#pragma <name> <wert>`.
 - **Schema:** monotone **Ganzzahl** (`1`, `2`, `3` …), entkoppelt von der git-abgeleiteten Assembly-Version.
 - **Gate:** permissiv parsen + **semantische** Diagnose (Roslyn-Stil); ohne Pragma = Version 1.
-- **Repräsentation (Weg A, zu Ende gedacht):** Die Direktive ist ein **echter Kindknoten** der
-  `CodeGenerationUnitSyntax` (erster Child), **besitzt ihre Präprozessor-Token** (im Direktiven-Vorlauf
-  `ParseDirectives` materialisiert); der Wurzel-Extent umschließt sie. `SyntaxTrivia` bleibt schlank — **kein**
-  `GetStructure()` an der Trivia selbst (das ist Weg B / „generische Direktiven", erst nötig, wenn
-  Direktiven **überall** stehen dürfen sollen).
-- **Direktiven-Vorlauf statt Hand-Scan (`ParseDirectives`):** Der eigentliche Parser-Cursor sieht
-  Präprozessor-Token nicht (sie sind `IsHidden`). Direktiven werden daher **vor** dem Parse in einem eigenen
-  kleinen Durchlauf über den Roh-Strom erkannt: `#pragma version` (getipptes `version`-Subjekt, Argument via
-  `NavLanguageVersion.TryParse`) wird zum Knoten samt materialisierten Token; jede andere Direktive meldet
-  `Nav3000`/`Nav3001`. `AttachNonSignificantTokens` hängt danach nur noch die **losen** (nicht angenommenen)
-  Token an die Wurzel — der frühere Extent-Abgleich (`inVersionDirective`) ist durch ein `consumedStarts`-Skip
-  ersetzt. Dies ist der Andockpunkt für weitere Direktiven (z.B. `#pragma warning disable` → kleine
-  `ParseWarningDirective`-Regel).
+- **Repräsentation (Weg B, umgesetzt):** Die Direktive ist **strukturierte Trivia** nach Roslyn-Vorbild —
+  ein `SyntaxTokenType.DirectiveTrivia`-Stück am Folge-Token, dessen `SyntaxTrivia.GetStructure()` den
+  `DirectiveTriviaSyntax`-Knoten liefert. Der Knoten hält seine Präprozessor-Token in einer **eigenen,
+  lokalen** `SyntaxTokenList` (nicht im flachen `SyntaxTree.Tokens`-Strom) und ist **kein** Kindknoten der
+  Wurzel mehr. Wirksame `#pragma version` → `VersionDirectiveSyntax`; jede andere Direktive →
+  `BadDirectiveTriviaSyntax`. (Vorstufe war **Weg A** — Direktive als Kindknoten mit flachen Token; siehe
+  `doc/nav-weg-b-structured-trivia.md` für den Umbau.)
+- **Direktiv-Sub-Parser statt Hand-Scan:** Der Hauptparser-Cursor sieht Präprozessor-Token nicht (sie sind
+  Trivia). Ein cursor-basierter Direktiv-Sub-Parser erkennt pro `#`-Lauf `#pragma version` (getipptes
+  `version`-Subjekt, Argument via `NavLanguageVersion.TryParse`) → `VersionDirectiveSyntax`, alles andere →
+  `BadDirectiveTriviaSyntax` (`Nav3000`/`Nav3001`). `BuildTrivia` faltet den Lauf zu einem
+  `DirectiveTrivia`-Stück und hängt es als Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an — der
+  frühere `ParseDirectives`-Vorlauf samt `consumedStarts`-Skip und Wurzel-Extent-Vorziehung entfiel. Dies
+  ist der Andockpunkt für weitere Direktiven (z.B. `#pragma warning disable` → kleine Sub-Parser-Regel +
+  `WarningDirectiveSyntax`).
 
 ## Zulässige Versionsnummern — Stand & offene Entscheidung
 
@@ -95,11 +101,12 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   Completion bietet genau die von der Engine unterstützten an.
 
 **Gotchas (wichtig):**
-- `NavCompletionContext.Classify` arbeitet heute über den **signifikanten** Syntaxbaum. Pragma-Token sind
-  „hidden"; die Direktive ist ein Knoten (`VersionDirectiveSyntax`) bzw. — bei unfertiger Eingabe — nur
-  roher Präprozessor-Text. Die Klassifikation muss also die **Präprozessor-Zeile** an der Position erkennen
-  (über `SyntaxTree.Directives()`/Position **oder** einen kleinen Rückwärts-Scan über die Roh-Token), nicht
-  nur den Baum.
+- `NavCompletionContext.Classify` arbeitet heute über den **signifikanten** Syntaxbaum. Direktiv-Token sind
+  seit Weg B **strukturierte Trivia** (nicht mehr im flachen Strom); die fertige Direktive ist ein Knoten
+  über `SyntaxTrivia.GetStructure()` (`VersionDirectiveSyntax`/`BadDirectiveTriviaSyntax`), bei unfertiger
+  Eingabe nur die `DirectiveTrivia` selbst. Die Klassifikation muss also die **Präprozessor-Zeile** an der
+  Position über die Trivia erkennen (`SyntaxTree.FindTrivia(position)`/`Directives()`), nicht nur den
+  Token-Baum.
 - Der Fallstrick aus [[nav-completion-context]] gilt: `SyntaxToken.PreviousToken()` ist parent-lokal →
   globalen Token-Strom + Binärsuche nutzen.
 - Beim Tippen ist die Zeile oft unvollständig (`#pragma versi`); Completion muss auf Präfixen robust sein.
@@ -116,26 +123,29 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   Rest (Zwischenraum/Satzzeichen)→`PreprocessorText`. Die **Klassifikation** folgt dann **allein aus dem
   Token-Typ** (`TryClassifyNonSignificant`: `PreprocessorNumber`→`NumberLiteral`) — **keine** direktiven-
   spezifische Färbe-Logik (kein Extent-Abgleich). Erkennung + Diagnosen der Direktiven liegen dagegen im
-  Direktiven-Vorlauf (`ParseDirectives`), der Färbung und Baumstruktur unberührt lässt. Der ungültige
-  Versionswert (`Nav3002`) ist ein Wort, also
+  Direktiv-Sub-Parser, der Färbung unberührt lässt (die Direktiv-Token-Spans emittieren die Host-Färber aus
+  der strukturierten Trivia). Der ungültige Versionswert (`Nav3002`) ist ein Wort, also
   Keyword-, nicht Zahl-gefärbt. Beide Hosts ziehen automatisch nach (LSP-Token-Typ `number`; VS `NavNumber` auf
   Basis C#-`NumericLiteral`); der VS-Code-Client hat zusätzlich statisches TextMate-Fallback für `#pragma version <N>`.
   Nebeneffekt (gewollt): der Rumpf **jeder** `#`-Direktive ist jetzt sauber tokenisiert (z.B. `#if DEBUG` → `DEBUG`
   ein Wort-Token statt Einzelzeichen).
-- **`#pragma warning disable <NavXXXX>` (heißer Kandidat):** dank Direktiven-Vorlauf jetzt eine kleine
-  Ergänzung — ein `WarningDirectiveSyntax` (analog `VersionDirectiveSyntax`), im `ParseDirectives`-Dispatch
-  auf das Subjekt `warning` erkannt, plus eine **Diagnose-Filterschicht**, die gemeldete Diagnostics gegen
-  die aktiven Suppressions siebt. Datei-weite Suppression (am Kopf) passt ins bestehende Modell; echte
-  Regionen-Semantik (`disable … restore` mitten im Code) wäre erst der große Umbau (Weg B, s.u.).
+- **`#pragma warning disable <NavXXXX>` (heißer Kandidat):** dank Direktiv-Sub-Parser jetzt eine kleine
+  Ergänzung — ein `WarningDirectiveSyntax` (analog `VersionDirectiveSyntax`), im Sub-Parser-Dispatch auf das
+  Subjekt `warning` erkannt, plus eine **Diagnose-Filterschicht**, die gemeldete Diagnostics gegen die
+  aktiven Suppressions siebt. Datei-weite Suppression (am Kopf) passt ins bestehende Modell; echte
+  Regionen-Semantik (`disable … restore` mitten im Code) ist mit dem Weg-B-Trivia-Modell (Direktive kann an
+  **jedem** Token hängen) jetzt strukturell möglich, aber weiterhin ungebaut (Placement-Regel bewusst „nur
+  oben").
 - **QuickInfo/Hover** auf der Direktive; **Code-Fix** zu `Nav3002`/`Nav3003`/`Nav5001` (gültige/`Latest`-Version
   einsetzen bzw. Direktive an den Dateikopf verschieben).
 - **Lexer-LF-Fallstrick:** Direktiven terminieren im Textmodus **nur bei `\r\n`** (Alt-Grammatik; einzelnes
   `\n` bleibt `PreprocessorText` und verschluckt den Rest bis `\r\n`/EOF). Gilt für **alle** `#`-Direktiven.
   `.nav` sind CRLF, daher praktisch maskiert. Option: Lexer so ändern, dass auch einzelnes `\n` terminiert
   (macht LF-Dateien robust, ist aber eine bewusste Abkehr vom Alt-Verhalten → Golden prüfen).
-- **Generische Direktiven** (`#region`, `#if`): erst wenn Direktiven **überall** stehen dürfen → dann Weg B
-  (strukturierte Trivia via `SyntaxTrivia.GetStructure()`), inkl. Anpassung aller positions-basierten
-  `SyntaxTokenList`-Konsumenten.
+- **Generische Direktiven** (`#region`, `#if`): das Weg-B-Fundament (strukturierte Trivia via
+  `SyntaxTrivia.GetStructure()`, positions-basierte `SyntaxTokenList`-Konsumenten reconnectet) **steht**.
+  Offen ist nur noch, die Placement-Regel zu lockern (Direktiven **überall** zulassen) und je Direktive einen
+  eigenen Sub-Parser-Zweig samt Knotentyp zu ergänzen.
 - **LSP/MCP:** `nav_diagnostics`/Push liefern `Nav3002`/`Nav5000`/(`Nav5001`) automatisch. Optional
   `LanguageVersion` in `nav_outline`/`nav_workspace` ausweisen.
 

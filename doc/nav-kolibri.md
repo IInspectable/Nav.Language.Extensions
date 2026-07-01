@@ -239,11 +239,10 @@ Konditionale Direktiven (`#if/#elif/#else/#endif`) tragen **Zustand über die Da
 `DirectiveStack` im Lexer; toter Code wird als `DisabledTextTrivia` geschluckt). Diese Verzahnung von
 Lexen und Direktiven-Auswertung ist die eigentliche Komplexität.
 
-**Für Nav (vereinfacht):** Kein konditionaler Stack, kein Disabled-Text, keine Symbol-Auswertung nötig
-— nur der zustandslose Teil. Beim `#` einen **Mini-Sub-Parser** aufrufen, der `#` + Keyword +
-Text-bis-EOL zu **einer** `DirectiveTriviaSyntax` zusammenfasst. Der Hauptparser sieht nur Trivia.
-„Unbekannte Direktive" wird damit eine **semantische** Frage (Diagnose am Trivia-Knoten), kein
-Parserfehler mehr.
+**Für Nav (vereinfacht) — umgesetzt:** Kein konditionaler Stack, kein Disabled-Text, keine
+Symbol-Auswertung — nur der zustandslose Teil. Beim `#` läuft ein **Mini-Sub-Parser**, der `#` + Keyword +
+Text-bis-EOL zu **einer** `DirectiveTriviaSyntax` zusammenfasst; der Hauptparser sieht nur Trivia. Details
+in „Stand: `#pragma version`" unten und in `doc/nav-weg-b-structured-trivia.md`.
 
 ### Stand: `#pragma version` + Sprach-Versionierung (Fundament, umgesetzt)
 
@@ -251,20 +250,21 @@ Der erste strukturierte Direktiven-Fall ist implementiert — als Träger einer 
 je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Elemente):
 
 - **Syntax** `#pragma version <int>` → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
-  Umgesetzt als **Weg A** (siehe „architektonischer Gabelpunkt"), aber konsequent zu Ende gedacht: der
-  Direktiv-Knoten hängt als **erster Kindknoten** an der `CodeGenerationUnitSyntax` und **besitzt seine
-  Präprozessor-Token** (im Direktiven-Vorlauf materialisiert); der Wurzel-Extent wird bei Bedarf
-  nach vorn gezogen, damit der Knoten im Eltern-Extent liegt. `SyntaxTree.Directives()` listet die
-  erkannten Direktiven. `SyntaxTrivia` bleibt schlank (kein `GetStructure()` an der Trivia selbst — das
-  bleibt Weg B/„generische Direktiven" vorbehalten, wenn Direktiven **überall** stehen dürfen sollen).
-- **Erkennung** im Direktiven-Vorlauf `NavParser.ParseDirectives()` über den Roh-Strom (der Cursor sieht
-  Präprozessor-Token als „hidden"): pro `#`-Lauf entscheidet `VersionSubjectIndex` (getipptes `version`-
-  Subjekt), dann setzt `AcceptVersionDirective` die **erste** und nur **ganz oben** stehende Direktive
-  wirksam (Knoten + materialisierte Token). Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`,
-  Rückfall auf `NavLanguageVersion.Default` (= 1). Eine weiter unten stehende Versions-Direktive meldet
-  `Nav3003`, eine doppelte `Nav3004` (erste gewinnt); beide bleiben ohne Wirkung, ihre Token lose (aber
-  normal eingefärbt). Jede **nicht** als Version erkannte Direktive (`#pragma warning …` o.Ä.) meldet
-  `Nav3000`/`Nav3001` (`ReportDirectiveDiagnostics`).
+  Umgesetzt als **Weg B** (siehe „architektonischer Gabelpunkt"): die Direktive ist **strukturierte
+  Trivia** — ein `SyntaxTokenType.DirectiveTrivia`-Stück im angehängten `_allTrivia`, dessen
+  `GetStructure()` auf den `DirectiveTriviaSyntax`-Knoten zeigt. Der Knoten hält seine Präprozessor-Token
+  in einer **eigenen, lokalen** `SyntaxTokenList` (`SetLocalTokens`/`ChildTokens()`-Override), **nicht**
+  im flachen `SyntaxTree.Tokens`-Strom, und ist **kein** Kindknoten der Wurzel mehr.
+  `SyntaxTree.Directives()` sammelt sie über `DescendantTrivia().Where(HasStructure)`.
+- **Erkennung** durch einen cursor-basierten Direktiv-Sub-Parser (`NavParser`), der pro `#`-Lauf
+  entscheidet: `#pragma version <int>` → `VersionDirectiveSyntax` (wirksam nur als **erste** und nur, wenn
+  ihr ausschließlich Trivia vorausgeht); **jede andere** Direktive → `BadDirectiveTriviaSyntax`. Fehlender/
+  nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall auf `NavLanguageVersion.Default` (= 1). Eine
+  weiter unten stehende Versions-Direktive meldet `Nav3003`, eine doppelte `Nav3004` (erste gewinnt);
+  beide werden zu `BadDirectiveTriviaSyntax`, bleiben ohne Wirkung, ihre Token aber normal eingefärbt.
+  Jede unbekannte Direktive (`#pragma warning …` o.Ä.) meldet `Nav3000`/`Nav3001`. `BuildTrivia` faltet
+  jeden Präprozessor-Lauf zu einem `DirectiveTrivia`-Stück und hängt es als Leading-Trivia des Folge-Tokens
+  (bzw. `EndOfFile`) an.
 - **Fallstrick (wichtig):** Der Lexer beendet eine Direktive im Textmodus **nur bei `\r\n`** (einzelnes
   `\n` bleibt `PreprocessorText` — Alt-Grammatik-Verhalten, gilt für **alle** `#`-Direktiven). Ein
   `#pragma version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
@@ -274,17 +274,24 @@ je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Ele
   `NavLanguageFeature`/`NavLanguageFeatures` (`Nav5000`) steht bereit, **noch ohne** registrierte
   Features (permissiv parsen + semantisch diagnostizieren, Roslyn-Stil). Default ohne Pragma = Version 1
   ⇒ Bestand bit-identisch.
-- **Tests:** `LanguageVersionTests` + Golden-Fixtures `VersionPragma(.Invalid).nav`; `AllRules.nav` trägt
-  jetzt ein `#pragma version 1` (Abdeckung des neuen Knotentyps).
+- **Tests:** `LanguageVersionTests` + Golden-Fixtures `VersionPragma(.Invalid).nav` (`.tokens`/`.tree`/
+  `.trivia`); `AllRules.nav` trägt ein `#pragma version 1`. `BadDirectiveTriviaSyntax` deckt
+  `SyntaxTreeAllRulesTests` über ein **eigenes Fehler-Schnipsel** ab (Zähler 47 → 48), damit `AllRules.nav`
+  fehlerfrei bleibt.
 
 ---
 
 ## Strukturierte Trivia & der architektonische Gabelpunkt
 
+> **Entschieden & umgesetzt:** Beide Wege sind gegangen — erst **Weg A** (Direktive als Kindknoten mit
+> flachen Token, als Fundament der `#pragma version`-Erkennung), dann der Umbau auf **Weg B** (Direktive
+> als strukturierte Trivia, Token lokal, `SyntaxTrivia.GetStructure()`). Details:
+> `doc/nav-weg-b-structured-trivia.md`. Der folgende Abschnitt bleibt als Begründung der Entscheidung.
+
 „Trivia" heißt nicht „flacher Span". Strukturierenswert: Direktiven, Region-Marker, Doc-Kommentare.
 Whitespace/NewLine/normale Kommentare bleiben flach.
 
-Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-Modell hat:
+Hier musste eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-Modell hat:
 
 - **Weg A — flache Liste behalten (kleiner Eingriff):** Direktiven-Token bleiben im flachen Strom;
   zusätzlich optional ein `DirectiveTriviaSyntax`, das diese Token referenziert und in eine
@@ -339,7 +346,8 @@ Hier muss eine bewusste Entscheidung fallen, weil Nav **nicht** Roslyns Trivia-M
    B2 (Golden-Verifikationsstrang für den Handparser, `*.hand.*`) **erledigt**; B3 (Error-Recovery:
    Missing-/Skipped-Token, gestaffelte Sync-Sets, missing edge/target) inkl. Tipp-Präfix-Robustheit
    **erledigt**.
-4. *(Später, separat)* Trivia-Modell auf angehängt + strukturiert; Direktiven als strukturierte Trivia.
+4. *(Separat, erledigt)* Trivia-Modell auf angehängt + strukturiert; Direktiven als strukturierte Trivia
+   (Weg B, `doc/nav-weg-b-structured-trivia.md`).
 5. **Cutover (Schritt C):** `SyntaxTree.ParseText` auf den Handparser umstellen, ANTLR ausbauen.
    - **Step 1+2 (ParseText-Umstellung + Golden-Cutover) erledigt** — siehe Abschnitt
      „Stand nach Cutover Step 1+2" unten.
@@ -648,10 +656,10 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
 ### Kalibrierte Invarianten (an den Golden festgenagelt — beim Recovery-Umbau nicht brechen)
 
 - **Trivia/Unknown/lose Präprozessor-Token/EOF hängen an der Wurzel** (`AttachNonSignificantTokens`),
-  nicht am umschließenden Knoten — exakt wie das heutige `PostprocessTokens`. **Ausnahme:** die Token einer
-  erkannten `#pragma version`-Direktive gehören ihrem `VersionDirectiveSyntax`-Knoten (im Direktiven-Vorlauf
-  materialisiert) und werden im Sweep via `consumedStarts` übersprungen. Der Parser selbst sieht
-  nur signifikante Token (Cursor überspringt die in `IsHidden` gelisteten Typen).
+  nicht am umschließenden Knoten — exakt wie das heutige `PostprocessTokens`. **Ausnahme (seit Weg B):** die
+  Token einer Direktive gehören ihrem `DirectiveTriviaSyntax`-Knoten und liegen in **strukturierter Trivia**,
+  nicht im flachen Strom (früher: Kindknoten mit materialisierten Token, via `consumedStarts` übersprungen —
+  siehe `doc/nav-weg-b-structured-trivia.md`). Der Parser selbst sieht nur signifikante Token.
 - **EOF** ist ein nullbreites Token am Textende, Parent = Wurzel, Klassifikation `Whitespace`.
 - **Wurzel-Extent** = `[Start des ersten signifikanten Tokens … EOF-Position]`; ohne signifikante
   Token (leere Datei, nur Whitespace/Kommentar) `[eof, eof]`.
@@ -675,10 +683,11 @@ Alternative (mehr Test-Churn): die per-Regel-Tests auf Whole-File umstellen — 
    an der Token-Startposition (im Test-Formatter nullbreit), exakt wie ANTLRs `IToken.GetLocation`
    (nicht der Zeilen*bereich* aus `SourceText.GetLocation`). Reihenfolge je `#`: erst `Nav3001`,
    dann `Nav3000`.
-   **Update (Direktiven-Vorlauf):** `Nav3000`/`Nav3001` entstehen inzwischen strukturiert in
-   `ParseDirectives`/`ReportDirectiveDiagnostics` (genau eine `Nav3000` je `#`-Lauf, nicht mehr je
-   `HashToken`+`PreprocessorKeyword`); `ReportLexicalDiagnostics` meldet nur noch `Nav0000`. Locations und
-   Reihenfolge (`Nav3001` vor `Nav3000`) bleiben identisch.
+   **Update (Direktiv-Sub-Parser, Weg B):** `Nav3000`/`Nav3001` entstehen strukturiert im Direktiv-Sub-Parser
+   (genau eine `Nav3000` je `#`-Lauf, nicht mehr je `HashToken`+`PreprocessorKeyword`);
+   `ReportLexicalDiagnostics` meldet nur noch `Nav0000`. Locations und Reihenfolge (`Nav3001` vor `Nav3000`)
+   bleiben identisch. (Die frühere `ParseDirectives`/`ReportDirectiveDiagnostics`-Vorlaufmechanik entfiel mit
+   Weg B — siehe `doc/nav-weg-b-structured-trivia.md`.)
    Das Gate (`NavParserDifferentialTests`) vergleicht jetzt zusätzlich die Diagnostics
    und stellt nur noch Dateien mit ANTLR-**Parser**-Recovery (`Nav0002`) zurück — die beiden reinen
    Präprozessor-Dateien (`PreprocessorDirective.nav`, `PreprocessorNotAtLineStart.nav`) laufen voll mit.
@@ -804,14 +813,15 @@ fallen.
 - Outline-Tagger `TaskReferenceOutlineTagger.cs` / `TaskDefinitionsOutlineTagger.cs` —
   `nameToken.NextToken()` + `nameToken.End + 1`-Offsetarithmetik statt Trailing-Trivia.
 
-### Strukturiertes Trivia-Parsen — vorerst zurückgestellt
+### Strukturiertes Trivia-Parsen — für Direktiven umgesetzt, Rest zurückgestellt
 
-Aktuell **kaum Mehrwert**: Nav hat keine Doc-Kommentare, keine Region-Marker; Präprozessor-Direktiven
-laufen bewusst auf Grammatik-Ebene (`taskref "…"`) bzw. werden nur als „nicht unterstützt" gemeldet. Der
-einzige semantik-tragende Kommentar ist `// disable <DiagnosticId>`
-(`Nav.Language\SemanticAnalyzer\AnalyzerContext.cs`), und der liest bereits sauber die
-Trailing-Trivia-Extent. Ein `GetStructure()`-Framework hätte heute keinen echten Kunden — erst angehen,
-wenn einer entsteht (z.B. wenn `// disable` formalisiert werden soll).
+`GetStructure()` **existiert** und hat mit den Präprozessor-Direktiven seinen ersten Kunden (Weg B, s.o.
+und `doc/nav-weg-b-structured-trivia.md`): eine `#…`-Zeile ist eine strukturierte
+`SyntaxTokenType.DirectiveTrivia`, deren `GetStructure()` den `DirectiveTriviaSyntax`-Knoten liefert.
+**Weiterhin zurückgestellt** (kein Kunde): Doc-Kommentare und Region-Marker hat Nav nicht; der einzige
+semantik-tragende Kommentar `// disable <DiagnosticId>`
+(`Nav.Language\SemanticAnalyzer\AnalyzerContext.cs`) liest bereits sauber die Trailing-Trivia-Extent. Ein
+strukturiertes Parsen dafür erst angehen, wenn `// disable` formalisiert werden soll.
 
 ### Empfohlene Reihenfolge
 

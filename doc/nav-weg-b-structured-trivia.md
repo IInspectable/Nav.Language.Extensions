@@ -3,8 +3,11 @@
 > Selbsttragender Einstieg für eine **frische Session ohne Gesprächskontext.** Ergänzt
 > `doc/nav-pragmas-versioning-status.md` (Direktiven-Ist-Stand) und `doc/nav-kolibri.md`
 > (Abschnitte „Präprozessor-Direktiven" + „architektonischer Gabelpunkt"). Quelle der Wahrheit
-> bleibt der Code; Pfade/Zeilen sind Einstieg (zum Erhebungszeitpunkt verifiziert). **Noch nicht
-> umgesetzt — dies ist der Umbauplan.**
+> bleibt der Code; Pfade/Zeilen sind Einstieg (zum Erhebungszeitpunkt verifiziert).
+>
+> **Status: umgesetzt** (net10 1145/0, net472 grün; `.diag` byte-identisch). Steps 1–5 erledigt —
+> siehe „Umsetzung" am Ende. Der folgende Plan bleibt als Begründung/Nachschlagewerk stehen; die
+> geltende Quelle ist der Code.
 
 ## Warum
 
@@ -80,7 +83,7 @@ modellieren.
   globalen `SyntaxTree.Tokens`; `ChildTokens()` für Direktiv-Knoten auf die lokale Liste überschreiben.
 - Direktiv-Knoten sind **keine** `ChildNodes` der Wurzel mehr; erreichbar über die Trivia.
 
-## Steps
+## Steps (alle erledigt — siehe „Umsetzung")
 
 Arbeitsweise (User-Vorgabe): große Aufgabe in Steps; nach **jedem** Step Code-Review + Build/Tests, dann
 fertige **Commit-Message als Text** — **nie** selbst committen. Neue Dateien UTF-8 **mit BOM**, echte
@@ -147,3 +150,35 @@ Umlaute (ä ö ü ß). Nicht auf „Steps" in dauerhafter Code-Doku verweisen.
   ändern sich, `.diag` unverändert, kein Korpus-`.expected.cs` verändert.
 - LSP-stdio-Smoke: `#pragma version` weiterhin farblich klassifiziert.
 - `n build` (VSIX) für den VS-Klassifizierungspfad.
+
+## Umsetzung (erledigt)
+
+Weg B ist implementiert; Direktiven sind jetzt **strukturierte Trivia** nach Roslyn-Vorbild. Committed in
+`d79aaaf5` (Step 1) und `3a8caa8a` (Steps 2–5). Verifiziert: net10 1145/0, net472 grün, `.diag`
+byte-identisch, kein Korpus-`.expected.cs` verändert.
+
+**Was tatsächlich entstand:**
+- **`SyntaxTrivia`** trägt einen optionalen `SyntaxNode _structure` samt `HasStructure`/`GetStructure()`;
+  bleibt `readonly struct` (`Nav.Language\Syntax\SyntaxTrivia.cs`). Neuer Trivia-Typ
+  `SyntaxTokenType.DirectiveTrivia`, in `SyntaxFacts.IsTrivia` aufgenommen.
+- **`DirectiveTriviaSyntax`** hält seine Token in einer **lokalen** `SyntaxTokenList` (`SetLocalTokens`,
+  `ChildTokens()`-Override), **nicht** im flachen `SyntaxTree.Tokens`-Strom. Neuer konkreter Typ
+  **`BadDirectiveTriviaSyntax`** für jede nicht-wirksame Direktive (unbekannt → Nav3000/3001, deplatziert
+  → Nav3003, doppelt → Nav3004); `VersionDirectiveSyntax` bleibt die einzige wirksame Ausprägung.
+- **`NavParser`**: Direktiv-Sub-Parser ersetzt den früheren Index-Arithmetik-Vorlauf; `BuildTrivia` faltet
+  jeden Präprozessor-Lauf zu **einem** strukturierten `DirectiveTrivia`-Stück und hängt es als
+  Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an. `consumedStarts`-Skip und Wurzel-Extent-Vorziehung
+  entfielen.
+- **Konsumenten:** `SyntaxTree.Directives()` liest über `DescendantTrivia().Where(HasStructure)…`;
+  `CodeGenerationUnitSyntax.LanguageVersionDirective`/`LanguageVersion` ziehen die erste
+  `VersionDirectiveSyntax` aus den Trivia (kein Ctor-Kindparameter mehr). Einfärbung in
+  `SemanticTokensBuilder.CollectSpans` (LSP) und `SyntacticClassificationTagger.GetTags` (VS) emittiert die
+  Direktiv-Token-Spans aus den strukturierten Trivia. Durchreiche in `CodeGenerationUnit`/
+  `CodeGeneratorContext` unverändert.
+
+**Abweichungen vom Plan (bewusst):**
+- **`AllRules.nav` bleibt fehlerfrei** — statt dort eine unbekannte Direktive einzufügen, wird
+  `BadDirectiveTriviaSyntax` in `SyntaxTreeAllRulesTests` über ein **eigenes Fehler-Schnipsel** abgedeckt
+  (Knotentyp-Zähler 47 → 48). `AllRules.nav` trägt weiterhin nur `#pragma version 1`.
+- `SyntaxNode.FindToken`-Doku ist auf `GetStructure()` umgeschrieben (die Behauptung „Nav führt keine
+  strukturierte Trivia" entfernt).
