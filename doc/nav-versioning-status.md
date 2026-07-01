@@ -37,14 +37,22 @@ ProductVersionInformational, ProductName}`. Dieselben Konstanten liest die Laufz
    Wiring (`_build/SourceGenerators/SourceGenerator.targets`, global über `Directory.Build.targets`)
    hängt Analyzer-`ProjectReference` + `CompilerVisibleProperty` an. Output ist **pro Compilation**
    (nie eine geteilte Datei) → strukturell immun gegen die unten beschriebene Falle.
-2. **Physische obj-Datei** — nur `Nav.Language.Extension2026` (legacy, non-SDK, WPF). Die
-   WPF-Markup-Compilierung baut ein temporäres Teilprojekt (`…_wpftmp.csproj`), in dem
-   Quellgeneratoren **nicht** laufen; ein generiertes `MyAssembly` fehlte dort und der Markup-Pass
-   bräche mit CS0122 (der Compiler zieht die internen `MyAssembly` der referenzierten Nav.*-Assemblies,
-   die nicht zugänglich sind). Deshalb schreibt hier `WriteMyAssemblyFile` (in der Projekt-
-   `CustomBuild.targets`) die Konstanten in `$(IntermediateOutputPath)MyAssembly.g.cs` und nimmt sie
-   als **physisches** `@(Compile)`-Item auf — dadurch im wpftmp-Teilprojekt sichtbar. Liegt in **obj/**
-   (pro Konfiguration, kein eingechecktes File) plus Design-Time-Guard → ebenfalls trap-immun.
+2. **Physische obj-Datei** — die **erzwungene Ausnahme** für `Nav.Language.Extension2026` (legacy,
+   non-SDK, WPF), **kein** Fallback. Die WPF-Markup-Compilierung baut ein temporäres Teilprojekt
+   (`…_wpftmp.csproj`), das den gesamten C#-Code zu einer Wegwerf-Assembly übersetzt, damit XAML
+   projekteigene Typen auflösen kann — in diesem Teilprojekt laufen Quellgeneratoren **nicht**. Mit dem
+   Generator fehlt dort `MyAssembly`, der Compiler zieht die internen `MyAssembly` der referenzierten
+   `Nav.*`-Assemblies (nicht zugänglich) → **CS0122**, der Build bricht ab. **Empirisch verifiziert**
+   (kontrollierter Differenz-Test, gleicher `MSBuild.exe /t:Build`): physische obj-Datei → grün;
+   Generator (`UseAssemblyInfoGenerator=true`, physische Datei unterdrückt) → `error CS0122` explizit im
+   `…_wpftmp.csproj`. Deshalb schreibt hier `WriteMyAssemblyFile` (in der Projekt-`CustomBuild.targets`)
+   die Konstanten in `$(IntermediateOutputPath)MyAssembly.g.cs` und nimmt sie als **physisches**
+   `@(Compile)`-Item auf — nur so sind sie im wpftmp sichtbar (ein `<Compile>`-Item wird ins Temp-Projekt
+   kopiert, Generator-Output nicht). **Wichtig — nicht strukturell trap-immun wie der Generator:** obj/ ist
+   zwischen VS- und CLI-Build desselben Projekts genauso geteilt wie das Projektverzeichnis; der Schutz ist
+   allein der Design-Time-Guard (+ funktionierendes git/`safe.directory`). Der Generator-Weg (Output pro
+   Compilation, gar keine geteilte Datei) bleibt der robustere und ist überall dort das Mittel der Wahl, wo
+   er läuft — die obj-Datei nur, wo er es nachweislich nicht tut (wpftmp).
 3. **SDK-Assembly-Info** — net10-SDK-Hosts (Nav.Language.Lsp, Nav.Language.Mcp;
    `GenerateAssemblyInfo` default true, **kein** `MyAssembly`). `SetSdkVersionFromGit` (in
    `_build/Version.targets`) speist `Version`/`FileVersion`/`InformationalVersion` aus
@@ -83,11 +91,14 @@ MCP/LSP waren **nie** betroffen, weil sie die Version über obj/SDK-Assembly-Inf
 geteiltes Projektverzeichnis-File.
 
 **Fix (umgesetzt — Ursache strukturell entfernt):** Die Projektverzeichnis-Datei
-(`WriteThisAssemblyFile.targets` → `ThisAssembly.generated.cs`) ist **abgeschafft**. `MyAssembly`
-kommt jetzt aus dem Roslyn-Quellgenerator (pro Compilation, keine geteilte Datei) bzw. — nur für das
-legacy WPF-Extension-Projekt — aus einer obj-lokalen Datei mit Design-Time-Guard (siehe Abschnitt
-oben). Es gibt kein geteiltes, eingechecktes Stempel-File mehr, das ein Fremdprozess überschreiben
-könnte.
+(`WriteThisAssemblyFile.targets` → `ThisAssembly.generated.cs`) ist **abgeschafft**. Für die 5
+SDK-Projekte kommt `MyAssembly` jetzt aus dem Roslyn-Quellgenerator — Output **pro Compilation, gar
+keine geteilte Datei**, damit strukturell immun: Ein VS-Design-Time-Build kann nichts mehr
+überschreiben, weil es nichts Geteiltes zum Überschreiben gibt. Das legacy WPF-Extension-Projekt kann
+den Generator nicht nutzen (wpftmp, siehe Abschnitt oben) und behält als **erzwungene Ausnahme** eine
+obj-lokale Datei mit Design-Time-Guard — die einzige verbliebene Stelle, die überhaupt noch auf einer
+Datei beruht. Sie ist nicht mehr im eingecheckten Projektverzeichnis, aber (anders als der Generator)
+weiterhin guard-abhängig, nicht strukturell immun.
 
 **Diagnose-Rezept** (falls so etwas wiederkommt):
 - Datei-Inhalt **während** des Builds pollen → fängt das `6.0.x` → `0.0.0`-Flip aus dem Fremdprozess.

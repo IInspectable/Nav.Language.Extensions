@@ -137,9 +137,13 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   `Nav.AssemblyInfo.SourceGenerator` — Opt-in je Projekt mit `<UseAssemblyInfoGenerator>true</…>`
   (zentrales Wiring: `_build\SourceGenerators\SourceGenerator.targets` via `Directory.Build.targets`).
   Generator-Output ist pro Compilation, nie eine geteilte Projektverzeichnis-Datei → immun gegen die
-  frühere VS-Design-Time-Falle. **Ausnahme** `Nav.Language.Extension2026` (legacy WPF): Quellgeneratoren
-  laufen nicht im Markup-Compile-Teilprojekt (`_wpftmp`), daher schreibt dort `WriteMyAssemblyFile`
-  (in `CustomBuild.targets`) `MyAssembly` als physische obj-Datei. Details: `doc/nav-versioning-status.md`.
+  frühere VS-Design-Time-Falle. **Erzwungene Ausnahme** `Nav.Language.Extension2026` (legacy, non-SDK,
+  WPF): Im WPF-Markup-Temp-Teilprojekt (`…_wpftmp.csproj`) laufen Quellgeneratoren **nicht** — mit dem
+  Generator bräche der Build dort mit `CS0122` (empirisch verifiziert per kontrolliertem Differenz-Test).
+  Deshalb schreibt hier `WriteMyAssemblyFile` (in `CustomBuild.targets`) `MyAssembly` als **physische**
+  obj-Datei, die als `@(Compile)` auch ins wpftmp fließt. Das ist die unvermeidbare WPF-Ausnahme, **kein**
+  Fallback — und **nicht** strukturell immun wie der Generator, sondern am Design-Time-Guard (+ funktionierendem
+  git) hängend. Details: `doc/nav-versioning-status.md`.
 - **Stdio-Protokoll-Hosts (LSP, MCP):** `stdout` ist **exklusiv** fürs JSON-RPC-Protokoll. Alle Logs
   MÜSSEN nach `stderr` — sonst zerstören sie die Protokoll-Frames.
 - **URI-Fallstrick (Windows):** LSP-Clients prozent-kodieren den Laufwerks-Doppelpunkt

@@ -7,18 +7,21 @@
   <!--
     MyAssembly-Konstanten für dieses (legacy, non-SDK, WPF) Projekt.
 
-    Der AssemblyInfo-Quellgenerator (UseAssemblyInfoGenerator) wird hier NICHT verwendet: Die
-    WPF-Markup-Compilierung erzeugt ein temporäres Teilprojekt (…_wpftmp.csproj), in dem
-    Quellgeneratoren nicht laufen — MyAssembly fehlte dort und der Markup-Pass bräche mit CS0122
-    (statt der eigenen internen MyAssembly zieht der Compiler die internen MyAssembly der
-    referenzierten Nav.*-Assemblies, die nicht zugänglich sind). Deshalb hier eine PHYSISCHE
-    Compile-Datei, die auch das wpftmp-Teilprojekt über @(Compile) sieht.
+    Der AssemblyInfo-Quellgenerator (UseAssemblyInfoGenerator) wird hier NICHT verwendet — er KANN
+    hier nicht laufen: Die WPF-Markup-Compilierung erzeugt ein temporäres Teilprojekt
+    (…_wpftmp.csproj), das den gesamten C#-Code zu einer Wegwerf-Assembly übersetzt (damit XAML
+    projekteigene Typen auflösen kann), und in diesem Teilprojekt laufen Quellgeneratoren nicht.
+    MyAssembly fehlte dort, der Compiler zöge statt der eigenen internen MyAssembly die internen
+    MyAssembly der referenzierten Nav.*-Assemblies (nicht zugänglich) → CS0122, Build-Abbruch
+    (empirisch verifiziert per kontrolliertem Differenz-Test). Deshalb hier eine PHYSISCHE
+    Compile-Datei: Ein @(Compile)-Item wird ins wpftmp-Teilprojekt kopiert, Generator-Output nicht.
 
-    Anders als früher liegt sie in $(IntermediateOutputPath) (obj\), NICHT im Projektverzeichnis:
-    obj ist ein pro-Konfiguration getrenntes Build-Artefakt, kein geteiltes, eingechecktes File —
-    die alte VS-Design-Time-Falle (ein Hintergrund-DT-Build überschreibt die geteilte Datei mit
-    0.0.0) ist damit ausgeschlossen. Zusätzlich schreibt der DT-Guard-Condition gar nicht erst bei
-    Design-Time-Builds; nur beim echten Build (der unmittelbar vor csc neu stempelt).
+    Diese Datei liegt in $(IntermediateOutputPath) (obj\), NICHT im Projektverzeichnis — das hält sie
+    aus dem eingecheckten Working-Tree heraus. Achtung: obj/ ist zwischen VS- und CLI-Build desselben
+    Projekts trotzdem GETEILT; der eigentliche Schutz gegen die VS-Design-Time-Falle (Hintergrund-DT-
+    Build stempelt 0.0.0) ist allein die DT-Guard-Condition unten, die bei Design-Time-Builds gar nicht
+    erst schreibt. Anders als der Generator (Output pro Compilation) ist dieser Weg damit NICHT
+    strukturell immun, sondern guard-abhängig — die unvermeidbare WPF-Ausnahme.
   -->
   <PropertyGroup>
     <NavMyAssemblyFile>$(IntermediateOutputPath)MyAssembly.g.cs</NavMyAssemblyFile>
