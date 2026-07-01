@@ -3,7 +3,7 @@
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Ein im Vorlauf (<see cref="NavParser.ParseDirectives"/>) erkannter Präprozessor-Direktiv-Lauf: sein Roh-Index-
+/// Ein im Vorlauf (<see cref="NavDirectiveParser"/>) erkannter Präprozessor-Direktiv-Lauf: sein Roh-Index-
 /// Bereich <c>[RawStart, RawEnd)</c>, sein Inhalts-Extent (die <see cref="SyntaxTokenType.DirectiveTrivia"/>-
 /// Breite ohne Zeilenende), das terminierende Zeilenende (oder <see cref="TextExtent.Missing"/>) und der
 /// zugehörige Knoten. <see cref="NavParser.BuildTrivia"/> faltet daraus das strukturierte Trivia-Stück.

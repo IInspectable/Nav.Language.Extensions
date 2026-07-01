@@ -32,7 +32,7 @@ sealed class NavDirectiveParser {
     int _pos;
     int _end;
 
-    NavDirectiveParser(ImmutableArray<RawToken> raw, SourceText sourceText, ImmutableArray<Diagnostic>.Builder diagnostics) {
+    public NavDirectiveParser(ImmutableArray<RawToken> raw, SourceText sourceText, ImmutableArray<Diagnostic>.Builder diagnostics) {
         _raw         = raw;
         _sourceText  = sourceText;
         _diagnostics = diagnostics;

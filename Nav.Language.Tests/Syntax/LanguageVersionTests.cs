@@ -123,11 +123,11 @@ public class LanguageVersionTests {
 
         var unit = Parse("#pragma version 2\r\n#pragma version 3\r\ntask A { init I1; exit e1; I1 --> e1; }");
 
-        // Die erste (wirksame) Versions-Direktive bestimmt die Version; die zweite ist ein Duplikat (Nav3004)
-        // und wird kein eigener Knoten.
+        // Die erste (wirksame) Versions-Direktive bestimmt die Version; die zweite ist ein Duplikat (Nav3004).
+        // Beide sind eigenständige VersionDirectiveSyntax-Knoten — wirksam ist aber nur die erste.
         Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
-        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(1));
+        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(2));
 
         var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
         Assert.That(ids, Does.Contain("Nav3004"));
@@ -141,11 +141,11 @@ public class LanguageVersionTests {
         var unit = Parse("#pragma version 2\r\ntask A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 3");
 
         // Die zweite Direktive steht hinter echtem Code: die Deplatzierung (Nav3003) ist das eigentliche
-        // Problem und verdrängt die andernfalls nur lärmende Duplikat-Meldung (Nav3004). Die erste
-        // (wirksame) Direktive bestimmt weiterhin die Version.
+        // Problem und verdrängt die andernfalls nur lärmende Duplikat-Meldung (Nav3004). Beide sind
+        // eigenständige VersionDirectiveSyntax-Knoten; wirksam bleibt die erste (wohlplatzierte).
         Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
-        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(1));
+        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(2));
 
         var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
         Assert.That(ids, Does.Contain("Nav3003"));
