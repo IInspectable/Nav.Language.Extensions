@@ -10,7 +10,7 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 [Serializable]
 [SampleSyntax("")]
@@ -18,27 +18,26 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
 
     internal CodeGenerationUnitSyntax(
         TextExtent extent,
-        VersionDirectiveSyntax languageVersionDirective,
         CodeNamespaceDeclarationSyntax codeNamespaceDeclaration,
         IReadOnlyList<CodeUsingDeclarationSyntax> codeUsingDeclarations,
         IReadOnlyList<MemberDeclarationSyntax> memberDeclarations
     )
         : base(extent) {
 
-        // Die (optionale) Versions-Direktive steht am Dateikopf — als erster Kindknoten, damit die
-        // Kinder in Quelltext-Reihenfolge bleiben.
-        AddChildNode(LanguageVersionDirective = languageVersionDirective);
-        AddChildNode(CodeNamespace            = codeNamespaceDeclaration);
-        AddChildNodes(CodeUsings              = codeUsingDeclarations);
-        AddChildNodes(Members                 = memberDeclarations);
+        AddChildNode(CodeNamespace = codeNamespaceDeclaration);
+        AddChildNodes(CodeUsings   = codeUsingDeclarations);
+        AddChildNodes(Members      = memberDeclarations);
     }
 
     /// <summary>
-    /// Die (optionale) Sprach-Versions-Direktive <c>#pragma version</c> am Dateikopf, oder <c>null</c>,
-    /// wenn die Datei keine trägt.
+    /// Die (optionale) wirksame Sprach-Versions-Direktive <c>#pragma version</c> am Dateikopf, oder
+    /// <c>null</c>, wenn die Datei keine trägt. Eine Direktive ist strukturierte Trivia (kein Kindknoten) —
+    /// gelesen wird daher die erste <see cref="VersionDirectiveSyntax"/> aus den <see cref="SyntaxTree.Directives"/>
+    /// (nur die wirksame Direktive ist eine solche; deplatzierte/wiederholte sind
+    /// <see cref="BadDirectiveTriviaSyntax"/>).
     /// </summary>
     [CanBeNull]
-    public VersionDirectiveSyntax LanguageVersionDirective { get; }
+    public VersionDirectiveSyntax LanguageVersionDirective => SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().FirstOrDefault();
 
     /// <summary>
     /// Die Sprach-Version dieser Datei: der von <see cref="LanguageVersionDirective"/> festgelegte Wert,

@@ -67,12 +67,16 @@ public class SyntaxTree {
 
     /// <summary>
     /// Die strukturiert erkannten Präprozessor-Direktiven (<c>#…</c>) der Datei in Quelltext-Reihenfolge —
-    /// derzeit die (höchstens eine) Sprach-Versions-Direktive <see cref="VersionDirectiveSyntax"/>. Nicht
-    /// erkannte Direktiven (die weiterhin <c>Nav3000</c> auslösen) erscheinen hier nicht.
+    /// die wirksame <see cref="VersionDirectiveSyntax"/> ebenso wie jede
+    /// <see cref="BadDirectiveTriviaSyntax"/> (unbekannte, deplatzierte oder wiederholte Direktive). Direktiven
+    /// sind strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und keine Kindknoten der Wurzel; sie
+    /// werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
     /// </summary>
     [NotNull]
     public IEnumerable<DirectiveTriviaSyntax> Directives() {
-        return Root.DescendantNodes().OfType<DirectiveTriviaSyntax>();
+        return DescendantTrivia().Where(trivia => trivia.HasStructure)
+                                 .Select(trivia => trivia.GetStructure())
+                                 .OfType<DirectiveTriviaSyntax>();
     }
 
     /// <summary>

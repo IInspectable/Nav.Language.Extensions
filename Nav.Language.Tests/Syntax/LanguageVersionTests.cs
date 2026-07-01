@@ -188,6 +188,12 @@ public class LanguageVersionTests {
                     Is.EqualTo("#pragma version 1".Length));
     }
 
+    // Die Token einer Direktive liegen nicht mehr im flachen Strom, sondern lokal am Direktiv-Knoten
+    // (strukturierte Trivia) — erreichbar über die Trivia.
+    static System.Collections.Generic.IEnumerable<SyntaxToken> DirectiveTokens(SyntaxTree tree) {
+        return tree.Directives().SelectMany(directive => directive.ChildTokens());
+    }
+
     [Test]
     public void MisplacedPragma_StillClassifiesNumberValue() {
 
@@ -195,17 +201,18 @@ public class LanguageVersionTests {
         // wird weiterhin als Zahl klassifiziert, obwohl die Direktive unwirksam ist.
         var tree = SyntaxTree.ParseText("task A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 7");
 
-        Assert.That(tree.Tokens.Any(t => t.Classification == TextClassification.NumberLiteral), Is.True);
+        Assert.That(DirectiveTokens(tree).Any(t => t.Classification == TextClassification.NumberLiteral), Is.True);
     }
 
     [Test]
     public void WellFormedPragma_ClassifiesVersionKeywordAndNumber() {
 
         // Positionen in "#pragma version 12": '#'=0, 'pragma'=1..6, ' '=7, 'version'=8..14, ' '=15, '12'=16..17.
-        var tree = SyntaxTree.ParseText("#pragma version 12\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var tree   = SyntaxTree.ParseText("#pragma version 12\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var tokens = DirectiveTokens(tree).ToList();
 
         TextClassification At(int position) {
-            return tree.Tokens.Single(t => t.Extent.Contains(TextExtent.FromBounds(position, position + 1))).Classification;
+            return tokens.Single(t => t.Extent.Contains(TextExtent.FromBounds(position, position + 1))).Classification;
         }
 
         Assert.That(At(0),  Is.EqualTo(TextClassification.PreprocessorKeyword), "'#'");
@@ -222,7 +229,7 @@ public class LanguageVersionTests {
         // 'version' bleibt Präprozessor-Schlüsselwort, aber der ungültige Wert wird nicht als Zahl gefärbt.
         var tree = SyntaxTree.ParseText("#pragma version abc\r\ntask A { init I1; exit e1; I1 --> e1; }");
 
-        Assert.That(tree.Tokens.Any(t => t.Classification == TextClassification.NumberLiteral), Is.False);
+        Assert.That(DirectiveTokens(tree).Any(t => t.Classification == TextClassification.NumberLiteral), Is.False);
     }
 
     [Test]

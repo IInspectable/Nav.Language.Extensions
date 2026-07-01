@@ -74,10 +74,10 @@ sealed class NavParser {
     int? _firstSignificantStart;   // Start des ersten konsumierten signifikanten Tokens (für den Wurzel-Extent).
     bool _reportedMissingAtEof;    // Ein "missing …" am Dateiende wurde bereits gemeldet — weitere am EOF werden unterdrückt.
 
-    // Die am Dateikopf strukturiert erkannte #pragma-version-Direktive (sonst null). Ihre Präprozessor-
-    // Token werden bereits im Direktiven-Vorlauf (ParseDirectives) an diesen Knoten materialisiert und
-    // lösen — anders als jede andere Direktive — kein Nav3000/Nav3001 aus.
-    VersionDirectiveSyntax _versionDirective;
+    // Die strukturiert erkannten Präprozessor-Direktiven (je #-Lauf ein Knoten mit lokalen Token). Sie
+    // werden im Direktiven-Vorlauf (ParseDirectives) erzeugt, anschließend in BuildTrivia zu strukturierter
+    // DirectiveTrivia gefaltet und nach dem Baum-Aufbau finalisiert.
+    List<DirectiveRun> _directiveRuns;
 
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
@@ -86,7 +86,12 @@ sealed class NavParser {
         _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         _eofPos      = _raw[_raw.Length - 1].Start; // Das abschließende EndOfFile ist nullbreit am Textende.
 
-        _allTrivia        = BuildTrivia(_raw, out _tokenTrivia, out var eofStart, out var eofLength);
+        // Präprozessor-Direktiven strukturiert vorab parsen — der eigentliche Cursor sieht die „hidden"
+        // Präprozessor-Token nicht. Ergebnis: je #-Lauf ein Direktiv-Knoten samt lokalen Token; die Läufe
+        // faltet BuildTrivia danach zu strukturierter DirectiveTrivia.
+        _directiveRuns = ParseDirectives();
+
+        _allTrivia        = BuildTrivia(_raw, _directiveRuns, out _tokenTrivia, out var eofStart, out var eofLength);
         _eofLeadingTrivia = new SyntaxTriviaList(_allTrivia, eofStart, eofLength);
 
         _pos = 0;
@@ -153,6 +158,7 @@ sealed class NavParser {
                                         diagnostics: parser._diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
+        parser.FinalizeDirectives(syntaxTree, root);
 
         return syntaxTree;
     }
@@ -229,10 +235,8 @@ sealed class NavParser {
         var codeUsings = new List<CodeUsingDeclarationSyntax>();
         var members    = new List<MemberDeclarationSyntax>();
 
-        // Präprozessor-Direktiven (#…) strukturiert im Vorlauf erkennen — der eigentliche Cursor sieht
-        // Präprozessor-Token nicht (sie gelten als „hidden"). #pragma version wird dabei zum Knoten samt
-        // seinen Token; jede andere Direktive meldet Nav3000/Nav3001. Der Parser bleibt permissiv.
-        ParseDirectives();
+        // Die Präprozessor-Direktiven (#…) sind bereits im Konstruktor strukturiert erkannt und als
+        // DirectiveTrivia gefaltet (der eigentliche Cursor sieht die „hidden" Präprozessor-Token nicht).
 
         if (At(SyntaxTokenType.OpenBracket) && PeekType(1) == SyntaxTokenType.NamespaceprefixKeyword) {
             codeNamespace = ParseCodeNamespaceDeclaration();
@@ -255,19 +259,15 @@ sealed class NavParser {
             Recover(() => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof);
         }
 
-        var rootStart = _firstSignificantStart ?? _eofPos;
-
-        // Die Kopf-Direktive steht vor dem ersten signifikanten Token; damit sie als Kindknoten im
-        // Wurzel-Extent liegt (Baum-Invariante), zieht sie den Wurzelanfang bei Bedarf nach vorn.
-        if (_versionDirective != null && _versionDirective.Start < rootStart) {
-            rootStart = _versionDirective.Start;
-        }
-
+        // Die Direktiven sind strukturierte Trivia und damit keine Kindknoten der Wurzel mehr; der
+        // Wurzel-Extent beginnt am ersten signifikanten Token (die Direktiv-Trivia liegt als Leading davor).
+        var rootStart  = _firstSignificantStart ?? _eofPos;
         var rootExtent = TextExtent.FromBounds(rootStart, _eofPos);
 
-        var root = new CodeGenerationUnitSyntax(rootExtent, _versionDirective, codeNamespace, codeUsings, members);
+        var root = new CodeGenerationUnitSyntax(rootExtent, codeNamespace, codeUsings, members);
 
-        // Trivia/Unknown/Präprozessor/EndOfFile hängen — wie in der bisherigen Pipeline — an der Wurzel.
+        // Trivia/Unknown/EndOfFile hängen — wie in der bisherigen Pipeline — an der Wurzel. Präprozessor-
+        // Token stehen nicht mehr im flachen Strom (sie sind zu DirectiveTrivia gefaltet).
         AttachNonSignificantTokens(root);
 
         var syntaxTree = new SyntaxTree(sourceText : _sourceText,
@@ -276,8 +276,22 @@ sealed class NavParser {
                                         diagnostics: _diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
+        FinalizeDirectives(syntaxTree, root);
 
         return syntaxTree;
+    }
+
+    /// <summary>
+    /// Schließt die im Vorlauf erzeugten Direktiv-Knoten (strukturierte Trivia) an den fertigen Baum an. Sie
+    /// sind <b>keine</b> Kindknoten der Wurzel, brauchen aber — wie jeder Knoten — <see cref="SyntaxTree"/>
+    /// und einen <see cref="SyntaxNode.Parent"/>, damit ihre lokalen Token Position und Quelltext auflösen
+    /// (siehe <see cref="SyntaxToken.SyntaxTree"/>). Erreichbar bleiben sie über die
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/>-Trivia (siehe <see cref="SyntaxTree.Directives"/>).
+    /// </summary>
+    void FinalizeDirectives(SyntaxTree syntaxTree, SyntaxNode root) {
+        foreach (var run in _directiveRuns) {
+            run.Node.FinalConstruct(syntaxTree, root);
+        }
     }
 
     /// <summary>Grammatikregel <c>memberDeclaration</c> → <see cref="MemberDeclarationSyntax"/>.</summary>
@@ -1858,18 +1872,19 @@ sealed class NavParser {
     /// <summary>
     /// Direktiven-Vorlauf: erkennt vor dem eigentlichen Parse die Präprozessor-Direktiven (<c>#…</c>) im
     /// Roh-Strom strukturiert — der Cursor sieht Präprozessor-Token sonst nicht (sie gelten als „hidden").
-    /// <c>#pragma version</c> wird an jeder Stelle strukturell erkannt; wirksam (und zum
-    /// <see cref="VersionDirectiveSyntax"/> samt hier materialisierten Token) wird aber nur die <b>erste</b>
-    /// und nur, wenn ihr ausschließlich Trivia vorausgeht (ganz oben). Ein fehlender oder nicht-ganzzahliger
-    /// Versionswert erzeugt dabei genau eine <c>Nav3002</c> samt Rückfall auf
-    /// <see cref="NavLanguageVersion.Default"/>. Eine hinter echtem Code stehende Versions-Direktive meldet
-    /// <c>Nav3003</c> (die Deplatzierung sticht dabei eine etwaige Duplikat-Meldung); eine reine Wiederholung
-    /// am Kopf <c>Nav3004</c>; beide bleiben ohne Wirkung, ihre Token lose. Jede nicht
-    /// erkannte Direktive (<c>#pragma warning …</c> o.Ä.) meldet <c>Nav3000</c> (samt <c>Nav3001</c>, falls
-    /// ihr in der Zeile nicht nur Whitespace vorausgeht). Lose Token werden in
-    /// <see cref="AttachNonSignificantTokens"/> an die Wurzel gehängt.
+    /// Jeder <c>#</c>-Lauf wird zu genau einem Direktiv-Knoten (samt lokalen Token): ein <c>#pragma version</c>
+    /// ganz oben (nur Trivia davor, erstes Vorkommen) zur wirksamen <see cref="VersionDirectiveSyntax"/> — ein
+    /// fehlender/nicht-ganzzahliger Wert erzeugt genau eine <c>Nav3002</c> samt Rückfall auf
+    /// <see cref="NavLanguageVersion.Default"/>. Alles andere wird zu einer wirkungslosen
+    /// <see cref="BadDirectiveTriviaSyntax"/>: eine hinter echtem Code stehende Versions-Direktive meldet
+    /// <c>Nav3003</c> (die Deplatzierung sticht eine etwaige Duplikat-Meldung), eine reine Wiederholung am Kopf
+    /// <c>Nav3004</c>; jede nicht erkannte Direktive (<c>#pragma warning …</c> o.Ä.) <c>Nav3000</c> (samt
+    /// <c>Nav3001</c>, falls ihr in der Zeile nicht nur Whitespace vorausgeht). Die Läufe werden anschließend
+    /// in <see cref="BuildTrivia"/> zu strukturierter <see cref="SyntaxTokenType.DirectiveTrivia"/> gefaltet.
     /// </summary>
-    void ParseDirectives() {
+    List<DirectiveRun> ParseDirectives() {
+
+        var runs = new List<DirectiveRun>();
 
         // Der Kopf gilt, solange noch kein signifikantes Nicht-Trivia-Token vor der Direktive lag — nur
         // dann darf eine Versions-Direktive wirksam werden (ihr darf ausschließlich Trivia vorausgehen).
@@ -1879,6 +1894,9 @@ sealed class NavParser {
         // Versions-Direktive hinter Code, ist ihre Deplatzierung (Nav3003) das eigentliche Problem — eine
         // zusätzliche Duplikat-Meldung (Nav3004) wäre nur Lärm und tritt daher dahinter zurück.
         var sawCode = false;
+
+        // Die wirksame Versions-Direktive (erste, ganz oben) — für die Duplikat-Erkennung im Lauf.
+        VersionDirectiveSyntax versionDirective = null;
 
         for (var i = 0; i < _raw.Length; i++) {
             var type = _raw[i].Type;
@@ -1896,29 +1914,51 @@ sealed class NavParser {
             var end     = DirectiveEnd(i);
             var subject = VersionSubjectIndex(i, end);
 
+            DirectiveTriviaSyntax node;
             if (subject >= 0) {
                 if (sawCode) {
                     // Hinter echtem Code deplatziert — Nav3003 sticht eine etwaige Duplikat-Meldung.
                     _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
-                } else if (_versionDirective != null) {
+                    node = BuildBadDirective(i, end);
+                } else if (versionDirective != null) {
                     // Doppeltes #pragma version am Kopf — das erste gewinnt.
                     _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
+                    node = BuildBadDirective(i, end);
                 } else if (!atHead) {
                     // Ganz oben, aber eine andere Direktive ging voraus ⇒ nicht ganz oben (nur Trivia dürfte).
                     _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                    node = BuildBadDirective(i, end);
                 } else {
-                    AcceptVersionDirective(i, subject, end);
+                    versionDirective = AcceptVersionDirective(i, subject, end);
+                    node             = versionDirective;
                 }
             } else {
                 ReportDirectiveDiagnostics(i, end);
+                node = BuildBadDirective(i, end);
             }
+
+            runs.Add(MakeRun(i, end, node));
 
             atHead = false;
             i      = end - 1; // Die Schleife rückt über den ganzen Direktiv-Lauf hinweg.
         }
+
+        return runs;
+    }
+
+    /// <summary>
+    /// Bündelt den Direktiv-Lauf <c>[hashIndex, end)</c> zu einem <see cref="DirectiveRun"/>: sein Roh-Index-
+    /// Bereich (für <see cref="BuildTrivia"/>), sein Inhalts-Extent (die <c>DirectiveTrivia</c>-Breite, ohne
+    /// Zeilenende), sein terminierendes Zeilenende (sofern vorhanden) und der zugehörige Knoten.
+    /// </summary>
+    DirectiveRun MakeRun(int hashIndex, int end, DirectiveTriviaSyntax node) {
+        var last          = _raw[end - 1];
+        var hasNewLine    = last.Type == SyntaxTokenType.PreprocessorNewLine;
+        var newLineExtent = hasNewLine ? last.Extent : TextExtent.Missing;
+        return new DirectiveRun(hashIndex, end, DirectiveExtent(hashIndex, end), newLineExtent, node);
     }
 
     /// <summary>
@@ -2000,16 +2040,16 @@ sealed class NavParser {
 
     /// <summary>
     /// Nimmt den als Versions-Direktive erkannten Lauf <c>[hashIndex, end)</c> als wirksame
-    /// <see cref="VersionDirectiveSyntax"/> an: baut den Knoten und materialisiert seine Token. Das Argument
-    /// hinter <paramref name="subject"/> (<c>version</c>) validiert <see cref="NavLanguageVersion.TryParse"/>
-    /// — reine Ziffern nach Trim; ein fehlender Wert, ein Vorzeichen oder mehrere Werte lösen genau eine
-    /// <c>Nav3002</c> samt Rückfall auf <see cref="NavLanguageVersion.Default"/> aus. Die Einfärbung
-    /// (Zahl → NumberLiteral) folgt allein aus dem bereits korrekt typisierten Rumpf-Token.
+    /// <see cref="VersionDirectiveSyntax"/> an: baut den Knoten samt seiner lokalen Token. Das Argument hinter
+    /// <paramref name="subject"/> (<c>version</c>) validiert <see cref="NavLanguageVersion.TryParse"/> — reine
+    /// Ziffern nach Trim; ein fehlender Wert, ein Vorzeichen oder mehrere Werte lösen genau eine <c>Nav3002</c>
+    /// samt Rückfall auf <see cref="NavLanguageVersion.Default"/> aus. Die Einfärbung (Zahl → NumberLiteral)
+    /// folgt allein aus dem bereits korrekt typisierten Rumpf-Token.
     /// </summary>
-    void AcceptVersionDirective(int hashIndex, int subject, int end) {
+    VersionDirectiveSyntax AcceptVersionDirective(int hashIndex, int subject, int end) {
 
-        var directiveEnd = _raw[end - 1].Extent.End;
-        var newLineStart = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? _raw[end - 1].Extent.Start : directiveEnd;
+        var last         = _raw[end - 1];
+        var newLineStart = last.Type == SyntaxTokenType.PreprocessorNewLine ? last.Extent.Start : last.Extent.End;
         var argument     = _sourceText.Substring(TextExtent.FromBounds(_raw[subject].Extent.End, newLineStart));
         if (!NavLanguageVersion.TryParse(argument, out var version)) {
             _diagnostics.Add(new Diagnostic(DirectiveLocation(hashIndex, end),
@@ -2017,27 +2057,43 @@ sealed class NavParser {
             version = NavLanguageVersion.Default;
         }
 
-        var span = TextExtent.FromBounds(_raw[hashIndex].Extent.Start, directiveEnd);
-
-        _versionDirective = new VersionDirectiveSyntax(span, version);
-        MaterializeDirectiveTokens(_versionDirective, hashIndex, end);
+        var node = new VersionDirectiveSyntax(DirectiveExtent(hashIndex, end), version);
+        PopulateDirectiveTokens(node, hashIndex, end);
+        return node;
     }
 
     /// <summary>
-    /// Materialisiert die Token des Direktiv-Laufs <c>[start, end)</c> als Kind-Token des Direktiv-Knotens
-    /// <paramref name="owner"/> — mit der aus dem Token-Typ folgenden <see cref="TextClassification"/>. Die
-    /// (höchstens dem einleitenden <c>#</c> zugeordnete) führende Trivia wird angehängt; innerhalb einer
-    /// Direktivzeile gibt es sonst keine Trivia (Zwischenraum lext als <c>PreprocessorText</c>).
+    /// Baut aus dem Direktiv-Lauf <c>[hashIndex, end)</c> eine wirkungslose <see cref="BadDirectiveTriviaSyntax"/>
+    /// (unbekannte, deplatzierte oder wiederholte Direktive) samt ihrer lokalen Token. Die zugehörige Diagnose
+    /// (Nav3000/3001/3003/3004) hat der Aufrufer bereits gemeldet.
     /// </summary>
-    void MaterializeDirectiveTokens(SyntaxNode owner, int start, int end) {
-        for (var k = start; k < end; k++) {
+    BadDirectiveTriviaSyntax BuildBadDirective(int hashIndex, int end) {
+        var node = new BadDirectiveTriviaSyntax(DirectiveExtent(hashIndex, end));
+        PopulateDirectiveTokens(node, hashIndex, end);
+        return node;
+    }
+
+    /// <summary>
+    /// Erzeugt die lokalen Token des Direktiv-Laufs <c>[hashIndex, end)</c> und legt sie am Knoten
+    /// <paramref name="node"/> ab (siehe <see cref="DirectiveTriviaSyntax.SetLocalTokens"/>) — mit der aus dem
+    /// Token-Typ folgenden <see cref="TextClassification"/>. Das terminierende <c>PreprocessorNewLine</c> zählt
+    /// nicht zu den Token; es wird in <see cref="BuildTrivia"/> als eigenes <see cref="SyntaxTokenType.NewLine"/>
+    /// geführt. Die Token liegen ausschließlich lokal, nicht im flachen <see cref="SyntaxTree.Tokens"/>-Strom.
+    /// </summary>
+    void PopulateDirectiveTokens(DirectiveTriviaSyntax node, int hashIndex, int end) {
+
+        var tokenEnd = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? end - 1 : end;
+
+        var localTokens = new List<SyntaxToken>();
+        for (var k = hashIndex; k < tokenEnd; k++) {
             var raw = _raw[k];
             if (TryClassifyNonSignificant(raw.Type, out var classification)) {
-                var leading = LookupTrivia(raw.Extent.Start).Leading;
-                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, owner,
-                                                           leading, SyntaxTriviaList.Empty));
+                localTokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, node,
+                                                               SyntaxTriviaList.Empty, SyntaxTriviaList.Empty));
             }
         }
+
+        node.SetLocalTokens(new SyntaxTokenList(localTokens));
     }
 
     /// <summary>
@@ -2059,14 +2115,14 @@ sealed class NavParser {
 
     /// <summary>
     /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten, aber im flachen
-    /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, lose Präprozessor-Token nicht erkannter
-    /// Direktiven, vom Panic-Mode übersprungene signifikante Token und das abschließende
-    /// <see cref="SyntaxTokenType.EndOfFile"/>. Die #pragma-version-Token sind bereits im Vorlauf
-    /// (<see cref="ParseDirectives"/>) materialisiert und werden hier übersprungen. Trivia
-    /// (Whitespace/Zeilenende/Kommentare) wird hier <b>nicht</b> mehr in den Strom aufgenommen — sie liegt
-    /// ausschließlich als Leading/Trailing an den Token (siehe <see cref="BuildTrivia"/>). Dabei wird auch
-    /// die rein lexikalische Diagnose für unerwartete Zeichen gemeldet (die Präprozessor-Diagnosen entstehen
-    /// im Vorlauf).
+    /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, vom Panic-Mode übersprungene signifikante
+    /// Token und das abschließende <see cref="SyntaxTokenType.EndOfFile"/>. Präprozessor-Token stehen
+    /// <b>nicht</b> mehr im flachen Strom — sie sind im Vorlauf (<see cref="ParseDirectives"/>) zu Direktiv-
+    /// Knoten mit lokalen Token geworden und in <see cref="BuildTrivia"/> zu strukturierter
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/> gefaltet; hier werden sie übersprungen. Trivia
+    /// (Whitespace/Zeilenende/Kommentare) wird ebenfalls nicht in den Strom aufgenommen — sie liegt
+    /// ausschließlich als Leading/Trailing an den Token. Dabei wird auch die rein lexikalische Diagnose für
+    /// unerwartete Zeichen gemeldet (die Präprozessor-Diagnosen entstehen im Vorlauf).
     /// </summary>
     void AttachNonSignificantTokens(SyntaxNode root) {
 
@@ -2085,8 +2141,13 @@ sealed class NavParser {
                 continue;
             }
 
-            // Bereits materialisierte Token überspringen: die vom Parser konsumierten signifikanten Token
-            // sowie die im Direktiven-Vorlauf (ParseDirectives) an ihren Knoten gehängten #pragma-version-Token.
+            // Präprozessor-Token gehören keiner Strom-Position mehr: sie sind zu strukturierter
+            // DirectiveTrivia gefaltet (ihre lokalen Token trägt der jeweilige Direktiv-Knoten).
+            if (IsPreprocessorToken(raw.Type)) {
+                continue;
+            }
+
+            // Bereits materialisierte Token überspringen: die vom Parser konsumierten signifikanten Token.
             if (consumedStarts.Contains(raw.Extent.Start)) {
                 continue;
             }
@@ -2222,11 +2283,22 @@ sealed class NavParser {
     ///   <item><description>Das abschließende <see cref="SyntaxTokenType.EndOfFile"/> erhält die finale
     ///   Datei-Trivia als seine Leading-Trivia (Round-Trip bleibt lückenlos).</description></item>
     /// </list>
-    /// Nicht-Trivia-, aber dennoch nicht-signifikante Token (unbekannte Zeichen, Präprozessor-Token) wirken —
-    /// wie signifikante Token — als Trenner einer Trivia-Folge, erhalten selbst aber keine angehängte Trivia.
+    /// Unbekannte Zeichen wirken — wie signifikante Token — als Trenner einer Trivia-Folge, erhalten selbst
+    /// aber keine angehängte Trivia. Jeder Präprozessor-Direktiv-Lauf (<paramref name="directiveRuns"/>) wird
+    /// zu genau einem strukturierten <see cref="SyntaxTokenType.DirectiveTrivia"/>-Stück gefaltet (mit Verweis
+    /// auf seinen Knoten), gefolgt von seinem terminierenden <see cref="SyntaxTokenType.NewLine"/>; beides
+    /// fließt als Trivia in den umgebenden Lauf und damit an das nächste Token.
     /// </summary>
-    static ImmutableArray<SyntaxTrivia> BuildTrivia(ImmutableArray<RawToken> raw, out Dictionary<int, TriviaRange> tokenTrivia,
+    static ImmutableArray<SyntaxTrivia> BuildTrivia(ImmutableArray<RawToken> raw, List<DirectiveRun> directiveRuns,
+                                                    out Dictionary<int, TriviaRange> tokenTrivia,
                                                     out int eofLeadingStart, out int eofLeadingLength) {
+
+        // Direktiv-Läufe nach dem Roh-Index ihres '#' — so lässt sich beim Erreichen eines Laufs die ganze
+        // Direktivzeile in ein Trivia-Stück falten und die Präprozessor-Token des Laufs überspringen.
+        var runByStart = new Dictionary<int, DirectiveRun>();
+        foreach (var run in directiveRuns) {
+            runByStart[run.RawStart] = run;
+        }
 
         // Alle Trivia der Datei in genau einem Array (Strom-Reihenfolge). Leading/Trailing eines Tokens sind
         // zusammenhängende Teilbereiche darin — sie werden nicht mehr je Token in eigene Arrays kopiert.
@@ -2243,7 +2315,22 @@ sealed class NavParser {
         eofLeadingStart  = 0;
         eofLeadingLength = 0;
 
-        foreach (var token in raw) {
+        for (var index = 0; index < raw.Length; index++) {
+
+            // Direktiv-Lauf: die ganze Direktivzeile als ein strukturiertes DirectiveTrivia-Stück (mit Verweis
+            // auf seinen Knoten) plus das terminierende Zeilenende als eigenes NewLine — beides zählt als
+            // Trivia des umgebenden Laufs. Die Präprozessor-Token des Laufs werden übersprungen.
+            if (runByStart.TryGetValue(index, out var directive)) {
+                all.Add(new SyntaxTrivia(SyntaxTokenType.DirectiveTrivia, directive.ContentExtent, directive.Node));
+                if (!directive.NewLineExtent.IsMissing) {
+                    all.Add(new SyntaxTrivia(SyntaxTokenType.NewLine, directive.NewLineExtent));
+                }
+
+                index = directive.RawEnd - 1; // Die Schleife rückt über den ganzen Direktiv-Lauf hinweg.
+                continue;
+            }
+
+            var token = raw[index];
 
             if (token.IsTrivia) {
                 all.Add(new SyntaxTrivia(token.Type, token.Extent));
@@ -2324,6 +2411,42 @@ sealed class NavParser {
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// Ob der Token-Typ ein Präprozessor-Token einer Direktive ist (<c>#</c> plus Rumpf und Zeilenende). Diese
+    /// Token stehen nicht mehr im flachen <see cref="SyntaxTree.Tokens"/>-Strom: der Vorlauf faltet jeden Lauf
+    /// zu strukturierter <see cref="SyntaxTokenType.DirectiveTrivia"/> (die Token liegen lokal am Direktiv-Knoten).
+    /// </summary>
+    static bool IsPreprocessorToken(SyntaxTokenType type) {
+        return type is SyntaxTokenType.HashToken
+                    or SyntaxTokenType.PreprocessorKeyword
+                    or SyntaxTokenType.PreprocessorText
+                    or SyntaxTokenType.PreprocessorNewLine
+                    or SyntaxTokenType.PreprocessorNumber;
+    }
+
+    /// <summary>
+    /// Ein im Vorlauf (<see cref="ParseDirectives"/>) erkannter Präprozessor-Direktiv-Lauf: sein Roh-Index-
+    /// Bereich <c>[RawStart, RawEnd)</c>, sein Inhalts-Extent (die <see cref="SyntaxTokenType.DirectiveTrivia"/>-
+    /// Breite ohne Zeilenende), das terminierende Zeilenende (oder <see cref="TextExtent.Missing"/>) und der
+    /// zugehörige Knoten. <see cref="BuildTrivia"/> faltet daraus das strukturierte Trivia-Stück.
+    /// </summary>
+    readonly struct DirectiveRun {
+
+        public DirectiveRun(int rawStart, int rawEnd, TextExtent contentExtent, TextExtent newLineExtent, DirectiveTriviaSyntax node) {
+            RawStart      = rawStart;
+            RawEnd        = rawEnd;
+            ContentExtent = contentExtent;
+            NewLineExtent = newLineExtent;
+            Node          = node;
+        }
+
+        public int                   RawStart      { get; }
+        public int                   RawEnd        { get; }
+        public TextExtent            ContentExtent { get; }
+        public TextExtent            NewLineExtent { get; }
+        public DirectiveTriviaSyntax Node          { get; }
     }
 
     #endregion

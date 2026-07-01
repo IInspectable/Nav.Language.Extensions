@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -122,11 +121,28 @@ static class SemanticTokensBuilder {
             }
 
             var location = source.GetLocation(comment.Extent);
-            if (location == null) {
-                continue;
-            }
-
+            
             spans.Add(new ClassifiedSpan(comment.Start, comment.ToString(source), comment.Length, commentType, location));
+        }
+
+        // Präprozessor-Direktiven (#pragma version …) liegen als strukturierte Trivia vor, nicht im flachen
+        // Strom. Ihre Token (PreprocessorKeyword/NumberLiteral/…) tragen bereits die richtige Klassifizierung —
+        // hier ebenso einfärben wie die Strom-Token.
+        foreach (var directive in syntaxTree.Directives()) {
+            foreach (var token in directive.ChildTokens()) {
+
+                var tokenType = MapTokenType(token.Classification);
+                if (tokenType == None || token.IsMissing || token.Length <= 0) {
+                    continue;
+                }
+
+                var location = token.GetLocation();
+                if (location == null) {
+                    continue;
+                }
+
+                spans.Add(new ClassifiedSpan(token.Start, token.ToString(), token.Length, tokenType, location));
+            }
         }
 
         spans.Sort((a, b) => a.Start.CompareTo(b.Start));

@@ -1,4 +1,6 @@
 ﻿   17 TaskKeyword
+    L DirectiveTrivia   [0-15]        "#pragma version"
+    L NewLine           [15-17]       "\r\n"
     T Whitespace        [21-22]       " "
    22 Identifier
     T NewLine           [23-25]       "\r\n"

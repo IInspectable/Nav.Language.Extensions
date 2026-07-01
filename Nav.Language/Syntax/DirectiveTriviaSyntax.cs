@@ -17,22 +17,23 @@ namespace Pharmatechnik.Nav.Language;
 [Serializable]
 public abstract class DirectiveTriviaSyntax: SyntaxNode {
 
-    readonly SyntaxTokenList _localTokens;
+    SyntaxTokenList _localTokens;
 
     private protected DirectiveTriviaSyntax(TextExtent extent): base(extent) {
     }
 
     /// <summary>
-    /// Erzeugt eine Direktive, deren Token in einer eigenen, lokalen <paramref name="localTokens"/>-Liste
-    /// liegen (Zielmodell strukturierter Trivia) statt im globalen Token-Strom des Baums.
+    /// Legt die lokale Token-Liste dieser Direktive fest (einmalig während des Baum-Aufbaus). Die Token
+    /// verweisen als <see cref="SyntaxToken.Parent"/> auf diesen Knoten; da sie ihn zur Konstruktion bereits
+    /// brauchen, wird die Liste hier nachgereicht statt im Konstruktor übergeben.
     /// </summary>
-    private protected DirectiveTriviaSyntax(TextExtent extent, SyntaxTokenList localTokens): base(extent) {
+    internal void SetLocalTokens(SyntaxTokenList localTokens) {
         _localTokens = localTokens;
     }
 
     /// <summary>
     /// Die Token dieser Direktive. Liegen sie lokal vor (Zielmodell strukturierter Trivia), wird die eigene
-    /// Liste geliefert; andernfalls (solange die Token noch im flachen Strom stehen) das Verhalten der Basis.
+    /// Liste geliefert; andernfalls (etwa vor dem Nachreichen) das Verhalten der Basis.
     /// </summary>
     public override IEnumerable<SyntaxToken> ChildTokens() {
         return _localTokens ?? base.ChildTokens();

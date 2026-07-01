@@ -23,3 +23,5 @@
     T NewLine           [53-55]       "\r\n"
    55 CloseBrace
     T Whitespace        [56-57]       " "
+    T DirectiveTrivia   [57-67]       "#directive"
+    T NewLine           [67-69]       "\r\n"

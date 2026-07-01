@@ -27,7 +27,14 @@ public class SyntaxTreeTests {
 
         // Die Anzahl kann/darf sich über die Zeit auch ändern.
         // Blöd wäre nur, wenn hier keine Syntaxen gefunden würden ;-)
-        Assert.That(nodeTypes.Count, Is.EqualTo(47));
+        Assert.That(nodeTypes.Count, Is.EqualTo(48));
+
+        // Direktiven sind strukturierte Trivia (keine Kindknoten) und werden daher über die Trivia erreicht:
+        // AllRules trägt die wirksame #pragma version (VersionDirectiveSyntax); eine unbekannte Direktive
+        // (BadDirectiveTriviaSyntax) kommt aus einem eigenen Schnipsel, da AllRules bewusst fehlerfrei bleibt.
+        var presentTypes = new HashSet<Type>(cgu.DescendantNodesAndSelf().Select(node => node.GetType()));
+        presentTypes.UnionWith(cgu.SyntaxTree.Directives().Select(directive => directive.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives().Select(directive => directive.GetType()));
 
         foreach (var nodeType in nodeTypes) {
 
@@ -37,7 +44,7 @@ public class SyntaxTreeTests {
                 message += $" Beispiel: '{sample}'";
             }
             Assert.That(
-                cgu.DescendantNodesAndSelf().Any(t => t.GetType() == nodeType),
+                presentTypes.Contains(nodeType),
                 Is.True, message);
         }
     }

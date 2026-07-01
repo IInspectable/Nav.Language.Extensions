@@ -3,7 +3,6 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics;
 
 using JetBrains.Annotations;
@@ -209,7 +208,8 @@ public abstract partial class SyntaxNode: IExtent {
     /// <remarks>
     /// Wer das Token <b>exakt</b> an der Position braucht (und an einer Trivia-Position bewusst nichts
     /// erhalten will), nutzt <see cref="SyntaxTokenList.FindAtPosition"/>. Ein <c>findInsideTrivia</c>-Pendant
-    /// (Abstieg in strukturierte Trivia) gibt es nicht — Nav führt keine strukturierte Trivia.
+    /// (Abstieg in strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und deren lokale Token) gibt es
+    /// nicht — die Token einer Direktive erreicht man über <see cref="SyntaxTrivia.GetStructure"/>.
     /// </remarks>
     public SyntaxToken FindToken(int position) {
         return SyntaxTree.Tokens.FindOwningToken(position);

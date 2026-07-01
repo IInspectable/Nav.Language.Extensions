@@ -70,6 +70,27 @@ sealed class SyntacticClassificationTagger: ParserServiceDependent, ITagger<ICla
                     yield return CreateTagSpan(syntaxTreeAndSnapshot.Snapshot, span, comment.Start, comment.Length, _commentClassification);
                 }
             }
+
+            // Präprozessor-Direktiven liegen als strukturierte Trivia vor (nicht im flachen Strom); ihre Token
+            // tragen ihre Klassifizierung lokal am Direktiv-Knoten.
+            foreach (var directive in syntaxTree.Directives()) {
+                foreach (var token in directive.ChildTokens()) {
+
+                    if (token.Extent.IsEmptyOrMissing || !token.Extent.IntersectsWith(extent)) {
+                        continue;
+                    }
+
+                    if (SyntaxFacts.IsTrivia(token.Classification)) {
+                        continue;
+                    }
+
+                    if (!_classificationMap.TryGetValue(token.Classification, out var ct) || ct == null) {
+                        continue;
+                    }
+
+                    yield return CreateTagSpan(syntaxTreeAndSnapshot.Snapshot, span, token.Start, token.Length, ct);
+                }
+            }
         }
     }
 

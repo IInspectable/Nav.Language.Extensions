@@ -1,9 +1,4 @@
-﻿    0    1  HashToken               PreprocessorKeyword          CodeGenerationUnitSyntax
-    1    2  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
-    3    1  PreprocessorText        PreprocessorText             CodeGenerationUnitSyntax
-    4    5  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
-    9    2  PreprocessorNewLine     PreprocessorText             CodeGenerationUnitSyntax
-   11    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
+﻿   11    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
    16    1  Identifier              TaskName                     TaskDefinitionSyntax
    19    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
    26    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
@@ -17,7 +12,4 @@
    61    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
    63    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    66    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-   69    1  HashToken               PreprocessorKeyword          CodeGenerationUnitSyntax
-   70    5  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
-   75    2  PreprocessorNewLine     PreprocessorText             CodeGenerationUnitSyntax
    77    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

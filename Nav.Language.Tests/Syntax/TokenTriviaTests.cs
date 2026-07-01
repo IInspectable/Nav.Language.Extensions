@@ -107,25 +107,32 @@ public class TokenTriviaTests {
         Assert.That(TriviaText(eof.LeadingTrivia, tree), Is.EqualTo("\r\n// trailing\r\n"));
     }
 
-    // Präprozessor-Token sind Trenner: sie bekommen selbst keine angehängte Trivia, und ihr (Präprozessor-)
-    // Zeilenende ist kein Trivia-Zeichen — das erste echte Token danach hat darum keine Leading-Trivia.
+    // Eine Präprozessor-Direktive steht nicht mehr als Token im flachen Strom, sondern ist ein einziges
+    // strukturiertes DirectiveTrivia-Stück (mit Verweis auf ihren Knoten) in der Leading-Trivia des ersten
+    // echten Tokens danach; ihr Zeilenende folgt als eigenes NewLine.
     [Test]
-    public void PreprocessorTokensAreSeparatorsWithoutAttachedTrivia() {
+    public void PreprocessorDirectiveIsStructuredTriviaNotInTokenStream() {
 
         var source = "#if DEBUG\r\ntask A\r\n{\r\n}\r\n";
         var tree   = SyntaxTree.ParseText(source);
 
-        foreach (var token in tree.Tokens.Where(t => t.Type == SyntaxTokenType.HashToken            ||
-                                                      t.Type == SyntaxTokenType.PreprocessorKeyword ||
-                                                      t.Type == SyntaxTokenType.PreprocessorText    ||
-                                                      t.Type == SyntaxTokenType.PreprocessorNewLine ||
-                                                      t.Type == SyntaxTokenType.PreprocessorNumber)) {
-            Assert.That(token.LeadingTrivia,  Is.Empty, $"Präprozessor-Token {token.Type} darf keine Leading-Trivia tragen.");
-            Assert.That(token.TrailingTrivia, Is.Empty, $"Präprozessor-Token {token.Type} darf keine Trailing-Trivia tragen.");
-        }
+        // Kein Präprozessor-Token verbleibt im flachen Strom.
+        Assert.That(tree.Tokens.Any(t => t.Type == SyntaxTokenType.HashToken            ||
+                                         t.Type == SyntaxTokenType.PreprocessorKeyword ||
+                                         t.Type == SyntaxTokenType.PreprocessorText    ||
+                                         t.Type == SyntaxTokenType.PreprocessorNewLine ||
+                                         t.Type == SyntaxTokenType.PreprocessorNumber),
+                    Is.False, "Präprozessor-Token dürfen nicht mehr im flachen Token-Strom stehen.");
 
+        // Die Direktive erscheint als strukturierte DirectiveTrivia (+ Zeilenende) in der Leading-Trivia von 'task'.
         var taskKeyword = First(tree, SyntaxTokenType.TaskKeyword);
-        Assert.That(taskKeyword.LeadingTrivia, Is.Empty);
+        Assert.That(taskKeyword.LeadingTrivia.Select(t => t.Type),
+                    Is.EqualTo(new[] { SyntaxTokenType.DirectiveTrivia, SyntaxTokenType.NewLine }));
+
+        var directiveTrivia = taskKeyword.LeadingTrivia.First();
+        Assert.That(directiveTrivia.HasStructure,        Is.True);
+        Assert.That(directiveTrivia.GetStructure(),      Is.InstanceOf<BadDirectiveTriviaSyntax>());
+        Assert.That(directiveTrivia.ToString(tree.SourceText), Is.EqualTo("#if DEBUG"));
     }
 
     // Querschnitt: Bei trenner-freier Eingabe partitioniert das angehängte Modell die gesamte Trivia

@@ -12,7 +12,4 @@
    50    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
    52    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    55    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-   57    1  HashToken               PreprocessorKeyword          CodeGenerationUnitSyntax
-   58    9  PreprocessorKeyword     PreprocessorKeyword          CodeGenerationUnitSyntax
-   67    2  PreprocessorNewLine     PreprocessorText             CodeGenerationUnitSyntax
    69    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

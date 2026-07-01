@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-69]  {HashToken, PreprocessorKeyword, PreprocessorNewLine, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-69]  {EndOfFile}
   TaskDefinitionSyntax [0-56]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     NodeDeclarationBlockSyntax [15-37]
       InitNodeDeclarationSyntax [15-23]  {InitKeyword, Identifier, Semicolon}

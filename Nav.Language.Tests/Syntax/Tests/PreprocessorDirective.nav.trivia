@@ -1,4 +1,6 @@
 ﻿   11 TaskKeyword
+    L DirectiveTrivia   [0-9]         "#if DEBUG"
+    L NewLine           [9-11]        "\r\n"
     T Whitespace        [15-16]       " "
    16 Identifier
     T NewLine           [17-19]       "\r\n"
@@ -23,3 +25,6 @@
     T NewLine           [64-66]       "\r\n"
    66 CloseBrace
     T NewLine           [67-69]       "\r\n"
+   77 EndOfFile
+    L DirectiveTrivia   [69-75]       "#endif"
+    L NewLine           [75-77]       "\r\n"

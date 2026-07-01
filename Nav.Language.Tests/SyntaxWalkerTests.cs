@@ -26,9 +26,23 @@ public class SyntaxWalkerTests {
     static readonly IReadOnlyCollection<Type> WalkedNodeTypes = WalkAllRules();
 
     static IReadOnlyCollection<Type> WalkAllRules() {
-        var root   = SyntaxTree.ParseText(Resources.AllRules).Root;
         var walker = new RecordingWalker();
-        walker.Walk(root);
+
+        var tree = SyntaxTree.ParseText(Resources.AllRules);
+        walker.Walk(tree.Root);
+
+        // Direktiven sind strukturierte Trivia (keine Kindknoten der Wurzel) — separat einspeisen, damit auch
+        // ihre generierten WalkXxx-Methoden erreicht werden. AllRules trägt die wirksame #pragma version
+        // (VersionDirectiveSyntax); eine unbekannte Direktive (BadDirectiveTriviaSyntax) aus einem eigenen
+        // Schnipsel, da AllRules bewusst fehlerfrei bleibt.
+        foreach (var directive in tree.Directives()) {
+            walker.Walk(directive);
+        }
+
+        foreach (var directive in SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives()) {
+            walker.Walk(directive);
+        }
+
         return walker.Walked;
     }
 
