@@ -31,16 +31,6 @@ public static partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// Preprocessor directives must appear as the first non-whitespace character on a line
-        /// </summary>
-        public static readonly DiagnosticDescriptor Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition = new(
-            id             : DiagnosticId.Nav3001,
-            messageFormat  : "Preprocessor directives must appear as the first non-whitespace character on a line",
-            category       : Category,
-            defaultSeverity: DiagnosticSeverity.Error
-        );
-
-        /// <summary>
         /// Invalid '#pragma version' directive; expected a non-negative integer version number
         /// </summary>
         public static readonly DiagnosticDescriptor Nav3002InvalidPragmaVersion = new(

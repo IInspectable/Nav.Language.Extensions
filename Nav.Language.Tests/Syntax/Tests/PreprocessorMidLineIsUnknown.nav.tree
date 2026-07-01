@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-69]  {EndOfFile}
+﻿CodeGenerationUnitSyntax [0-69]  {Unknown, Identifier, EndOfFile}
   TaskDefinitionSyntax [0-56]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
     NodeDeclarationBlockSyntax [15-37]
       InitNodeDeclarationSyntax [15-23]  {InitKeyword, Identifier, Semicolon}

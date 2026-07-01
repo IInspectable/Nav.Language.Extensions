@@ -58,4 +58,3 @@
 |54|<a name="Nav1019">Nav1019</a> | DeadCode| Warning| The view node '{0}' has no outgoing edges|
 |55|<a name="Nav2000">Nav2000</a> | Semantic| Error| Identifier expected|
 |56|<a name="Nav3000">Nav3000</a> | Syntax| Error| Invalid preprocessor directive|
-|57|<a name="Nav3001">Nav3001</a> | Syntax| Error| Preprocessor directives must appear as the first non-whitespace character on a line|

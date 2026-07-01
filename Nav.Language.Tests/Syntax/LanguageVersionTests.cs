@@ -173,19 +173,27 @@ public class LanguageVersionTests {
     }
 
     [Test]
-    public void DuplicatePragma_MidLineAfterCode_ReportsNav3003_SpanningWholeDirective() {
+    public void MidLinePragma_AfterCode_IsNotADirective_ReportsNav0000() {
 
-        // Wie im Editor beobachtet: eine zweite Direktive steht mitten in der Zeile hinter Code.
+        // Ein '#' mitten in der Zeile (hinter Code) beginnt keine Direktive: der Lexer erzeugt dafür ein
+        // einzelnes unbekanntes Zeichen (Nav0000), der Zeilenrest lext gewöhnlich weiter. Es entsteht daher
+        // keine zweite Versions-Direktive und kein Nav3003/Nav3004 — nur die erste, wohlplatzierte Direktive
+        // bleibt wirksam.
         var source = "#pragma version 1\r\ntask A { init I1; exit e1; I1 --> e1; } #pragma version 1";
         var unit   = Parse(source);
 
-        var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3003");
-        var start      = source.LastIndexOf("#pragma", System.StringComparison.Ordinal);
+        Assert.That(unit.LanguageVersion.Value, Is.EqualTo(1));
+        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(1));
 
-        Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
-        Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 1".Length));
-        Assert.That(diagnostic.Location.EndCharacter - diagnostic.Location.StartCharacter,
-                    Is.EqualTo("#pragma version 1".Length));
+        var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
+        Assert.That(ids, Does.Contain("Nav0000"));
+        Assert.That(ids, Does.Not.Contain("Nav3003"));
+        Assert.That(ids, Does.Not.Contain("Nav3004"));
+
+        // Das unbekannte '#' sitzt an seiner mittigen Position, nicht am Zeilenanfang.
+        var hashPosition = source.LastIndexOf('#');
+        var nav0000      = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav0000");
+        Assert.That(nav0000.Location.Start, Is.EqualTo(hashPosition));
     }
 
     // Die Token einer Direktive liegen nicht mehr im flachen Strom, sondern lokal am Direktiv-Knoten

@@ -128,7 +128,10 @@ sealed class NavLexer {
             return;
         }
 
-        if (c == '#') {
+        // '#' beginnt eine Präprozessor-Direktive nur, wenn es das erste Nicht-Whitespace-Zeichen seiner
+        // Zeile ist (wie in C#). Sonst ist es ein gewöhnliches unbekanntes Zeichen — der Zeilenrest lext
+        // normal weiter.
+        if (c == '#' && AtLineStart()) {
             ScanPreprocessor();
             return;
         }
@@ -360,6 +363,29 @@ sealed class NavLexer {
     /// Länge des Zeilenendes an <paramref name="index"/> (2 für <c>\r\n</c>, 1 für die übrigen
     /// NL-Varianten), 0 wenn dort kein Zeilenende beginnt.
     /// </summary>
+    // Ob die aktuelle Position das erste Nicht-Whitespace-Zeichen ihrer Zeile ist: Rückwärts-Scan bis
+    // zur Zeilengrenze — trifft er nur Whitespace, steht die Position am Zeilenanfang. Einrückung durch
+    // Whitespace ist erlaubt; jedes andere Zeichen davor bedeutet „mitten in der Zeile".
+    bool AtLineStart() {
+        for (var i = _pos - 1; i >= 0; i--) {
+            var c = _text[i];
+            if (IsNewLine(c)) {
+                return true;
+            }
+
+            if (!IsWhitespace(c)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static bool IsNewLine(char c) {
+        // Dieselben Zeilenende-Varianten wie NewLineLength: CR, LF, NEL (U+0085), LS (U+2028), PS (U+2029).
+        return c == '\r' || c == '\n' || c == '\u0085' || c == '\u2028' || c == '\u2029';
+    }
+
     int NewLineLength(int index) {
         if (index >= _length) {
             return 0;

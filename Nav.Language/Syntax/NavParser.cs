@@ -1878,9 +1878,9 @@ sealed class NavParser {
     /// <see cref="NavLanguageVersion.Default"/>. Alles andere wird zu einer wirkungslosen
     /// <see cref="BadDirectiveTriviaSyntax"/>: eine hinter echtem Code stehende Versions-Direktive meldet
     /// <c>Nav3003</c> (die Deplatzierung sticht eine etwaige Duplikat-Meldung), eine reine Wiederholung am Kopf
-    /// <c>Nav3004</c>; jede nicht erkannte Direktive (<c>#pragma warning …</c> o.Ä.) <c>Nav3000</c> (samt
-    /// <c>Nav3001</c>, falls ihr in der Zeile nicht nur Whitespace vorausgeht). Die Läufe werden anschließend
-    /// in <see cref="BuildTrivia"/> zu strukturierter <see cref="SyntaxTokenType.DirectiveTrivia"/> gefaltet.
+    /// <c>Nav3004</c>; jede nicht erkannte Direktive (<c>#pragma warning …</c> o.Ä.) <c>Nav3000</c>. Die Läufe
+    /// werden anschließend in <see cref="BuildTrivia"/> zu strukturierter
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/> gefaltet.
     /// </summary>
     List<DirectiveRun> ParseDirectives() {
 
@@ -2098,16 +2098,12 @@ sealed class NavParser {
 
     /// <summary>
     /// Meldet für eine nicht erkannte Direktive <c>[hashIndex, end)</c> die <c>Nav3000</c> (nicht unterstützte
-    /// Präprozessor-Direktive) über die ganze Direktiv-Breite, zusätzlich <c>Nav3001</c>, falls davor in der
-    /// Zeile nicht nur Whitespace steht. Genau eine Meldung je Direktive; die Token bleiben lose (Wurzel).
+    /// Präprozessor-Direktive) über die ganze Direktiv-Breite. Genau eine Meldung je Direktive; die Token
+    /// bleiben lose (Wurzel). Die Zeilenanfang-Regel erzwingt bereits der Lexer (ein <c>#</c> mitten in der
+    /// Zeile ist keine Direktive, sondern ein unbekanntes Zeichen).
     /// </summary>
     void ReportDirectiveDiagnostics(int hashIndex, int end) {
         var location = DirectiveLocation(hashIndex, end);
-
-        if (!_sourceText.SliceFromLineStartToPosition(_raw[hashIndex].Start).IsWhiteSpace()) {
-            _diagnostics.Add(new Diagnostic(location,
-                                            DiagnosticDescriptors.Syntax.Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition));
-        }
 
         _diagnostics.Add(new Diagnostic(location,
                                         DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
@@ -2174,7 +2170,7 @@ sealed class NavParser {
     /// <summary>
     /// Meldet die nur vom Lexer ableitbare Diagnose für ein loses, nicht-signifikantes Token: ein
     /// <see cref="SyntaxTokenType.Unknown"/> als unerwartetes Zeichen (<c>Nav0000</c>). Die
-    /// Präprozessor-Diagnosen (<c>Nav3000</c>/<c>Nav3001</c>) entstehen dagegen strukturiert im
+    /// Präprozessor-Diagnose (<c>Nav3000</c>) entsteht dagegen strukturiert im
     /// Direktiven-Vorlauf (siehe <see cref="ReportDirectiveDiagnostics"/>). Location ist die nullbreite
     /// Start-Position des Tokens.
     /// </summary>
