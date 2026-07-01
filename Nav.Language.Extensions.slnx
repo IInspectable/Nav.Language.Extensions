@@ -18,6 +18,7 @@
     <File Path="Tools/Commands/README.md" />
   </Folder>
   <Folder Name="/Tools/Commands/Functions/">
+    <File Path="Tools/Commands/Functions/Export-Grammar.ps1" />
     <File Path="Tools/Commands/Functions/Get-NavCommandInfo.ps1" />
     <File Path="Tools/Commands/Functions/Get-ProductVersion.ps1" />
     <File Path="Tools/Commands/Functions/Get-Worktree.ps1" />
@@ -66,10 +67,11 @@
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
     <File Path="doc/nav-grammar-status.md" />
-    <File Path="doc/nav-handwritten-parser.md" />
+    <File Path="doc/nav-kolibri.md" />
     <File Path="doc/nav-lsp-status.md" />
     <File Path="doc/nav-mcp-status.md" />
     <File Path="doc/nav-parser-test-plan.md" />
+    <File Path="doc/nav-versioning-status.md" />
     <File Path="doc/vs-call-hierarchy-plan.md" />
   </Folder>
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
