@@ -136,6 +136,37 @@ public class LanguageVersionTests {
     }
 
     [Test]
+    public void DuplicatePragma_AfterMember_ReportsNav3003_NotNav3004() {
+
+        var unit = Parse("#pragma version 2\r\ntask A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 3");
+
+        // Die zweite Direktive steht hinter echtem Code: die Deplatzierung (Nav3003) ist das eigentliche
+        // Problem und verdrängt die andernfalls nur lärmende Duplikat-Meldung (Nav3004). Die erste
+        // (wirksame) Direktive bestimmt weiterhin die Version.
+        Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
+        Assert.That(unit.SyntaxTree.Directives().OfType<VersionDirectiveSyntax>().Count(), Is.EqualTo(1));
+
+        var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
+        Assert.That(ids, Does.Contain("Nav3003"));
+        Assert.That(ids, Does.Not.Contain("Nav3004"));
+    }
+
+    [Test]
+    public void DirectiveDiagnostic_SpansWholeDirective_NotJustTheHash() {
+
+        // Die Squiggle soll die ganze Direktive markieren (# … Versionswert), nicht nur das '#'.
+        var source = "task A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 2";
+        var unit   = Parse(source);
+
+        var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3003");
+
+        var start = source.IndexOf("#pragma", System.StringComparison.Ordinal);
+        Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
+        Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 2".Length));
+    }
+
+    [Test]
     public void MisplacedPragma_StillClassifiesNumberValue() {
 
         // Auch eine deplatzierte Versions-Direktive (Nav3003) behält die Färbung ihrer Rumpf-Token: der Wert

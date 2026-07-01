@@ -1862,8 +1862,9 @@ sealed class NavParser {
     /// <see cref="VersionDirectiveSyntax"/> samt hier materialisierten Token) wird aber nur die <b>erste</b>
     /// und nur, wenn ihr ausschließlich Trivia vorausgeht (ganz oben). Ein fehlender oder nicht-ganzzahliger
     /// Versionswert erzeugt dabei genau eine <c>Nav3002</c> samt Rückfall auf
-    /// <see cref="NavLanguageVersion.Default"/>. Eine weiter unten stehende Versions-Direktive meldet
-    /// <c>Nav3003</c>, eine doppelte <c>Nav3004</c>; beide bleiben ohne Wirkung, ihre Token lose. Jede nicht
+    /// <see cref="NavLanguageVersion.Default"/>. Eine hinter echtem Code stehende Versions-Direktive meldet
+    /// <c>Nav3003</c> (die Deplatzierung sticht dabei eine etwaige Duplikat-Meldung); eine reine Wiederholung
+    /// am Kopf <c>Nav3004</c>; beide bleiben ohne Wirkung, ihre Token lose. Jede nicht
     /// erkannte Direktive (<c>#pragma warning …</c> o.Ä.) meldet <c>Nav3000</c> (samt <c>Nav3001</c>, falls
     /// ihr in der Zeile nicht nur Whitespace vorausgeht). Lose Token werden in
     /// <see cref="AttachNonSignificantTokens"/> an die Wurzel gehängt.
@@ -1874,6 +1875,11 @@ sealed class NavParser {
         // dann darf eine Versions-Direktive wirksam werden (ihr darf ausschließlich Trivia vorausgehen).
         var atHead = true;
 
+        // Ob bereits echter Code (ein signifikantes Nicht-Direktiv-Token) vorausging. Steht eine
+        // Versions-Direktive hinter Code, ist ihre Deplatzierung (Nav3003) das eigentliche Problem — eine
+        // zusätzliche Duplikat-Meldung (Nav3004) wäre nur Lärm und tritt daher dahinter zurück.
+        var sawCode = false;
+
         for (var i = 0; i < _raw.Length; i++) {
             var type = _raw[i].Type;
 
@@ -1882,7 +1888,8 @@ sealed class NavParser {
             }
 
             if (type != SyntaxTokenType.HashToken) {
-                atHead = false;
+                atHead  = false;
+                sawCode = true;
                 continue;
             }
 
@@ -1890,19 +1897,23 @@ sealed class NavParser {
             var subject = VersionSubjectIndex(i, end);
 
             if (subject >= 0) {
-                if (_versionDirective != null) {
-                    // Doppeltes #pragma version — das erste gewinnt.
-                    _diagnostics.Add(new Diagnostic(LexicalLocation(_raw[i].Extent),
+                if (sawCode) {
+                    // Hinter echtem Code deplatziert — Nav3003 sticht eine etwaige Duplikat-Meldung.
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
+                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                } else if (_versionDirective != null) {
+                    // Doppeltes #pragma version am Kopf — das erste gewinnt.
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
                                                     DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
                 } else if (!atHead) {
-                    // #pragma version muss ganz oben stehen (nur Trivia darf ihm vorausgehen).
-                    _diagnostics.Add(new Diagnostic(LexicalLocation(_raw[i].Extent),
+                    // Ganz oben, aber eine andere Direktive ging voraus ⇒ nicht ganz oben (nur Trivia dürfte).
+                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
                                                     DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
                 } else {
                     AcceptVersionDirective(i, subject, end);
                 }
             } else {
-                ReportDirectiveDiagnostics(_raw[i]);
+                ReportDirectiveDiagnostics(i, end);
             }
 
             atHead = false;
@@ -1931,6 +1942,17 @@ sealed class NavParser {
         }
 
         return end;
+    }
+
+    /// <summary>
+    /// Extent des Direktiv-Laufs <c>[hashIndex, end)</c> für Diagnose-Zwecke: vom einleitenden <c>#</c> bis
+    /// zum Ende des letzten Inhalts-Tokens, <b>ohne</b> das abschließende Zeilenende. So markiert die
+    /// Squiggle die ganze Direktive statt nur das <c>#</c>.
+    /// </summary>
+    TextExtent DirectiveExtent(int hashIndex, int end) {
+        var last       = _raw[end - 1];
+        var contentEnd = last.Type == SyntaxTokenType.PreprocessorNewLine ? last.Extent.Start : last.Extent.End;
+        return TextExtent.FromBounds(_raw[hashIndex].Extent.Start, contentEnd);
     }
 
     /// <summary>
@@ -1982,7 +2004,7 @@ sealed class NavParser {
         var newLineStart = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? _raw[end - 1].Extent.Start : directiveEnd;
         var argument     = _sourceText.Substring(TextExtent.FromBounds(_raw[subject].Extent.End, newLineStart));
         if (!NavLanguageVersion.TryParse(argument, out var version)) {
-            _diagnostics.Add(new Diagnostic(LexicalLocation(_raw[hashIndex].Extent),
+            _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(hashIndex, end)),
                                             DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
             version = NavLanguageVersion.Default;
         }
@@ -2011,17 +2033,19 @@ sealed class NavParser {
     }
 
     /// <summary>
-    /// Meldet für eine nicht erkannte Direktive die <c>Nav3000</c> (nicht unterstützte Präprozessor-
-    /// Direktive) am einleitenden <c>#</c>, zusätzlich <c>Nav3001</c>, falls davor in der Zeile nicht nur
-    /// Whitespace steht. Genau eine Meldung je Direktive; die Token bleiben lose (Wurzel).
+    /// Meldet für eine nicht erkannte Direktive <c>[hashIndex, end)</c> die <c>Nav3000</c> (nicht unterstützte
+    /// Präprozessor-Direktive) über die ganze Direktiv-Breite, zusätzlich <c>Nav3001</c>, falls davor in der
+    /// Zeile nicht nur Whitespace steht. Genau eine Meldung je Direktive; die Token bleiben lose (Wurzel).
     /// </summary>
-    void ReportDirectiveDiagnostics(RawToken hash) {
-        if (!_sourceText.SliceFromLineStartToPosition(hash.Start).IsWhiteSpace()) {
-            _diagnostics.Add(new Diagnostic(LexicalLocation(hash.Extent),
+    void ReportDirectiveDiagnostics(int hashIndex, int end) {
+        var extent = DirectiveExtent(hashIndex, end);
+
+        if (!_sourceText.SliceFromLineStartToPosition(_raw[hashIndex].Start).IsWhiteSpace()) {
+            _diagnostics.Add(new Diagnostic(LexicalLocation(extent),
                                             DiagnosticDescriptors.Syntax.Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition));
         }
 
-        _diagnostics.Add(new Diagnostic(LexicalLocation(hash.Extent),
+        _diagnostics.Add(new Diagnostic(LexicalLocation(extent),
                                         DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
     }
 
