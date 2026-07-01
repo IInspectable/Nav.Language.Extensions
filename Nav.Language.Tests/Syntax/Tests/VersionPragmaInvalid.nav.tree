@@ -1,0 +1,11 @@
+﻿CodeGenerationUnitSyntax [0-75]  {EndOfFile}
+  VersionDirectiveSyntax [0-17]  {HashToken, PreprocessorKeyword, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorText, PreprocessorNewLine}
+  TaskDefinitionSyntax [17-73]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [32-54]
+      InitNodeDeclarationSyntax [32-40]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [46-54]  {ExitKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [60-70]
+      TransitionDefinitionSyntax [60-70]  {Semicolon}
+        IdentifierSourceNodeSyntax [60-62]  {Identifier}
+        GoToEdgeSyntax [63-66]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [67-69]  {Identifier}

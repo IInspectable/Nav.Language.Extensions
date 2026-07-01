@@ -107,7 +107,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     CodeGenerationResult GenerateCode(CodeModelResult codeModelResult) {
 
-        var context = new CodeGeneratorContext(this);
+        var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit.LanguageVersion);
 
         var codeGenerationResult = new CodeGenerationResult(
             taskDefinition   : codeModelResult.TaskDefinition,

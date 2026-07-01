@@ -18,16 +18,33 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
 
     internal CodeGenerationUnitSyntax(
         TextExtent extent,
+        VersionDirectiveSyntax languageVersionDirective,
         CodeNamespaceDeclarationSyntax codeNamespaceDeclaration,
         IReadOnlyList<CodeUsingDeclarationSyntax> codeUsingDeclarations,
         IReadOnlyList<MemberDeclarationSyntax> memberDeclarations
     )
         : base(extent) {
 
-        AddChildNode(CodeNamespace = codeNamespaceDeclaration);
-        AddChildNodes(CodeUsings   = codeUsingDeclarations);
-        AddChildNodes(Members      = memberDeclarations);
+        // Die (optionale) Versions-Direktive steht am Dateikopf — als erster Kindknoten, damit die
+        // Kinder in Quelltext-Reihenfolge bleiben.
+        AddChildNode(LanguageVersionDirective = languageVersionDirective);
+        AddChildNode(CodeNamespace            = codeNamespaceDeclaration);
+        AddChildNodes(CodeUsings              = codeUsingDeclarations);
+        AddChildNodes(Members                 = memberDeclarations);
     }
+
+    /// <summary>
+    /// Die (optionale) Sprach-Versions-Direktive <c>#pragma version</c> am Dateikopf, oder <c>null</c>,
+    /// wenn die Datei keine trägt.
+    /// </summary>
+    [CanBeNull]
+    public VersionDirectiveSyntax LanguageVersionDirective { get; }
+
+    /// <summary>
+    /// Die Sprach-Version dieser Datei: der von <see cref="LanguageVersionDirective"/> festgelegte Wert,
+    /// sonst <see cref="NavLanguageVersion.Default"/> (das historische Verhalten ohne Pragma).
+    /// </summary>
+    public NavLanguageVersion LanguageVersion => LanguageVersionDirective?.Version ?? NavLanguageVersion.Default;
 
     [CanBeNull]
     public CodeNamespaceDeclarationSyntax CodeNamespace { get; }

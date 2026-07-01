@@ -245,6 +245,34 @@ Text-bis-EOL zu **einer** `DirectiveTriviaSyntax` zusammenfasst. Der Hauptparser
 „Unbekannte Direktive" wird damit eine **semantische** Frage (Diagnose am Trivia-Knoten), kein
 Parserfehler mehr.
 
+### Stand: `#pragma version` + Sprach-Versionierung (Fundament, umgesetzt)
+
+Der erste strukturierte Direktiven-Fall ist implementiert — als Träger einer **Sprach-/Schema-Version**
+je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Elemente):
+
+- **Syntax** `#pragma version <int>` am Dateikopf → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
+  Umgesetzt als **Weg A** (siehe „architektonischer Gabelpunkt"), aber konsequent zu Ende gedacht: der
+  Direktiv-Knoten hängt als **erster Kindknoten** an der `CodeGenerationUnitSyntax` und **besitzt seine
+  Präprozessor-Token** (re-parentet in `AttachNonSignificantTokens`); der Wurzel-Extent wird bei Bedarf
+  nach vorn gezogen, damit der Knoten im Eltern-Extent liegt. `SyntaxTree.Directives()` listet die
+  erkannten Direktiven. `SyntaxTrivia` bleibt schlank (kein `GetStructure()` an der Trivia selbst — das
+  bleibt Weg B/„generische Direktiven" vorbehalten, wenn Direktiven **überall** stehen dürfen sollen).
+- **Erkennung** in `NavParser.ScanLanguageVersionDirective()` direkt über den Roh-Strom (der Cursor sieht
+  Präprozessor-Token als „hidden"). Nur `#pragma version` wird erkannt; jedes andere Pragma bleibt
+  unangetastet (weiterhin `Nav3000`). Fehlender/nicht-ganzzahliger Wert → genau eine `Nav3002`, Rückfall
+  auf `NavLanguageVersion.Default` (= 1).
+- **Fallstrick (wichtig):** Der Lexer beendet eine Direktive im Textmodus **nur bei `\r\n`** (einzelnes
+  `\n` bleibt `PreprocessorText` — Alt-Grammatik-Verhalten, gilt für **alle** `#`-Direktiven). Ein
+  `#pragma version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
+  `.nav`-Fixtures/Dateien sind CRLF; Tests entsprechend `\r\n`.
+- **Durchgereicht:** `CodeGenerationUnitSyntax.LanguageVersion` → `CodeGenerationUnit.LanguageVersion` →
+  `CodeGeneratorContext.LanguageVersion` (Durchreiche-Punkt in die StringTemplates). Gate-Mechanik in
+  `NavLanguageFeature`/`NavLanguageFeatures` (`Nav5000`) steht bereit, **noch ohne** registrierte
+  Features (permissiv parsen + semantisch diagnostizieren, Roslyn-Stil). Default ohne Pragma = Version 1
+  ⇒ Bestand bit-identisch.
+- **Tests:** `LanguageVersionTests` + Golden-Fixtures `VersionPragma(.Invalid).nav`; `AllRules.nav` trägt
+  jetzt ein `#pragma version 1` (Abdeckung des neuen Knotentyps).
+
 ---
 
 ## Strukturierte Trivia & der architektonische Gabelpunkt

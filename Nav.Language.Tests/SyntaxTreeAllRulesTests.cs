@@ -27,7 +27,7 @@ public class SyntaxTreeTests {
 
         // Die Anzahl kann/darf sich über die Zeit auch ändern.
         // Blöd wäre nur, wenn hier keine Syntaxen gefunden würden ;-)
-        Assert.That(nodeTypes.Count, Is.EqualTo(46));
+        Assert.That(nodeTypes.Count, Is.EqualTo(47));
 
         foreach (var nodeType in nodeTypes) {
 

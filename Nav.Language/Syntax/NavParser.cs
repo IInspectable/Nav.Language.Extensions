@@ -74,6 +74,12 @@ sealed class NavParser {
     int? _firstSignificantStart;   // Start des ersten konsumierten signifikanten Tokens (für den Wurzel-Extent).
     bool _reportedMissingAtEof;    // Ein "missing …" am Dateiende wurde bereits gemeldet — weitere am EOF werden unterdrückt.
 
+    // Die am Dateikopf erkannte #pragma-version-Direktive (sonst null) samt ihres Quelltext-Bereichs. Ihre
+    // Präprozessor-Token werden — anders als sonst — nicht als Nav3000 gemeldet, sondern in
+    // AttachNonSignificantTokens an diesen Knoten gehängt.
+    VersionDirectiveSyntax _versionDirective;
+    TextExtent             _versionDirectiveSpan = TextExtent.Missing;
+
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
         _raw         = NavLexer.Lex(sourceText.Text);
@@ -224,6 +230,10 @@ sealed class NavParser {
         var codeUsings = new List<CodeUsingDeclarationSyntax>();
         var members    = new List<MemberDeclarationSyntax>();
 
+        // Kopf-Direktive #pragma version aus dem Roh-Strom erkennen (der Cursor sieht Präprozessor-Token
+        // nicht). Der Parser bleibt permissiv; die Wirkung der Version ist eine rein semantische Prüfung.
+        ScanLanguageVersionDirective();
+
         if (At(SyntaxTokenType.OpenBracket) && PeekType(1) == SyntaxTokenType.NamespaceprefixKeyword) {
             codeNamespace = ParseCodeNamespaceDeclaration();
 
@@ -245,10 +255,17 @@ sealed class NavParser {
             Recover(() => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof);
         }
 
-        var rootStart  = _firstSignificantStart ?? _eofPos;
+        var rootStart = _firstSignificantStart ?? _eofPos;
+
+        // Die Kopf-Direktive steht vor dem ersten signifikanten Token; damit sie als Kindknoten im
+        // Wurzel-Extent liegt (Baum-Invariante), zieht sie den Wurzelanfang bei Bedarf nach vorn.
+        if (_versionDirective != null && _versionDirectiveSpan.Start < rootStart) {
+            rootStart = _versionDirectiveSpan.Start;
+        }
+
         var rootExtent = TextExtent.FromBounds(rootStart, _eofPos);
 
-        var root = new CodeGenerationUnitSyntax(rootExtent, codeNamespace, codeUsings, members);
+        var root = new CodeGenerationUnitSyntax(rootExtent, _versionDirective, codeNamespace, codeUsings, members);
 
         // Trivia/Unknown/Präprozessor/EndOfFile hängen — wie in der bisherigen Pipeline — an der Wurzel.
         AttachNonSignificantTokens(root);
@@ -1839,6 +1856,81 @@ sealed class NavParser {
     }
 
     /// <summary>
+    /// Erkennt am Dateikopf die Direktive <c>#pragma version &lt;N&gt;</c> und baut daraus einen
+    /// <see cref="VersionDirectiveSyntax"/>. Der Parser-Cursor sieht Präprozessor-Token nicht (sie gelten
+    /// als „hidden"), daher wird direkt über den Roh-Strom gescannt. Die Direktive muss das erste
+    /// nicht-triviale Token der Datei sein (führende Trivia ist erlaubt); ihre Token werden in
+    /// <see cref="AttachNonSignificantTokens"/> an den Direktiv-Knoten gehängt und lösen kein
+    /// <c>Nav3000</c>/<c>Nav3001</c> aus. Ein fehlender oder nicht-ganzzahliger Versionswert erzeugt genau
+    /// eine <c>Nav3002</c> und fällt auf <see cref="NavLanguageVersion.Default"/> zurück. Jedes andere
+    /// Pragma (<c>#pragma warning …</c> o.Ä.) bleibt unangetastet (weiterhin <c>Nav3000</c>).
+    /// </summary>
+    void ScanLanguageVersionDirective() {
+
+        var i = 0;
+        while (i < _raw.Length && SyntaxFacts.IsTrivia(_raw[i].Type)) {
+            i++;
+        }
+
+        if (i >= _raw.Length || _raw[i].Type != SyntaxTokenType.HashToken) {
+            return;
+        }
+
+        var hash = _raw[i];
+
+        // Ende der Direktive: die unmittelbar folgenden Präprozessor-Token bis einschließlich des
+        // abschließenden PreprocessorNewLine.
+        var end = i + 1;
+        while (end < _raw.Length) {
+            var type = _raw[end].Type;
+            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText) {
+                end++;
+                continue;
+            }
+
+            if (type == SyntaxTokenType.PreprocessorNewLine) {
+                end++;
+            }
+
+            break;
+        }
+
+        var directiveEnd = _raw[end - 1].Extent.End;
+
+        // Direktiven-Schlüsselwort: muss unmittelbar hinter dem '#' stehen und "pragma" lauten.
+        if (i + 1 >= end || _raw[i + 1].Type != SyntaxTokenType.PreprocessorKeyword) {
+            return;
+        }
+
+        var keyword = _raw[i + 1];
+        if (_sourceText.Substring(keyword.Extent) != "pragma") {
+            return;
+        }
+
+        // Rumpf hinter "pragma" bis zum Zeilenende.
+        var newLineStart = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? _raw[end - 1].Extent.Start : directiveEnd;
+        var body         = _sourceText.Substring(TextExtent.FromBounds(keyword.Extent.End, newLineStart));
+        var parts        = body.Split((char[]) null, StringSplitOptions.RemoveEmptyEntries);
+
+        // Nur '#pragma version …' ist die Versions-Direktive.
+        if (parts.Length == 0 || parts[0] != "version") {
+            return;
+        }
+
+        var span = TextExtent.FromBounds(hash.Extent.Start, directiveEnd);
+
+        // Genau ein ganzzahliges Argument; sonst eine Nav3002 und Rückfall auf die Default-Version.
+        if (parts.Length != 2 || !NavLanguageVersion.TryParse(parts[1], out var version)) {
+            _diagnostics.Add(new Diagnostic(LexicalLocation(hash.Extent),
+                                            DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
+            version = NavLanguageVersion.Default;
+        }
+
+        _versionDirective     = new VersionDirectiveSyntax(span, version);
+        _versionDirectiveSpan = span;
+    }
+
+    /// <summary>
     /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten, aber im flachen
     /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, Präprozessor-Token, vom Panic-Mode
     /// übersprungene signifikante Token und das abschließende <see cref="SyntaxTokenType.EndOfFile"/>.
@@ -1865,14 +1957,23 @@ sealed class NavParser {
             }
 
             if (TryClassifyNonSignificant(raw.Type, out var classification)) {
+                // Token der am Dateikopf erkannten #pragma-version-Direktive gehören an ihren Knoten und
+                // lösen kein Nav3000/Nav3001 aus; alle übrigen Präprozessor-Token bleiben unverändert.
+                var inVersionDirective = _versionDirective != null                          &&
+                                         raw.Extent.Start >= _versionDirectiveSpan.Start     &&
+                                         raw.Extent.Start <  _versionDirectiveSpan.End;
+
                 // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
                 // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
                 // als Leading (siehe BuildTrivia).
+                var owner   = inVersionDirective ? _versionDirective : root;
                 var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : LookupTrivia(raw.Extent.Start).Leading;
-                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root,
+                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, owner,
                                                            leading, SyntaxTriviaList.Empty));
 
-                ReportLexicalDiagnostics(raw);
+                if (!inVersionDirective) {
+                    ReportLexicalDiagnostics(raw);
+                }
             } else if (!consumedStarts.Contains(raw.Extent.Start)) {
                 // Signifikantes Token, das der Parser nicht konsumiert hat (Panic-Mode-Skip): wie die Trivia
                 // als Skiped-Token an die Wurzel — so deckt der Token-Strom lückenlos den ganzen Text ab.
@@ -2016,7 +2117,7 @@ sealed class NavParser {
         // Alle Trivia der Datei in genau einem Array (Strom-Reihenfolge). Leading/Trailing eines Tokens sind
         // zusammenhängende Teilbereiche darin — sie werden nicht mehr je Token in eigene Arrays kopiert.
         // raw.Length/2 ist eine grobe Vorab-Kapazität (Trivia macht etwa die Hälfte des Stroms aus).
-        var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(System.Math.Max(16, raw.Length / 2));
+        var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(Math.Max(16, raw.Length / 2));
 
         // Genau ein Dictionary Token-Start -> Bereiche. Die Leading-Trivia wird beim Erreichen des Tokens
         // eingetragen, die Trailing-Trivia beim nächsten Trenner per Read-Modify-Write nachgezogen.

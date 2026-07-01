@@ -1,0 +1,7 @@
+﻿#pragma version 2
+task A
+{
+    init I1;
+    exit e1;
+    I1 --> e1;
+}

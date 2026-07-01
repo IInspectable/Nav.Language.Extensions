@@ -45,6 +45,13 @@ public sealed class CodeGenerationUnit {
     [NotNull]
     public CodeGenerationUnitSyntax Syntax { get; }
 
+    /// <summary>
+    /// Die Sprach-Version dieser Datei (aus <c>#pragma version</c>, sonst
+    /// <see cref="NavLanguageVersion.Default"/>) — der Ankerpunkt künftiger versionsabhängiger Syntax-
+    /// und Codegen-Entscheidungen.
+    /// </summary>
+    public NavLanguageVersion LanguageVersion => Syntax.LanguageVersion;
+
     [NotNull]
     public string CodeNamespace => Syntax.CodeNamespace?.ToString() ?? String.Empty;
 

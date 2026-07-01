@@ -66,6 +66,16 @@ public class SyntaxTree {
     }
 
     /// <summary>
+    /// Die strukturiert erkannten Präprozessor-Direktiven (<c>#…</c>) der Datei in Quelltext-Reihenfolge —
+    /// derzeit die (höchstens eine) Sprach-Versions-Direktive <see cref="VersionDirectiveSyntax"/>. Nicht
+    /// erkannte Direktiven (die weiterhin <c>Nav3000</c> auslösen) erscheinen hier nicht.
+    /// </summary>
+    [NotNull]
+    public IEnumerable<DirectiveTriviaSyntax> Directives() {
+        return Root.DescendantNodes().OfType<DirectiveTriviaSyntax>();
+    }
+
+    /// <summary>
     /// Die Trivia, die die angegebene <paramref name="position"/> abdeckt — Halbintervall
     /// <c>[Start, End)</c>, also dieselbe Regel wie <see cref="SyntaxNode.FindToken"/> bei den Token —, oder
     /// <c>default</c>, wenn an der Position keine Trivia liegt.

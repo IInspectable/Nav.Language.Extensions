@@ -40,5 +40,15 @@ public static partial class DiagnosticDescriptors {
             defaultSeverity: DiagnosticSeverity.Error
         );
 
+        /// <summary>
+        /// Invalid '#pragma version' directive; expected a non-negative integer version number
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav3002InvalidPragmaVersion = new(
+            id             : DiagnosticId.Nav3002,
+            messageFormat  : "Invalid '#pragma version' directive; expected a non-negative integer version number",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
     }
 }
