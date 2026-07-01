@@ -75,14 +75,24 @@
              Namespaces="$(_NavVsixNamespaces)"
              Query="/a:PackageManifest/a:Metadata/a:Identity/@Version"
              Value="$(ProductVersion)" />
-    <!-- Guard: niemals ein 0.0.0-/leeres VSIX ausliefern (auf der gezippten obj-Kopie prüfen). -->
+    <!-- Guard: niemals ein 0.0.0-/leeres VSIX ausliefern (auf der gezippten obj-Kopie prüfen).
+         Harter Abbruch aber NUR außerhalb von Visual Studio: Alle Auslieferungspfade (n publish,
+         n install, CI) bauen über Kommandozeilen-MSBuild, wo git die Version liefert — ein 0.0.0
+         ist dort ein echter Defekt. Eine F5-Debug-Session (BuildingInsideVisualStudio=true) liefert
+         hingegen nichts aus (Extension landet nur in der Experimental-Instanz); ein hier scheiterndes
+         git würde sonst das Debuggen komplett blockieren. Deshalb dort nur eine Warnung. -->
     <XmlPeek XmlInputPath="$(_NavObjManifest)"
              Namespaces="$(_NavVsixNamespaces)"
              Query="/a:PackageManifest/a:Metadata/a:Identity/@Version">
       <Output TaskParameter="Result" ItemName="_NavStampedVersion" />
     </XmlPeek>
-    <Error Condition=" '@(_NavStampedVersion)' == '' or '@(_NavStampedVersion)' == '0.0.0' "
+    <PropertyGroup>
+      <_NavVsixVersionBad Condition=" '@(_NavStampedVersion)' == '' or '@(_NavStampedVersion)' == '0.0.0' ">true</_NavVsixVersionBad>
+    </PropertyGroup>
+    <Error Condition=" '$(_NavVsixVersionBad)' == 'true' and '$(BuildingInsideVisualStudio)' != 'true' "
            Text="VSIX-Manifest-Version wurde nicht gestempelt (steht auf '@(_NavStampedVersion)'). Build abgebrochen, um kein veraltetes/0.0.0-VSIX auszuliefern." />
+    <Warning Condition=" '$(_NavVsixVersionBad)' == 'true' and '$(BuildingInsideVisualStudio)' == 'true' "
+             Text="VSIX-Manifest-Version steht auf '@(_NavStampedVersion)' (git in der VS-Build-Umgebung nicht auflösbar?). Für eine Debug-Session unkritisch; ausgelieferte VSIX entstehen ausschließlich über Kommandozeilen-Builds (n publish/n install), wo der Guard hart greift." />
   </Target>
 
   <!-- Der VSSDK-Schritt CreateVsixContainer ist nur unzuverlässig inkrementell: seine Up-to-date-
