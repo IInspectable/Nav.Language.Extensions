@@ -1,2 +1,2 @@
-﻿//==>>[Syntax](6,3,6,3): error Nav3001: Preprocessor directives must appear as the first non-whitespace character on a line
-//==>>[Syntax](6,3,6,3): error Nav3000: Invalid preprocessor directive
+﻿//==>>[Syntax](6,3,6,13): error Nav3001: Preprocessor directives must appear as the first non-whitespace character on a line
+//==>>[Syntax](6,3,6,13): error Nav3000: Invalid preprocessor directive

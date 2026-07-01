@@ -1899,15 +1899,15 @@ sealed class NavParser {
             if (subject >= 0) {
                 if (sawCode) {
                     // Hinter echtem Code deplatziert — Nav3003 sticht eine etwaige Duplikat-Meldung.
-                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
+                    _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
                 } else if (_versionDirective != null) {
                     // Doppeltes #pragma version am Kopf — das erste gewinnt.
-                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
+                    _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
                 } else if (!atHead) {
                     // Ganz oben, aber eine andere Direktive ging voraus ⇒ nicht ganz oben (nur Trivia dürfte).
-                    _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(i, end)),
+                    _diagnostics.Add(new Diagnostic(DirectiveLocation(i, end),
                                                     DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
                 } else {
                     AcceptVersionDirective(i, subject, end);
@@ -1954,6 +1954,14 @@ sealed class NavParser {
         var contentEnd = last.Type == SyntaxTokenType.PreprocessorNewLine ? last.Extent.Start : last.Extent.End;
         return TextExtent.FromBounds(_raw[hashIndex].Extent.Start, contentEnd);
     }
+
+    /// <summary>
+    /// Location einer Direktiv-Diagnose über die ganze Direktiv-Breite <c>[hashIndex, end)</c>. Anders als
+    /// <see cref="LexicalLocation"/> (nullbreite Zeilenposition, ANTLR-Parität) trägt sie — via
+    /// <see cref="SourceText.GetLocation"/> — eine echte Start-/End-Zeilenposition. Nur so ziehen
+    /// LSP-Clients (VS Code) die Squiggle über die volle Breite; VS rendert bereits aus dem Extent.
+    /// </summary>
+    Location DirectiveLocation(int hashIndex, int end) => _sourceText.GetLocation(DirectiveExtent(hashIndex, end));
 
     /// <summary>
     /// Prüft, ob der Direktiv-Lauf <c>[hashIndex, end)</c> strukturell ein <c>#pragma version …</c> ist, und
@@ -2004,7 +2012,7 @@ sealed class NavParser {
         var newLineStart = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? _raw[end - 1].Extent.Start : directiveEnd;
         var argument     = _sourceText.Substring(TextExtent.FromBounds(_raw[subject].Extent.End, newLineStart));
         if (!NavLanguageVersion.TryParse(argument, out var version)) {
-            _diagnostics.Add(new Diagnostic(LexicalLocation(DirectiveExtent(hashIndex, end)),
+            _diagnostics.Add(new Diagnostic(DirectiveLocation(hashIndex, end),
                                             DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
             version = NavLanguageVersion.Default;
         }
@@ -2038,14 +2046,14 @@ sealed class NavParser {
     /// Zeile nicht nur Whitespace steht. Genau eine Meldung je Direktive; die Token bleiben lose (Wurzel).
     /// </summary>
     void ReportDirectiveDiagnostics(int hashIndex, int end) {
-        var extent = DirectiveExtent(hashIndex, end);
+        var location = DirectiveLocation(hashIndex, end);
 
         if (!_sourceText.SliceFromLineStartToPosition(_raw[hashIndex].Start).IsWhiteSpace()) {
-            _diagnostics.Add(new Diagnostic(LexicalLocation(extent),
+            _diagnostics.Add(new Diagnostic(location,
                                             DiagnosticDescriptors.Syntax.Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition));
         }
 
-        _diagnostics.Add(new Diagnostic(LexicalLocation(extent),
+        _diagnostics.Add(new Diagnostic(location,
                                         DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
     }
 

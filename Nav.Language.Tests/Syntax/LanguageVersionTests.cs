@@ -164,6 +164,12 @@ public class LanguageVersionTests {
         var start = source.IndexOf("#pragma", System.StringComparison.Ordinal);
         Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
         Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 2".Length));
+
+        // Auch die Zeilen-Range muss die volle Breite tragen (nicht nullbreit) — sonst zieht VS Code die
+        // Squiggle nur über ein Zeichen, obwohl der Extent stimmt.
+        Assert.That(diagnostic.Location.StartLine, Is.EqualTo(diagnostic.Location.EndLine));
+        Assert.That(diagnostic.Location.EndCharacter - diagnostic.Location.StartCharacter,
+                    Is.EqualTo("#pragma version 2".Length));
     }
 
     [Test]
@@ -178,6 +184,8 @@ public class LanguageVersionTests {
 
         Assert.That(diagnostic.Location.Start,  Is.EqualTo(start));
         Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 1".Length));
+        Assert.That(diagnostic.Location.EndCharacter - diagnostic.Location.StartCharacter,
+                    Is.EqualTo("#pragma version 1".Length));
     }
 
     [Test]
