@@ -23,10 +23,7 @@ readonly record struct RawToken(SyntaxTokenType Type, TextExtent Extent) {
     public int Length => Extent.Length;
     public int End    => Extent.End;
 
-    public bool IsTrivia => Type is SyntaxTokenType.Whitespace
-        or SyntaxTokenType.NewLine
-        or SyntaxTokenType.SingleLineComment
-        or SyntaxTokenType.MultiLineComment;
+    public bool IsTrivia => SyntaxFacts.IsLexicalTrivia(Type);
 
 }
 

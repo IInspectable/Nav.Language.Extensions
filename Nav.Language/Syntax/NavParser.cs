@@ -89,12 +89,30 @@ sealed class NavParser {
     // lokalen Token) — erzeugt in BuildTrivia, nach dem Baum-Aufbau finalisiert (wie die Direktiven).
     readonly List<SkippedTokensTriviaSyntax> _skippedTokensRuns = new();
 
+    // Wiederverwendete Recovery-Prädikate: Methodengruppen- und Lambda-Konvertierungen allozieren bei
+    // jedem Aufruf ein neues Func<bool> — auch auf dem Happy Path (EatCloseBracket je [ … ]-Deklaration,
+    // die Body-Resynchronisation je task/taskref). Einmal im Konstruktor erzeugt, sind alle
+    // Recover-Aufrufe allokationsfrei.
+    readonly Func<bool> _closesBracketRegion;
+    readonly Func<bool> _atMemberOrEof;                  // task | taskref | EOF (Top-Level-Anker)
+    readonly Func<bool> _atTaskDeclarationBodyOrAnchor;  // { | Connection-Point | äußerer Anker
+    readonly Func<bool> _atConnectionPointOrAnchor;      // Connection-Point | äußerer Anker
+    readonly Func<bool> _atTaskDefinitionBodyOrAnchor;   // { | Knoten | Transition | äußerer Anker
+    readonly Func<bool> _atTransitionOrAnchor;           // Transition | äußerer Anker
+
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
         _raw         = NavLexer.Lex(sourceText.Text);
-        _tokens      = new List<SyntaxToken>(_raw.Length);
+        _tokens      = new List<SyntaxToken>(_raw.Length / 2 + 1); // Signifikante Token ≈ Hälfte des Roh-Stroms (der Rest ist Trivia).
         _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         _eofPos      = _raw[_raw.Length - 1].Start; // Das abschließende EndOfFile ist nullbreit am Textende.
+
+        _closesBracketRegion           = ClosesBracketRegion;
+        _atMemberOrEof                 = () => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof;
+        _atTaskDeclarationBodyOrAnchor = () => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody();
+        _atConnectionPointOrAnchor     = () => StartsConnectionPoint() || BreaksBody();
+        _atTaskDefinitionBodyOrAnchor  = () => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody();
+        _atTransitionOrAnchor          = () => StartsTransition() || BreaksBody();
 
         // Präprozessor-Direktiven strukturiert vorab parsen — der eigentliche Cursor sieht die „hidden"
         // Präprozessor-Token nicht. Ergebnis: je #-Lauf ein Direktiv-Knoten samt lokalen Token; die Läufe
@@ -163,7 +181,7 @@ sealed class NavParser {
 
         var syntaxTree = new SyntaxTree(sourceText : sourceText,
                                         root       : root,
-                                        tokens     : new SyntaxTokenList(parser._tokens),
+                                        tokens     : parser.TakeSortedTokens(),
                                         diagnostics: parser._diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
@@ -174,50 +192,50 @@ sealed class NavParser {
 
     SyntaxNode ParseRuleRoot(Rule rule) {
         switch (rule) {
-            case Rule.DoClause:                     return ParseDoClause();
-            case Rule.GoToEdge:                     return ParseGoToEdge();
-            case Rule.ArrayType:                    return ParseCodeType();
-            case Rule.ModalEdge:                    return ParseModalEdge();
-            case Rule.Parameter:                    return ParseParameter();
-            case Rule.Identifier:                   return ParseIdentifier();
-            case Rule.SimpleType:                   return ParseSimpleType();
-            case Rule.GenericType:                  return ParseGenericType();
-            case Rule.NonModalEdge:                 return ParseNonModalEdge();
-            case Rule.EndTargetNode:                return ParseEndTargetNode();
-            case Rule.ParameterList:                return ParseParameterList();
-            case Rule.SignalTrigger:                return ParseSignalTrigger();
-            case Rule.StringLiteral:                return ParseStringLiteral();
-            case Rule.InitSourceNode:               return ParseInitSourceNode();
-            case Rule.TaskDefinition:               return ParseTaskDefinition();
-            case Rule.CodeDeclaration:              return ParseCodeDeclaration();
-            case Rule.TaskDeclaration:              return ParseTaskDeclaration();
-            case Rule.IncludeDirective:             return ParseIncludeDirective();
-            case Rule.IfConditionClause:            return ParseIfConditionClause();
-            case Rule.ArrayRankSpecifier:           return ParseArrayRankSpecifier();
-            case Rule.EndNodeDeclaration:           return ParseEndNodeDeclaration();
-            case Rule.SpontaneousTrigger:           return ParseSpontaneousTrigger();
-            case Rule.CodeBaseDeclaration:          return ParseCodeBaseDeclaration();
-            case Rule.ElseConditionClause:          return ParseElseConditionClause();
-            case Rule.ExitNodeDeclaration:          return ParseExitNodeDeclaration();
-            case Rule.InitNodeDeclaration:          return ParseInitNodeDeclaration();
-            case Rule.TaskNodeDeclaration:          return ParseTaskNodeDeclaration();
-            case Rule.ViewNodeDeclaration:          return ParseViewNodeDeclaration();
-            case Rule.CodeUsingDeclaration:         return ParseCodeUsingDeclaration();
-            case Rule.IdentifierSourceNode:         return ParseIdentifierSourceNode();
-            case Rule.IdentifierTargetNode:         return ParseIdentifierTargetNode();
-            case Rule.NodeDeclarationBlock:         return ParseNodeDeclarationBlock();
-            case Rule.TransitionDefinition:         return ParseTransitionDefinition();
-            case Rule.ChoiceNodeDeclaration:        return ParseChoiceNodeDeclaration();
-            case Rule.CodeParamsDeclaration:        return ParseCodeParamsDeclaration();
-            case Rule.CodeResultDeclaration:        return ParseCodeResultDeclaration();
-            case Rule.ElseIfConditionClause:        return ParseElseIfConditionClause();
-            case Rule.DialogNodeDeclaration:        return ParseDialogNodeDeclaration();
-            case Rule.CodeNamespaceDeclaration:     return ParseCodeNamespaceDeclaration();
-            case Rule.ExitTransitionDefinition:     return ParseExitTransitionDefinition();
-            case Rule.CodeGenerateToDeclaration:    return ParseCodeGenerateToDeclaration();
-            case Rule.TransitionDefinitionBlock:    return ParseTransitionDefinitionBlock();
-            case Rule.CodeDoNotInjectDeclaration:   return ParseCodeDoNotInjectDeclaration();
-            case Rule.CodeAbstractMethodDeclaration:  return ParseCodeAbstractMethodDeclaration();
+            case Rule.DoClause:                      return ParseDoClause();
+            case Rule.GoToEdge:                      return ParseGoToEdge();
+            case Rule.ArrayType:                     return ParseCodeType();
+            case Rule.ModalEdge:                     return ParseModalEdge();
+            case Rule.Parameter:                     return ParseParameter();
+            case Rule.Identifier:                    return ParseIdentifier();
+            case Rule.SimpleType:                    return ParseSimpleType();
+            case Rule.GenericType:                   return ParseGenericType();
+            case Rule.NonModalEdge:                  return ParseNonModalEdge();
+            case Rule.EndTargetNode:                 return ParseEndTargetNode();
+            case Rule.ParameterList:                 return ParseParameterList();
+            case Rule.SignalTrigger:                 return ParseSignalTrigger();
+            case Rule.StringLiteral:                 return ParseStringLiteral();
+            case Rule.InitSourceNode:                return ParseInitSourceNode();
+            case Rule.TaskDefinition:                return ParseTaskDefinition();
+            case Rule.CodeDeclaration:               return ParseCodeDeclaration();
+            case Rule.TaskDeclaration:               return ParseTaskDeclaration();
+            case Rule.IncludeDirective:              return ParseIncludeDirective();
+            case Rule.IfConditionClause:             return ParseIfConditionClause();
+            case Rule.ArrayRankSpecifier:            return ParseArrayRankSpecifier();
+            case Rule.EndNodeDeclaration:            return ParseEndNodeDeclaration();
+            case Rule.SpontaneousTrigger:            return ParseSpontaneousTrigger();
+            case Rule.CodeBaseDeclaration:           return ParseCodeBaseDeclaration();
+            case Rule.ElseConditionClause:           return ParseElseConditionClause();
+            case Rule.ExitNodeDeclaration:           return ParseExitNodeDeclaration();
+            case Rule.InitNodeDeclaration:           return ParseInitNodeDeclaration();
+            case Rule.TaskNodeDeclaration:           return ParseTaskNodeDeclaration();
+            case Rule.ViewNodeDeclaration:           return ParseViewNodeDeclaration();
+            case Rule.CodeUsingDeclaration:          return ParseCodeUsingDeclaration();
+            case Rule.IdentifierSourceNode:          return ParseIdentifierSourceNode();
+            case Rule.IdentifierTargetNode:          return ParseIdentifierTargetNode();
+            case Rule.NodeDeclarationBlock:          return ParseNodeDeclarationBlock();
+            case Rule.TransitionDefinition:          return ParseTransitionDefinition();
+            case Rule.ChoiceNodeDeclaration:         return ParseChoiceNodeDeclaration();
+            case Rule.CodeParamsDeclaration:         return ParseCodeParamsDeclaration();
+            case Rule.CodeResultDeclaration:         return ParseCodeResultDeclaration();
+            case Rule.ElseIfConditionClause:         return ParseElseIfConditionClause();
+            case Rule.DialogNodeDeclaration:         return ParseDialogNodeDeclaration();
+            case Rule.CodeNamespaceDeclaration:      return ParseCodeNamespaceDeclaration();
+            case Rule.ExitTransitionDefinition:      return ParseExitTransitionDefinition();
+            case Rule.CodeGenerateToDeclaration:     return ParseCodeGenerateToDeclaration();
+            case Rule.TransitionDefinitionBlock:     return ParseTransitionDefinitionBlock();
+            case Rule.CodeDoNotInjectDeclaration:    return ParseCodeDoNotInjectDeclaration();
+            case Rule.CodeAbstractMethodDeclaration: return ParseCodeAbstractMethodDeclaration();
             case Rule.CodeNotImplementedDeclaration: return ParseCodeNotImplementedDeclaration();
             default: throw new ArgumentOutOfRangeException(nameof(rule), rule, null);
         }
@@ -273,7 +291,7 @@ sealed class NavParser {
 
             // Auf Top-Level gibt es keinen äußeren Anker: alles, was kein Member beginnt, wird bis zum
             // nächsten Member oder zum Dateiende übersprungen.
-            Recover(() => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof);
+            Recover(_atMemberOrEof);
         }
 
         // Die Direktiven sind strukturierte Trivia und damit keine Kindknoten der Wurzel mehr; der
@@ -295,7 +313,7 @@ sealed class NavParser {
 
         var syntaxTree = new SyntaxTree(sourceText : _sourceText,
                                         root       : root,
-                                        tokens     : new SyntaxTokenList(_tokens),
+                                        tokens     : TakeSortedTokens(),
                                         diagnostics: _diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
@@ -489,7 +507,7 @@ sealed class NavParser {
 
         SkipMalformedBrackets(CodeBlockHost.TaskRef);
 
-        Recover(() => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody());
+        Recover(_atTaskDeclarationBodyOrAnchor);
         var open = Eat(SyntaxTokenType.OpenBrace);
 
         var connectionPoints = new List<ConnectionPointNodeSyntax>();
@@ -503,7 +521,7 @@ sealed class NavParser {
                 break;
             }
 
-            Recover(() => StartsConnectionPoint() || BreaksBody());
+            Recover(_atConnectionPointOrAnchor);
         }
 
         var close = Eat(SyntaxTokenType.CloseBrace);
@@ -532,9 +550,11 @@ sealed class NavParser {
     /// Disambiguierung per Start-Schlüsselwort (<c>init</c>/<c>exit</c>/<c>end</c>).
     /// </remarks>
     ConnectionPointNodeSyntax ParseConnectionPointNodeDeclaration() {
-        return At(SyntaxTokenType.InitKeyword) ? ParseInitNodeDeclaration()
-             : At(SyntaxTokenType.ExitKeyword) ? ParseExitNodeDeclaration()
-             :                                   ParseEndNodeDeclaration();
+        switch (At0) {
+            case SyntaxTokenType.InitKeyword: return ParseInitNodeDeclaration();
+            case SyntaxTokenType.ExitKeyword: return ParseExitNodeDeclaration();
+            default:                          return ParseEndNodeDeclaration();
+        }
     }
 
     #endregion
@@ -569,7 +589,7 @@ sealed class NavParser {
 
         SkipMalformedBrackets(CodeBlockHost.TaskDefinition);
 
-        Recover(() => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody());
+        Recover(_atTaskDefinitionBodyOrAnchor);
         var open = Eat(SyntaxTokenType.OpenBrace);
 
         var nodeBlock       = ParseNodeDeclarationBlock();
@@ -876,7 +896,7 @@ sealed class NavParser {
                 break;
             }
 
-            Recover(() => StartsTransition() || BreaksBody());
+            Recover(_atTransitionOrAnchor);
         }
 
         return new TransitionDefinitionBlockSyntax(span.ToExtent(), transitions, exitTransitions);
@@ -1174,13 +1194,16 @@ sealed class NavParser {
     /// </remarks>
     SpontaneousTriggerSyntax ParseSpontaneousTrigger() {
 
-        var spont       = At(SyntaxTokenType.SpontKeyword)       ? Eat(SyntaxTokenType.SpontKeyword)       : null;
-        var spontaneous = At(SyntaxTokenType.SpontaneousKeyword) ? Eat(SyntaxTokenType.SpontaneousKeyword) : null;
+        // "spontaneous" | "spont" ist eine Alternative: genau ein Keyword pro Trigger. Ein etwaiges
+        // zweites Keyword (z.B. `spont spontaneous`) gehört nicht mehr zum Trigger und läuft in die
+        // normale Recovery des Aufrufers.
+        var keyword = At(SyntaxTokenType.SpontKeyword)
+            ? Eat(SyntaxTokenType.SpontKeyword)
+            : Eat(SyntaxTokenType.SpontaneousKeyword);
 
-        var node = new SpontaneousTriggerSyntax(Span(spont, spontaneous));
+        var node = new SpontaneousTriggerSyntax(Span(keyword));
 
-        Tok(node, spont,       TextClassification.Keyword);
-        Tok(node, spontaneous, TextClassification.Keyword);
+        Tok(node, keyword, TextClassification.Keyword);
 
         return node;
     }
@@ -1208,7 +1231,11 @@ sealed class NavParser {
             return ParseIfConditionClause();
         }
 
-        return PeekType(1) == SyntaxTokenType.IfKeyword ? ParseElseIfConditionClause() : ParseElseConditionClause();
+        if (PeekType(1) == SyntaxTokenType.IfKeyword) {
+            return ParseElseIfConditionClause();
+        }
+
+        return ParseElseConditionClause();
     }
 
     /// <summary>Grammatikregel <c>ifConditionClause</c> → <see cref="IfConditionClauseSyntax"/>.</summary>
@@ -1364,12 +1391,7 @@ sealed class NavParser {
         var close = EatCloseBracket();
 
         var span = new ExtentBuilder();
-        span.Add(open); span.Add(keyword);
-        foreach (var literal in literals) {
-            span.Add(literal);
-        }
-
-        span.Add(close);
+        span.Add(open); span.Add(keyword); span.AddRange(literals); span.Add(close);
 
         var node = new CodeDeclarationSyntax(span.ToExtent());
 
@@ -1609,10 +1631,7 @@ sealed class NavParser {
         }
 
         var span = new ExtentBuilder();
-        span.AddRange(parameters);
-        foreach (var comma in commas) {
-            span.Add(comma);
-        }
+        span.AddRange(parameters); span.AddRange(commas);
 
         var node = new ParameterListSyntax(span.ToExtent(), parameters);
 
@@ -1723,12 +1742,7 @@ sealed class NavParser {
         var greaterThan = Eat(SyntaxTokenType.GreaterThan);
 
         var span = new ExtentBuilder();
-        span.Add(identifier); span.Add(lessThan); span.AddRange(arguments);
-        foreach (var comma in commas) {
-            span.Add(comma);
-        }
-
-        span.Add(greaterThan);
+        span.Add(identifier); span.Add(lessThan); span.AddRange(arguments); span.AddRange(commas); span.Add(greaterThan);
 
         var node = new GenericTypeSyntax(span.ToExtent(), arguments);
 
@@ -1910,7 +1924,7 @@ sealed class NavParser {
     /// synthetisiert und die Folgetoken downstream als Kaskade auflaufen.
     /// </summary>
     RawToken? EatCloseBracket() {
-        Recover(ClosesBracketRegion);
+        Recover(_closesBracketRegion);
         return Eat(SyntaxTokenType.CloseBracket);
     }
 
@@ -2122,6 +2136,18 @@ sealed class NavParser {
     }
 
     /// <summary>
+    /// Übergibt die konsumierten Token als flachen, nach Position sortierten Strom an den
+    /// <see cref="SyntaxTree"/>: die Liste wird in-place sortiert und direkt angehängt — ohne die Kopie,
+    /// die der öffentliche <see cref="SyntaxTokenList"/>-Konstruktor anlegen würde (der Parser fasst die
+    /// Liste danach nicht mehr an). Sortieren ist nötig, weil <see cref="Tok"/> in Knoten-Konstruktions-
+    /// Reihenfolge anhängt (Eltern-Token nach den Token ihrer Kindknoten), nicht in Strom-Reihenfolge.
+    /// </summary>
+    SyntaxTokenList TakeSortedTokens() {
+        _tokens.Sort(SyntaxTokenComparer.Default);
+        return SyntaxTokenList.AttachSortedTokens(_tokens);
+    }
+
+    /// <summary>
     /// Meldet die nur vom Lexer ableitbare Diagnose für ein loses, nicht-signifikantes Token: ein
     /// <see cref="SyntaxTokenType.Unknown"/> als unerwartetes Zeichen (<c>Nav0000</c>). Die
     /// Präprozessor-Diagnose (<c>Nav3000</c>) entsteht dagegen strukturiert im
@@ -2154,11 +2180,10 @@ sealed class NavParser {
         }
 
         // Zunächst ohne Trivia — die endgültige Trivia steht erst nach dem Parsen fest (welche Token
-        // übersprungen wurden) und wird in FinalizeTrivia per Finalisierungs-Pass gesetzt.
-        var token = SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent);
-        if (!token.IsMissing) {
-            _tokens.Add(token);
-        }
+        // übersprungen wurden) und wird in FinalizeTrivia per Finalisierungs-Pass gesetzt. Missing-Token
+        // erreichen diese Stelle nie: Eat liefert für sie null (oben abgefangen), Raw-Token des Lexers
+        // haben stets einen echten Extent.
+        _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent));
     }
 
     /// <summary>
@@ -2173,6 +2198,9 @@ sealed class NavParser {
 
         return (SyntaxTriviaList.Empty, SyntaxTriviaList.Empty);
     }
+
+    /// <summary>Geteilte leere Direktiv-Map für Dateien ohne Präprozessor-Direktiven (der Regelfall).</summary>
+    static readonly Dictionary<int, DirectiveRun> EmptyDirectiveRuns = new();
 
     /// <summary>Leading-/Trailing-Bereich eines Tokens als Start/Länge in das geteilte <see cref="_allTrivia"/>.</summary>
     readonly struct TriviaRange {
@@ -2216,9 +2244,13 @@ sealed class NavParser {
 
         // Direktiv-Läufe nach dem Roh-Index ihres '#' — so lässt sich beim Erreichen eines Laufs die ganze
         // Direktivzeile in ein Trivia-Stück falten und die Präprozessor-Token des Laufs überspringen.
-        var runByStart = new Dictionary<int, DirectiveRun>();
-        foreach (var run in _directiveRuns) {
-            runByStart[run.RawStart] = run;
+        // Ohne Direktiven (der Regelfall) genügt die geteilte leere Map.
+        var runByStart = EmptyDirectiveRuns;
+        if (_directiveRuns.Count > 0) {
+            runByStart = new Dictionary<int, DirectiveRun>(_directiveRuns.Count);
+            foreach (var run in _directiveRuns) {
+                runByStart[run.RawStart] = run;
+            }
         }
 
         // Alle Trivia der Datei in genau einem Array (Strom-Reihenfolge). Leading/Trailing eines Tokens sind
@@ -2387,24 +2419,17 @@ sealed class NavParser {
         return type is SyntaxTokenType.GoToEdgeKeyword or SyntaxTokenType.ModalEdgeKeyword or SyntaxTokenType.NonModalEdgeKeyword;
     }
 
+    /// <summary>
+    /// Ob der Token-Typ für den Parser-Cursor unsichtbar ist: lexikalische Trivia (Autorität
+    /// <see cref="SyntaxFacts.IsLexicalTrivia"/>), unbekannte Zeichen (werden nie konsumiert, sondern
+    /// als Skip-Trivia gefaltet) und Präprozessor-Token (Autorität <see cref="IsPreprocessorToken"/> —
+    /// strukturiert im Direktiven-Vorlauf verarbeitet). Bewusst eine Komposition der drei Teilmengen
+    /// statt einer eigenen Aufzählung, damit jede Menge genau eine Pflege-Stelle hat.
+    /// </summary>
     static bool IsHidden(SyntaxTokenType type) {
-        switch (type) {
-            case SyntaxTokenType.Whitespace:
-            case SyntaxTokenType.NewLine:
-            case SyntaxTokenType.SingleLineComment:
-            case SyntaxTokenType.MultiLineComment:
-            case SyntaxTokenType.Unknown:
-            case SyntaxTokenType.HashToken:
-            case SyntaxTokenType.PreprocessorKeyword:
-            case SyntaxTokenType.PreprocessorText:
-            case SyntaxTokenType.PreprocessorNewLine:
-            case SyntaxTokenType.PreprocessorNumber:
-            case SyntaxTokenType.PragmaKeyword:
-            case SyntaxTokenType.VersionKeyword:
-                return true;
-            default:
-                return false;
-        }
+        return SyntaxFacts.IsLexicalTrivia(type) ||
+               type == SyntaxTokenType.Unknown   ||
+               IsPreprocessorToken(type);
     }
 
     /// <summary>
@@ -2426,7 +2451,59 @@ sealed class NavParser {
 
     #region Extent-Hilfen
 
-    TextExtent Span(params ExtentPart[] parts) {
+    /// <summary>
+    /// Umschließender <see cref="TextExtent"/> über die konsumierten Token und Kindknoten eines Knotens.
+    /// Die Fixed-Arity-Überladungen decken die vorkommenden Stelligkeiten ab und vermeiden das
+    /// <see cref="ExtentPart"/>-Array, das die <c>params</c>-Fassung sonst bei jedem Knoten-Aufbau
+    /// allozieren würde (ein Array pro Knoten auf dem Happy Path); die <c>params</c>-Fassung bleibt als
+    /// Fallback für künftige höhere Stelligkeiten.
+    /// </summary>
+    static TextExtent Span(ExtentPart p1) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+        builder.Add(p5.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5, ExtentPart p6) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+        builder.Add(p5.Extent); builder.Add(p6.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5, ExtentPart p6, ExtentPart p7) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+        builder.Add(p5.Extent); builder.Add(p6.Extent); builder.Add(p7.Extent);
+        return builder.ToExtent();
+    }
+
+    static TextExtent Span(params ExtentPart[] parts) {
         var builder = new ExtentBuilder();
         foreach (var part in parts) {
             builder.Add(part.Extent);
@@ -2483,6 +2560,12 @@ sealed class NavParser {
         public void AddRange<T>(IEnumerable<T> nodes) where T : SyntaxNode {
             foreach (var node in nodes) {
                 Add(node);
+            }
+        }
+
+        public void AddRange(IEnumerable<RawToken> tokens) {
+            foreach (var token in tokens) {
+                Add(token.Extent);
             }
         }
 
