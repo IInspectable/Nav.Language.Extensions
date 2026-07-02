@@ -42,11 +42,6 @@ class EdgeCompletionSource: AsyncCompletionSource {
 
     }
 
-    protected override bool ShouldTriggerCompletionOverride(CompletionTrigger trigger) {
-        return char.IsLetter(trigger.Character) ||
-               trigger.Character == '-';
-    }
-
     public override async Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token) {
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();

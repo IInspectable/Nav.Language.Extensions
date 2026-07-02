@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
@@ -82,10 +82,10 @@ class NavLanguageServer {
                     ResolveProvider = true
                 },
                 CompletionProvider        = new Protocol.CompletionOptions {
-                    // Buchstaben lösen im Client automatisch aus; ':' für Exit-Connection-Points,
-                    // '-' für den Beginn einer Edge (-->), '"' sowie die Pfadtrenner für die
-                    // Pfad-Vervollständigung in taskref (Pfadtrenner aktualisieren Liste + Replace-Range).
-                    TriggerCharacters = new[] { ":", "-", "\"", "/", "\\" },
+                    // Buchstaben lösen im Client automatisch aus; die Sonderzeichen stammen aus der einen
+                    // Autorität NavCompletionService.TriggerCharacters ('#' Direktiven, ':' Exit-Connection-
+                    // Points, '-' Edge-Beginn, '[' Code-Block, '"' + Pfadtrenner für taskref-Pfade).
+                    TriggerCharacters = NavCompletionService.TriggerCharacters.Select(c => c.ToString()).ToArray(),
                     ResolveProvider   = false
                 }
             }

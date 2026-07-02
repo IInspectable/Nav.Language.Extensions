@@ -36,11 +36,6 @@ class CodeCompletionSource: AsyncCompletionSource {
 
     }
 
-    protected override bool ShouldTriggerCompletionOverride(CompletionTrigger trigger) {
-        return char.IsLetter(trigger.Character) ||
-               trigger.Character == SyntaxFacts.OpenBracket;
-    }
-
     public override Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token) {
 
         if (ShouldProvideCompletions(triggerLocation, out _)) {

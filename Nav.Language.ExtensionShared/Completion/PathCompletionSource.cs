@@ -40,14 +40,6 @@ class PathCompletionSource: AsyncCompletionSource {
 
     }
 
-    protected override bool ShouldTriggerCompletionOverride(CompletionTrigger trigger) {
-        return char.IsLetter(trigger.Character)                 ||
-               trigger.Character == '"'                         ||
-               trigger.Character == Path.DirectorySeparatorChar ||
-               trigger.Character == Path.AltDirectorySeparatorChar
-            ;
-    }
-
     private const string ParentFolderDisplayString = "..";
 
     public override async Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token) {

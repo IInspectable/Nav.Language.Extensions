@@ -46,7 +46,15 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         return ShouldTriggerCompletionOverride(trigger);
     }
 
-    protected abstract bool ShouldTriggerCompletionOverride(CompletionTrigger trigger);
+    /// <summary>
+    /// Ob das getippte Zeichen die Completion auslösen soll. Bezieht die Sonderzeichen aus der einen
+    /// Autorität <see cref="NavCompletionService.TriggerCharacters"/> (Buchstaben lösen ohnehin aus);
+    /// welche Vorschläge dann tatsächlich kommen, entscheidet je Quelle <c>ShouldProvideCompletions</c>.
+    /// </summary>
+    protected virtual bool ShouldTriggerCompletionOverride(CompletionTrigger trigger) {
+        return char.IsLetter(trigger.Character) ||
+               NavCompletionService.IsTriggerCharacter(trigger.Character);
+    }
 
 
     public abstract CompletionStartData InitializeCompletion(CompletionTrigger trigger, SnapshotPoint triggerLocation, CancellationToken token);

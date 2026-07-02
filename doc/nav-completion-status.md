@@ -113,11 +113,17 @@ Fortschritt über die Checkboxen führen.
 
 ### Workstream B — Trigger- & Commit-Chars in einer Autorität
 
-- [ ] **B1 — Kanonische Trigger-Char-Menge im Engine-Kern** (z.B. `NavCompletionService.
-  TriggerCharacters` oder in `SyntaxFacts`): Vereinigung der heutigen Zeichen plus **`#`** (Direktiven)
-  und `[` (Code-Block-Keywords). Beide Hosts konsumieren dieselbe Menge — LSP speist
-  `CompletionOptions.TriggerCharacters` daraus, VS leitet `ShouldTriggerCompletionOverride` daraus ab
-  statt je Quelle eigene Listen.
+- [x] **B1 — Kanonische Trigger-Char-Menge im Engine-Kern.** `NavCompletionService.TriggerCharacters`
+  (`IReadOnlyList<char>`) + `IsTriggerCharacter(char)` sind jetzt die eine Autorität: Vereinigung der
+  bisherigen Zeichen (`:`, `-`, `[`, `"`, `/`, `\`) **plus `#`** (Direktiven). `#` bezieht die Menge aus
+  der neuen SSOT `SyntaxFacts.Hash` (auch der Lexer nutzt sie jetzt). Buchstaben sind bewusst nicht Teil
+  der Menge (lösen client-/`char.IsLetter`-seitig ohnehin aus). Beide Hosts konsumieren sie: der
+  LSP-Server speist `CompletionOptions.TriggerCharacters` daraus (gewinnt `#` und `[`); die vier
+  VS-Quellen haben ihre eigenen `ShouldTriggerCompletionOverride` verloren — die **eine** Implementierung
+  in der Basis `AsyncCompletionSource` leitet aus `IsTriggerCharacter` ab (die echte Spezialisierung je
+  Quelle bleibt `ShouldProvideCompletions`). Damit löst insbesondere `#` jetzt auch in VS die
+  Direktiv-Completion aus. Tests: `TriggerCharacters_ContainAllContextDelimiters`,
+  `IsTriggerCharacter_MatchesTriggerCharacters` (net10 1161/0, net472 1169/0).
 - [ ] **B2 — Commit-Chars.** Den `// TODO … Sinnhaftigkeit prüfen` in `CompletionCommitManager.cs`
   auflösen: Commit-Char-Menge bewusst festlegen und aus derselben Autorität beziehen (VS + LSP
   konsistent).

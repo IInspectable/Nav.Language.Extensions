@@ -321,6 +321,29 @@ public class NavCompletionServiceTests {
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
 
+    #region Trigger-Chars (kanonische Autorität)
+
+    [Test]
+    public void TriggerCharacters_ContainAllContextDelimiters() {
+        // Die eine Autorität deckt alle Situationen ab, in denen ein Sonderzeichen die Completion eröffnet:
+        // '#' Direktiven, ':' Exit-Connection-Points, '-' Edge-Beginn, '[' Code-Block, '"' + Pfadtrenner.
+        Assert.That(NavCompletionService.TriggerCharacters,
+                    Is.EquivalentTo(new[] { '#', ':', '-', '[', '"', '/', '\\' }));
+    }
+
+    [Test]
+    public void IsTriggerCharacter_MatchesTriggerCharacters() {
+        foreach (var c in NavCompletionService.TriggerCharacters) {
+            Assert.That(NavCompletionService.IsTriggerCharacter(c), Is.True, $"'{c}' sollte auslösen.");
+        }
+
+        // Bezeichner-Zeichen lösen NICHT über diese Menge aus (Buchstaben laufen getrennt über char.IsLetter).
+        Assert.That(NavCompletionService.IsTriggerCharacter('a'), Is.False);
+        Assert.That(NavCompletionService.IsTriggerCharacter(' '), Is.False);
+    }
+
+    #endregion
+
     #region Helpers
 
     static string[] Labels(System.Collections.Generic.IReadOnlyList<NavCompletionItem> items) {

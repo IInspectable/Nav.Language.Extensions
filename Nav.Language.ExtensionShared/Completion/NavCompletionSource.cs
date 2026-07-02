@@ -43,11 +43,6 @@ class NavCompletionSource: AsyncCompletionSource {
         return CompletionStartData.DoesNotParticipateInCompletion;
     }
 
-    protected override bool ShouldTriggerCompletionOverride(CompletionTrigger trigger) {
-        return char.IsLetter(trigger.Character) ||
-               trigger.Character == SyntaxFacts.Colon;
-    }
-
     public override async Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token) {
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();

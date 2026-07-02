@@ -47,6 +47,10 @@ public static class SyntaxFacts {
     public static readonly string VersionDirectiveKeyword = "version";
     public static readonly string PragmaDirectiveKeyword  = "pragma";
 
+    // Das Direktiven-Einleitungszeichen (Präprozessor, `#…`). Einzige Autorität — der Lexer und die
+    // Completion (Trigger-Char) beziehen es von hier.
+    public static readonly char Hash = '#';
+
     public static readonly ImmutableHashSet<string> NavKeywords = new[] {
         TaskKeyword,
         TaskrefKeyword,

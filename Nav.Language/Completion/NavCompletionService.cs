@@ -28,6 +28,36 @@ namespace Pharmatechnik.Nav.Language.Completion;
 public static class NavCompletionService {
 
     /// <summary>
+    /// Die kanonische Menge der Auslöser-Zeichen (Trigger-Chars) der Completion — die Vereinigung aller
+    /// Situationen, in denen ein einzelnes Sonderzeichen (also KEIN Bezeichner-Zeichen) automatisch eine
+    /// Vervollständigung eröffnen soll. Einzige Autorität für beide Hosts: der LSP-Server speist damit
+    /// <c>CompletionOptions.TriggerCharacters</c>, die VS-Quellen leiten daraus ihr Auslöse-Verhalten ab.
+    /// Buchstaben lösen zusätzlich immer aus (Client- bzw. <c>char.IsLetter</c>-seitig) und sind hier daher
+    /// bewusst NICHT enthalten.
+    /// </summary>
+    public static readonly IReadOnlyList<char> TriggerCharacters = new[] {
+        SyntaxFacts.Hash,          // '#'  — Direktiven (#version)
+        SyntaxFacts.Colon,         // ':'  — Exit-Connection-Points hinter `knoten:`
+        '-',                       // '-'  — Beginn einer Edge (-->)
+        SyntaxFacts.OpenBracket,   // '['  — Code-Block-Keywords (do [ … ])
+        '"',                       // '"'  — Beginn einer Zeichenkette (Pfad in taskref "…")
+        '/',                       // '/'  — Pfadtrenner (Liste aktualisieren + Replace-Range)
+        '\\'                       // '\\' — Pfadtrenner (Windows)
+    };
+
+    /// <summary>Ob <paramref name="c"/> ein kanonisches Auslöser-Zeichen der Completion ist (siehe <see cref="TriggerCharacters"/>).</summary>
+    public static bool IsTriggerCharacter(char c) {
+        // Kleine, feste Menge — lineare Suche ist billiger als ein Set-Aufbau.
+        for (var i = 0; i < TriggerCharacters.Count; i++) {
+            if (TriggerCharacters[i] == c) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Liefert die Vervollständigungs-Vorschläge zur angegebenen Zeichen-Position (0-basierter Offset)
     /// in der Reihenfolge, in der sie dem Nutzer angeboten werden sollen — oder eine leere Liste, wenn
     /// an der Position nichts vorgeschlagen werden soll.

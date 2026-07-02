@@ -131,7 +131,7 @@ sealed class NavLexer {
         // '#' beginnt eine Präprozessor-Direktive nur, wenn es das erste Nicht-Whitespace-Zeichen seiner
         // Zeile ist (wie in C#). Sonst ist es ein gewöhnliches unbekanntes Zeichen — der Zeilenrest lext
         // normal weiter.
-        if (c == '#' && AtLineStart()) {
+        if (c == SyntaxFacts.Hash && AtLineStart()) {
             ScanPreprocessor();
             return;
         }
