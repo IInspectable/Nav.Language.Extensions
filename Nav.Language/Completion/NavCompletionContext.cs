@@ -20,6 +20,18 @@ enum NavCompletionContextKind {
     /// <summary>Keine Vorschläge (Kommentar, Zeichenkette, Code-Block oder außerhalb des Texts).</summary>
     Suppress,
 
+    /// <summary>
+    /// Direkt hinter dem <c>#</c> einer Präprozessor-Direktive (Schlüsselwort-Slot): das
+    /// Direktiv-Schlüsselwort — derzeit ausschließlich <c>version</c>.
+    /// </summary>
+    DirectiveKeyword,
+
+    /// <summary>
+    /// Hinter <c>#version </c> im Werte-Slot: die gültigen Sprach-Versionsnummern
+    /// (<see cref="NavLanguageVersion.SupportedVersions"/>).
+    /// </summary>
+    DirectiveVersionValue,
+
     /// <summary>Member-Ebene (außerhalb einer Task-Definition): nur <c>task</c> / <c>taskref</c>.</summary>
     MemberLevel,
 
@@ -92,6 +104,12 @@ sealed class NavCompletionContext {
         // Kommentare über die angehängte Trivia (Roslyn-Modell), nicht über einen Text-Scan.
         if (tree.IsPositionInComment(position)) {
             return Of(NavCompletionContextKind.Suppress);
+        }
+
+        // Präprozessor-Direktiven (`#…`) liegen als strukturierte Trivia NEBEN dem flachen Token-Strom; die
+        // Token-Binärsuche unten erreicht sie nicht. Daher zuerst prüfen, ob der Cursor in einer Direktive steht.
+        if (DirectiveContext(tree, position) is { } directiveKind) {
+            return Of(directiveKind);
         }
 
         var line         = source.GetTextLineAtPosition(position);
@@ -194,6 +212,72 @@ sealed class NavCompletionContext {
         }
 
         return unit.TaskDefinitions.FirstOrDefault(t => t.Syntax.Extent == taskSyntax.Extent);
+    }
+
+    /// <summary>
+    /// Klassifiziert eine Position innerhalb einer Präprozessor-Direktive (<c>#…</c>) — oder liefert
+    /// <c>null</c>, wenn die Position in keiner Direktive liegt (dann greift die reguläre, Token-basierte
+    /// Klassifikation). Direktiven sind strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und nicht
+    /// Teil des flachen <see cref="SyntaxTree.Tokens"/>-Stroms; ihre lokalen Token liefert
+    /// <see cref="DirectiveTriviaSyntax.ChildTokens"/>. Der Cursor sitzt entweder im Schlüsselwort-Slot direkt
+    /// hinter dem <c>#</c> (<see cref="NavCompletionContextKind.DirectiveKeyword"/>) oder — bei einer erkannten
+    /// <c>#version</c>-Direktive — im Werte-Slot dahinter (<see cref="NavCompletionContextKind.DirectiveVersionValue"/>).
+    /// </summary>
+    static NavCompletionContextKind? DirectiveContext(SyntaxTree tree, int position) {
+
+        var directive = DirectiveAt(tree, position);
+        if (directive == null) {
+            return null;
+        }
+
+        var hash = directive.HashToken;
+
+        // Vor bzw. genau am `#` beginnt die Direktive erst — noch keine Direktiv-Situation.
+        if (hash.IsMissing || position <= hash.Start) {
+            return null;
+        }
+
+        // Erkannte Versions-Direktive: bis einschließlich des Endes von `version` wird noch das Schlüsselwort
+        // getippt (das Wort ist das Filter-Präfix); erst dahinter beginnt der Werte-Slot.
+        if (directive is VersionDirectiveSyntax version && !version.VersionKeyword.IsMissing) {
+            return position <= version.VersionKeyword.End
+                       ? NavCompletionContextKind.DirectiveKeyword
+                       : NavCompletionContextKind.DirectiveVersionValue;
+        }
+
+        // Noch kein erkanntes Schlüsselwort (`#`, `#v`, `#pragma`, …): das Schlüsselwort nur anbieten, solange
+        // der Cursor im ersten Wort-Slot direkt hinter dem `#` sitzt (kein Wort, oder im/am Ende des Wortes) —
+        // weiter hinten in der Zeile gibt es nichts anzubieten.
+        var firstWord = directive.ChildTokens()
+                                 .Where(t => t.Type is SyntaxTokenType.PreprocessorKeyword
+                                                    or SyntaxTokenType.PragmaKeyword
+                                                    or SyntaxTokenType.VersionKeyword)
+                                 .DefaultIfEmpty(SyntaxToken.Missing)
+                                 .First();
+
+        if (firstWord.IsMissing || position <= firstWord.End) {
+            return NavCompletionContextKind.DirectiveKeyword;
+        }
+
+        return NavCompletionContextKind.Suppress;
+    }
+
+    /// <summary>
+    /// Die Direktive, deren Inhalts-Extent die <paramref name="position"/> abdeckt — <b>einschließlich</b> der
+    /// Endposition, damit der gerade fertig getippte Fall (<c>#version </c> mit Caret am Trivia-Ende) noch
+    /// erfasst wird. <see cref="SyntaxTree.FindTrivia"/> nutzt hingegen das Halbintervall <c>[Start, End)</c> und
+    /// liefert dort <c>default</c>. Der Extent einer Direktive endet vor ihrem Zeilenende (siehe
+    /// <see cref="NavDirectiveParser"/>), daher kollidiert die inklusive Endgrenze nicht mit der Folgezeile.
+    /// </summary>
+    [CanBeNull]
+    static DirectiveTriviaSyntax DirectiveAt(SyntaxTree tree, int position) {
+        foreach (var directive in tree.Directives()) {
+            if (position >= directive.Start && position <= directive.End) {
+                return directive;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

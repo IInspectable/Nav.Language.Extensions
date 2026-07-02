@@ -51,6 +51,12 @@ public static class NavCompletionService {
             case NavCompletionContextKind.Suppress:
                 return Array.Empty<NavCompletionItem>();
 
+            // Direktiv-Kontexte werden bereits klassifiziert (A1); die Item-Erzeugung (`version`-Keyword bzw.
+            // die gültigen Versionsnummern) folgt in A2. Bis dahin nichts anbieten statt falscher Fallback-Items.
+            case NavCompletionContextKind.DirectiveKeyword:
+            case NavCompletionContextKind.DirectiveVersionValue:
+                return Array.Empty<NavCompletionItem>();
+
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
 
