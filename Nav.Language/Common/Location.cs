@@ -11,7 +11,6 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 namespace Pharmatechnik.Nav.Language; 
 
-[Serializable]
 public class Location: IEquatable<Location> {
 
     protected Location(Location location) {

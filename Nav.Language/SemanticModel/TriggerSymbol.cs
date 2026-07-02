@@ -8,7 +8,7 @@ abstract class TriggerSymbol: Symbol, ITriggerSymbol {
         : base(name, location) {
     }
 
-    public ITriggerTransition Transition { get; set; }
+    public ITriggerTransition Transition { get; internal set; }
 
     public abstract bool IsSignalTrigger      { get; }
     public abstract bool IsSpontaneousTrigger { get; }

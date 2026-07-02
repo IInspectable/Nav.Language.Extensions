@@ -9,6 +9,6 @@ sealed partial class TaskNodeAliasSymbol: Symbol, ITaskNodeAliasSymbol {
 
     public override SyntaxTree SyntaxTree { get; }
 
-    public ITaskNodeSymbol TaskNode { get; set; }
+    public ITaskNodeSymbol TaskNode { get; internal set; }
 
 }

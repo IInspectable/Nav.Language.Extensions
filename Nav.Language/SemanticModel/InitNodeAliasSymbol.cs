@@ -9,6 +9,6 @@ sealed partial class InitNodeAliasSymbol: Symbol, IInitNodeAliasSymbol {
 
     public override SyntaxTree SyntaxTree { get; }
 
-    public IInitNodeSymbol InitNode { get; set; }
+    public IInitNodeSymbol InitNode { get; internal set; }
 
 }

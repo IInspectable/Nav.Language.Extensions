@@ -53,7 +53,7 @@ sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
     IReadOnlyList<ITaskNodeSymbol> ITaskDeclarationSymbol.References => References;
 
     [CanBeNull]
-    public MemberDeclarationSyntax Syntax { get; set; }
+    public MemberDeclarationSyntax Syntax { get; }
 
     public bool                  IsIncluded { get; }
     public TaskDeclarationOrigin Origin     { get; }

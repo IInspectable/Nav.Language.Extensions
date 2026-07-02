@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,7 +13,6 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language; 
 
-[Serializable]
 public sealed class SymbolList: IReadOnlyList<ISymbol> {
 
     readonly IReadOnlyList<ISymbol> _symbols;

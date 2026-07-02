@@ -7,6 +7,12 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language; 
 
+/// <remarks>
+/// <see cref="ISymbol.Name"/> ist hier der kleingeschriebene vollständige Dateipfad und dient als
+/// case-insensitiver Dedup-Schlüssel in der nach Name gekeyten <see cref="SymbolCollection{T}"/>
+/// der Includes — er weicht damit bewusst von der Name-Semantik der übrigen Symbole ab.
+/// Die originale Schreibweise des Pfads steht in <see cref="FileName"/>.
+/// </remarks>
 sealed partial class IncludeSymbol: Symbol, IIncludeSymbol {
 
     public IncludeSymbol(string fileName,

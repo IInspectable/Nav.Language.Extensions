@@ -14,7 +14,7 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     public override SyntaxTree SyntaxTree { get; }
 
     public EdgeMode EdgeMode { get; }
-    public IEdge    Edge     { get; set; }
+    public IEdge    Edge     { get; internal set; }
 
     public string DisplayName {
         get {
