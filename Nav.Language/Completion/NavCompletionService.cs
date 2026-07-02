@@ -22,9 +22,10 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
 /// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
 /// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
-/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>do</c>; im Schlüsselwort-Slot eines Code-Blocks
+/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>else</c>/<c>do</c>; im Schlüsselwort-Slot eines Code-Blocks
 /// (direkt hinter <c>[</c>) die Code-Block-Keywords. Keine Vorschläge in Kommentaren, Zeichenketten
-/// (<c>"…"</c>) oder im C#-Inhalt eines Code-Blocks; innerhalb von <c>taskref "…"</c> die Pfad-Vervollständigung.
+/// (<c>"…"</c>), im C#-Inhalt eines Code-Blocks oder im Wert-Slot hinter <c>do</c> (freier C#-Aufruf); innerhalb
+/// von <c>taskref "…"</c> die Pfad-Vervollständigung.
 /// </summary>
 public static class NavCompletionService {
 
@@ -141,10 +142,10 @@ public static class NavCompletionService {
                 return TransitionStartItems(context);
 
             case NavCompletionContextKind.AfterTarget:
-                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword, SyntaxFacts.DoKeyword);
+                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
 
             case NavCompletionContextKind.AfterTrigger:
-                return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.DoKeyword);
+                return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
 
             case NavCompletionContextKind.AfterCondition:
                 return KeywordItems(SyntaxFacts.DoKeyword);
@@ -157,9 +158,11 @@ public static class NavCompletionService {
     #region Kategorien
 
     // Knoten-Deklarations-Keywords (beginnen eine Knoten-Deklaration und taugen zugleich als Transitions-Quelle).
+    // `Init`/InitKeywordAlt gehört bewusst NICHT dazu — das ist der Symbol-Name des Init-Knotens, kein
+    // Lexer-Keyword (der Knoten wird über AddNodeReferences mit seinem echten Namen angeboten); als Keyword
+    // eröffnet ausschließlich das kleingeschriebene `init` eine Init-Deklaration/-Transition.
     static readonly string[] NodeDeclarationKeywords = {
         SyntaxFacts.InitKeyword,
-        SyntaxFacts.InitKeywordAlt,
         SyntaxFacts.EndKeyword,
         SyntaxFacts.ExitKeyword,
         SyntaxFacts.ChoiceKeyword,
@@ -208,11 +211,12 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Init-Schlüsselwörter — die einzigen Keywords, die im Transitions-Block eine Anweisung eröffnen können
+    // Das `init`-Schlüsselwort — das einzige Keyword, das im Transitions-Block eine Anweisung eröffnen kann
     // (`init --> …`, die Init-Transition). Alle übrigen Deklarations-Keywords gehören in den Deklarations-Block.
+    // (`Init`/InitKeywordAlt gehört bewusst NICHT dazu: das ist der Symbol-Name des Init-Knotens, kein Keyword —
+    // der Init-Knoten selbst wird über AddNodeReferences mit seinem echten Namen angeboten.)
     static readonly string[] TransitionSourceKeywords = {
-        SyntaxFacts.InitKeyword,
-        SyntaxFacts.InitKeywordAlt
+        SyntaxFacts.InitKeyword
     };
 
     // Satzanfang im Deklarations-Block: die vorhandenen Knoten, die als QUELLE einer (ersten) Transition taugen

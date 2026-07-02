@@ -205,12 +205,43 @@ public class NavCompletionServiceTests {
         Assert.That(labels, Does.Contain("i"));           // init — nur Quelle
         // Aber NICHT der `exit`-Knoten `e` (nur Ziel, nie Quelle) — auch wenn `exit` als Deklarations-Keyword da ist.
         Assert.That(labels, Has.None.EqualTo("e"));
+        // Und NICHT `Init` (InitKeywordAlt) als Keyword — Symbol-Name des Init-Knotens, kein Lexer-Keyword.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeywordAlt));
+        // Und NICHT `Init` (InitKeywordAlt) als Keyword — das ist der Symbol-Name des Init-Knotens, kein Keyword.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeywordAlt));
         // Aber KEINE Folge-Klauseln, kein `taskref`, keine Edge-Keywords.
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.IfKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DoKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskrefKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
+    public void UnnamedInit_NotOfferedAsDuplicateKeyword() {
+
+        // Ein unbenannter Init-Knoten (`init;`) trägt den Symbol-Namen `Init` (InitKeywordAlt). Am Satzanfang
+        // wird er als Quellknoten (ISourceNodeSymbol) über AddNodeReferences angeboten — GENAU EINMAL, als
+        // Connection-Point. Früher fügte die Keyword-Liste `Init` ein zweites Mal (als Keyword) hinzu.
+        const string nav = "task A\n"     +
+                           "{\n"           +
+                           "    init;\n"   +
+                           "    exit e;\n" +
+                           "    \n"         + // Satzanfang im Deklarations-Block — Cursor hier
+                           "    init --> e;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\unnamed-init.nav");
+        var caret = IndexOfToken(nav, "exit e;\n    \n", "exit e;\n    ");
+
+        var items = NavCompletionService.GetCompletions(unit, caret);
+
+        // `Init` erscheint genau einmal — und zwar als Knoten (Connection-Point), nicht als Keyword.
+        var initItems = items.Where(i => i.Label == SyntaxFacts.InitKeywordAlt).ToArray();
+        Assert.That(initItems.Length, Is.EqualTo(1), "`Init` darf nicht doppelt (Knoten + Keyword) erscheinen.");
+        Assert.That(initItems[0].Kind, Is.EqualTo(NavCompletionItemKind.ConnectionPoint));
+        // Das kleingeschriebene `init`-Keyword bleibt als Deklarations-/Transitions-Opener erhalten.
+        Assert.That(Labels(items), Does.Contain(SyntaxFacts.InitKeyword));
     }
 
     [Test]
@@ -268,13 +299,56 @@ public class NavCompletionServiceTests {
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
 
-        // Folge-Klauseln nach dem Ziel.
+        // Folge-Klauseln nach dem Ziel — inkl. `else` (Bedingungs-Klausel, z.B. für Choice-Zweige).
         Assert.That(labels, Does.Contain(SyntaxFacts.OnKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ElseKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
         // Keine Knoten, keine Deklarations-Keywords.
         Assert.That(labels, Has.None.EqualTo("i"));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+    }
+
+    [Test]
+    public void AfterTrigger_OffersConditionClausesAndDo() {
+
+        // Vollständiger (spontaner) Trigger: der Kontext-Anker ist das Trigger-Keyword selbst (Parent
+        // TriggerSyntax) → AfterTrigger. Danach folgen Bedingungs-Klausel (`if`/`else`) und `do`.
+        const string nav = "task A\n"                  +
+                           "{\n"                        +
+                           "    init i;\n"              +
+                           "    exit e;\n"              +
+                           "    i --> e spontaneous ;\n" + // Cursor hinter dem Trigger, vor `;`
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\after-trigger.nav");
+        var caret = IndexOfToken(nav, "spontaneous ;", "spontaneous "); // hinter `spontaneous ` (Whitespace)
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Nach dem Trigger folgen Bedingungs-Klausel (`if`/`else`) und `do` — aber KEIN weiteres `on`.
+        Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ElseKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
+    }
+
+    [Test]
+    public void AfterDoKeyword_OffersNothing() {
+
+        // Hinter `do` steht der Wert-Slot: ein freier C#-Aufruf (identifierOrString), kein Nav-Konstrukt.
+        // Es darf hier nichts angeboten werden (früher streute der Fallback pauschal Knoten + Keywords ein).
+        const string nav = "task A\n"          +
+                           "{\n"                +
+                           "    init i;\n"      +
+                           "    exit e;\n"      +
+                           "    i --> e do \n"  + // Cursor hinter `do `, im Wert-Slot
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\after-do.nav");
+        var caret = IndexOfToken(nav, "i --> e do \n", "i --> e do "); // hinter `do ` (Whitespace)
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
 
     [Test]

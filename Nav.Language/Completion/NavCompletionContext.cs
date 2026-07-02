@@ -17,7 +17,10 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// </summary>
 enum NavCompletionContextKind {
 
-    /// <summary>Keine Vorschläge (Kommentar, Zeichenkette, C#-Inhalt eines Code-Blocks oder außerhalb des Texts).</summary>
+    /// <summary>
+    /// Keine Vorschläge (Kommentar, Zeichenkette, C#-Inhalt eines Code-Blocks, Wert-Slot hinter <c>do</c>
+    /// oder außerhalb des Texts).
+    /// </summary>
     Suppress,
 
     /// <summary>
@@ -68,10 +71,10 @@ enum NavCompletionContextKind {
     /// <summary>Hinter <c>Knoten:</c> einer Exit-Transition: die Exit-Connection-Points des Knotens.</summary>
     ExitConnectionPoint,
 
-    /// <summary>Hinter einem vollständigen Ziel: die Folge-Klauseln <c>on</c> / <c>if</c> / <c>do</c>.</summary>
+    /// <summary>Hinter einem vollständigen Ziel: die Folge-Klauseln <c>on</c> / <c>if</c> / <c>else</c> / <c>do</c>.</summary>
     AfterTarget,
 
-    /// <summary>Innerhalb/hinter einem Trigger (<c>on …</c>): <c>if</c> / <c>do</c>.</summary>
+    /// <summary>Innerhalb/hinter einem Trigger (<c>on …</c>): <c>if</c> / <c>else</c> / <c>do</c>.</summary>
     AfterTrigger,
 
     /// <summary>Innerhalb/hinter einer Bedingung (<c>if …</c>): <c>do</c>.</summary>
@@ -254,6 +257,11 @@ sealed class NavCompletionContext {
             // Bedingung (`if …`) → danach do.
             case ConditionClauseSyntax:
                 return Of(NavCompletionContextKind.AfterCondition, task);
+
+            // Hinter `do` steht der Wert-Slot: ein freier C#-Aufruf (identifierOrString), kein Nav-Konstrukt.
+            // Nichts anbieten, statt über den Fallback pauschal alle Knoten und Keywords einzustreuen.
+            case DoClauseSyntax:
+                return Of(NavCompletionContextKind.Suppress);
         }
 
         return Of(NavCompletionContextKind.Fallback, task);

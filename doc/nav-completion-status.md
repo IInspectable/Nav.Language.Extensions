@@ -88,6 +88,31 @@ NavDirectiveParser}.cs`; Versions-Autorität `Nav.Language/NavLanguageVersion.cs
 - **C4 (baumbasierte Suppression) wird erst entschieden, wenn wir dort ankommen** — Umfang/Machbarkeit
   hängen an der Baum-Repräsentation von Code-Blöcken/Strings; nicht vorab festlegen.
 
+## Kontextuelle Verfeinerungen (Grammatik-Review, umgesetzt)
+
+Ein erneuter Abgleich der Completion gegen die vollständige Grammatik (Parser/Lexer/Semantikmodell)
+brachte drei Punkte zutage — alle umgesetzt (Engine-Kern, beide Hosts profitieren; Tests auf net472 +
+net10 grün):
+
+1. **`Init` (InitKeywordAlt) nicht mehr als Keyword.** `NodeDeclarationKeywords`/`TransitionSourceKeywords`
+   führten neben `init` auch `InitKeywordAlt` (`"Init"`). `"Init"` ist aber **kein Lexer-Keyword**
+   (`NavLexer.Keywords` kennt nur `"init"`), sondern der **Symbol-Name** des Init-Knotens
+   (`NodeSymbol.Name => Alias?.Name ?? base.Name`, Default `InitKeywordAlt`). Folge: beim unbenannten
+   Init (`init;`, Name `"Init"`) erschien `"Init"` doppelt (Knoten-Referenz **und** Keyword), beim
+   benannten Init (`init i;`) als irreführendes Keyword, das beim Commit zu einer unaufgelösten
+   Identifier-Referenz wird. Jetzt eröffnet ausschließlich das kleingeschriebene `init`; der Init-Knoten
+   selbst kommt über `AddNodeReferences` mit seinem echten Namen.
+2. **`else` / `else if` in `AfterTarget` und `AfterTrigger`.** `conditionClause` darf mit `else`
+   beginnen (idiomatisch bei Choice-Zweigen: `c --> A if "x"; c --> B else;`). `else` ist ein sichtbares
+   Keyword, wurde aber nur im Fallback angeboten. Jetzt parallel zu `if` in beiden Klausel-Kontexten.
+3. **`do`-Wert-Slot unterdrückt.** Hinter `do` erwartet die Grammatik einen freien `identifierOrString`
+   (C#-Aufruf). `DoClauseSyntax` war im `Classify`-`switch` nicht behandelt → `Fallback` streute pauschal
+   alle Knoten + Keywords ein. Jetzt `Suppress` (wie in Zeichenketten/Kommentaren).
+
+Neue/erweiterte Tests: `UnnamedInit_NotOfferedAsDuplicateKeyword`, `AfterTrigger_OffersConditionClausesAndDo`,
+`AfterDoKeyword_OffersNothing` sowie `else`-/`InitKeywordAlt`-Assertions in den bestehenden
+`AfterTarget`-/`StatementStart`-/`TransitionStart`-Tests.
+
 ## Arbeitsliste (session-übergreifend)
 
 Jeder Schritt ist bewusst so geschnitten, dass er einzeln baubar, testbar und committbar ist.
