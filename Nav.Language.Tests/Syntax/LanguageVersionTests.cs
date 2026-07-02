@@ -77,6 +77,28 @@ public class LanguageVersionTests {
     }
 
     [Test]
+    public void TrailingTokens_AfterValidVersion_VersionStands_SurplusIsSkiped() {
+
+        // Die gültige Zahl gilt (Version 2); der überzählige Rest löst genau eine Nav3002 aus und wird
+        // ausgegraut (Skiped) — er soll nicht wie ein gültiger Wert (Zahl) aussehen.
+        var source = "#pragma version 2 xy\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var tree   = SyntaxTree.ParseText(source);
+        var unit   = (CodeGenerationUnitSyntax) tree.Root;
+
+        Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
+        Assert.That(unit.SyntaxTree.Diagnostics.Count(d => d.Descriptor.Id == "Nav3002"), Is.EqualTo(1));
+
+        // Der überzählige Rest 'xy' ist ausgegraut; die '2' bleibt eine gefärbte Zahl.
+        var tokens = DirectiveTokens(tree).ToList();
+        Assert.That(tokens.Any(t => t.Classification == TextClassification.NumberLiteral), Is.True, "'2'");
+
+        var xyStart = source.IndexOf("xy", System.StringComparison.Ordinal);
+        var xy      = tokens.Single(t => t.Extent.Contains(TextExtent.FromBounds(xyStart, xyStart + 1)));
+        Assert.That(xy.Classification, Is.EqualTo(TextClassification.Skiped));
+    }
+
+    [Test]
     public void OtherPragma_IsNotRecognized_AndStillReportsNav3000() {
 
         var unit = Parse("#pragma warning disable Nav1234\r\ntask A { init I1; exit e1; I1 --> e1; }");

@@ -105,7 +105,7 @@ sealed class NavDirectiveParser {
         // Direktive zur Versions-Direktive. Der Gap-Check ist eine reine Layout-Prüfung, keine Text-Erkennung.
         if (At(SyntaxTokenType.VersionKeyword) &&
             string.IsNullOrWhiteSpace(_sourceText.Substring(TextExtent.FromBounds(pragma.Extent.End, Current.Extent.Start)))) {
-            return AcceptVersion(hashIndex, end);
+            return ParseVersion(hashIndex, end);
         }
 
         return BadDirective(hashIndex, end);
@@ -116,47 +116,58 @@ sealed class NavDirectiveParser {
     /// <see cref="VersionDirectiveSyntax"/> samt lokalen Token. Das Argument ist genau <b>ein</b>
     /// <see cref="SyntaxTokenType.PreprocessorNumber"/>-Token (vom Lexer erkannt), dem bis zum Zeilenende nur
     /// Zwischenraum folgen darf; <see cref="NavLanguageVersion.TryParse"/> validiert seinen Wert (Ziffern,
-    /// kein Überlauf). Ein fehlender Wert, ein Nicht-Zahl-Token oder ein weiteres Token nach der Zahl
-    /// (<c>#pragma version 1 2</c>) lösen genau eine <c>Nav3002</c> samt Rückfall auf
-    /// <see cref="NavLanguageVersion.Default"/> aus.
+    /// kein Überlauf). Jede Abweichung meldet genau eine <c>Nav3002</c> — positions-präzise:
+    /// <list type="bullet">
+    ///   <item><description>fehlender Wert ⇒ nullbreit hinter dem <c>version</c>-Schlüsselwort (Insertion-Punkt),
+    ///   Rückfall auf <see cref="NavLanguageVersion.Default"/>;</description></item>
+    ///   <item><description>Nicht-Zahl bzw. ungültiger Wert ⇒ über den Wert selbst, Rückfall auf
+    ///   <see cref="NavLanguageVersion.Default"/>;</description></item>
+    ///   <item><description>gültige Zahl mit überzähligem Rest (<c>#pragma version 1 2</c>) ⇒ die Zahl
+    ///   <b>gilt</b>, der Rest wird als <see cref="TextClassification.Skiped"/> ausgegraut und über seine
+    ///   Spanne gemeldet.</description></item>
+    /// </list>
+    /// Die Methode ist bewusst dispatch-agnostisch: sie frisst das <c>version</c>-Schlüsselwort und das
+    /// Argument, ohne vorauszusetzen, dass ein <c>pragma</c> vorausging.
     /// </summary>
-    VersionDirectiveSyntax AcceptVersion(int hashIndex, int end) {
+    VersionDirectiveSyntax ParseVersion(int hashIndex, int end) {
 
         TryEat(SyntaxTokenType.VersionKeyword, out _);
         SkipPreprocessorText();
 
-        if (!TryReadVersion(out var version)) {
-            _diagnostics.Add(new Diagnostic(DirectiveLocation(hashIndex, end),
-                                            DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
-            version = NavLanguageVersion.Default;
+        var version  = NavLanguageVersion.Default;
+        int skipFrom;
+
+        if (TryEat(SyntaxTokenType.PreprocessorNumber, out var number)) {
+            if (NavLanguageVersion.TryParse(_sourceText.Substring(number.Extent), out version)) {
+                // Gültige Zahl gelesen — alles Weitere bis zum Lauf-Ende ist überzählig.
+                SkipPreprocessorText();
+                skipFrom = _pos;
+                if (!AtRunEnd && !At(SyntaxTokenType.PreprocessorNewLine)) {
+                    ReportNav3002(TokensExtent(skipFrom, end));
+                }
+            } else {
+                // Zahl-Token, aber ungültiger Wert (z.B. Überlauf) — die Zahl bleibt gefärbt, Wert = Default.
+                version  = NavLanguageVersion.Default;
+                skipFrom = _pos;
+                ReportNav3002(number.Extent);
+            }
+        } else {
+            // Wert fehlt oder ist keine Zahl: eine Diagnose, der Wert-Slot wird ausgegraut.
+            skipFrom = _pos;
+            ReportNav3002(AtRunEnd || At(SyntaxTokenType.PreprocessorNewLine)
+                              ? TextExtent.FromBounds(InsertionPoint(), InsertionPoint())
+                              : TokensExtent(skipFrom, end));
         }
 
         var node = new VersionDirectiveSyntax(DirectiveExtent(hashIndex, end), version);
-        PopulateLocalTokens(node, hashIndex, end);
+        PopulateLocalTokens(node, hashIndex, end, skipFrom);
         return node;
     }
 
-    /// <summary>
-    /// Liest das Versions-Argument aus dem Cursor: genau ein <see cref="SyntaxTokenType.PreprocessorNumber"/>-
-    /// Token, dem bis zum Zeilenende (bzw. Lauf-Ende) nur Zwischenraum folgt. Liefert <c>false</c> bei
-    /// fehlender Zahl oder einem weiteren signifikanten Token danach — beides ist ein <c>Nav3002</c>-Fall.
-    /// </summary>
-    bool TryReadVersion(out NavLanguageVersion version) {
-
-        version = NavLanguageVersion.Default;
-
-        if (!TryEat(SyntaxTokenType.PreprocessorNumber, out var number)) {
-            return false;
-        }
-
-        SkipPreprocessorText();
-
-        // Nach der Zahl darf nur noch das terminierende Zeilenende (oder das Lauf-Ende) folgen.
-        if (!AtRunEnd && !At(SyntaxTokenType.PreprocessorNewLine)) {
-            return false;
-        }
-
-        return NavLanguageVersion.TryParse(_sourceText.Substring(number.Extent), out version);
+    /// <summary>Meldet eine <c>Nav3002</c> (fehlerhafte Versions-Direktive) über <paramref name="extent"/>.</summary>
+    void ReportNav3002(TextExtent extent) {
+        _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(extent),
+                                        DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
     }
 
     /// <summary>
@@ -171,7 +182,7 @@ sealed class NavDirectiveParser {
                                         DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective));
 
         var node = new BadDirectiveTriviaSyntax(DirectiveExtent(hashIndex, end));
-        PopulateLocalTokens(node, hashIndex, end);
+        PopulateLocalTokens(node, hashIndex, end, end);
         return node;
     }
 
@@ -206,24 +217,60 @@ sealed class NavDirectiveParser {
     Location DirectiveLocation(int hashIndex, int end) => _sourceText.GetLocation(DirectiveExtent(hashIndex, end));
 
     /// <summary>
+    /// Extent der Roh-Token <c>[from, end)</c> für eine positions-präzise Diagnose: vom Anfang des Tokens an
+    /// <paramref name="from"/> bis zum Ende des letzten Inhalts-Tokens des Laufs, <b>ohne</b> das abschließende
+    /// Zeilenende. Aufrufer stellen sicher, dass <paramref name="from"/> auf ein Inhalts-Token zeigt.
+    /// </summary>
+    TextExtent TokensExtent(int from, int end) {
+        var last       = _raw[end - 1];
+        var contentEnd = last.Type == SyntaxTokenType.PreprocessorNewLine ? last.Extent.Start : last.Extent.End;
+        return TextExtent.FromBounds(_raw[from].Extent.Start, contentEnd);
+    }
+
+    /// <summary>
+    /// Position eines nullbreiten „fehlt"-Vermerks: das Ende des letzten konsumierten <b>signifikanten</b>
+    /// Tokens vor dem Cursor (Zwischenraum übersprungen) — nach Roslyn-Konvention hängt „X erwartet" am
+    /// vorigen Token, nicht am Anfang des folgenden. Für die Versions-Direktive ist das das Ende des
+    /// <c>version</c>-Schlüsselworts.
+    /// </summary>
+    int InsertionPoint() {
+        for (var k = _pos - 1; k >= 0; k--) {
+            if (_raw[k].Type is not (SyntaxTokenType.PreprocessorText or SyntaxTokenType.PreprocessorNewLine)) {
+                return _raw[k].Extent.End;
+            }
+        }
+
+        return _raw[_pos < _end ? _pos : _end - 1].Extent.Start;
+    }
+
+    /// <summary>
     /// Erzeugt die lokalen Token des Direktiv-Laufs <c>[hashIndex, end)</c> und legt sie am Knoten
     /// <paramref name="node"/> ab (siehe <see cref="DirectiveTriviaSyntax.SetLocalTokens"/>) — mit der aus dem
-    /// Token-Typ folgenden <see cref="TextClassification"/>. Das terminierende <c>PreprocessorNewLine</c> zählt
-    /// nicht zu den Token; es wird in <see cref="NavParser.BuildTrivia"/> als eigenes
-    /// <see cref="SyntaxTokenType.NewLine"/> geführt. Die Token liegen ausschließlich lokal, nicht im flachen
-    /// <see cref="SyntaxTree.Tokens"/>-Strom.
+    /// Token-Typ folgenden <see cref="TextClassification"/>. Token ab <paramref name="skipFrom"/> (dem
+    /// grammatikalisch überzähligen Rest, den der Parser nicht mehr unterbringen konnte) werden stattdessen
+    /// als <see cref="TextClassification.Skiped"/> ausgegraut — analog zu den Panic-Mode-Token des
+    /// Hauptparsers: ein Token, das zu keinem Bestandteil der Direktive gehört, soll nicht wie ein gültiger
+    /// Wert aussehen. Das terminierende <c>PreprocessorNewLine</c> zählt nicht zu den Token; es wird in
+    /// <see cref="NavParser.BuildTrivia"/> als eigenes <see cref="SyntaxTokenType.NewLine"/> geführt. Die
+    /// Token liegen ausschließlich lokal, nicht im flachen <see cref="SyntaxTree.Tokens"/>-Strom.
     /// </summary>
-    void PopulateLocalTokens(DirectiveTriviaSyntax node, int hashIndex, int end) {
+    void PopulateLocalTokens(DirectiveTriviaSyntax node, int hashIndex, int end, int skipFrom) {
 
         var tokenEnd = _raw[end - 1].Type == SyntaxTokenType.PreprocessorNewLine ? end - 1 : end;
 
         var localTokens = new List<SyntaxToken>();
         for (var k = hashIndex; k < tokenEnd; k++) {
             var raw = _raw[k];
-            if (SyntaxTokenFactory.TryClassifyNonSignificant(raw.Type, out var classification)) {
-                localTokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, node,
-                                                               SyntaxTriviaList.Empty, SyntaxTriviaList.Empty));
+            if (!SyntaxTokenFactory.TryClassifyNonSignificant(raw.Type, out var classification)) {
+                continue;
             }
+
+            if (k >= skipFrom) {
+                classification = TextClassification.Skiped;
+            }
+
+            localTokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, node,
+                                                           SyntaxTriviaList.Empty, SyntaxTriviaList.Empty));
         }
 
         node.SetLocalTokens(new SyntaxTokenList(localTokens));
