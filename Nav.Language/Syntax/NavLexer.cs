@@ -21,10 +21,17 @@ namespace Pharmatechnik.Nav.Language;
 /// </summary>
 readonly record struct RawToken(SyntaxTokenType Type, TextExtent Extent) {
 
+    /// <summary>Startoffset des Ausschnitts im Quelltext (inklusiv).</summary>
     public int Start  => Extent.Start;
+    /// <summary>Länge des Ausschnitts in Zeichen; für das abschließende <see cref="SyntaxTokenType.EndOfFile"/> ist sie 0.</summary>
     public int Length => Extent.Length;
+    /// <summary>Endoffset des Ausschnitts im Quelltext (exklusiv).</summary>
     public int End    => Extent.End;
 
+    /// <summary>
+    /// Ob dieses Token lexikalische Trivia ist (Whitespace, Zeilenende, Kommentar) — also für die
+    /// Semantik bedeutungslos, aber für die Full-Fidelity-Abdeckung des Quelltexts nötig.
+    /// </summary>
     public bool IsTrivia => SyntaxFacts.IsLexicalTrivia(Type);
 
 }
@@ -63,6 +70,12 @@ sealed class NavLexer {
         _tokens = ImmutableArray.CreateBuilder<RawToken>(Math.Max(16, _length / 4));
     }
 
+    /// <summary>
+    /// Lext <paramref name="text"/> in einem Durchlauf zu einer flachen, lückenlosen Token-Folge
+    /// (signifikante Token <b>und</b> Trivia gemischt), abgeschlossen durch genau ein
+    /// <see cref="SyntaxTokenType.EndOfFile"/>. <c>null</c> wird wie leerer Text behandelt und liefert
+    /// nur das <see cref="SyntaxTokenType.EndOfFile"/>.
+    /// </summary>
     public static ImmutableArray<RawToken> Lex(string? text) {
         return new NavLexer(text).LexAll();
     }
@@ -368,12 +381,10 @@ sealed class NavLexer {
     }
 
     /// <summary>
-    /// Länge des Zeilenendes an <paramref name="index"/> (2 für <c>\r\n</c>, 1 für die übrigen
-    /// NL-Varianten), 0 wenn dort kein Zeilenende beginnt.
+    /// Ob die aktuelle Position das erste Nicht-Whitespace-Zeichen ihrer Zeile ist: Rückwärts-Scan bis
+    /// zur Zeilengrenze — trifft er nur Whitespace, steht die Position am Zeilenanfang. Einrückung durch
+    /// Whitespace ist erlaubt; jedes andere Zeichen davor bedeutet „mitten in der Zeile".
     /// </summary>
-    // Ob die aktuelle Position das erste Nicht-Whitespace-Zeichen ihrer Zeile ist: Rückwärts-Scan bis
-    // zur Zeilengrenze — trifft er nur Whitespace, steht die Position am Zeilenanfang. Einrückung durch
-    // Whitespace ist erlaubt; jedes andere Zeichen davor bedeutet „mitten in der Zeile".
     bool AtLineStart() {
         for (var i = _pos - 1; i >= 0; i--) {
             var c = _text[i];
@@ -394,6 +405,10 @@ sealed class NavLexer {
         return c == '\r' || c == '\n' || c == '\u0085' || c == '\u2028' || c == '\u2029';
     }
 
+    /// <summary>
+    /// Länge des Zeilenendes an <paramref name="index"/> (2 für <c>\r\n</c>, 1 für die übrigen
+    /// NL-Varianten), 0 wenn dort kein Zeilenende beginnt.
+    /// </summary>
     int NewLineLength(int index) {
         if (index >= _length) {
             return 0;
