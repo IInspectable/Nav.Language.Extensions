@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Immutable;
@@ -36,7 +36,7 @@ sealed class InitTransitionCodeModel: TransitionCodeModel {
 
         return new InitTransitionCodeModel(
             parameter             : parameter.ToImmutableList(),
-            reachableCalls        : initNode.GetReachableCalls().ToImmutableList(),
+            reachableCalls        : initNode.Outgoings.GetReachableCalls().ToImmutableList(),
             generateAbstractMethod: initNode.CodeGenerateAbstractMethod(),
             nodeName              : initNode.Name);
     }

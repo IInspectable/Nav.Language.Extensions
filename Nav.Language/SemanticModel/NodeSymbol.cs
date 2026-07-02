@@ -115,8 +115,16 @@ sealed partial class InitNodeSymbol: NodeSymbolWithOnlyOutgoings<InitNodeDeclara
 
 }
 
+// Gemeinsame Schnittstelle zur Konstruktion aller Nodes, die Ziel einer Edge sein können
+internal interface ITargetNodeSymbolConstruction: ITargetNodeSymbol {
+
+    new List<IEdge>                Incomings  { get; }
+    new List<INodeReferenceSymbol> References { get; }
+
+}
+
 sealed partial class ExitNodeSymbol: NodeSymbolWithOnlyIncomings<ExitNodeDeclarationSyntax, IEdge>,
-                                     IExitNodeSymbol {
+                                     IExitNodeSymbol, ITargetNodeSymbolConstruction {
 
     public ExitNodeSymbol(string name, Location location, ExitNodeDeclarationSyntax syntax, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
@@ -127,7 +135,7 @@ sealed partial class ExitNodeSymbol: NodeSymbolWithOnlyIncomings<ExitNodeDeclara
 }
 
 sealed partial class EndNodeSymbol: NodeSymbolWithOnlyIncomings<EndNodeDeclarationSyntax, IEdge>,
-                                    IEndNodeSymbol {
+                                    IEndNodeSymbol, ITargetNodeSymbolConstruction {
 
     public EndNodeSymbol(string name, Location location, EndNodeDeclarationSyntax syntax, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
@@ -138,7 +146,7 @@ sealed partial class EndNodeSymbol: NodeSymbolWithOnlyIncomings<EndNodeDeclarati
 }
 
 sealed partial class TaskNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<TaskNodeDeclarationSyntax, IEdge, IExitTransition>,
-                                     ITaskNodeSymbol {
+                                     ITaskNodeSymbol, ITargetNodeSymbolConstruction {
 
     public TaskNodeSymbol(string name, Location location, TaskNodeDeclarationSyntax syntax, TaskNodeAliasSymbol alias,
                           TaskDeclarationSymbol declaration, TaskDefinitionSymbol containingTask)
@@ -185,7 +193,7 @@ internal interface IGuiNodeSymbolConstruction: IGuiNodeSymbol {
 }
 
 sealed partial class DialogNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<DialogNodeDeclarationSyntax, IEdge, ITriggerTransition>,
-                                       IDialogNodeSymbol, IGuiNodeSymbolConstruction {
+                                       IDialogNodeSymbol, IGuiNodeSymbolConstruction, ITargetNodeSymbolConstruction {
 
     public DialogNodeSymbol(string name, Location location, DialogNodeDeclarationSyntax syntax, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
@@ -198,7 +206,7 @@ sealed partial class DialogNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<Dialo
 }
 
 sealed partial class ViewNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<ViewNodeDeclarationSyntax, IEdge, ITriggerTransition>,
-                                     IViewNodeSymbol, IGuiNodeSymbolConstruction {
+                                     IViewNodeSymbol, IGuiNodeSymbolConstruction, ITargetNodeSymbolConstruction {
 
     public ViewNodeSymbol(string name, Location location, ViewNodeDeclarationSyntax syntax, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
@@ -211,7 +219,7 @@ sealed partial class ViewNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<ViewNod
 }
 
 sealed partial class ChoiceNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<ChoiceNodeDeclarationSyntax, IEdge, IChoiceTransition>,
-                                       IChoiceNodeSymbol {
+                                       IChoiceNodeSymbol, ITargetNodeSymbolConstruction {
 
     public ChoiceNodeSymbol(string name, Location location, ChoiceNodeDeclarationSyntax syntax, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {

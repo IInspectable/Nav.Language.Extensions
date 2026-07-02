@@ -446,39 +446,17 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         //==============================
         // Target
         //==============================
-        if (edge.TargetReference != null) {
-            switch (edge.TargetReference.Declaration) {
-                case null:
-                    // Nav0011CannotResolveNode0
-                    break;
-                case InitNodeSymbol:
-                    // Nav0103InitNodeMustNotContainIncomingEdges
-                    break;
-                case EndNodeSymbol endNode:
-                    endNode.Incomings.Add(edge);
-                    endNode.References.Add(edge.TargetReference);
-                    break;
-                case ExitNodeSymbol exitNode:
-                    exitNode.Incomings.Add(edge);
-                    exitNode.References.Add(edge.TargetReference);
-                    break;
-                case DialogNodeSymbol dialogNode:
-                    dialogNode.Incomings.Add(edge);
-                    dialogNode.References.Add(edge.TargetReference);
-                    break;
-                case ViewNodeSymbol viewNode:
-                    viewNode.Incomings.Add(edge);
-                    viewNode.References.Add(edge.TargetReference);
-                    break;
-                case ChoiceNodeSymbol choiceNode:
-                    choiceNode.Incomings.Add(edge);
-                    choiceNode.References.Add(edge.TargetReference);
-                    break;
-                case TaskNodeSymbol taskNode:
-                    taskNode.Incomings.Add(edge);
-                    taskNode.References.Add(edge.TargetReference);
-                    break;
-            }
+        switch (edge.TargetReference?.Declaration) {
+            case null:
+                // Nav0011CannotResolveNode0
+                break;
+            case InitNodeSymbol:
+                // Nav0103InitNodeMustNotContainIncomingEdges
+                break;
+            case ITargetNodeSymbolConstruction targetNode:
+                targetNode.Incomings.Add(edge);
+                targetNode.References.Add(edge.TargetReference);
+                break;
         }
     }
 

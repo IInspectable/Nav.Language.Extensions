@@ -5,39 +5,55 @@ using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public static class EdgeExtensions {
 
     public static IEnumerable<Call> GetReachableCalls(this IEdge source) {
+        return GetReachableCallsImpl(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
+    }
 
-        return GetReachableCallsImpl<INodeSymbol>(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
+    public static IEnumerable<Call> GetReachableCalls(this IEnumerable<IEdge> edges) {
 
-        static IEnumerable<Call> GetReachableCallsImpl<T>(IEdge edge, ISet<IEdge> seenEdges) where T : class, INodeSymbol {
+        return GetReachableCallsCore(edges).Distinct(CallComparer.Default);
 
-            if (edge == null) {
-                yield break;
-            }
+        static IEnumerable<Call> GetReachableCallsCore(IEnumerable<IEdge> edges) {
 
-            if (seenEdges.Contains(edge)) {
-                yield break;
-            }
+            var seenEdges = new HashSet<IEdge>();
 
-            seenEdges.Add(edge);
-
-            if (edge.TargetReference?.Declaration is not T targetNode) {
-                yield break;
-            }
-
-            // Choices auflösen
-            if (targetNode is IChoiceNodeSymbol choiceNode) {
-                foreach (var call in choiceNode.Outgoings.SelectMany(e => GetReachableCallsImpl<T>(e, seenEdges))) {
+            foreach (var edge in edges) {
+                foreach (var call in GetReachableCallsImpl(edge, seenEdges)) {
                     yield return call;
                 }
-            } else if (edge.EdgeMode != null) {
-                // Nur Edges mit einem definiertem Edge Mode ergeben einen Call
-                yield return new Call(targetNode, edge.EdgeMode);
             }
+        }
+    }
+
+    static IEnumerable<Call> GetReachableCallsImpl(IEdge edge, ISet<IEdge> seenEdges) {
+
+        if (edge == null) {
+            yield break;
+        }
+
+        if (seenEdges.Contains(edge)) {
+            yield break;
+        }
+
+        seenEdges.Add(edge);
+
+        var targetNode = edge.TargetReference?.Declaration;
+        if (targetNode == null) {
+            yield break;
+        }
+
+        // Choices auflösen
+        if (targetNode is IChoiceNodeSymbol choiceNode) {
+            foreach (var call in choiceNode.Outgoings.SelectMany(e => GetReachableCallsImpl(e, seenEdges))) {
+                yield return call;
+            }
+        } else if (edge.EdgeMode != null) {
+            // Nur Edges mit einem definiertem Edge Mode ergeben einen Call
+            yield return new Call(targetNode, edge.EdgeMode);
         }
     }
 

@@ -31,7 +31,7 @@ class ExitTransitionCodeModel: TransitionCodeModel {
             throw new ArgumentNullException(nameof(taskNode));
         }
 
-        var reachableCalls = taskNode.GetReachableCalls();
+        var reachableCalls = taskNode.Outgoings.GetReachableCalls();
         var taskResult     = ParameterCodeModel.TaskResult(taskNode.Declaration);
 
         return new ExitTransitionCodeModel(

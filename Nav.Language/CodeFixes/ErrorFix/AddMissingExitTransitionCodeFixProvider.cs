@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +36,7 @@ public static class AddMissingExitTransitionCodeFixProvider {
 
             // Add Missing Edge
             if (nodeReferenceSymbol.Declaration is ITaskNodeSymbol taskNode) {
-                foreach (var missingExitConnectionPoint in taskNode.GetMissingExitTransitionConnectionPoints()) {
+                foreach (var missingExitConnectionPoint in taskNode.GetUnconnectedExits()) {
                     yield return new AddMissingExitTransitionCodeFix(nodeReferenceSymbol, missingExitConnectionPoint, Context);
                 }
             }
