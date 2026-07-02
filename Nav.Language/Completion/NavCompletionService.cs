@@ -137,6 +137,9 @@ public static class NavCompletionService {
             case NavCompletionContextKind.StatementStart:
                 return StatementStartItems(context);
 
+            case NavCompletionContextKind.TransitionStart:
+                return TransitionStartItems(context);
+
             case NavCompletionContextKind.AfterTarget:
                 return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword, SyntaxFacts.DoKeyword);
 
@@ -205,13 +208,36 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Satzanfang im Body: die vorhandenen Knoten, die als QUELLE einer Transition taugen (ISourceNodeSymbol —
-    // also NICHT `end`/`exit`), plus die Knoten-Deklarations-Keywords.
+    // Init-Schlüsselwörter — die einzigen Keywords, die im Transitions-Block eine Anweisung eröffnen können
+    // (`init --> …`, die Init-Transition). Alle übrigen Deklarations-Keywords gehören in den Deklarations-Block.
+    static readonly string[] TransitionSourceKeywords = {
+        SyntaxFacts.InitKeyword,
+        SyntaxFacts.InitKeywordAlt
+    };
+
+    // Satzanfang im Deklarations-Block: die vorhandenen Knoten, die als QUELLE einer (ersten) Transition taugen
+    // (ISourceNodeSymbol — also NICHT `end`/`exit`), plus die Knoten-Deklarations-Keywords.
     static List<NavCompletionItem> StatementStartItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task, n => n is ISourceNodeSymbol);
 
         foreach (var keyword in NodeDeclarationKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+        }
+
+        return items;
+    }
+
+    // Satzanfang im Transitions-Block: nur was eine Transition eröffnen kann — die quellfähigen Knoten
+    // (ISourceNodeSymbol) plus die `init`-Schlüsselwörter (Init-Transition). KEINE Deklarations-Keywords, der
+    // Deklarations-Block ist an dieser Stelle bereits abgeschlossen.
+    static List<NavCompletionItem> TransitionStartItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ISourceNodeSymbol);
+
+        foreach (var keyword in TransitionSourceKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));

@@ -44,8 +44,19 @@ enum NavCompletionContextKind {
     /// <summary>Hinter <c>task</c> innerhalb eines Task-Bodies (Task-Knoten): die deklarierten Tasks.</summary>
     TaskNodeName,
 
-    /// <summary>Satzanfang im Task-Body: Knoten-Deklarations-Keywords und die vorhandenen Knoten (als Quelle).</summary>
+    /// <summary>
+    /// Satzanfang im <b>Knoten-Deklarations-Block</b> des Task-Bodys (direkt hinter <c>{</c> oder dem <c>;</c>
+    /// einer Knoten-Deklaration): die Knoten-Deklarations-Keywords sowie die vorhandenen quellfähigen Knoten
+    /// (als Beginn der ersten Transition). Der Deklarations-Block ist hier noch offen — beides ist möglich.
+    /// </summary>
     StatementStart,
+
+    /// <summary>
+    /// Satzanfang im <b>Transitions-Block</b> (hinter dem <c>;</c> einer (Exit-)Transition): der
+    /// Deklarations-Block ist abgeschlossen, nur noch eine weitere Transition kann folgen — die quellfähigen
+    /// Knoten plus das <c>init</c>-Schlüsselwort (Init-Transition). KEINE Knoten-Deklarations-Keywords.
+    /// </summary>
+    TransitionStart,
 
     /// <summary>Hinter einem Quellknoten: die (sichtbaren) Edge-Keywords.</summary>
     EdgeSlot,
@@ -176,10 +187,21 @@ sealed class NavCompletionContext {
             return Of(NavCompletionContextKind.TargetSlot, task);
         }
 
-        // Satzanfang im Body: direkt hinter `{` (Body-Öffnung) oder `;` (Ende der vorigen Deklaration).
-        if (contextToken.Type == SyntaxTokenType.OpenBrace ||
-            contextToken.Type == SyntaxTokenType.Semicolon) {
+        // Satzanfang im Body. Der Task-Body ist grammatisch zweigeteilt und geordnet: erst der
+        // Knoten-Deklarations-Block, dann der Transitions-Block (siehe NavParser.ParseTaskDefinition).
+        // Direkt hinter `{` (Body-Öffnung) stehen wir am Anfang — der Deklarations-Block ist noch offen.
+        if (contextToken.Type == SyntaxTokenType.OpenBrace) {
             return Of(NavCompletionContextKind.StatementStart, task);
+        }
+
+        // Hinter einem `;` entscheidet die Art der abgeschlossenen Anweisung über die Region: nach einer
+        // Knoten-Deklaration ist der Deklarations-Block noch offen (Deklaration ODER erste Transition möglich →
+        // StatementStart); nach einer (Exit-)Transition ist er abgeschlossen — es kann nur noch eine weitere
+        // Transition folgen (TransitionStart), Deklarations-Keywords ergeben hier keinen Sinn mehr.
+        if (contextToken.Type == SyntaxTokenType.Semicolon) {
+            return contextToken.Parent is TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax
+                       ? Of(NavCompletionContextKind.TransitionStart, task)
+                       : Of(NavCompletionContextKind.StatementStart, task);
         }
 
         // Rolle des Tokens über seinen Parent-Knoten.

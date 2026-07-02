@@ -214,6 +214,45 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void TransitionStart_OffersOnlySourceNodesAndInit() {
+
+        // Der Task-Body ist zweigeteilt: erst Knoten-Deklarationen, dann Transitionen. Steht der Cursor am
+        // Satzanfang HINTER einer Transition, ist der Deklarations-Block abgeschlossen — nur noch eine weitere
+        // Transition kann folgen. Also: quellfähige Knoten + `init` (Init-Transition), aber KEINE
+        // Deklarations-Keywords (choice/dialog/end/exit/task/view).
+        const string nav = "task A\n"          +
+                           "{\n"               +
+                           "    init i;\n"     +
+                           "    exit e;\n"     +
+                           "    choice c;\n"   +
+                           "    i --> c;\n"    +
+                           "    \n"            + // Satzanfang im Transitions-Block — Cursor hier
+                           "    c --> e;\n"    +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\trans.nav");
+        var caret = IndexOfToken(nav, "i --> c;\n    \n", "i --> c;\n    "); // leere Zeile hinter der Transition
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Quellfähige Knoten als Beginn der nächsten Transition...
+        Assert.That(labels, Does.Contain("i")); // init  — nur Quelle
+        Assert.That(labels, Does.Contain("c")); // choice — Quelle und Ziel
+        // ...plus das `init`-Schlüsselwort (Init-Transition `init --> …`).
+        Assert.That(labels, Does.Contain(SyntaxFacts.InitKeyword));
+        // Aber NICHT der `exit`-Knoten `e` (nur Ziel, nie Quelle).
+        Assert.That(labels, Has.None.EqualTo("e"));
+        // Und vor allem KEINE Deklarations-Keywords — der Deklarations-Block ist abgeschlossen.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ChoiceKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DialogKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.EndKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ExitKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ViewKeyword));
+    }
+
+    [Test]
     public void AfterTarget_OffersFollowupClauses() {
 
         const string nav = "task A\n"          +

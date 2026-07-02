@@ -31,8 +31,13 @@ unverbundene Exits zuerst).
   Node, File, Folder`).
 
 Behandelte Kontexte (`NavCompletionContextKind`): `MemberLevel, TaskNodeName, StatementStart,
-EdgeSlot, TargetSlot, ExitConnectionPoint, AfterTarget, AfterTrigger, AfterCondition, Suppress,
-Fallback`.
+TransitionStart, EdgeSlot, TargetSlot, ExitConnectionPoint, AfterTarget, AfterTrigger, AfterCondition,
+Suppress, Fallback`. Der Task-Body ist grammatisch geordnet (erst Knoten-Deklarations-Block, dann
+Transitions-Block); entsprechend trennt die Completion den Satzanfang: `StatementStart` (Deklarations-Block
+— Deklarations-Keywords **und** quellfähige Knoten) vs. `TransitionStart` (Transitions-Block — nur
+quellfähige Knoten plus `init`, **keine** Deklarations-Keywords). Knoten-Referenzen werden zudem auf ihre
+grammatische Rolle gefiltert: Quell-Slots bieten nur `ISourceNodeSymbol`, der Ziel-Slot nur
+`ITargetNodeSymbol`.
 
 **VS-Extension** (`Nav.Language.ExtensionShared/Completion/`): vier Async-Completion-Quellen mit je
 eigenem Provider und gemeinsamer Basis `AsyncCompletionSource.cs`:
