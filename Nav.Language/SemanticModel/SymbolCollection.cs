@@ -46,8 +46,9 @@ public class SymbolCollection<T>: KeyedCollection<string, T>, IReadOnlySymbolCol
 
     [CanBeNull]
     public T TryFindSymbol(string key) {
-        if (!string.IsNullOrEmpty(key) && Contains(key)) {
-            return this[key];
+        // Dictionary ist null, solange die Collection leer ist (KeyedCollection legt es erst beim ersten Add an)
+        if (!string.IsNullOrEmpty(key) && Dictionary != null && Dictionary.TryGetValue(key, out var symbol)) {
+            return symbol;
         }
 
         return default;

@@ -13,11 +13,15 @@ namespace Pharmatechnik.Nav.Language;
 
 public class Location: IEquatable<Location> {
 
+    [CanBeNull]
+    string _normalizedFilePath;
+
     protected Location(Location location) {
-        Extent            = location.Extent;
-        StartLinePosition = location.StartLinePosition;
-        EndLinePosition   = location.EndLinePosition;
-        FilePath          = location.FilePath;
+        Extent              = location.Extent;
+        StartLinePosition   = location.StartLinePosition;
+        EndLinePosition     = location.EndLinePosition;
+        FilePath            = location.FilePath;
+        _normalizedFilePath = location._normalizedFilePath;
     }
 
     public Location(TextExtent extent, LineRange lineRange, [CanBeNull] string filePath) {
@@ -52,7 +56,7 @@ public class Location: IEquatable<Location> {
     public string FilePath { get; }
 
     [CanBeNull]
-    public string NormalizedFilePath => PathHelper.NormalizePath(FilePath);
+    public string NormalizedFilePath => FilePath == null ? null : _normalizedFilePath ??= PathHelper.NormalizePath(FilePath);
 
     /// <summary>
     /// Gets the starting index of the location [0..n].

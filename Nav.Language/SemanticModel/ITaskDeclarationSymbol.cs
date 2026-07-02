@@ -34,9 +34,9 @@ public interface ITaskDeclarationSymbol: ISymbol {
     [NotNull]
     IReadOnlySymbolCollection<IConnectionPointSymbol> ConnectionPoints { get; }
 
-    IReadOnlySymbolCollection<IInitConnectionPointSymbol> Inits();
-    IReadOnlySymbolCollection<IExitConnectionPointSymbol> Exits();
-    IReadOnlySymbolCollection<IEndConnectionPointSymbol> Ends();
+    IEnumerable<IInitConnectionPointSymbol> Inits();
+    IEnumerable<IExitConnectionPointSymbol> Exits();
+    IEnumerable<IEndConnectionPointSymbol> Ends();
 
     [NotNull]
     IReadOnlyList<ITaskNodeSymbol> References { get; }

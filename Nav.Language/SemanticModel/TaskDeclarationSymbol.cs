@@ -38,16 +38,16 @@ sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
 
     IReadOnlySymbolCollection<IConnectionPointSymbol> ITaskDeclarationSymbol.ConnectionPoints => ConnectionPoints;
 
-    IReadOnlySymbolCollection<IInitConnectionPointSymbol> ITaskDeclarationSymbol.Inits() {
-        return new SymbolCollection<IInitConnectionPointSymbol>(ConnectionPoints.OfType<IInitConnectionPointSymbol>());
+    IEnumerable<IInitConnectionPointSymbol> ITaskDeclarationSymbol.Inits() {
+        return ConnectionPoints.OfType<IInitConnectionPointSymbol>();
     }
 
-    IReadOnlySymbolCollection<IExitConnectionPointSymbol> ITaskDeclarationSymbol.Exits() {
-        return new SymbolCollection<IExitConnectionPointSymbol>(ConnectionPoints.OfType<IExitConnectionPointSymbol>());
+    IEnumerable<IExitConnectionPointSymbol> ITaskDeclarationSymbol.Exits() {
+        return ConnectionPoints.OfType<IExitConnectionPointSymbol>();
     }
 
-    IReadOnlySymbolCollection<IEndConnectionPointSymbol> ITaskDeclarationSymbol.Ends() {
-        return new SymbolCollection<IEndConnectionPointSymbol>(ConnectionPoints.OfType<IEndConnectionPointSymbol>());
+    IEnumerable<IEndConnectionPointSymbol> ITaskDeclarationSymbol.Ends() {
+        return ConnectionPoints.OfType<IEndConnectionPointSymbol>();
     }
 
     IReadOnlyList<ITaskNodeSymbol> ITaskDeclarationSymbol.References => References;
