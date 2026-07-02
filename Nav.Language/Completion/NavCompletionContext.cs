@@ -238,8 +238,12 @@ sealed class NavCompletionContext {
                        : Of(NavCompletionContextKind.StatementStart, task);
         }
 
-        // Rolle des Tokens über seinen Parent-Knoten.
-        switch (contextToken.Parent) {
+        // Rolle des Tokens über den INNERSTEN tragenden Knoten seiner Ancestor-Kette. Der Kontext-Anker steckt
+        // je nach Konstrukt direkt in diesem Knoten (Quell-/Ziel-Token, Trigger-/Klausel-Keyword) ODER — bei
+        // gefülltem Wert-Slot — eine Ebene tiefer im Identifier(OrString)-Wert (`on Signal`, `if Bedingung`,
+        // `do Aufruf`). Nur den direkten Parent zu betrachten verfehlt den gefüllten Fall (Parent ist dann der
+        // Wert, nicht die Klausel) und ließe ihn auf den pauschalen Fallback fallen.
+        switch (ClassificationNode(contextToken.Parent)) {
 
             // Quellknoten (auch der Connector-Name `se` in `Sub:se`) → als Nächstes folgt die Edge.
             case SourceNodeSyntax:
@@ -250,21 +254,53 @@ sealed class NavCompletionContext {
             case TargetNodeSyntax:
                 return Of(NavCompletionContextKind.AfterTarget, task);
 
-            // Trigger (`on …`) → danach if/do.
+            // Trigger (`on …` / `spontaneous`) — auch mit gefülltem Signal → danach if/else/do.
             case TriggerSyntax:
                 return Of(NavCompletionContextKind.AfterTrigger, task);
 
-            // Bedingung (`if …`) → danach do.
+            // Bedingung (`if …` / `else …`) — auch mit gefülltem Wert → danach do.
             case ConditionClauseSyntax:
                 return Of(NavCompletionContextKind.AfterCondition, task);
 
-            // Hinter `do` steht der Wert-Slot: ein freier C#-Aufruf (identifierOrString), kein Nav-Konstrukt.
-            // Nichts anbieten, statt über den Fallback pauschal alle Knoten und Keywords einzustreuen.
+            // Hinter `do` steht der Wert-Slot: ein freier C#-Aufruf (identifierOrString), kein Nav-Konstrukt —
+            // auch mit gefülltem Wert. Nichts anbieten, statt über den Fallback pauschal Knoten/Keywords zu streuen.
             case DoClauseSyntax:
                 return Of(NavCompletionContextKind.Suppress);
         }
 
         return Of(NavCompletionContextKind.Fallback, task);
+    }
+
+    /// <summary>
+    /// Der innerste Knoten der Ancestor-Kette (inkl. <paramref name="node"/> selbst), der eine für die
+    /// Completion tragende grammatische Rolle hat — Quell-/Ziel-Knoten, Exit-Transition, Trigger, Bedingung
+    /// oder <c>do</c>-Klausel. Anders als ein Blick nur auf den direkten Parent erfasst das auch den Fall, dass
+    /// der Kontext-Anker im <em>Wert-Slot</em> einer Klausel steckt (<c>on Signal</c>, <c>if Bedingung</c>,
+    /// <c>do Aufruf</c>): dessen direkter Parent ist der Identifier(OrString)-Wert, die tragende Rolle erst
+    /// dessen Elternklausel. „Innerster zuerst" ist entscheidend — in einer Exit-Transition liegen Ziel/Trigger/
+    /// Bedingung/do INNERHALB der <see cref="ExitTransitionDefinitionSyntax"/>; deren spezifischere Rolle muss
+    /// gewinnen, die Exit-Transition selbst bleibt nur der Anker für ihren Connector-Namen.
+    /// </summary>
+    [CanBeNull]
+    static SyntaxNode ClassificationNode([CanBeNull] SyntaxNode node) {
+
+        if (node == null) {
+            return null;
+        }
+
+        foreach (var ancestor in node.AncestorsAndSelf()) {
+            switch (ancestor) {
+                case SourceNodeSyntax:
+                case TargetNodeSyntax:
+                case TriggerSyntax:
+                case ConditionClauseSyntax:
+                case DoClauseSyntax:
+                case ExitTransitionDefinitionSyntax:
+                    return ancestor;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

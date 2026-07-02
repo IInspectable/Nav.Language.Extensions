@@ -108,10 +108,23 @@ net10 grün):
 3. **`do`-Wert-Slot unterdrückt.** Hinter `do` erwartet die Grammatik einen freien `identifierOrString`
    (C#-Aufruf). `DoClauseSyntax` war im `Classify`-`switch` nicht behandelt → `Fallback` streute pauschal
    alle Knoten + Keywords ein. Jetzt `Suppress` (wie in Zeichenketten/Kommentaren).
+4. **Rollen-Erkennung über die Ancestor-Kette statt nur des direkten Parents.** `Classify` klassifizierte
+   die grammatische Rolle über `contextToken.Parent` (direkter Parent). Bei einem **gefüllten Wert-Slot**
+   (`on Signal`, `if Bedingung`, `do Aufruf`) ist der Anker aber der Wert selbst, dessen direkter Parent der
+   `Identifier(OrString)`-Wert ist — nicht die Klausel darüber. Folge: `on Signal `/`if Cond ` fielen auf
+   den pauschalen `Fallback` (alle Knoten + Keywords + Edges) statt auf `AfterTrigger`/`AfterCondition`;
+   `do Call ` ebenso statt `Suppress`. Neuer Helfer `ClassificationNode` liefert den **innersten** tragenden
+   Knoten der Ancestor-Kette (Quell-/Ziel-Knoten, Exit-Transition, Trigger, Bedingung, `do`). „Innerster
+   zuerst" ist wichtig, weil Ziel/Trigger/Bedingung/`do` innerhalb der `ExitTransitionDefinitionSyntax`
+   liegen — deren spezifischere Rolle muss gewinnen, die Exit-Transition bleibt nur Anker für ihren
+   Connector-Namen. Damit greifen die Klausel-Kontexte auch mit gefülltem Wert; der breite Fallback
+   verschwindet an diesen Stellen. (Analoges bleibt bewusst offen: kantentyp-/choice-abhängige
+   Zielfilterung — gegen „nie weniger als grammatisch gültig", Fehlalarm-Risiko.)
 
 Neue/erweiterte Tests: `UnnamedInit_NotOfferedAsDuplicateKeyword`, `AfterTrigger_OffersConditionClausesAndDo`,
-`AfterDoKeyword_OffersNothing` sowie `else`-/`InitKeywordAlt`-Assertions in den bestehenden
-`AfterTarget`-/`StatementStart`-/`TransitionStart`-Tests.
+`AfterDoKeyword_OffersNothing`, `AfterFilledSignalTrigger_OffersConditionClausesAndDo`,
+`AfterFilledCondition_OffersOnlyDo`, `AfterFilledDo_OffersNothing` sowie `else`-/`InitKeywordAlt`-Assertions
+in den bestehenden `AfterTarget`-/`StatementStart`-/`TransitionStart`-Tests.
 
 ## Arbeitsliste (session-übergreifend)
 

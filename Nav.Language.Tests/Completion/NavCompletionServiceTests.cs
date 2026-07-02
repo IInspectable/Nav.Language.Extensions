@@ -352,6 +352,76 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void AfterFilledSignalTrigger_OffersConditionClausesAndDo() {
+
+        // Vollständiger `on Signal`-Trigger: der Kontext-Anker ist das Signal (direkter Parent = Identifier-Wert,
+        // tragende Rolle erst der Trigger darüber). Über die Ancestor-Kette wird das als AfterTrigger erkannt
+        // (nicht als pauschaler Fallback) → if/else/do, aber kein zweites `on`, keine Knoten, keine Edges.
+        const string nav = "task A\n"                +
+                           "{\n"                      +
+                           "    init i;\n"            +
+                           "    exit e;\n"            +
+                           "    i --> e on Signal \n" + // Cursor hinter dem gefüllten Trigger
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\filled-trigger.nav");
+        var caret = IndexOfToken(nav, "on Signal \n", "on Signal "); // hinter `on Signal ` (Whitespace)
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ElseKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // KEIN Fallback-Rauschen: kein weiteres `on`, keine Knoten, keine Edge-Keywords.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Has.None.EqualTo("i"));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
+    public void AfterFilledCondition_OffersOnlyDo() {
+
+        // Vollständige `if Bedingung`-Klausel: Anker ist der Bedingungs-Wert, tragende Rolle die Bedingung
+        // darüber → AfterCondition (nur `do`), statt Fallback.
+        const string nav = "task A\n"              +
+                           "{\n"                    +
+                           "    init i;\n"          +
+                           "    exit e;\n"          +
+                           "    i --> e if Cond \n" + // Cursor hinter der gefüllten Bedingung
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\filled-cond.nav");
+        var caret = IndexOfToken(nav, "if Cond \n", "if Cond "); // hinter `if Cond ` (Whitespace)
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // Nach der Bedingung folgt nur noch `do` — kein weiteres if/else/on, keine Knoten.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ElseKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Has.None.EqualTo("i"));
+    }
+
+    [Test]
+    public void AfterFilledDo_OffersNothing() {
+
+        // Vollständige `do Aufruf`-Klausel: Anker ist der Aufruf-Wert, tragende Rolle die do-Klausel darüber
+        // → Suppress (freier C#-Aufruf), statt Fallback.
+        const string nav = "task A\n"              +
+                           "{\n"                    +
+                           "    init i;\n"          +
+                           "    exit e;\n"          +
+                           "    i --> e do Call \n" + // Cursor hinter dem gefüllten do-Aufruf
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\filled-do.nav");
+        var caret = IndexOfToken(nav, "do Call \n", "do Call "); // hinter `do Call ` (Whitespace)
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
     public void MemberLevel_OffersOnlyTaskAndTaskref() {
 
         const string nav = "task A\n"          +
