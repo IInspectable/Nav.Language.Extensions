@@ -316,10 +316,12 @@ public class SyntaxGoldenTests {
 
     /// <summary>
     /// Serialisiert die nach der Roslyn-Regel angehängte Trivia — je signifikantem Token (und dem
-    /// abschließenden <see cref="SyntaxTokenType.EndOfFile"/>) mit nicht-leerer Trivia eine Kopfzeile
-    /// (Start + Typ), darunter je Trivia eine eingerückte Zeile: <c>L</c>/<c>T</c> für Leading/Trailing,
-    /// der Trivia-Typ, der Extent und der (escapte) Quelltext. Token ohne jede Trivia werden
-    /// übersprungen — das hält die Golden klein und den Fokus auf der Zuordnung.
+    /// abschließenden <see cref="SyntaxTokenType.EndOfFile"/>) mit nicht-leerer Trivia eine Token-Zeile
+    /// (Start + Typ), je Trivia eine eingerückte Zeile: <c>L</c>/<c>T</c> für Leading/Trailing,
+    /// der Trivia-Typ, der Extent und der (escapte) Quelltext. Die Zeilen stehen in
+    /// Quelltext-Reihenfolge — Leading-Trivia <i>vor</i> ihrer Token-Zeile, Trailing-Trivia danach —,
+    /// die Extents wachsen dadurch monoton. Token ohne jede Trivia werden übersprungen — das hält
+    /// die Golden klein und den Fokus auf der Zuordnung.
     /// </summary>
     static string DumpTrivia(SyntaxTree tree) {
 
@@ -335,14 +337,14 @@ public class SyntaxGoldenTests {
                 continue;
             }
 
+            foreach (var trivia in leading) {
+                AppendTrivia(sb, "L", trivia, source);
+            }
+
             sb.Append(token.Start.ToString().PadLeft(5));
             sb.Append(' ');
             sb.Append(token.Type.ToString());
             sb.Append('\n');
-
-            foreach (var trivia in leading) {
-                AppendTrivia(sb, "L", trivia, source);
-            }
 
             foreach (var trivia in trailing) {
                 AppendTrivia(sb, "T", trivia, source);

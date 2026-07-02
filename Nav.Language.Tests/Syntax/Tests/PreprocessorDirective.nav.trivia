@@ -1,23 +1,23 @@
-﻿   11 TaskKeyword
-    L DirectiveTrivia   [0-9]         "#if DEBUG"
+﻿    L DirectiveTrivia   [0-9]         "#if DEBUG"
     L NewLine           [9-11]        "\r\n"
+   11 TaskKeyword
     T Whitespace        [15-16]       " "
    16 Identifier
     T NewLine           [17-19]       "\r\n"
    19 OpenBrace
     T NewLine           [20-22]       "\r\n"
-   26 InitKeyword
     L Whitespace        [22-26]       "    "
+   26 InitKeyword
     T Whitespace        [30-31]       " "
    33 Semicolon
     T NewLine           [34-36]       "\r\n"
-   40 ExitKeyword
     L Whitespace        [36-40]       "    "
+   40 ExitKeyword
     T Whitespace        [44-45]       " "
    47 Semicolon
     T NewLine           [48-50]       "\r\n"
-   54 Identifier
     L Whitespace        [50-54]       "    "
+   54 Identifier
     T Whitespace        [56-57]       " "
    57 GoToEdgeKeyword
     T Whitespace        [60-61]       " "
@@ -25,6 +25,6 @@
     T NewLine           [64-66]       "\r\n"
    66 CloseBrace
     T NewLine           [67-69]       "\r\n"
-   77 EndOfFile
     L DirectiveTrivia   [69-75]       "#endif"
     L NewLine           [75-77]       "\r\n"
+   77 EndOfFile

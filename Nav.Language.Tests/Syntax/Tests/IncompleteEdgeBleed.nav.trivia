@@ -4,23 +4,23 @@
     T NewLine           [6-8]         "\r\n"
     8 OpenBrace
     T NewLine           [9-11]        "\r\n"
-   15 InitKeyword
     L Whitespace        [11-15]       "    "
+   15 InitKeyword
     T Whitespace        [19-20]       " "
    22 Semicolon
     T NewLine           [23-25]       "\r\n"
-   29 Identifier
     L Whitespace        [25-29]       "    "
+   29 Identifier
     T Whitespace        [31-32]       " "
    32 GoToEdgeKeyword
     T Whitespace        [35-36]       " "
    38 Semicolon
     T NewLine           [39-41]       "\r\n"
-   45 Identifier
     L Whitespace        [41-45]       "    "
+   45 Identifier
     T NewLine           [47-49]       "\r\n"
-   53 Identifier
     L Whitespace        [49-53]       "    "
+   53 Identifier
     T Whitespace        [55-56]       " "
    56 GoToEdgeKeyword
     T Whitespace        [59-60]       " "

@@ -1,23 +1,23 @@
-﻿   10 TaskKeyword
-    L DirectiveTrivia   [0-8]         "#version"
+﻿    L DirectiveTrivia   [0-8]         "#version"
     L NewLine           [8-10]        "\r\n"
+   10 TaskKeyword
     T Whitespace        [14-15]       " "
    15 Identifier
     T NewLine           [16-18]       "\r\n"
    18 OpenBrace
     T NewLine           [19-21]       "\r\n"
-   25 InitKeyword
     L Whitespace        [21-25]       "    "
+   25 InitKeyword
     T Whitespace        [29-30]       " "
    32 Semicolon
     T NewLine           [33-35]       "\r\n"
-   39 ExitKeyword
     L Whitespace        [35-39]       "    "
+   39 ExitKeyword
     T Whitespace        [43-44]       " "
    46 Semicolon
     T NewLine           [47-49]       "\r\n"
-   53 Identifier
     L Whitespace        [49-53]       "    "
+   53 Identifier
     T Whitespace        [55-56]       " "
    56 GoToEdgeKeyword
     T Whitespace        [59-60]       " "

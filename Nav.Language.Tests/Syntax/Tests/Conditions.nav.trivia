@@ -4,45 +4,45 @@
     T NewLine           [6-7]         "\n"
     7 OpenBrace
     T NewLine           [8-9]         "\n"
-   13 InitKeyword
     L Whitespace        [9-13]        "    "
+   13 InitKeyword
     T Whitespace        [17-18]       " "
    20 Semicolon
     T NewLine           [21-22]       "\n"
-   26 ExitKeyword
     L Whitespace        [22-26]       "    "
+   26 ExitKeyword
     T Whitespace        [30-31]       " "
    33 Semicolon
     T NewLine           [34-35]       "\n"
-   39 EndKeyword
     L Whitespace        [35-39]       "    "
+   39 EndKeyword
    42 Semicolon
     T NewLine           [43-44]       "\n"
-   48 ChoiceKeyword
     L Whitespace        [44-48]       "    "
+   48 ChoiceKeyword
     T Whitespace        [54-55]       " "
    57 Semicolon
     T NewLine           [58-59]       "\n"
-   63 ViewKeyword
     L Whitespace        [59-63]       "    "
+   63 ViewKeyword
     T Whitespace        [67-68]       " "
    70 Semicolon
     T NewLine           [71-72]       "\n"
-   76 ViewKeyword
     L Whitespace        [72-76]       "    "
+   76 ViewKeyword
     T Whitespace        [80-81]       " "
    83 Semicolon
     T NewLine           [84-85]       "\n"
-   90 Identifier
     L NewLine           [85-86]       "\n"
     L Whitespace        [86-90]       "    "
+   90 Identifier
     T Whitespace        [92-93]       " "
    93 GoToEdgeKeyword
     T Whitespace        [96-97]       " "
    99 Semicolon
     T NewLine           [100-101]     "\n"
-  105 Identifier
     L Whitespace        [101-105]     "    "
+  105 Identifier
     T Whitespace        [107-108]     " "
   108 GoToEdgeKeyword
     T Whitespace        [111-112]     " "
@@ -52,8 +52,8 @@
     T Whitespace        [117-118]     " "
   121 Semicolon
     T NewLine           [122-123]     "\n"
-  127 Identifier
     L Whitespace        [123-127]     "    "
+  127 Identifier
     T Whitespace        [129-130]     " "
   130 GoToEdgeKeyword
     T Whitespace        [133-134]     " "
@@ -65,8 +65,8 @@
     T Whitespace        [144-145]     " "
   148 Semicolon
     T NewLine           [149-150]     "\n"
-  154 Identifier
     L Whitespace        [150-154]     "    "
+  154 Identifier
     T Whitespace        [156-157]     " "
   157 NonModalEdgeKeyword
     T Whitespace        [160-161]     " "

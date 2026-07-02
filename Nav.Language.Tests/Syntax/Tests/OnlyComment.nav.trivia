@@ -1,3 +1,3 @@
-﻿   61 EndOfFile
-    L SingleLineComment [0-60]        "// Diese Datei enthält ausschließlich einen Zeilenkommentar\r"
+﻿    L SingleLineComment [0-60]        "// Diese Datei enthält ausschließlich einen Zeilenkommentar\r"
     L NewLine           [60-61]       "\n"
+   61 EndOfFile

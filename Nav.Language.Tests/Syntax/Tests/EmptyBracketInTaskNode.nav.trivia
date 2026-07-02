@@ -4,12 +4,12 @@
     T NewLine           [20-21]       "\n"
    21 OpenBrace
     T NewLine           [22-23]       "\n"
-   27 InitKeyword
     L Whitespace        [23-27]       "    "
+   27 InitKeyword
    31 Semicolon
     T NewLine           [32-33]       "\n"
-   37 TaskKeyword
     L Whitespace        [33-37]       "    "
+   37 TaskKeyword
     T Whitespace        [41-45]       "    "
    45 Identifier
     T Whitespace        [60-61]       " "
@@ -18,14 +18,14 @@
     T SkippedTokensTrivia[77-79]       "[]"
    79 Semicolon
     T NewLine           [80-81]       "\n"
-   85 ExitKeyword
     L Whitespace        [81-85]       "    "
+   85 ExitKeyword
     T Whitespace        [89-93]       "    "
    97 Semicolon
     T NewLine           [98-99]       "\n"
-  104 InitKeyword
     L NewLine           [99-100]      "\n"
     L Whitespace        [100-104]     "    "
+  104 InitKeyword
     T Whitespace        [108-109]     " "
   109 GoToEdgeKeyword
     T Whitespace        [112-113]     " "

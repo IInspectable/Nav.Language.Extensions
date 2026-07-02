@@ -4,8 +4,8 @@
     T NewLine           [10-11]       "\n"
    11 OpenBrace
     T NewLine           [12-13]       "\n"
-   17 InitKeyword
     L Whitespace        [13-17]       "    "
+   17 InitKeyword
     T Whitespace        [21-22]       " "
    22 Identifier
     T Whitespace        [24-25]       " "
@@ -39,19 +39,19 @@
     T Whitespace        [135-136]     " "
   138 Semicolon
     T NewLine           [139-140]     "\n"
-  144 ExitKeyword
     L Whitespace        [140-144]     "    "
+  144 ExitKeyword
     T Whitespace        [148-149]     " "
   151 Semicolon
     T NewLine           [152-153]     "\n"
-  157 EndKeyword
     L Whitespace        [153-157]     "    "
+  157 EndKeyword
   160 Semicolon
     T NewLine           [161-162]     "\n"
   162 CloseBrace
     T NewLine           [163-164]     "\n"
-  165 TaskKeyword
     L NewLine           [164-165]     "\n"
+  165 TaskKeyword
     T Whitespace        [169-170]     " "
   170 Identifier
     T Whitespace        [171-172]     " "
@@ -65,18 +65,18 @@
     T NewLine           [245-246]     "\n"
   246 OpenBrace
     T NewLine           [247-248]     "\n"
-  252 InitKeyword
     L Whitespace        [248-252]     "    "
+  252 InitKeyword
     T Whitespace        [256-257]     " "
   259 Semicolon
     T NewLine           [260-261]     "\n"
-  265 ExitKeyword
     L Whitespace        [261-265]     "    "
+  265 ExitKeyword
     T Whitespace        [269-270]     " "
   272 Semicolon
     T NewLine           [273-274]     "\n"
-  278 Identifier
     L Whitespace        [274-278]     "    "
+  278 Identifier
     T Whitespace        [280-281]     " "
   281 GoToEdgeKeyword
     T Whitespace        [284-285]     " "

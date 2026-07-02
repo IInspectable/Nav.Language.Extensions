@@ -6,18 +6,18 @@
     T NewLine           [44-45]       "\n"
    45 OpenBrace
     T NewLine           [46-47]       "\n"
-   51 InitKeyword
     L Whitespace        [47-51]       "    "
+   51 InitKeyword
     T Whitespace        [55-56]       " "
    58 Semicolon
     T NewLine           [59-60]       "\n"
-   64 ExitKeyword
     L Whitespace        [60-64]       "    "
+   64 ExitKeyword
     T Whitespace        [68-69]       " "
    71 Semicolon
     T NewLine           [72-73]       "\n"
-   77 EndKeyword
     L Whitespace        [73-77]       "    "
+   77 EndKeyword
    80 Semicolon
     T NewLine           [81-82]       "\n"
    82 CloseBrace

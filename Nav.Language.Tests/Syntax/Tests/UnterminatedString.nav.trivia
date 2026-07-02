@@ -4,8 +4,8 @@
     T NewLine           [6-7]         "\n"
     7 OpenBrace
     T NewLine           [8-9]         "\n"
-   13 InitKeyword
     L Whitespace        [9-13]        "    "
+   13 InitKeyword
     T Whitespace        [17-18]       " "
    18 Identifier
     T Whitespace        [20-21]       " "
@@ -18,14 +18,14 @@
     T Whitespace        [42-43]       " "
    60 Semicolon
     T NewLine           [61-62]       "\n"
-   71 Identifier
     L Whitespace        [62-66]       "    "
     L SkippedTokensTrivia[66-70]       "exit"
     L Whitespace        [70-71]       " "
+   71 Identifier
    73 Semicolon
     T NewLine           [74-75]       "\n"
-   84 CloseBrace
     L Whitespace        [75-79]       "    "
     L SkippedTokensTrivia[79-83]       "end;"
     L NewLine           [83-84]       "\n"
+   84 CloseBrace
     T NewLine           [85-86]       "\n"

@@ -4,17 +4,17 @@
     T NewLine           [6-8]         "\r\n"
     8 OpenBrace
     T NewLine           [9-11]        "\r\n"
-   15 InitKeyword
     L Whitespace        [11-15]       "    "
+   15 InitKeyword
     T Whitespace        [19-20]       " "
    22 Semicolon
     T NewLine           [23-25]       "\r\n"
-   29 Identifier
     L Whitespace        [25-29]       "    "
+   29 Identifier
    31 Colon
     T NewLine           [32-34]       "\r\n"
-   38 Identifier
     L Whitespace        [34-38]       "    "
+   38 Identifier
     T Whitespace        [40-41]       " "
    41 GoToEdgeKeyword
     T Whitespace        [44-45]       " "
