@@ -103,7 +103,7 @@ sealed class CodeGenerationUnitBuilder {
         var taskDeclarationResult = TaskDeclarationSymbolBuilder.FromCodeGenerationUnitSyntax(syntax, _syntaxProvider, cancellationToken);
 
         _diagnostics.AddRange(taskDeclarationResult.Diagnostics);
-        _taskDeclarations.AddRange(taskDeclarationResult.TaskDeklarations);
+        _taskDeclarations.AddRange(taskDeclarationResult.TaskDeclarations);
         _includes.AddRange(taskDeclarationResult.Includes);
 
         cancellationToken.ThrowIfCancellationRequested();

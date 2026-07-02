@@ -1,4 +1,4 @@
-using JetBrains.Annotations;
+ï»¿using JetBrains.Annotations;
 
 namespace Pharmatechnik.Nav.Language; 
 
@@ -12,7 +12,7 @@ public interface ITriggerSymbol: ISymbol {
 
 }
 
-// Für den visitor ist es günstiger, explizite Interfaces zu haben..
+// FÃ¼r den visitor ist es gÃ¼nstiger, explizite Interfaces zu haben..
 public interface ISignalTriggerSymbol: ITriggerSymbol {
 
     [NotNull]

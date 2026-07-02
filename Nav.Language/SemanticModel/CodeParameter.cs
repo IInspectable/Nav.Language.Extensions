@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -10,8 +10,8 @@ namespace Pharmatechnik.Nav.Language;
 
 sealed class CodeParameter: ICodeParameter {
 
-    CodeParameter(string parameterName, string paramterType, [NotNull] Location location) {
-        ParameterType = paramterType  ?? string.Empty;
+    CodeParameter(string parameterName, string parameterType, [NotNull] Location location) {
+        ParameterType = parameterType ?? string.Empty;
         ParameterName = parameterName ?? string.Empty;
         Location      = location      ?? throw new ArgumentNullException(nameof(location));
     }
@@ -32,7 +32,7 @@ sealed class CodeParameter: ICodeParameter {
 
         return new CodeParameter(
             parameterName: codeResult.Result.Identifier.ToString(),
-            paramterType : codeResult.Result.Type.ToString(),
+            parameterType: codeResult.Result.Type.ToString(),
             location     : codeResult.GetLocation());
     }
 

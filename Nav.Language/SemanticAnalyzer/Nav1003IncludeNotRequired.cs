@@ -12,7 +12,7 @@ public class Nav1003IncludeNotRequired: NavAnalyzer {
         //==============================
         // Taskref directive is not required by the code and can be safely removed
         //==============================
-        var unusedIncludes = codeGenerationUnit.Includes.Where(i => !i.TaskDeklarations.SelectMany(td => td.References).Any());
+        var unusedIncludes = codeGenerationUnit.Includes.Where(i => !i.TaskDeclarations.SelectMany(td => td.References).Any());
         foreach (var includeSymbol in unusedIncludes) {
 
             yield return new Diagnostic(

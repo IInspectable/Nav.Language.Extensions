@@ -1,4 +1,4 @@
-#region Using Directives
+Ôªø#region Using Directives
 
 using System.Collections.Generic;
 
@@ -18,14 +18,14 @@ public enum TaskDeclarationOrigin {
 public interface ITaskDeclarationSymbol: ISymbol {
 
     /// <summary>
-    /// Ist nur dann null, wenn IsIncluded true, da wir keine Syntaxb‰ume von anderen nav-Dateien 
+    /// Ist nur dann null, wenn IsIncluded true, da wir keine Syntaxb√§ume von anderen nav-Dateien 
     /// im Speicher halten wollen.
     /// </summary>
     [CanBeNull]
     MemberDeclarationSyntax Syntax { get; }
 
     /// <summary>
-    /// Ist nur dann null, wenn IsIncluded true, da wir keine Syntaxb‰ume von anderen nav-Dateien 
+    /// Ist nur dann null, wenn IsIncluded true, da wir keine Syntaxb√§ume von anderen nav-Dateien 
     /// im Speicher halten wollen.
     /// </summary>
     [CanBeNull]

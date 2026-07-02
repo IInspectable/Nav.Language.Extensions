@@ -1,8 +1,8 @@
-namespace Pharmatechnik.Nav.Language; 
+﻿namespace Pharmatechnik.Nav.Language; 
 
 abstract class TriggerSymbol: Symbol, ITriggerSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized Transition wird im Ctor der Transition w�hrend der Initialisierung gesetzt 
+    // ReSharper disable once NotNullMemberIsNotInitialized Transition wird im Ctor der Transition während der Initialisierung gesetzt 
     // In der "freien" Wildbahn" darf hingegen der Null Fall nicht auftreten
     protected TriggerSymbol(string name, Location location)
         : base(name, location) {

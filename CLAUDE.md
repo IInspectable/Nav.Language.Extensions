@@ -87,6 +87,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 | `nav snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
 | `nav incminor` / `incmajor` | Nächstes Minor-/Major-Version-Tag (`vX.Y.0`) auf HEAD anlegen (`-Push`/`-Force`). Der Patch zählt automatisch — kein `incbuild` mehr. |
 | `nav newbranch <name>` / `rmbranch` | Branch + Geschwister-Worktree anlegen/entfernen. |
+| `nav fixenc [-Path <dir>]` | Quelldateien auf UTF-8 **mit** BOM konvertieren (Nicht-UTF-8 wird als Windows-1252 gelesen; idempotent). Wartungswerkzeug. |
 | `nav help` / `nav` | Übersicht / interaktives Menü. |
 
 Quelle der Wahrheit für Commands sind die `.FUNCTIONALITY`-Tokens in `Tools\Commands\Functions\` —

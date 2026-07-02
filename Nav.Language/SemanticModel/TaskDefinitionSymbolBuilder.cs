@@ -9,13 +9,13 @@ namespace Pharmatechnik.Nav.Language;
 
 sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
-    readonly IReadOnlySymbolCollection<TaskDeclarationSymbol> _taskDeklarations;
+    readonly IReadOnlySymbolCollection<TaskDeclarationSymbol> _taskDeclarations;
     readonly List<Diagnostic>                                 _diagnostics;
 
     TaskDefinitionSymbol _taskDefinition;
 
-    TaskDefinitionSymbolBuilder(IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeklarations) {
-        _taskDeklarations = taskDeklarations;
+    TaskDefinitionSymbolBuilder(IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeclarations) {
+        _taskDeclarations = taskDeclarations;
         _diagnostics      = new List<Diagnostic>();
     }
 
@@ -29,7 +29,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
         var taskName = identifier.ToString();
 
-        var taskDeclaration = _taskDeklarations.TryFindSymbol(taskName);
+        var taskDeclaration = _taskDeclarations.TryFindSymbol(taskName);
         if (taskDeclaration?.Location != location) {
             taskDeclaration = null;
         }
@@ -127,7 +127,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
         var taskName        = taskIdentifier.ToString();
         var taskLocation    = taskIdentifier.GetLocation();
-        var taskDeclaration = _taskDeklarations.TryFindSymbol(taskName);
+        var taskDeclaration = _taskDeclarations.TryFindSymbol(taskName);
 
         var taskNode = new TaskNodeSymbol(taskName, taskLocation, taskNodeDeclarationSyntax, taskNodeAlias, taskDeclaration, _taskDefinition);
 
@@ -487,9 +487,9 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
     public static (
         TaskDefinitionSymbol TaskDefinition,
         List<Diagnostic> Diagnostics)
-        Build(TaskDefinitionSyntax taskDefinitionSyntax, IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeklarations) {
+        Build(TaskDefinitionSyntax taskDefinitionSyntax, IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeclarations) {
 
-        var builder = new TaskDefinitionSymbolBuilder(taskDeklarations);
+        var builder = new TaskDefinitionSymbolBuilder(taskDeclarations);
         builder.Visit(taskDefinitionSyntax);
         return (builder._taskDefinition, builder._diagnostics);
     }

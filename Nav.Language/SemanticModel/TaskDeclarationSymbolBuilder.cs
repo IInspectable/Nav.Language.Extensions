@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.IO;
@@ -16,7 +16,7 @@ sealed class TaskDeclarationSymbolBuilder {
     readonly bool                                    _processAsIncludedFile;
     readonly ISyntaxProvider                         _syntaxProvider;
     readonly List<Diagnostic>                        _diagnostics;
-    readonly SymbolCollection<TaskDeclarationSymbol> _taskDeklarations;
+    readonly SymbolCollection<TaskDeclarationSymbol> _taskDeclarations;
     readonly SymbolCollection<IncludeSymbol>         _includes;
 
     TaskDeclarationSymbolBuilder(CodeGenerationUnitSyntax codeGenerationUnitSyntax,
@@ -26,13 +26,13 @@ sealed class TaskDeclarationSymbolBuilder {
         _diagnostics              = new List<Diagnostic>();
         _processAsIncludedFile    = processAsIncludedFile;
         _syntaxProvider           = syntaxProvider ?? SyntaxProvider.Default;
-        _taskDeklarations         = new SymbolCollection<TaskDeclarationSymbol>();
+        _taskDeclarations         = new SymbolCollection<TaskDeclarationSymbol>();
         _includes                 = new SymbolCollection<IncludeSymbol>();
     }
 
     public static (
         IReadOnlyList<Diagnostic> Diagnostics,
-        SymbolCollection<TaskDeclarationSymbol> TaskDeklarations,
+        SymbolCollection<TaskDeclarationSymbol> TaskDeclarations,
         SymbolCollection<IncludeSymbol> Includes)
         FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, ISyntaxProvider syntaxProvider, CancellationToken cancellationToken) {
 
@@ -41,7 +41,7 @@ sealed class TaskDeclarationSymbolBuilder {
 
     static (
         IReadOnlyList<Diagnostic> Diagnostics,
-        SymbolCollection<TaskDeclarationSymbol> TaskDeklarations,
+        SymbolCollection<TaskDeclarationSymbol> TaskDeclarations,
         SymbolCollection<IncludeSymbol> Includes)
         FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, bool processAsIncludedFile, ISyntaxProvider syntaxProvider, CancellationToken cancellationToken) {
 
@@ -49,7 +49,7 @@ sealed class TaskDeclarationSymbolBuilder {
         builder.ProcessCodeGenerationUnitSyntax(syntax, cancellationToken);
 
         return (Diagnostics: builder._diagnostics,
-                TaskDeklarations: builder._taskDeklarations,
+                TaskDeclarations: builder._taskDeclarations,
                 Includes: builder._includes);
     }
 
@@ -96,7 +96,7 @@ sealed class TaskDeclarationSymbolBuilder {
                 filePath = Path.Combine(directory.FullName, filePath);
             }
 
-            // L�st relative Pfadangaben auf...
+            // Löst relative Pfadangaben auf...
             filePath = Path.GetFullPath(filePath);
 
             // nav File inkludiert sich selbst
@@ -122,7 +122,7 @@ sealed class TaskDeclarationSymbolBuilder {
             var fileLocation = new Location(filePath);
             var result       = FromCodeGenerationUnitSyntax(includeFileSyntax, processAsIncludedFile: true, syntaxProvider: _syntaxProvider, cancellationToken: cancellationToken);
             var diagnostics  = includeFileSyntax.SyntaxTree.Diagnostics.Union(result.Diagnostics).ToList();
-            var include      = new IncludeSymbol(filePath, location, fileLocation, includeDirectiveSyntax, diagnostics, result.TaskDeklarations);
+            var include      = new IncludeSymbol(filePath, location, fileLocation, includeDirectiveSyntax, diagnostics, result.TaskDeclarations);
 
             AddInclude(include);
 
@@ -153,7 +153,7 @@ sealed class TaskDeclarationSymbolBuilder {
                                      include.FileName));
             }
 
-            foreach (var decl in include.TaskDeklarations) {
+            foreach (var decl in include.TaskDeclarations) {
                 AddTaskDeclaration(decl);
             }
         }
@@ -253,9 +253,9 @@ sealed class TaskDeclarationSymbolBuilder {
     }
 
     void AddTaskDeclaration(TaskDeclarationSymbol taskDeclaration) {
-        if (_taskDeklarations.Contains(taskDeclaration.Name)) {
+        if (_taskDeclarations.Contains(taskDeclaration.Name)) {
 
-            var existing = _taskDeklarations[taskDeclaration.Name];
+            var existing = _taskDeclarations[taskDeclaration.Name];
 
             _diagnostics.Add(new Diagnostic(
                                  location: taskDeclaration.Location,
@@ -265,7 +265,7 @@ sealed class TaskDeclarationSymbolBuilder {
 
         } else {
 
-            _taskDeklarations.Add(taskDeclaration);
+            _taskDeclarations.Add(taskDeclaration);
         }
     }
 

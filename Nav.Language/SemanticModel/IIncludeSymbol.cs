@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 
@@ -23,6 +23,6 @@ public interface IIncludeSymbol: ISymbol {
     IReadOnlyList<Diagnostic> Diagnostics { get; }
 
     [NotNull]
-    IReadOnlySymbolCollection<ITaskDeclarationSymbol> TaskDeklarations { get; }
+    IReadOnlySymbolCollection<ITaskDeclarationSymbol> TaskDeclarations { get; }
 
 }

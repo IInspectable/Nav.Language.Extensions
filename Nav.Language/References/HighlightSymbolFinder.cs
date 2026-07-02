@@ -162,7 +162,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
 
         yield return includeSymbol;
 
-        foreach (var taskNode in includeSymbol.TaskDeklarations.SelectMany(td => td.References)) {
+        foreach (var taskNode in includeSymbol.TaskDeclarations.SelectMany(td => td.References)) {
             yield return taskNode;
         }
     }

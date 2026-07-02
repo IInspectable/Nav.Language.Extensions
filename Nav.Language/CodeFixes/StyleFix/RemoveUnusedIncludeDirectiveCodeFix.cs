@@ -29,7 +29,7 @@ public class RemoveUnusedIncludeDirectiveCodeFix: StyleCodeFix {
         var includeDirectiveSyntaxes = SyntaxTree.Root.DescendantNodes<IncludeDirectiveSyntax>();
         foreach (var includeDirectiveSyntax in includeDirectiveSyntaxes) {
             var includeSymbol = CodeGenerationUnit.Includes.FirstOrDefault(i => i.Syntax == includeDirectiveSyntax);
-            if (includeSymbol == null || !includeSymbol.TaskDeklarations.SelectMany(td => td.References).Any()) {
+            if (includeSymbol == null || !includeSymbol.TaskDeclarations.SelectMany(td => td.References).Any()) {
                 yield return includeDirectiveSyntax;
             }
         }
