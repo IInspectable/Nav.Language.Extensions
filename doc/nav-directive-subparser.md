@@ -21,11 +21,18 @@
   `[hashIndex, RunEnd)` genau einen `DirectiveRun`. Keyword-Dispatch über die **Token-Art** (der Lexer erkennt
   die Direktiv-Schlüsselwörter bereits tabellengesteuert als eigene Token — `PragmaKeyword`, `VersionKeyword`):
   `At(PragmaKeyword)` → `ParsePragma` (Subjekt `VersionKeyword` mit reinem Zwischenraum davor → **immer**
-  `VersionDirectiveSyntax`; das Argument ist genau ein `PreprocessorNumber`-Token, dem bis zum Zeilenende nur
-  Zwischenraum folgt — sonst Nav3002, Rückfall `Default`), alles andere → `BadDirective` + **Nav3000**. Kein
-  `Substring`-Textvergleich mehr im Sub-Parser (nur noch der Layout-Gap-Check zwischen `pragma` und `version`).
-  Portierte Helfer lokal: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`, `TryReadVersion`,
-  `PopulateLocalTokens` (lokale Token via geteiltes `SyntaxTokenFactory.TryClassifyNonSignificant`).
+  `VersionDirectiveSyntax`), alles andere → `BadDirective` + **Nav3000**. Kein `Substring`-Textvergleich mehr im
+  Sub-Parser (nur noch der Layout-Gap-Check zwischen `pragma` und `version`).
+  `ParseVersion` (dispatch-agnostisch — frisst `version` + Argument, ohne `pragma` vorauszusetzen; Seam für ein
+  späteres `#version`) liest das Argument im **Missing-Token-Stil** des Hauptparsers und meldet jede Abweichung
+  als genau **eine Nav3002**, positions-präzise: fehlender Wert → nullbreit hinter dem `version`-Schlüsselwort
+  (Insertion-Punkt, wie `NavParser.ReportMissing`); Nicht-Zahl/ungültiger Wert → über den Wert; gültige Zahl mit
+  überzähligem Rest (`#pragma version 1 2`) → die Zahl **gilt**, der Rest wird als `TextClassification.Skiped`
+  ausgegraut und über seine Spanne gemeldet (ein Token, das zu keinem Bestandteil gehört, soll nicht wie ein
+  gültiger Wert aussehen — analog zum Panic-Mode des Hauptparsers).
+  Portierte/lokale Helfer: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`, `TokensExtent`,
+  `InsertionPoint`, `ReportNav3002`, `PopulateLocalTokens(…, skipFrom)` (lokale Token via geteiltes
+  `SyntaxTokenFactory.TryClassifyNonSignificant`; Token ab `skipFrom` werden auf `Skiped` überschrieben).
 - **Lexer-Gate** (`NavLexer`): `#` beginnt eine Direktive nur als erstes Nicht-Whitespace-Zeichen der Zeile;
   mid-line-`#` → `Unknown`/**Nav0000**. **Nav3001 existiert nicht mehr** (aus `DiagnosticId`,
   `DiagnosticDescriptors.Syntax`, `doc/Errors.md` entfernt).
@@ -37,7 +44,8 @@
   doppelte) — sie bleiben als Knoten in `SyntaxTree.Directives()`, sind aber unwirksam.
   `CodeGenerationUnitSyntax.LanguageVersionDirective` ist der gespeicherte wirksame Wert (kein
   `Directives().First()` mehr). `BadDirectiveTriviaSyntax` = nur noch **unbekannte** Direktive.
-- **Verifiziert:** net10 1146/0, net472 1146/0 (je 3 `[Explicit]` skipped); `UpdateGolden` ohne Bestands-Diff.
+- **Verifiziert:** net10 1147/0, net472 1155/0 (3 `[Explicit]` skipped); einziger Golden-Diff seit der
+  `ParseVersion`-Umstellung: `VersionPragmaInvalid.nav.diag` (präzise Nav3002-Position statt ganzer Direktive).
 
 ## Warum
 
@@ -280,3 +288,12 @@ Auf dem Keyword-Dispatch-Seam: `#region`/`#endregion` bzw. `#if`/`#elif`/`#else`
 lokale Token; `DirectiveStack`/Konditionalauswertung separat) — je ein switch-case + ein
 `sealed partial : DirectiveTriviaSyntax`-Knoten mit `[SampleSyntax]`. Ebenfalls offen: `Nav5001` unzulässige
 Version, Direktiven-Completion.
+
+**`#pragma warning disable/restore` (bzw. `disable once NAVXY`):** Hier verdient sich der volle
+Missing-Token-Apparat sein Geld — auf den `ParseVersion`-Primitiven aufbauend: `EatAny` (Alternative
+`disable`/`restore`/`enable`), `TryEat`-Schleife (komma-getrennte Warn-IDs), Modifier (`once`), NAVXY als
+Identifier-Token; eigene katalogisierte Codes (u.a. Nav3005 „unexpected" — bis dahin meldet `ParseVersion`
+Überzähliges bewusst weiter als Nav3002). Die **Wirkung** (Diagnose-Unterdrückung über einen Zeilenbereich) ist
+ein separater **Cross-Run-Pass** (wie `ResolveLanguageVersion`), nicht Sache des Sub-Parsers. Dazu die
+**Ebene-2-Lexing-Entscheidung**: Zweitwörter/`,` als eigene Lexer-Token vs. kontextuelles Text-Matching (Komma
+ist heute ein 1-Zeichen-`PreprocessorText`) — bewusst mit `warning` treffen, nicht früher.
