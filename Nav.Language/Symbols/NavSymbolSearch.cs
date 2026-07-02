@@ -1,10 +1,10 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -30,9 +30,7 @@ public static class NavSymbolSearch {
     /// Optionaler Task-Name. Ist er gesetzt, wird ausschließlich innerhalb der Task-Definition(en) dieses
     /// Namens gesucht (deren Knoten + die Task selbst) — zur Disambiguierung mehrdeutiger Knotennamen.
     /// </param>
-    [NotNull]
-    public static IReadOnlyList<ISymbol> FindByName([NotNull] CodeGenerationUnit unit, string name,
-                                                    string taskScope = null) {
+    public static IReadOnlyList<ISymbol> FindByName(CodeGenerationUnit unit, string? name, string? taskScope = null) {
 
         if (unit == null) {
             throw new ArgumentNullException(nameof(unit));
@@ -44,16 +42,6 @@ public static class NavSymbolSearch {
 
         var seen    = new HashSet<(string, int)>();
         var results = new List<ISymbol>();
-
-        void TryAdd(ISymbol symbol) {
-            if (symbol?.Location == null || !string.Equals(symbol.Name, name, StringComparison.Ordinal)) {
-                return;
-            }
-
-            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
-                results.Add(symbol);
-            }
-        }
 
         if (taskScope != null) {
             foreach (var task in unit.TaskDefinitions.Where(t => string.Equals(t.Name, taskScope, StringComparison.Ordinal))) {
@@ -84,6 +72,16 @@ public static class NavSymbolSearch {
         }
 
         return results;
+
+        void TryAdd(ISymbol? symbol) {
+            if (symbol?.Location == null || !string.Equals(symbol.Name, name, StringComparison.Ordinal)) {
+                return;
+            }
+
+            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
+                results.Add(symbol);
+            }
+        }
     }
 
     /// <summary>
@@ -95,14 +93,13 @@ public static class NavSymbolSearch {
     /// (z.B. ein Knotenname in mehreren Tasks) werden alle zurückgegeben; Duplikate an derselben Stelle
     /// (Datei + Startoffset) werden entfernt.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<ISymbol> FindDefinitionsByPrefix([NotNull] CodeGenerationUnit unit, string prefix) {
+    public static IReadOnlyList<ISymbol> FindDefinitionsByPrefix(CodeGenerationUnit unit, string? prefix) {
 
         if (unit == null) {
             throw new ArgumentNullException(nameof(unit));
         }
 
-        prefix = prefix ?? string.Empty;
+        prefix ??= string.Empty;
 
         var seen    = new HashSet<(string, int)>();
         var results = new List<ISymbol>();
