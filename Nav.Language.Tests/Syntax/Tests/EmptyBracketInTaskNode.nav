@@ -1,0 +1,8 @@
+﻿task Preisermittlung
+{
+    init;
+    task    Preisermittlung Preisermittlung [];
+    exit    Exit;
+
+    init --> Exit;
+}

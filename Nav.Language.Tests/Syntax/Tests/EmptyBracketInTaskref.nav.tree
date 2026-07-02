@@ -1,0 +1,5 @@
+﻿CodeGenerationUnitSyntax [0-53]  {OpenBracket, CloseBracket, EndOfFile}
+  TaskDeclarationSyntax [0-52]  {TaskrefKeyword, Identifier, OpenBrace, CloseBrace}
+    InitNodeDeclarationSyntax [20-28]  {InitKeyword, Identifier, Semicolon}
+    ExitNodeDeclarationSyntax [33-41]  {ExitKeyword, Identifier, Semicolon}
+    EndNodeDeclarationSyntax [46-50]  {EndKeyword, Semicolon}

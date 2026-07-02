@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text;
 using System.Threading;
 
 using Pharmatechnik.Nav.Language.Internal;
@@ -463,7 +464,7 @@ sealed class NavParser {
         var notImplemented = AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword)  ? ParseCodeNotImplementedDeclaration()  : null;
         var result         = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)          ? ParseCodeResultDeclaration()          : null;
 
-        SkipMalformedBrackets();
+        SkipMalformedBrackets(SyntaxFacts.NamespaceprefixKeyword, SyntaxFacts.NotimplementedKeyword, SyntaxFacts.ResultKeyword);
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -543,7 +544,7 @@ sealed class NavParser {
         var codeParams = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)     ? ParseCodeParamsDeclaration()     : null;
         var result     = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)     ? ParseCodeResultDeclaration()     : null;
 
-        SkipMalformedBrackets();
+        SkipMalformedBrackets(SyntaxFacts.CodeKeyword, SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword, SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword);
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -655,7 +656,7 @@ sealed class NavParser {
         // Ein '[' an dieser Stelle, das keiner bekannten Code-Deklaration entspricht (leeres `[]`, beim
         // Tippen noch unfertiges `[par`), wird als Fehlerproduktion in der Klammer verschluckt — sonst
         // bräche die Knoten-Deklaration hier ab und die restlichen Body-Zeilen liefen als Kaskade auf.
-        var malformedBracket = SkipMalformedBrackets();
+        var malformedBracket = SkipMalformedBrackets(SyntaxFacts.ParamsKeyword, SyntaxFacts.AbstractmethodKeyword);
 
         var doClause = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
 
@@ -732,7 +733,7 @@ sealed class NavParser {
 
         // Nicht erkanntes '[' als Fehlerproduktion in der Klammer verschlucken (siehe
         // ParseInitNodeDeclaration) — hält die Kaskade aus der abgebrochenen Knoten-Deklaration auf.
-        var malformedBracket = SkipMalformedBrackets();
+        var malformedBracket = SkipMalformedBrackets(SyntaxFacts.DonotinjectKeyword, SyntaxFacts.AbstractmethodKeyword);
 
         var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
 
@@ -1477,11 +1478,17 @@ sealed class NavParser {
     /// ebenfalls fehlende <c>;</c> (eine Diagnose pro Divergenzstelle, analog zu einer an der
     /// Zeilengrenze abgebrochenen Transition).
     /// </summary>
-    bool SkipMalformedBrackets() {
+    /// <param name="expectedKeywords">
+    /// Die an dieser Stelle gültigen <c>[keyword …]</c>-Schlüsselwörter (Literale aus
+    /// <see cref="SyntaxFacts"/>). Für ein <b>leeres</b> <c>[]</c> — bei dem die Klammer hierher gehört
+    /// und nur ihr Inhalt fehlt — werden sie zur Diagnose <c>expected 'a', 'b' or 'c'</c> statt des
+    /// irreführenden <c>unexpected input '[]'</c>.
+    /// </param>
+    bool SkipMalformedBrackets(params string[] expectedKeywords) {
 
         var skipped = false;
         while (At(SyntaxTokenType.OpenBracket)) {
-            ParseMalformedBracketDeclaration();
+            ParseMalformedBracketDeclaration(expectedKeywords);
             skipped = true;
         }
 
@@ -1496,9 +1503,20 @@ sealed class NavParser {
     /// Schaden bleibt auf die Klammer beschränkt. Die übersprungenen Token gehen nicht verloren: sie
     /// hängen anschließend als <see cref="TextClassification.Skiped"/>-Token an der Wurzel.
     /// </summary>
-    void ParseMalformedBracketDeclaration() {
+    /// <remarks>
+    /// Bei einem <b>leeren</b> <c>[]</c> (öffnende Klammer direkt gefolgt von der schließenden) und
+    /// gesetzten <paramref name="expectedKeywords"/> lautet die Diagnose <c>expected …</c>: die Klammer ist
+    /// an dieser Stelle vorgesehen, nur ihr Schlüsselwort fehlt. Enthält die Klammer dagegen (ungültigen)
+    /// Inhalt, bleibt es beim treffenderen <c>unexpected input '…'</c>.
+    /// </remarks>
+    void ParseMalformedBracketDeclaration(string[] expectedKeywords) {
 
         var start = CurrentStart;
+
+        // Leeres '[]' an einer Stelle, an der eine [keyword …]-Deklaration erwartet wird: die Klammer
+        // gehört hierher, nur ihr Inhalt (das Schlüsselwort) fehlt — daher „expected …" statt
+        // „unexpected input '[]'". Vor dem Konsumieren feststellen (danach ist der Cursor weiter).
+        var emptyBracket = expectedKeywords.Length > 0 && PeekType(1) == SyntaxTokenType.CloseBracket;
 
         // Das '[' und den (ungültigen) Inhalt bis zum ']' oder einem harten Anker überspringen. Das '['
         // selbst ist per Aufrufkontext gesichert, der Rumpf läuft also mindestens einmal (Fortschritt).
@@ -1520,7 +1538,30 @@ sealed class NavParser {
         }
 
         var extent = TextExtent.FromBounds(start, end);
-        ReportUnexpected(extent, _sourceText.Substring(extent));
+        if (emptyBracket) {
+            _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(extent),
+                                            DiagnosticDescriptors.NewSyntaxError($"expected {FormatExpectedKeywords(expectedKeywords)}")));
+        } else {
+            ReportUnexpected(extent, _sourceText.Substring(extent));
+        }
+    }
+
+    /// <summary>
+    /// Formatiert die erwarteten Schlüsselwörter als gequotete, durch Komma getrennte Aufzählung mit
+    /// <c>or</c> vor dem letzten Element — z.B. <c>'code', 'base' or 'params'</c>.
+    /// </summary>
+    static string FormatExpectedKeywords(string[] keywords) {
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < keywords.Length; i++) {
+            if (i > 0) {
+                sb.Append(i == keywords.Length - 1 ? " or " : ", ");
+            }
+
+            sb.Append('\'').Append(keywords[i]).Append('\'');
+        }
+
+        return sb.ToString();
     }
 
     #endregion

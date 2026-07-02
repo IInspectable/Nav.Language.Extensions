@@ -1,0 +1,24 @@
+﻿    0 TaskrefKeyword
+    T Whitespace        [7-8]         " "
+    8 Identifier
+    T Whitespace        [10-11]       " "
+   12 CloseBracket
+    T NewLine           [13-14]       "\n"
+   14 OpenBrace
+    T NewLine           [15-16]       "\n"
+   20 InitKeyword
+    L Whitespace        [16-20]       "    "
+    T Whitespace        [24-25]       " "
+   27 Semicolon
+    T NewLine           [28-29]       "\n"
+   33 ExitKeyword
+    L Whitespace        [29-33]       "    "
+    T Whitespace        [37-38]       " "
+   40 Semicolon
+    T NewLine           [41-42]       "\n"
+   46 EndKeyword
+    L Whitespace        [42-46]       "    "
+   49 Semicolon
+    T NewLine           [50-51]       "\n"
+   51 CloseBrace
+    T NewLine           [52-53]       "\n"
