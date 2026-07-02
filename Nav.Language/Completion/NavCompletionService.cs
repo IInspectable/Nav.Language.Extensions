@@ -196,18 +196,20 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Hinter einer Edge: die Knoten (als Ziel) — unreferenzierte zuerst — plus das Ziel-Keyword `end`.
+    // Hinter einer Edge: die Knoten, die als ZIEL taugen (ITargetNodeSymbol — also NICHT `init`), unreferenzierte
+    // zuerst — plus das Ziel-Keyword `end`.
     static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
-        AddNodeReferences(items, context.Task);
+        AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol);
         items.Add(new NavCompletionItem(SyntaxFacts.EndKeyword, NavCompletionItemKind.Keyword));
         return items;
     }
 
-    // Satzanfang im Body: die vorhandenen Knoten (als Quelle) plus die Knoten-Deklarations-Keywords.
+    // Satzanfang im Body: die vorhandenen Knoten, die als QUELLE einer Transition taugen (ISourceNodeSymbol —
+    // also NICHT `end`/`exit`), plus die Knoten-Deklarations-Keywords.
     static List<NavCompletionItem> StatementStartItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
-        AddNodeReferences(items, context.Task);
+        AddNodeReferences(items, context.Task, n => n is ISourceNodeSymbol);
 
         foreach (var keyword in NodeDeclarationKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
@@ -289,22 +291,28 @@ public static class NavCompletionService {
                        .ToList();
     }
 
-    // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch.
-    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol task) {
+    // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch. Über <paramref name="roleFilter"/>
+    // wird auf die im jeweiligen Slot grammatisch mögliche Rolle eingegrenzt (Quelle bzw. Ziel einer Transition);
+    // ohne Filter (Fallback) werden alle Knoten angeboten.
+    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol task, Func<INodeSymbol, bool> roleFilter = null) {
 
         if (task == null) {
             return;
         }
 
-        foreach (var node in task.NodeDeclarations
-                                 .Where(n => n.References.Count == 0)
-                                 .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+        var nodes = roleFilter == null
+                        ? (IEnumerable<INodeSymbol>) task.NodeDeclarations
+                        : task.NodeDeclarations.Where(roleFilter);
+
+        foreach (var node in nodes
+                             .Where(n => n.References.Count == 0)
+                             .OrderBy(n => n.Name, StringComparer.Ordinal)) {
             items.Add(FromSymbol(node));
         }
 
-        foreach (var node in task.NodeDeclarations
-                                 .Where(n => n.References.Count != 0)
-                                 .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+        foreach (var node in nodes
+                             .Where(n => n.References.Count != 0)
+                             .OrderBy(n => n.Name, StringComparer.Ordinal)) {
             items.Add(FromSymbol(node));
         }
     }

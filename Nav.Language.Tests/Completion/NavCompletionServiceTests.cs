@@ -68,13 +68,14 @@ public class NavCompletionServiceTests {
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
 
-        // Hinter der Edge stehen die Knoten als Ziel...
-        Assert.That(labels, Does.Contain("i"));
-        Assert.That(labels, Does.Contain("e"));
-        Assert.That(labels, Does.Contain("Sub"));
+        // Hinter der Edge stehen nur die Knoten, die als ZIEL taugen (ITargetNodeSymbol)...
+        Assert.That(labels, Does.Contain("e"));   // exit — nur Ziel
+        Assert.That(labels, Does.Contain("Sub")); // task-Knoten — Quelle und Ziel
         // ...plus das Ziel-Keyword `end`.
         Assert.That(labels, Does.Contain(SyntaxFacts.EndKeyword));
-        // Aber KEINE Deklarations-Keywords, keine Edge-Keywords und keine Folge-Klauseln.
+        // Aber NICHT der `init`-Knoten `i` (nur Quelle, nie Ziel).
+        Assert.That(labels, Has.None.EqualTo("i"));
+        // Auch KEINE Deklarations-Keywords, keine Edge-Keywords und keine Folge-Klauseln.
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ExitKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
@@ -200,9 +201,10 @@ public class NavCompletionServiceTests {
         Assert.That(labels, Does.Contain(SyntaxFacts.InitKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.ExitKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.TaskKeyword));
-        // ...und die vorhandenen Knoten (als Quelle einer neuen Transition).
-        Assert.That(labels, Does.Contain("i"));
-        Assert.That(labels, Does.Contain("e"));
+        // ...und die vorhandenen Knoten, die als QUELLE einer neuen Transition taugen (ISourceNodeSymbol).
+        Assert.That(labels, Does.Contain("i"));           // init — nur Quelle
+        // Aber NICHT der `exit`-Knoten `e` (nur Ziel, nie Quelle) — auch wenn `exit` als Deklarations-Keyword da ist.
+        Assert.That(labels, Has.None.EqualTo("e"));
         // Aber KEINE Folge-Klauseln, kein `taskref`, keine Edge-Keywords.
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.OnKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.IfKeyword));
