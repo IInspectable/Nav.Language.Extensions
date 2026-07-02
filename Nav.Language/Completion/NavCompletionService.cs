@@ -338,8 +338,8 @@ public static class NavCompletionService {
         }
 
         var nodes = roleFilter == null
-                        ? task.NodeDeclarations
-                        : task.NodeDeclarations.Where(roleFilter);
+                        ? (IReadOnlyList<INodeSymbol>) task.NodeDeclarations
+                        : task.NodeDeclarations.Where(roleFilter).ToList();
 
         foreach (var node in nodes
                              .Where(n => n.References.Count == 0)
