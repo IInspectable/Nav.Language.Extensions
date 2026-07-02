@@ -445,6 +445,65 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void TaskRefBody_AfterOpenBrace_OffersConnectionPointKeywords() {
+
+        // Im Body einer taskref-Deklaration erlaubt die Grammatik nur Connection-Point-Deklarationen
+        // (init/exit/end). Ein taskref ist KEINE Task-Definition — früher fiel der Kontext auf die
+        // Member-Ebene zurück und bot fälschlich task/taskref an.
+        const string nav = "taskref Sub\n" +
+                           "{\n"            + // Cursor direkt hinter dem `{` des taskref-Bodys
+                           "    init si;\n" +
+                           "    exit se;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\ref-body.nav");
+        var caret = IndexOfToken(nav, "{\n    init si;", "{"); // direkt hinter `{`
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Nur die Connection-Point-Keywords.
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.InitKeyword, SyntaxFacts.ExitKeyword, SyntaxFacts.EndKeyword }));
+        // KEINE Member-Keywords (das war der Bug), keine Knoten-Deklarations-/Transitions-Keywords.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskrefKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ChoiceKeyword));
+    }
+
+    [Test]
+    public void TaskRefBody_AfterConnectionPointSemicolon_OffersConnectionPointKeywords() {
+
+        const string nav = "taskref Sub\n" +
+                           "{\n"            +
+                           "    init si;\n" + // Satzanfang HINTER dem `;` einer Connection-Point-Deklaration
+                           "    exit se;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\ref-body-semi.nav");
+        var caret = IndexOfToken(nav, "init si;\n", "init si;"); // direkt hinter dem `;`
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.InitKeyword, SyntaxFacts.ExitKeyword, SyntaxFacts.EndKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+    }
+
+    [Test]
+    public void TaskRefBody_InConnectorNameSlot_OffersNothing() {
+
+        // Hinter dem Connection-Point-Keyword steht der Connector-Name — ein freier, neu vergebener Bezeichner.
+        // Dort gibt es nichts anzubieten (und schon gar nicht task/taskref der Member-Ebene).
+        const string nav = "taskref Sub\n" +
+                           "{\n"            +
+                           "    exit se;\n" + // Cursor hinter `exit ` (Name-Slot)
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\ref-name-slot.nav");
+        var caret = IndexOfToken(nav, "exit se;", "exit "); // hinter `exit `, vor dem Namen
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
     public void InSingleLineComment_OffersNothing() {
 
         const string nav = "task A\n"          +

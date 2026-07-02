@@ -123,6 +123,10 @@ public static class NavCompletionService {
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
 
+            // Im Body einer taskref-Deklaration: nur die Connection-Point-Deklarations-Keywords.
+            case NavCompletionContextKind.ConnectionPointDeclaration:
+                return KeywordItems(SyntaxFacts.InitKeyword, SyntaxFacts.ExitKeyword, SyntaxFacts.EndKeyword);
+
             case NavCompletionContextKind.TaskNodeName:
                 return TaskDeclarationItems(unit);
 

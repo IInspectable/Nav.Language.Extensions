@@ -45,6 +45,13 @@ enum NavCompletionContextKind {
     /// <summary>Member-Ebene (außerhalb einer Task-Definition): nur <c>task</c> / <c>taskref</c>.</summary>
     MemberLevel,
 
+    /// <summary>
+    /// Satzanfang im Body einer <c>taskref</c>-Deklaration (<c>taskref Sub { … }</c>): die einzigen dort
+    /// grammatisch zulässigen Bewohner sind Connection-Point-Deklarationen — <c>init</c> / <c>exit</c> /
+    /// <c>end</c>. KEINE Member-Keywords (<c>task</c>/<c>taskref</c>) und keine Knoten-/Transitions-Konstrukte.
+    /// </summary>
+    ConnectionPointDeclaration,
+
     /// <summary>Hinter <c>task</c> innerhalb eines Task-Bodies (Task-Knoten): die deklarierten Tasks.</summary>
     TaskNodeName,
 
@@ -205,6 +212,21 @@ sealed class NavCompletionContext {
                 : Of(NavCompletionContextKind.Suppress);
         }
 
+        // taskref-Body: dessen einzige Bewohner sind Connection-Point-Deklarationen (init/exit/end). Ein
+        // taskref ist eine TaskDeclaration (kein ITaskDefinitionSymbol) und fiele daher unten auf die
+        // Member-Ebene zurück — dort böte die Completion fälschlich task/taskref an. Stattdessen: am
+        // Satzanfang im Body (direkt hinter `{` oder dem `;` eines Connection-Points) die Connection-Point-
+        // Keywords; an jeder anderen Stelle im Body (der Connector-Name ist ein freier Bezeichner) nichts.
+        if (EnclosingTaskDeclaration(contextToken) != null) {
+            var atStatementStart = contextToken.Type == SyntaxTokenType.OpenBrace ||
+                                    (contextToken.Type  == SyntaxTokenType.Semicolon &&
+                                     contextToken.Parent is ConnectionPointNodeSyntax);
+
+            return Of(atStatementStart
+                          ? NavCompletionContextKind.ConnectionPointDeclaration
+                          : NavCompletionContextKind.Suppress);
+        }
+
         // Außerhalb jeder Task-Definition → Member-Ebene.
         if (task == null) {
             return Of(NavCompletionContextKind.MemberLevel);
@@ -319,6 +341,20 @@ sealed class NavCompletionContext {
         }
 
         return unit.TaskDefinitions.FirstOrDefault(t => t.Syntax.Extent == taskSyntax.Extent);
+    }
+
+    /// <summary>
+    /// Die umschließende <c>taskref</c>-Deklaration (<see cref="TaskDeclarationSyntax"/>) zum gegebenen Token —
+    /// oder <c>null</c>, wenn das Token nicht innerhalb einer solchen liegt. Anders als eine
+    /// <see cref="TaskDefinitionSyntax"/> trägt sie kein <see cref="ITaskDefinitionSymbol"/>; für die Completion
+    /// im taskref-Body genügen die statischen Connection-Point-Keywords, ein Symbol wird nicht benötigt.
+    /// </summary>
+    [CanBeNull]
+    static TaskDeclarationSyntax EnclosingTaskDeclaration(SyntaxToken token) {
+        return token.Parent?
+                    .AncestorsAndSelf()
+                    .OfType<TaskDeclarationSyntax>()
+                    .FirstOrDefault();
     }
 
     /// <summary>

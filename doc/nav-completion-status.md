@@ -121,10 +121,41 @@ net10 grün):
    verschwindet an diesen Stellen. (Analoges bleibt bewusst offen: kantentyp-/choice-abhängige
    Zielfilterung — gegen „nie weniger als grammatisch gültig", Fehlalarm-Risiko.)
 
+5. **`taskref`-Body erkannt (Connection-Point-Deklarationen).** Innerhalb von `taskref Sub { … }` erlaubt die
+   Grammatik ausschließlich Connection-Point-Deklarationen (`connectionPointNodeDeclaration ::= init | exit | end`).
+   Die Completion kannte aber nur `EnclosingTask` = `TaskDefinitionSyntax`; ein `taskref` ist eine
+   `TaskDeclarationSyntax` (kein `ITaskDefinitionSymbol`) → `task == null` → Rückfall auf `MemberLevel`, das im
+   taskref-Body fälschlich `task`/`taskref` anbot (grammatisch dort ungültig). Neuer Kontext
+   `NavCompletionContextKind.ConnectionPointDeclaration`: `Classify` erkennt über den neuen Helfer
+   `EnclosingTaskDeclaration` den umschließenden `taskref` und liefert am Satzanfang im Body (direkt hinter `{`
+   oder dem `;` eines Connection-Points) die Keywords `init`/`exit`/`end`; an jeder anderen Body-Stelle (der
+   Connector-Name ist ein freier Bezeichner) `Suppress` statt der bisherigen Member-Keywords. Kein Symbol nötig —
+   die Keywords sind statisch. Neue Tests: `TaskRefBody_AfterOpenBrace_OffersConnectionPointKeywords`,
+   `TaskRefBody_AfterConnectionPointSemicolon_OffersConnectionPointKeywords`,
+   `TaskRefBody_InConnectorNameSlot_OffersNothing` (net10 38/38, net472 38/38).
+
 Neue/erweiterte Tests: `UnnamedInit_NotOfferedAsDuplicateKeyword`, `AfterTrigger_OffersConditionClausesAndDo`,
 `AfterDoKeyword_OffersNothing`, `AfterFilledSignalTrigger_OffersConditionClausesAndDo`,
 `AfterFilledCondition_OffersOnlyDo`, `AfterFilledDo_OffersNothing` sowie `else`-/`InitKeywordAlt`-Assertions
 in den bestehenden `AfterTarget`-/`StatementStart`-/`TransitionStart`-Tests.
+
+## Offene Verfeinerungs-Chancen (Grammatik-Review, noch NICHT umgesetzt)
+
+Zwei „kontextuell besser filtern"-Chancen aus dem jüngsten Grammatik-Abgleich — bewusst noch offen:
+
+1. **Node-Deklarations-„Schwanz" fällt auf `Fallback`.** Nach dem Namen einer schlüsselwort-eingeleiteten
+   Knoten-Deklaration (`exit e ▸`, `choice c ▸`, `dialog d ▸`, `view v ▸`, `task Sub ▸`) landet der Kontext im
+   pauschalen `Fallback` (alle Knoten + alle Keywords + Edges), obwohl grammatisch nur noch `;` folgt — bei
+   `init …` zusätzlich eine `do`-Klausel (und, über `[`, die jeweiligen Code-Blöcke). Das ist dasselbe
+   Fallback-Rauschen, das für die Klausel-Kontexte (`on`/`if`/`do`) bereits ausgetrieben wurde. Präzisierung
+   möglich: im Node-Tail `Suppress` (bzw. nur `do` beim init-Knoten). Aligned mit dem „nie weniger als
+   grammatisch gültig"-Prinzip (entfernt nur Ungültiges). Subtil beim `init`-`do` und beim optionalen
+   task-Knoten-Alias.
+2. **Singleton-Code-Deklarationen werden erneut angeboten.** Im Code-Block-Wirt bietet
+   `CodeBlockKeywordItems` immer alle erlaubten Keywords an, auch wenn eine nur einmal zulässige Deklaration
+   (`code`, `base`, `generateto`, `params`, `result`, `namespaceprefix`) am selben Wirt bereits existiert.
+   Präzisierung: bereits vorhandene Singletons herausfiltern. Riskanter/komplexer — braucht den Wirt-Zustand
+   (vorhandene `code*`-Deklarationen), nicht nur seinen Typ.
 
 ## Arbeitsliste (session-übergreifend)
 
