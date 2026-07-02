@@ -414,6 +414,37 @@ task
         Assert.That(() => ParseModel(nav), Throws.Nothing);
     }
 
+    [Test]
+    public void TestTaskDeclarationConnectionPointFilters() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    init I2;
+    exit e1;
+    exit e2;
+    end;
+
+    I1  --> e1;
+    I2  --> e2;
+}
+        ";
+
+        var model = ParseModel(nav);
+        var taskA = model.TryFindTaskDefinition("A")?.AsTaskDeclaration;
+
+        Assert.That(taskA, Is.Not.Null);
+
+        Assert.That(taskA.Inits().Select(cp => cp.Name), Is.EquivalentTo(new[] { "I1", "I2" }));
+        Assert.That(taskA.Exits().Select(cp => cp.Name), Is.EquivalentTo(new[] { "e1", "e2" }));
+        Assert.That(taskA.Ends().Select(cp => cp.Name),  Is.EquivalentTo(new[] { "end" }));
+
+        // Die Filter sind disjunkt und decken zusammen alle ConnectionPoints ab
+        Assert.That(taskA.Inits().Count() + taskA.Exits().Count() + taskA.Ends().Count(),
+                    Is.EqualTo(taskA.ConnectionPoints.Count));
+    }
+
     CodeGenerationUnit ParseModel(string source) {
         var syntax =Syntax.ParseCodeGenerationUnit(source);
         var model  = CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);
