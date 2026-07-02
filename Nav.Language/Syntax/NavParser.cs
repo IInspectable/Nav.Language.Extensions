@@ -255,6 +255,14 @@ sealed class NavParser {
                 continue;
             }
 
+            // Ein '[' auf Top-Level, das keiner Kopf-Deklaration (namespaceprefix/using) mehr entspricht,
+            // läuft durch dieselbe Klammer-Recovery wie in den übrigen Wirten — ein leeres '[]' meldet
+            // „expected 'namespaceprefix' or 'using'" statt des nackten „unexpected input '['".
+            if (At(SyntaxTokenType.OpenBracket)) {
+                SkipMalformedBrackets(CodeBlockHost.CompilationUnit);
+                continue;
+            }
+
             // Auf Top-Level gibt es keinen äußeren Anker: alles, was kein Member beginnt, wird bis zum
             // nächsten Member oder zum Dateiende übersprungen.
             Recover(() => At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtEof);
@@ -464,7 +472,7 @@ sealed class NavParser {
         var notImplemented = AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword)  ? ParseCodeNotImplementedDeclaration()  : null;
         var result         = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)          ? ParseCodeResultDeclaration()          : null;
 
-        SkipMalformedBrackets(SyntaxFacts.NamespaceprefixKeyword, SyntaxFacts.NotimplementedKeyword, SyntaxFacts.ResultKeyword);
+        SkipMalformedBrackets(CodeBlockHost.TaskRef);
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -544,7 +552,7 @@ sealed class NavParser {
         var codeParams = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)     ? ParseCodeParamsDeclaration()     : null;
         var result     = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)     ? ParseCodeResultDeclaration()     : null;
 
-        SkipMalformedBrackets(SyntaxFacts.CodeKeyword, SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword, SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword);
+        SkipMalformedBrackets(CodeBlockHost.TaskDefinition);
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -656,7 +664,7 @@ sealed class NavParser {
         // Ein '[' an dieser Stelle, das keiner bekannten Code-Deklaration entspricht (leeres `[]`, beim
         // Tippen noch unfertiges `[par`), wird als Fehlerproduktion in der Klammer verschluckt — sonst
         // bräche die Knoten-Deklaration hier ab und die restlichen Body-Zeilen liefen als Kaskade auf.
-        var malformedBracket = SkipMalformedBrackets(SyntaxFacts.ParamsKeyword, SyntaxFacts.AbstractmethodKeyword);
+        var malformedBracket = SkipMalformedBrackets(CodeBlockHost.InitNode);
 
         var doClause = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
 
@@ -733,7 +741,7 @@ sealed class NavParser {
 
         // Nicht erkanntes '[' als Fehlerproduktion in der Klammer verschlucken (siehe
         // ParseInitNodeDeclaration) — hält die Kaskade aus der abgebrochenen Knoten-Deklaration auf.
-        var malformedBracket = SkipMalformedBrackets(SyntaxFacts.DonotinjectKeyword, SyntaxFacts.AbstractmethodKeyword);
+        var malformedBracket = SkipMalformedBrackets(CodeBlockHost.TaskNode);
 
         var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
 
@@ -1478,17 +1486,17 @@ sealed class NavParser {
     /// ebenfalls fehlende <c>;</c> (eine Diagnose pro Divergenzstelle, analog zu einer an der
     /// Zeilengrenze abgebrochenen Transition).
     /// </summary>
-    /// <param name="expectedKeywords">
-    /// Die an dieser Stelle gültigen <c>[keyword …]</c>-Schlüsselwörter (Literale aus
-    /// <see cref="SyntaxFacts"/>). Für ein <b>leeres</b> <c>[]</c> — bei dem die Klammer hierher gehört
-    /// und nur ihr Inhalt fehlt — werden sie zur Diagnose <c>expected 'a', 'b' or 'c'</c> statt des
-    /// irreführenden <c>unexpected input '[]'</c>.
+    /// <param name="host">
+    /// Der Wirt der Klammer — er bestimmt über <see cref="CodeBlockFacts.VisibleDeclarationKeywords"/> die
+    /// an dieser Stelle gültigen <c>[keyword …]</c>-Schlüsselwörter. Für ein <b>leeres</b> <c>[]</c> — bei
+    /// dem die Klammer hierher gehört und nur ihr Inhalt fehlt — werden sie zur Diagnose
+    /// <c>expected 'a', 'b' or 'c'</c> statt des irreführenden <c>unexpected input '[]'</c>.
     /// </param>
-    bool SkipMalformedBrackets(params string[] expectedKeywords) {
+    bool SkipMalformedBrackets(CodeBlockHost host) {
 
         var skipped = false;
         while (At(SyntaxTokenType.OpenBracket)) {
-            ParseMalformedBracketDeclaration(expectedKeywords);
+            ParseMalformedBracketDeclaration(host);
             skipped = true;
         }
 
@@ -1504,19 +1512,20 @@ sealed class NavParser {
     /// hängen anschließend als <see cref="TextClassification.Skiped"/>-Token an der Wurzel.
     /// </summary>
     /// <remarks>
-    /// Bei einem <b>leeren</b> <c>[]</c> (öffnende Klammer direkt gefolgt von der schließenden) und
-    /// gesetzten <paramref name="expectedKeywords"/> lautet die Diagnose <c>expected …</c>: die Klammer ist
-    /// an dieser Stelle vorgesehen, nur ihr Schlüsselwort fehlt. Enthält die Klammer dagegen (ungültigen)
+    /// Bei einem <b>leeren</b> <c>[]</c> (öffnende Klammer direkt gefolgt von der schließenden) lautet die
+    /// Diagnose <c>expected …</c> mit den im <paramref name="host"/> gültigen Schlüsselwörtern: die Klammer
+    /// ist an dieser Stelle vorgesehen, nur ihr Schlüsselwort fehlt. Enthält die Klammer dagegen (ungültigen)
     /// Inhalt, bleibt es beim treffenderen <c>unexpected input '…'</c>.
     /// </remarks>
-    void ParseMalformedBracketDeclaration(string[] expectedKeywords) {
+    void ParseMalformedBracketDeclaration(CodeBlockHost host) {
 
-        var start = CurrentStart;
+        var start    = CurrentStart;
+        var expected = CodeBlockFacts.VisibleDeclarationKeywords(host);
 
         // Leeres '[]' an einer Stelle, an der eine [keyword …]-Deklaration erwartet wird: die Klammer
         // gehört hierher, nur ihr Inhalt (das Schlüsselwort) fehlt — daher „expected …" statt
         // „unexpected input '[]'". Vor dem Konsumieren feststellen (danach ist der Cursor weiter).
-        var emptyBracket = expectedKeywords.Length > 0 && PeekType(1) == SyntaxTokenType.CloseBracket;
+        var emptyBracket = expected.Length > 0 && PeekType(1) == SyntaxTokenType.CloseBracket;
 
         // Das '[' und den (ungültigen) Inhalt bis zum ']' oder einem harten Anker überspringen. Das '['
         // selbst ist per Aufrufkontext gesichert, der Rumpf läuft also mindestens einmal (Fortschritt).
@@ -1540,7 +1549,7 @@ sealed class NavParser {
         var extent = TextExtent.FromBounds(start, end);
         if (emptyBracket) {
             _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(extent),
-                                            DiagnosticDescriptors.NewSyntaxError($"expected {FormatExpectedKeywords(expectedKeywords)}")));
+                                            DiagnosticDescriptors.NewSyntaxError($"expected {FormatExpectedKeywords(expected)}")));
         } else {
             ReportUnexpected(extent, _sourceText.Substring(extent));
         }
@@ -1550,7 +1559,7 @@ sealed class NavParser {
     /// Formatiert die erwarteten Schlüsselwörter als gequotete, durch Komma getrennte Aufzählung mit
     /// <c>or</c> vor dem letzten Element — z.B. <c>'code', 'base' or 'params'</c>.
     /// </summary>
-    static string FormatExpectedKeywords(string[] keywords) {
+    static string FormatExpectedKeywords(ImmutableArray<string> keywords) {
 
         var sb = new StringBuilder();
         for (var i = 0; i < keywords.Length; i++) {

@@ -96,30 +96,6 @@ enum NavCompletionContextKind {
 }
 
 /// <summary>
-/// Der „Wirt" eines Code-Blocks (<c>[ … ]</c>) — er bestimmt, welche Code-Schlüsselwörter dort grammatisch
-/// zulässig sind. Die zugehörigen Grammatikregeln stehen im <c>NavParser</c> (jeweils die optionalen
-/// <c>code*</c>-Deklarationen des Wirts).
-/// </summary>
-enum CodeBlockHost {
-
-    /// <summary>Datei-Ebene (Kopf der CodeGenerationUnit): <c>namespaceprefix</c>, <c>using</c>.</summary>
-    CompilationUnit,
-
-    /// <summary><c>taskref</c>-Deklaration: <c>namespaceprefix</c>, <c>result</c> (<c>notimplemented</c> ist versteckt).</summary>
-    TaskRef,
-
-    /// <summary><c>task</c>-Definitions-Kopf: <c>code</c>, <c>base</c>, <c>generateto</c>, <c>params</c>, <c>result</c>.</summary>
-    TaskDefinition,
-
-    /// <summary><c>init</c>-Knoten: <c>abstractmethod</c>, <c>params</c>.</summary>
-    InitNode,
-
-    /// <summary><c>task</c>-Knoten: <c>donotinject</c>, <c>abstractmethod</c>.</summary>
-    TaskNode
-
-}
-
-/// <summary>
 /// Bestimmt die <see cref="NavCompletionContextKind"/> an einer Cursor-Position. Trägt zusätzlich die
 /// für die jeweilige Kategorie nötigen Bezugspunkte: die umschließende Task-Definition, — bei
 /// <see cref="NavCompletionContextKind.ExitConnectionPoint"/> — den Namen des Exit-Knotens, und — bei
@@ -454,7 +430,7 @@ sealed class NavCompletionContext {
 
     /// <summary>
     /// Das signifikante Token, das den Kontext links der Position bestimmt — über den flachen, nach
-    /// <see cref="SyntaxToken.Start"/> sortierten Tokenstrom (NICHT <see cref="SyntaxToken.PreviousToken"/>,
+    /// <see cref="SyntaxToken.Start"/> sortierten Tokenstrom (NICHT <see cref="SyntaxToken.PreviousToken()"/>,
     /// das nur innerhalb desselben Parent-Knotens navigiert). Tippt der Nutzer gerade ein Wort
     /// (Identifier/Keyword, in dessen Mitte oder an dessen Ende der Cursor klebt), ist der Kontext dessen
     /// <em>Vorgänger</em> (das Wort selbst ist nur das Filter-Präfix); steht zwischen Token und Cursor ein

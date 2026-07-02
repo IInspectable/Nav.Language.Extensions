@@ -270,32 +270,20 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Die im jeweiligen Wirt zulässigen Code-Block-Keywords (siehe CodeBlockHost) — versteckte gefiltert
-    // (`notimplemented`), je alphabetisch. Der Wirt entscheidet, WELCHE Deklarationen die Grammatik dort
-    // erlaubt: Datei-Kopf nur `using`/`namespaceprefix`, ein task-Kopf `code`/`base`/…, ein init-Knoten
-    // `abstractmethod`/`params` usw. — statt pauschal aller Code-Keywords.
+    // Die im jeweiligen Wirt zulässigen, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
+    // gemeinsame Autorität mit der Parser-Recovery, hier alphabetisch für die Anzeige sortiert. Der Wirt
+    // entscheidet, WELCHE Deklarationen die Grammatik dort erlaubt: Datei-Kopf nur `using`/`namespaceprefix`,
+    // ein task-Kopf `code`/`base`/…, ein init-Knoten `abstractmethod`/`params` usw. — statt pauschal aller
+    // Code-Keywords.
     static List<NavCompletionItem> CodeBlockKeywordItems(CodeBlockHost host) {
         var items = new List<NavCompletionItem>();
-        foreach (var keyword in CodeKeywordsFor(host)
-                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
-                                .OrderBy(k => k, StringComparer.Ordinal)) {
+        foreach (var keyword in CodeBlockFacts.VisibleDeclarationKeywords(host)
+                                              .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
         return items;
     }
-
-    // Die Code-Deklarations-Schlüsselwörter, die die Grammatik im jeweiligen Wirt erlaubt (in Grammatik-
-    // Reihenfolge; die Sortierung übernimmt der Aufrufer). Spiegelt die optionalen `code*`-Deklarationen der
-    // jeweiligen Parse-Regel im NavParser.
-    static IEnumerable<string> CodeKeywordsFor(CodeBlockHost host) => host switch {
-        CodeBlockHost.CompilationUnit => new[] { SyntaxFacts.NamespaceprefixKeyword, SyntaxFacts.UsingKeyword },
-        CodeBlockHost.TaskRef         => new[] { SyntaxFacts.NamespaceprefixKeyword, SyntaxFacts.NotimplementedKeyword, SyntaxFacts.ResultKeyword },
-        CodeBlockHost.TaskDefinition  => new[] { SyntaxFacts.CodeKeyword, SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword, SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword },
-        CodeBlockHost.InitNode        => new[] { SyntaxFacts.AbstractmethodKeyword, SyntaxFacts.ParamsKeyword },
-        CodeBlockHost.TaskNode        => new[] { SyntaxFacts.DonotinjectKeyword, SyntaxFacts.AbstractmethodKeyword },
-        _                             => Array.Empty<string>()
-    };
 
     // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Jedes Item trägt denselben Ersetzungsbereich
     // (<paramref name="replacement"/>) — die bereits getippten Edge-Zeichen —, damit der Host beim Commit
@@ -350,7 +338,7 @@ public static class NavCompletionService {
         }
 
         var nodes = roleFilter == null
-                        ? (IEnumerable<INodeSymbol>) task.NodeDeclarations
+                        ? task.NodeDeclarations
                         : task.NodeDeclarations.Where(roleFilter);
 
         foreach (var node in nodes
