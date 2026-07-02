@@ -323,4 +323,69 @@ public class LanguageVersionTests {
         }
     }
 
+    // -- Zentrale Versions-Autorität + semantische Nav5001-Prüfung --------------------------------------------
+
+    static CodeGenerationUnit BuildUnit(string text) {
+        var syntax = Syntax.ParseCodeGenerationUnit(text);
+        return CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);
+    }
+
+    [Test]
+    public void SupportedVersions_IsTheSingleAuthority() {
+
+        // Default und Latest werden aus der zentralen Menge abgeleitet — keine Magic-Values im Code.
+        Assert.That(NavLanguageVersion.SupportedVersions, Does.Contain(NavLanguageVersion.Version1));
+        Assert.That(NavLanguageVersion.Default, Is.EqualTo(NavLanguageVersion.Version1));
+        Assert.That(NavLanguageVersion.Latest,  Is.EqualTo(NavLanguageVersion.SupportedVersions.Last()));
+
+        Assert.That(NavLanguageVersion.Version1.IsSupported,      Is.True);
+        Assert.That(new NavLanguageVersion(99).IsSupported,       Is.False);
+        Assert.That(new NavLanguageVersion(0).IsSupported,        Is.False);
+    }
+
+    [Test]
+    public void SupportedVersion_ReportsNoNav5001() {
+
+        var unit = BuildUnit("#pragma version 1\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        Assert.That(unit.LanguageVersion.Value, Is.EqualTo(1));
+        Assert.That(unit.Diagnostics.Select(d => d.Descriptor.Id), Does.Not.Contain("Nav5001"));
+    }
+
+    [Test]
+    public void UnsupportedVersion_ReportsNav5001_Semantically() {
+
+        // Version 99 ist syntaktisch wohlgeformt (kein Nav3002), aber der Engine unbekannt: das ist eine
+        // rein semantische Nav5001 (im CodeGenerationUnit), kein Syntaxfehler.
+        var unit = BuildUnit("#pragma version 99\r\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        Assert.That(unit.Diagnostics.Count(d => d.Descriptor.Id == "Nav5001"), Is.EqualTo(1));
+        Assert.That(unit.Syntax.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id), Does.Not.Contain("Nav3002"));
+    }
+
+    [Test]
+    public void UnsupportedVersion_Nav5001_SpansWholeDirective() {
+
+        var source = "#pragma version 99\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var unit   = BuildUnit(source);
+
+        var diagnostic = unit.Diagnostics.Single(d => d.Descriptor.Id == "Nav5001");
+        Assert.That(diagnostic.Location.Start,  Is.EqualTo(source.IndexOf("#pragma", System.StringComparison.Ordinal)));
+        Assert.That(diagnostic.Location.Length, Is.EqualTo("#pragma version 99".Length));
+    }
+
+    [Test]
+    public void UnsupportedVersion_MisplacedDirective_OnlyNav3003_NoNav5001() {
+
+        // Eine deplatzierte (unwirksame) Versions-Direktive ist bereits per Nav3003 gemeldet; die
+        // Versionsgültigkeit prüft nur die wirksame Direktive, daher kommt hier kein Nav5001 hinzu.
+        var unit = BuildUnit("task A { init I1; exit e1; I1 --> e1; }\r\n#pragma version 99");
+
+        var ids = unit.Diagnostics.Select(d => d.Descriptor.Id)
+                      .Concat(unit.Syntax.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id))
+                      .ToList();
+        Assert.That(ids, Does.Contain("Nav3003"));
+        Assert.That(ids, Does.Not.Contain("Nav5001"));
+    }
+
 }

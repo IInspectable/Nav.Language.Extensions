@@ -401,6 +401,16 @@ public partial class DiagnosticDescriptors {
             defaultSeverity: DiagnosticSeverity.Error
         );
 
+        /// <summary>
+        /// Nav language version {0} is not supported by this engine; the highest supported version is {1}
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav5001NavLanguageVersion0NotSupported1IsLatest = new(
+            id             : DiagnosticId.Nav5001,
+            messageFormat  : "Nav language version {0} is not supported by this engine; the highest supported version is {1}",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
     }
 
 }

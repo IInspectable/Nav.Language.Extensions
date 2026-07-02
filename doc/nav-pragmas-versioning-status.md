@@ -66,29 +66,42 @@ byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`nav build` für de
   hängt es als Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an. Der `switch`-Dispatch ist der Andockpunkt
   für weitere Direktiven (z.B. `#pragma warning disable` → `case`-Zweig + `WarningDirectiveSyntax`).
 
-## Zulässige Versionsnummern — Stand & offene Entscheidung
+## Zulässige Versionsnummern — Stand (umgesetzt)
 
-**Heute (bewusst minimal):**
-- `NavLanguageVersion.TryParse` akzeptiert eine **reine, nicht-negative Ganzzahl** (kein Vorzeichen, keine
-  `1.0`, kein Text). Fehlparse ⇒ `Nav3002`, Rückfall auf `Default` (= 1).
-- Es gibt **keine** Prüfung gegen `Latest` (= 1). `#pragma version 7` parst heute **klaglos** zu Version 7,
-  obwohl die Engine nur Version 1 kennt. Auch `#pragma version 0` wird akzeptiert.
+**Zentrale Autorität:** `NavLanguageVersion` führt die unterstützten Versionen als benannte Konstanten
+(`Version1` …) und in `SupportedVersions` (aufsteigend) — es gibt **keine** „magischen" Versionszahlen im
+übrigen Code. Daraus abgeleitet: `Default` (= `Version1`), `Latest` (= letzte in `SupportedVersions`) und die
+Instanz-Prüfung `IsSupported` (Mitgliedschaft in `SupportedVersions`). Eine neue Version freizuschalten heißt:
+eine weitere `VersionN`-Konstante anlegen und in `SupportedVersions` aufnehmen — die eine Stelle, gegen die
+Support-/Completion-Logik prüft.
 
-**Offen — zu entscheiden, bevor die erste echte v2 kommt:**
-1. **Untergrenze:** `version 0` (und alles < 1) sollte ungültig sein — Versionen beginnen bei 1.
-   → Empfehlung: als malformed behandeln (`Nav3002`) **oder** eigene „unsupported"-Diagnose (s.u.).
-2. **Obergrenze / unbekannte Zukunft:** Eine Datei, die eine **höhere** Version als `Latest` deklariert
-   (alter Toolstand liest neue Datei), darf nicht still falsch generieren. Analogie C#: `<LangVersion>99`
-   ⇒ „not a recognized language version".
-   → **Empfehlung:** neue Diagnose **`Nav5001`** „Nav language version {N} is not supported by this
-   toolset (latest supported: {Latest})", **semantisch** (permissiv geparst), Severity **Error**
-   (Codegen-Korrektheit nicht garantierbar). Verankern in der Semantik (`CodeGenerationUnitBuilder`), nicht
-   im Parser.
-3. **Ort der Prüfung:** `Nav3002` = **syntaktisch** (Wert fehlt/keine Ganzzahl, im Parser). Die
-   Unterstützungs-Prüfung (bekannt/zu neu/< 1) ist **semantisch** → eigener Deskriptor (`Nav5001`), damit
-   die Trennung „Syntax vs. Bedeutung" sauber bleibt.
-4. **`Latest` pflegen:** Beim Anheben der Sprache `NavLanguageVersion.Latest` erhöhen (derzeit `1`). Das ist
-   die eine Stelle, gegen die Support-/Completion-Logik prüft.
+> **net472-Fallstrick (verankert im Code):** `SupportedVersions` darf **kein** statisches Feld vom Typ
+> `ImmutableArray<NavLanguageVersion>` **in der Struktur selbst** sein — ein Wertetyp mit einem statischen Feld
+> einer Generic-Instanz über sich selbst lädt der .NET-Framework-Typlader nicht (`TypeLoadException`, empirisch
+> auf net472 verifiziert; .NET 10 ist toleranter). Die Liste liegt daher in einer separaten (Referenz-)Klasse
+> `SupportedVersionTable`; die öffentliche API bleibt unverändert. Ein statisches Feld des eigenen Struct-Typs
+> (`Version1`) ist dagegen unkritisch (wie `TimeSpan.Zero`).
+
+**Syntaktisch (`Nav3002`, im Parser):** `NavLanguageVersion.TryParse` akzeptiert eine reine, nicht-negative
+Ganzzahl (kein Vorzeichen, keine `1.0`, kein Text). Fehlt der Wert oder ist er keine Ganzzahl ⇒ `Nav3002`,
+Rückfall auf `Default`. Das ist die reine Token-Form (siehe `NavDirectiveParser.ParseVersion`).
+
+**Semantisch (`Nav5001`, im Analyzer):** Eine syntaktisch wohlgeformte, aber **nicht unterstützte** Version
+(`#pragma version 99`, ebenso `#pragma version 0`) meldet `Nav5001NavLanguageVersionNotSupported` (Kategorie
+`Semantic`, Severity `Error`) — parallel zum Feature-Gate `Nav5000`. Der Parser bleibt bewusst permissiv (er
+kennt stets die volle Syntax); ob die Engine die Version **kennt**, ist eine reine Bedeutungsfrage. Geprüft wird
+nur die **wirksame** `LanguageVersionDirective` (eine deplatzierte Direktive ist bereits `Nav3003`, bekommt kein
+zusätzliches `Nav5001`). So bleibt „Syntax vs. Bedeutung" sauber getrennt, und `version 0`/`version < 1` fällt
+ohne Sonderregel unter dieselbe Mitgliedschaftsprüfung (nicht in `SupportedVersions` ⇒ `Nav5001`).
+
+**Erledigt — Doppel-/Platzierung:** `#pragma version` wird an **jeder** Stelle strukturell als
+   `VersionDirectiveSyntax` erkannt; wirksam ist nur die **erste** und nur, wenn ihr ausschließlich Trivia
+   vorausgeht (ganz oben). Eine weiter unten stehende meldet **`Nav3003`**, eine doppelte **`Nav3004`** (das
+   erste gewinnt) — beide bleiben **eigenständige `VersionDirectiveSyntax`-Knoten** (in
+   `SyntaxTree.Directives()`), aber unwirksam; ihre Token normal eingefärbt. „Ganz oben" = nur Trivia davor;
+   selbst eine andere Direktive davor verletzt die Regel. Die Auswahl trifft `NavParser.ResolveLanguageVersion`;
+   `CodeGenerationUnitSyntax.LanguageVersionDirective` ist der so bestimmte wirksame Knoten (kein
+   `Directives().First()` mehr).
 5. **Doppel-/Platzierung — erledigt:** `#pragma version` wird an **jeder** Stelle strukturell als
    `VersionDirectiveSyntax` erkannt; wirksam ist nur die **erste** und nur, wenn ihr ausschließlich Trivia
    vorausgeht (ganz oben). Eine weiter unten stehende meldet **`Nav3003`**, eine doppelte **`Nav3004`** (das

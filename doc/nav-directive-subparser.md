@@ -286,8 +286,10 @@ mit `ResolveLanguageVersion()` speisen. Aus `NavParser.cs` löschen: `ParseDirec
 ## Nachgelagert (nicht Teil dieser Arbeit)
 Auf dem Keyword-Dispatch-Seam: `#region`/`#endregion` bzw. `#if`/`#elif`/`#else`/`#endif` (Rumpf zunächst nur
 lokale Token; `DirectiveStack`/Konditionalauswertung separat) — je ein switch-case + ein
-`sealed partial : DirectiveTriviaSyntax`-Knoten mit `[SampleSyntax]`. Ebenfalls offen: `Nav5001` unzulässige
-Version, Direktiven-Completion.
+`sealed partial : DirectiveTriviaSyntax`-Knoten mit `[SampleSyntax]`. **`Nav5001` (unzulässige Version) ist
+umgesetzt** — semantischer Analyzer `Nav5001NavLanguageVersionNotSupported` prüft die wirksame
+`LanguageVersionDirective` gegen `NavLanguageVersion.SupportedVersions` (Details:
+`doc/nav-pragmas-versioning-status.md`). Ebenfalls offen: Direktiven-Completion.
 
 **`#pragma warning disable/restore` (bzw. `disable once NAVXY`):** Hier verdient sich der volle
 Missing-Token-Apparat sein Geld — auf den `ParseVersion`-Primitiven aufbauend: `EatAny` (Alternative

@@ -83,5 +83,6 @@ static class DiagnosticId {
     public const string Nav3004 = nameof(Nav3004);
 
     public const string Nav5000 = nameof(Nav5000);
+    public const string Nav5001 = nameof(Nav5001);
 
 }
