@@ -125,7 +125,7 @@ static class SemanticTokensBuilder {
             spans.Add(new ClassifiedSpan(comment.Start, comment.ToString(source), comment.Length, commentType, location));
         }
 
-        // Präprozessor-Direktiven (#pragma version …) liegen als strukturierte Trivia vor, nicht im flachen
+        // Präprozessor-Direktiven (#version …) liegen als strukturierte Trivia vor, nicht im flachen
         // Strom. Ihre Token (PreprocessorKeyword/NumberLiteral/…) tragen bereits die richtige Klassifizierung —
         // hier ebenso einfärben wie die Strom-Token.
         foreach (var directive in syntaxTree.Directives()) {

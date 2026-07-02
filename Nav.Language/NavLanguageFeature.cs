@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 /// Ein versionsgebundenes Sprach- oder Codegen-Feature der Nav-Sprache. Jeder Wert ist über
 /// <see cref="NavLanguageFeatures.RequiredVersion"/> genau einer Mindest-<see cref="NavLanguageVersion"/>
 /// zugeordnet. Noch <b>ohne</b> Mitglieder — der erste Eintrag entsteht mit dem ersten Feature, das eine
-/// höhere <c>#pragma version</c> voraussetzt; bis dahin steht nur die Gate-Mechanik
+/// höhere <c>#version</c> voraussetzt; bis dahin steht nur die Gate-Mechanik
 /// (<see cref="NavLanguageFeatures"/>) bereit.
 /// </summary>
 public enum NavLanguageFeature {
@@ -18,7 +18,7 @@ public enum NavLanguageFeature {
 /// einer Datei aktiven <see cref="NavLanguageVersion"/> verfügbar ist, und meldet andernfalls eine
 /// <c>Nav5000</c>-Diagnose. Der Parser bleibt bewusst permissiv (er kennt stets die volle Syntax); die
 /// Versions-Abhängigkeit ist eine rein semantische Prüfung — so entsteht statt eines kryptischen
-/// Parse-Fehlers eine treffende Meldung samt Handlungsanweisung (<c>#pragma version …</c> ergänzen).
+/// Parse-Fehlers eine treffende Meldung samt Handlungsanweisung (<c>#version …</c> ergänzen).
 /// </summary>
 public static class NavLanguageFeatures {
 

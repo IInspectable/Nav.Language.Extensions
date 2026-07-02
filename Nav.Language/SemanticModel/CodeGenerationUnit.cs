@@ -46,7 +46,7 @@ public sealed class CodeGenerationUnit {
     public CodeGenerationUnitSyntax Syntax { get; }
 
     /// <summary>
-    /// Die Sprach-Version dieser Datei (aus <c>#pragma version</c>, sonst
+    /// Die Sprach-Version dieser Datei (aus <c>#version</c>, sonst
     /// <see cref="NavLanguageVersion.Default"/>) — der Ankerpunkt künftiger versionsabhängiger Syntax-
     /// und Codegen-Entscheidungen.
     /// </summary>

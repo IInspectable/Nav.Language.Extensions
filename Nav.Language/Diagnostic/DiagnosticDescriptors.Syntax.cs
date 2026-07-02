@@ -31,31 +31,41 @@ public static partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// Invalid '#pragma version' directive; expected a non-negative integer version number
+        /// Unknown pragma '{0}'
         /// </summary>
-        public static readonly DiagnosticDescriptor Nav3002InvalidPragmaVersion = new(
+        public static readonly DiagnosticDescriptor Nav3001UnknownPragma = new(
+            id             : DiagnosticId.Nav3001,
+            messageFormat  : "Unknown pragma '{0}'",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
+        /// Invalid '#version' directive; expected a non-negative integer version number
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav3002InvalidVersionDirective = new(
             id             : DiagnosticId.Nav3002,
-            messageFormat  : "Invalid '#pragma version' directive; expected a non-negative integer version number",
+            messageFormat  : "Invalid '#version' directive; expected a non-negative integer version number",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// '#pragma version' must appear at the top of the file
+        /// '#version' must appear at the top of the file
         /// </summary>
-        public static readonly DiagnosticDescriptor Nav3003PragmaVersionMustAppearAtTopOfFile = new(
+        public static readonly DiagnosticDescriptor Nav3003VersionDirectiveMustAppearAtTopOfFile = new(
             id             : DiagnosticId.Nav3003,
-            messageFormat  : "'#pragma version' must appear at the top of the file, preceded only by comments or whitespace",
+            messageFormat  : "'#version' must appear at the top of the file, preceded only by comments or whitespace",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );
 
         /// <summary>
-        /// Duplicate '#pragma version' directive
+        /// Duplicate '#version' directive
         /// </summary>
-        public static readonly DiagnosticDescriptor Nav3004DuplicatePragmaVersion = new(
+        public static readonly DiagnosticDescriptor Nav3004DuplicateVersionDirective = new(
             id             : DiagnosticId.Nav3004,
-            messageFormat  : "Duplicate '#pragma version' directive; only the first one is used",
+            messageFormat  : "Duplicate '#version' directive; only the first one is used",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );

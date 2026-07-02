@@ -12,7 +12,7 @@ namespace Pharmatechnik.Nav.Language;
 /// sie ihre <c>#</c>-Token in einer <b>eigenen, lokalen</b> <see cref="SyntaxTokenList"/> (nicht im flachen
 /// <see cref="SyntaxTree.Tokens"/>-Strom) und ist über die strukturierte
 /// <see cref="SyntaxTokenType.DirectiveTrivia"/>-Trivia des Folge-Tokens erreichbar. Erste konkrete
-/// Ausprägung ist <see cref="VersionDirectiveSyntax"/> (<c>#pragma version</c>).
+/// Ausprägung ist <see cref="VersionDirectiveSyntax"/> (<c>#version</c>).
 /// </summary>
 [Serializable]
 public abstract class DirectiveTriviaSyntax: SyntaxNode {

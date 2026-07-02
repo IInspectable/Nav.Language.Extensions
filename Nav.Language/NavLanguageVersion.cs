@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Sprach-/Schema-Version einer <c>.nav</c>-Datei — eine monotone Ganzzahl (<c>1</c>, <c>2</c>,
-/// <c>3</c> …), gesteuert per <c>#pragma version</c>. Sie ist bewusst von der (git-abgeleiteten)
+/// <c>3</c> …), gesteuert per <c>#version</c>. Sie ist bewusst von der (git-abgeleiteten)
 /// Assembly-Version entkoppelt und beschreibt, <i>welche</i> Generation von Nav-Syntax- und
 /// Codegen-Elementen in einer Datei gilt. Fehlt das Pragma, gilt <see cref="Default"/> (Version 1 —
 /// das historische Sprachverhalten, unter dem der gesamte Bestand byte-identisch übersetzt).
@@ -29,7 +29,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
 
     /// <summary>
     /// Version 1 — das historische Sprachverhalten, unter dem der gesamte Bestand byte-identisch übersetzt.
-    /// Gilt auch, wenn kein <c>#pragma version</c> vorhanden ist (siehe <see cref="Default"/>).
+    /// Gilt auch, wenn kein <c>#version</c> vorhanden ist (siehe <see cref="Default"/>).
     /// </summary>
     public static NavLanguageVersion Version1 { get; } = new(1);
 
@@ -40,7 +40,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
     public static ImmutableArray<NavLanguageVersion> SupportedVersions => SupportedVersionTable.All;
 
     /// <summary>
-    /// Die Version, die ohne <c>#pragma version</c> gilt — das historische Sprachverhalten
+    /// Die Version, die ohne <c>#version</c> gilt — das historische Sprachverhalten
     /// (<see cref="Version1"/>).
     /// </summary>
     public static NavLanguageVersion Default => Version1;
@@ -50,7 +50,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
 
     /// <summary>
     /// Ob diese Version von der Engine unterstützt wird — also in <see cref="SupportedVersions"/> enthalten
-    /// ist. Ein wohlgeformter, aber unbekannter Wert (z.B. <c>#pragma version 99</c>) liefert <c>false</c>
+    /// ist. Ein wohlgeformter, aber unbekannter Wert (z.B. <c>#version 99</c>) liefert <c>false</c>
     /// und wird semantisch als <c>Nav5001</c> gemeldet.
     /// </summary>
     public bool IsSupported => SupportedVersionTable.All.Contains(this);

@@ -9,9 +9,14 @@
 > siehe „Umsetzung" am Ende. Der folgende Plan bleibt als Begründung/Nachschlagewerk stehen; die
 > geltende Quelle ist der Code.
 >
+> **Syntax-Vereinfachung (aktuell):** Die Versionsdirektive heißt inzwischen `#version <N>` (eigene Direktive,
+> kein Pragma-Subjekt). `#pragma …` bleibt als Form erhalten, meldet aber „Unknown pragma" (`Nav3001` — wieder
+> in Gebrauch). Die unten durchgehend verwendete Schreibweise `#pragma version` ist historisch; maßgeblich sind
+> `doc/nav-pragmas-versioning-status.md` und `doc/nav-directive-subparser.md`.
+>
 > **Nachfolge-Umbau (siehe `doc/nav-directive-subparser.md`):** Der hier als „Region in `NavParser`"
 > skizzierte Direktiv-Sub-Parser wurde inzwischen in die eigene Klasse `NavDirectiveParser` extrahiert; die
-> Zeilenanfang-Regel erzwingt jetzt der **Lexer** (`Nav3001` ist entfallen), und **jede** `#pragma version`
+> Zeilenanfang-Regel erzwingt jetzt der **Lexer**, und **jede** `#version`
 > wird strukturell `VersionDirectiveSyntax` (deplatzierte/doppelte bleiben Knoten, sind aber unwirksam —
 > `Nav3003`/`Nav3004` liefert `NavParser.ResolveLanguageVersion`). Die unten stehenden Erwähnungen von
 > `Nav3001` bzw. „andere Direktive → `BadDirectiveTriviaSyntax`" sind entsprechend überholt.

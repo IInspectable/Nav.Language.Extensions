@@ -310,7 +310,7 @@ sealed class NavParser {
     ///   <item><description>am Kopf, aber eine andere Direktive ging voraus ⇒ <c>Nav3003</c> (nicht ganz
     ///   oben, da nur Trivia vorausgehen dürfte).</description></item>
     /// </list>
-    /// Die generische Erkennung (jede <c>#pragma version</c> ist ein <see cref="VersionDirectiveSyntax"/>) samt
+    /// Die generische Erkennung (jede <c>#version</c> ist ein <see cref="VersionDirectiveSyntax"/>) samt
     /// <c>Nav3000</c>/<c>Nav3002</c> liefert bereits der <see cref="NavDirectiveParser"/>; hier kommt nur die
     /// Platzierungs-Semantik hinzu. Läuft <b>nach</b> der Member-Schleife (damit <c>_firstSignificantStart</c>
     /// endgültig ist) und vor dem Einfrieren der Diagnostics.
@@ -326,13 +326,13 @@ sealed class NavParser {
 
                 if (codeBefore) {
                     _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
-                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                                                    DiagnosticDescriptors.Syntax.Nav3003VersionDirectiveMustAppearAtTopOfFile));
                 } else if (effective != null) {
                     _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
-                                                    DiagnosticDescriptors.Syntax.Nav3004DuplicatePragmaVersion));
+                                                    DiagnosticDescriptors.Syntax.Nav3004DuplicateVersionDirective));
                 } else if (sawAnyDirective) {
                     _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(run.ContentExtent),
-                                                    DiagnosticDescriptors.Syntax.Nav3003PragmaVersionMustAppearAtTopOfFile));
+                                                    DiagnosticDescriptors.Syntax.Nav3003VersionDirectiveMustAppearAtTopOfFile));
                 } else {
                     effective = version;
                 }

@@ -16,36 +16,43 @@
 
 ## Endzustand (umgesetzt)
 
+> **Nachtrag (Syntax-Vereinfachung `#pragma version` → `#version`):** Die Versionsdirektive heißt inzwischen
+> `#version <N>` und ist eine **eigene** Direktive (kein Pragma-Subjekt). `ParseDirective` dispatcht
+> `At(VersionKeyword)` direkt auf `ParseVersion`. `#pragma` bleibt als Direktiv-Form erhalten, hat aber **keine**
+> bekannten Subjekte mehr: `ParsePragma` meldet für ein Subjekt hinter `pragma` (auch `version`) **Nav3001**
+> („Unknown pragma"), für `#pragma` ohne Subjekt **Nav3000**. **Nav3001 ist damit wieder in Gebrauch** — die
+> unten stehenden „Nav3001 entfällt/existiert nicht mehr"-Aussagen sind überholt. Test-/Fixture-Namen:
+> `VersionDirective(Invalid).nav`.
+
 - **`NavDirectiveParser`** (`Nav.Language\Syntax\NavDirectiveParser.cs`, `sealed class`, `internal` Ctor):
   cursor-basierter Sub-Parser über den Roh-Token-Strom. `Parse()` scannt auf `HashToken`, bildet je `#`-Lauf
   `[hashIndex, RunEnd)` genau einen `DirectiveRun`. Keyword-Dispatch über die **Token-Art** (der Lexer erkennt
   die Direktiv-Schlüsselwörter bereits tabellengesteuert als eigene Token — `PragmaKeyword`, `VersionKeyword`):
-  `At(PragmaKeyword)` → `ParsePragma` (Subjekt `VersionKeyword` mit reinem Zwischenraum davor → **immer**
-  `VersionDirectiveSyntax`), alles andere → `BadDirective` + **Nav3000**. Kein `Substring`-Textvergleich mehr im
-  Sub-Parser (nur noch der Layout-Gap-Check zwischen `pragma` und `version`).
-  `ParseVersion` (dispatch-agnostisch — frisst `version` + Argument, ohne `pragma` vorauszusetzen; Seam für ein
-  späteres `#version`) liest das Argument im **Missing-Token-Stil** des Hauptparsers und meldet jede Abweichung
+  `At(VersionKeyword)` → `ParseVersion` (→ `VersionDirectiveSyntax`); `At(PragmaKeyword)` → `ParsePragma`
+  (unbekanntes Pragma → **Nav3001**, `#pragma` ohne Subjekt → **Nav3000**); alles andere → `BadDirective` +
+  **Nav3000**. Kein `Substring`-Textvergleich mehr im Sub-Parser.
+  `ParseVersion` (dispatch-agnostisch — frisst `version` + Argument, ohne vorauszusetzen, wie der Dispatch
+  dorthin fand) liest das Argument im **Missing-Token-Stil** des Hauptparsers und meldet jede Abweichung
   als genau **eine Nav3002**, positions-präzise: fehlender Wert → nullbreit hinter dem `version`-Schlüsselwort
   (Insertion-Punkt, wie `NavParser.ReportMissing`); Nicht-Zahl/ungültiger Wert → über den Wert; gültige Zahl mit
-  überzähligem Rest (`#pragma version 1 2`) → die Zahl **gilt**, der Rest wird als `TextClassification.Skiped`
+  überzähligem Rest (`#version 1 2`) → die Zahl **gilt**, der Rest wird als `TextClassification.Skiped`
   ausgegraut und über seine Spanne gemeldet (ein Token, das zu keinem Bestandteil gehört, soll nicht wie ein
   gültiger Wert aussehen — analog zum Panic-Mode des Hauptparsers).
   Portierte/lokale Helfer: `RunEnd`, `DirectiveExtent`, `DirectiveLocation`, `MakeRun`, `TokensExtent`,
   `InsertionPoint`, `ReportNav3002`, `PopulateLocalTokens(…, skipFrom)` (lokale Token via geteiltes
   `SyntaxTokenFactory.TryClassifyNonSignificant`; Token ab `skipFrom` werden auf `Skiped` überschrieben).
 - **Lexer-Gate** (`NavLexer`): `#` beginnt eine Direktive nur als erstes Nicht-Whitespace-Zeichen der Zeile;
-  mid-line-`#` → `Unknown`/**Nav0000**. **Nav3001 existiert nicht mehr** (aus `DiagnosticId`,
-  `DiagnosticDescriptors.Syntax`, `doc/Errors.md` entfernt).
+  mid-line-`#` → `Unknown`/**Nav0000**. (Das frühere Zeilenanfang-`Nav3001` ist entfallen; die ID wird seit der
+  Syntax-Vereinfachung für „Unknown pragma" wiederverwendet — siehe Nachtrag oben.)
 - **Platzierungs-Semantik** (`NavParser.ResolveLanguageVersion`, aufgerufen in `ParseCodeGenerationUnit` nach
   der Member-Schleife, vor dem Wurzel-Ctor / dem Einfrieren der Diagnostics): iteriert `_directiveRuns` in
   Quelltext-Reihenfolge und wählt die **wirksame** `VersionDirectiveSyntax` — nur ganz oben (nur Trivia davor),
   nur die erste. Verstöße: hinter Code → Nav3003; Duplikat am Kopf → Nav3004; andere Direktive davor → Nav3003.
-- **Knotentyp-Umkehr:** **jede** `#pragma version` ist strukturell `VersionDirectiveSyntax` (auch deplatzierte/
+- **Knotentyp-Umkehr:** **jede** `#version` ist strukturell `VersionDirectiveSyntax` (auch deplatzierte/
   doppelte) — sie bleiben als Knoten in `SyntaxTree.Directives()`, sind aber unwirksam.
   `CodeGenerationUnitSyntax.LanguageVersionDirective` ist der gespeicherte wirksame Wert (kein
-  `Directives().First()` mehr). `BadDirectiveTriviaSyntax` = nur noch **unbekannte** Direktive.
-- **Verifiziert:** net10 1147/0, net472 1155/0 (3 `[Explicit]` skipped); einziger Golden-Diff seit der
-  `ParseVersion`-Umstellung: `VersionPragmaInvalid.nav.diag` (präzise Nav3002-Position statt ganzer Direktive).
+  `Directives().First()` mehr). `BadDirectiveTriviaSyntax` = unbekannte Direktive **oder** unbekanntes Pragma.
+- **Verifiziert (nach der `#version`-Vereinfachung):** net10 1155/0, net472 1163/0 (3 `[Explicit]` skipped).
 
 ## Warum
 
@@ -66,7 +73,7 @@ unterschiedliche Platzierungsregeln**, die beide nicht in einen generischen Dire
    (jetzt **nicht** implementiert — nur der Seam).
 3. **Lexer-Gate wie C#**: `#` beginnt eine Direktive **iff** es das erste Nicht-Whitespace-Zeichen seiner Zeile
    ist. `#` mitten im Code → `Unknown` (Nav0000), **keine** Direktive. **Nav3001 entfällt** (unerreichbar).
-4. **Versions-Platzierung aus der Struktur**: **jedes `#pragma version` wird strukturell `VersionDirectiveSyntax`**;
+4. **Versions-Platzierung aus der Struktur**: **jedes `#version` wird strukturell `VersionDirectiveSyntax`**;
    ein separater, version-spezifischer Schritt wählt die *wirksame* und meldet Nav3003/Nav3004. Kehrt die
    Weg-B-Entscheidung „deplatziert/doppelt = Bad" um.
 
@@ -74,7 +81,7 @@ unterschiedliche Platzierungsregeln**, die beide nicht in einen generischen Dire
 
 - **Lexikalisch (Lexer):** `#` = Direktivbeginn **iff** erstes Nicht-Whitespace der Zeile (Einrückung durch
   Whitespace erlaubt), sonst `Unknown`/Nav0000. Direktiven dürfen auf **jeder** Zeile stehen.
-- **Semantisch (nur `#pragma version`):** nur *ganz oben* (nur Trivia davor) wirksam; sonst Nav3003, Duplikat Nav3004.
+- **Semantisch (nur `#version`):** nur *ganz oben* (nur Trivia davor) wirksam; sonst Nav3003, Duplikat Nav3004.
 
 ---
 
@@ -129,7 +136,7 @@ unterschiedliche Platzierungsregeln**, die beide nicht in einen generischen Dire
 
 **Knoten** `Nav.Language\Syntax\`:
 - `DirectiveTriviaSyntax` (abstrakt): `SetLocalTokens`, `ChildTokens()`-Override, `HashToken`.
-- `VersionDirectiveSyntax(TextExtent, NavLanguageVersion)` `[SampleSyntax("#pragma version 1")]`, `sealed partial`;
+- `VersionDirectiveSyntax(TextExtent, NavLanguageVersion)` `[SampleSyntax("#version 1")]`, `sealed partial`;
   Props `PragmaKeyword`, `Version`.
 - `BadDirectiveTriviaSyntax(TextExtent)` `[SampleSyntax("#unknown")]`, `sealed partial`. Doku nennt Nav3003/3004 als
   Bad-Beispiele → **aktualisieren** (nur noch unbekannt = Bad).
@@ -151,11 +158,11 @@ unterschiedliche Platzierungsregeln**, die beide nicht in einen generischen Dire
 `Nav.Language\Text\SourceTextExtensions.cs` (+ eigener `SourceTextTests`) — bleibt, nur die Direktiven-Nutzung entfällt.
 
 **Tests/Golden** `Nav.Language.Tests\`:
-- `Syntax\LanguageVersionTests.cs` — deckt Nav3000/3002/3003/3004, Default, Klassifikation, RoundTrip, `TryParse` ab.
+- `Syntax\LanguageVersionTests.cs` — deckt Nav3000/3001/3002/3003/3004, Default, Klassifikation, RoundTrip, `TryParse` ab.
 - `SyntaxGoldenTests` (`.tokens/.tree/.diag/.trivia` + RoundTrip + `ParsesAndRoundTripsAllTypingPrefixes`;
   `UpdateGolden` `[Explicit]`), `TokenTriviaTests`, `SyntaxTreeAllRulesTests.TestAllSyntaxesPresent`
   (Knotenzahl `==48`; `BadDirectiveTriviaSyntax` via `"#unknown\r\ntask A{}"`-Schnipsel; `AllRules.nav` trägt nur
-  `#pragma version 1`).
+  `#version 1`).
 - Fixture `Syntax\Tests\PreprocessorNotAtLineStart.nav` = `task A{…}\r\n} #directive`; `.diag` heute:
   `Nav3001` + `Nav3000` über `(6,3,6,13)`.
 
@@ -202,7 +209,8 @@ In `NavDirectiveParser` portieren: `DirectiveExtent`, `DirectiveLocation`, `Make
 `HashToken`: `end=RunEnd(i)`; Keyword-Text = `_raw[i+1]` iff `PreprocessorKeyword` direkt hinter `#`; Dispatch:
 - `"pragma"` → `ParsePragma`: Subjekt (erstes `PreprocessorKeyword|PreprocessorNumber` nach `pragma`, nur
   `PreprocessorText` dazwischen). `"version"` + Argument → **immer** `VersionDirectiveSyntax` (Nav3002 bei
-  fehlend/ungültig, Rückfall `Default`). Sonst (`#pragma warning`, kein Subjekt) → `BadDirectiveTriviaSyntax` + **Nav3000**.
+  fehlend/ungültig, Rückfall `Default`). `#pragma <subjekt>` (auch `version`) → `BadDirectiveTriviaSyntax` + **Nav3001**;
+  `#pragma` ohne Subjekt bzw. unbekanntes Direktiv-Schlüsselwort → `BadDirectiveTriviaSyntax` + **Nav3000**.
 - `default` (`#foo`, `#`) → `BadDirectiveTriviaSyntax` + **Nav3000**.
 `runs.Add(MakeRun(i, end, node)); i = end-1;`. **Kein** `atHead`/`sawCode`/`versionDirective`, **kein** Nav3003/3004.
 **Verifikation:** Build.

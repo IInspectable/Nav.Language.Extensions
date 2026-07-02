@@ -58,8 +58,9 @@
 |54|<a name="Nav1019">Nav1019</a> | DeadCode| Warning| The view node '{0}' has no outgoing edges|
 |55|<a name="Nav2000">Nav2000</a> | Semantic| Error| Identifier expected|
 |56|<a name="Nav3000">Nav3000</a> | Syntax| Error| Invalid preprocessor directive|
-|57|<a name="Nav3002">Nav3002</a> | Syntax| Error| Invalid '#pragma version' directive; expected a non-negative integer version number|
-|58|<a name="Nav3003">Nav3003</a> | Syntax| Error| '#pragma version' must appear at the top of the file, preceded only by comments or whitespace|
-|59|<a name="Nav3004">Nav3004</a> | Syntax| Error| Duplicate '#pragma version' directive; only the first one is used|
-|60|<a name="Nav5000">Nav5000</a> | Semantic| Error| '{0}' requires Nav language version {1}. Add '#pragma version {1}'.|
-|61|<a name="Nav5001">Nav5001</a> | Semantic| Error| Nav language version {0} is not supported by this engine; the highest supported version is {1}|
+|57|<a name="Nav3001">Nav3001</a> | Syntax| Error| Unknown pragma '{0}'|
+|58|<a name="Nav3002">Nav3002</a> | Syntax| Error| Invalid '#version' directive; expected a non-negative integer version number|
+|59|<a name="Nav3003">Nav3003</a> | Syntax| Error| '#version' must appear at the top of the file, preceded only by comments or whitespace|
+|60|<a name="Nav3004">Nav3004</a> | Syntax| Error| Duplicate '#version' directive; only the first one is used|
+|61|<a name="Nav5000">Nav5000</a> | Semantic| Error| '{0}' requires Nav language version {1}. Add '#version {1}'.|
+|62|<a name="Nav5001">Nav5001</a> | Semantic| Error| Nav language version {0} is not supported by this engine; the highest supported version is {1}|

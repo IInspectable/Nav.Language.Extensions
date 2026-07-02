@@ -9,7 +9,7 @@
 
 Neue Syntax-/Codegen-Elemente sollen künftig **pro `.nav`-Datei** an eine Sprach-Generation gebunden
 werden können — ohne den Bestand (~1912 Dateien, byte-identischer Codegen) zu brechen. Träger ist die
-Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten). Dieser Schritt ist das
+Direktive `#version <N>`; Ausbleiben = Version 1 (historisches Verhalten). Dieser Schritt ist das
 **Fundament** (Erkennung + Durchreichen + Gate-Mechanik) — noch **ohne** versionsabhängige Features.
 
 ## Stand — implementiert (Commit-Kandidat, Branch `feature/nav-parser`)
@@ -19,52 +19,57 @@ Direktive `#pragma version <N>`; Ausbleiben = Version 1 (historisches Verhalten)
 | Versions-Typ (Ganzzahl, `Default`/`Latest`/`TryParse`, Vergleich) | `Nav.Language/NavLanguageVersion.cs` |
 | Feature-Gate (`enum NavLanguageFeature` leer + `NavLanguageFeatures`, `Nav5000`) | `Nav.Language/NavLanguageFeature.cs` |
 | Direktiv-Knoten (abstrakt) | `Nav.Language/Syntax/DirectiveTriviaSyntax.cs` |
-| `#pragma version` als erster konkreter Fall | `Nav.Language/Syntax/VersionDirectiveSyntax.cs` |
-| Unbekannte Direktive (nicht erkannt) | `Nav.Language/Syntax/BadDirectiveTriviaSyntax.cs` |
-| Direktiv-Sub-Parser (`#`-Lauf → Knoten + lokale Token, Nav3000/Nav3002) | `Nav.Language/Syntax/NavDirectiveParser.cs` |
+| `#version` als erster konkreter Fall | `Nav.Language/Syntax/VersionDirectiveSyntax.cs` |
+| Unbekannte Direktive / unbekanntes Pragma (nicht erkannt) | `Nav.Language/Syntax/BadDirectiveTriviaSyntax.cs` |
+| Direktiv-Sub-Parser (`#`-Lauf → Knoten + lokale Token, Nav3000/Nav3001/Nav3002) | `Nav.Language/Syntax/NavDirectiveParser.cs` |
 | Versions-Platzierung (wirksame Direktive, Nav3003/Nav3004) + `BuildTrivia` (Lauf → strukturierte `DirectiveTrivia`) | `Nav.Language/Syntax/NavParser.cs` (`ResolveLanguageVersion`, `BuildTrivia`) |
 | Strukturierte Trivia (`GetStructure()`/`HasStructure`, `DirectiveTrivia`) | `Nav.Language/Syntax/SyntaxTrivia.cs`, `SyntaxTokenType.cs`, `SyntaxFacts.cs` |
 | Unit-Property `LanguageVersionDirective` + `LanguageVersion` | `Nav.Language/Syntax/CodeGenerationUnitSyntax.cs` |
 | `SyntaxTree.Directives()` | `Nav.Language/Syntax/SyntaxTree.cs` |
 | Semantik-Durchreiche `LanguageVersion` | `Nav.Language/SemanticModel/CodeGenerationUnit.cs` |
 | Codegen-Durchreiche in die Templates | `Nav.Language/CodeGen/CodeGeneratorContext.cs` (+ Aufruf in `CodeGenerator.cs`) |
-| Diagnosen `Nav3002` (malformed) / `Nav3003` (nicht ganz oben) / `Nav3004` (doppelt) / `Nav5000` (Gate) | `Diagnostic/DiagnosticId.cs`, `…Descriptors.Syntax.cs`, `…Descriptors.Semantic.cs` |
+| Diagnosen `Nav3001` (unbekanntes Pragma) / `Nav3002` (malformed) / `Nav3003` (nicht ganz oben) / `Nav3004` (doppelt) / `Nav5000` (Gate) | `Diagnostic/DiagnosticId.cs`, `…Descriptors.Syntax.cs`, `…Descriptors.Semantic.cs` |
 | **Rumpf-Tokenisierung im Lexer** (Directive-Mode: Wort→`PreprocessorKeyword`, Ziffern→`PreprocessorNumber`, Rest→`PreprocessorText`) | `Syntax/NavLexer.cs` (`ScanPreprocessor`), neuer Typ `Syntax/SyntaxTokenType.cs` |
 | **Klassifikation rein typ-getrieben** (`PreprocessorNumber`→`NumberLiteral`) | `Syntax/NavParser.cs` (`TryClassifyNonSignificant`, `IsHidden`), `Text/SyntaxTokenClassification.cs` |
 | Editor-Anbindung (beide Hosts, geteilt) | LSP: `SemanticTokensBuilder.cs` (Legende `number`); VS: `Classification/ClassificationType{Names,Definitions}.cs` (`NavNumber`); VS-Code-Client-Fallback: `vscode-nav-lsp/syntaxes/nav.tmLanguage.json` |
-| Tests | `Nav.Language.Tests/Syntax/LanguageVersionTests.cs`, Fixtures `Syntax/Tests/VersionPragma(.Invalid).nav` |
+| Tests | `Nav.Language.Tests/Syntax/LanguageVersionTests.cs`, Fixtures `Syntax/Tests/VersionDirective(Invalid).nav` |
 
-**Verifiziert:** net10 1146/0, net472 1146/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; Default ohne Pragma =
+**Verifiziert:** net10 1155/0, net472 1163/0; Engine + CodeAnalysis/LSP/MCP/CLI bauen; Default ohne Direktive =
 Version 1 ⇒ Bestand bit-identisch. Direktiven sind seit dem Weg-B-Umbau **strukturierte Trivia**
 (`doc/nav-weg-b-structured-trivia.md`) — `.tokens`/`.tree`/`.trivia`-Golden entsprechend neu, `.diag`
 byte-identisch, kein Korpus-`.expected.cs` verändert. (VSIX/`nav build` für den VS-Klassifizierungspfad.)
 
 ## Design-Entscheidungen (mit dem Nutzer geklärt — nicht ohne Grund umwerfen)
 
-- **Syntax:** `#pragma version <int>` — generisches, extensibles Pragma-Muster `#pragma <name> <wert>`.
+- **Syntax:** `#version <int>` — eine eigene Direktive (kein Pragma-Subjekt). Das `#pragma`-Muster
+  `#pragma <name> <wert>` bleibt als Erweiterungspunkt erhalten, hat aber **keine** bekannten Subjekte mehr:
+  jedes `#pragma …` (auch `#pragma version`) meldet `Nav3001` („Unknown pragma"). Vorgeschichte: bis zur
+  Vereinfachung war die Versionsdirektive `#pragma version <int>`.
 - **Schema:** monotone **Ganzzahl** (`1`, `2`, `3` …), entkoppelt von der git-abgeleiteten Assembly-Version.
 - **Gate:** permissiv parsen + **semantische** Diagnose (Roslyn-Stil); ohne Pragma = Version 1.
 - **Repräsentation (Weg B, umgesetzt):** Die Direktive ist **strukturierte Trivia** nach Roslyn-Vorbild —
   ein `SyntaxTokenType.DirectiveTrivia`-Stück am Folge-Token, dessen `SyntaxTrivia.GetStructure()` den
   `DirectiveTriviaSyntax`-Knoten liefert. Der Knoten hält seine Präprozessor-Token in einer **eigenen,
   lokalen** `SyntaxTokenList` (nicht im flachen `SyntaxTree.Tokens`-Strom) und ist **kein** Kindknoten der
-  Wurzel mehr. **Jede** `#pragma version` → `VersionDirectiveSyntax` (wirksam ist nur die erste ganz oben,
+  Wurzel mehr. **Jede** `#version` → `VersionDirectiveSyntax` (wirksam ist nur die erste ganz oben,
   s.u.); jede andere, nicht erkannte Direktive → `BadDirectiveTriviaSyntax`. (Vorstufe war **Weg A** —
   Direktive als Kindknoten mit flachen Token; siehe `doc/nav-weg-b-structured-trivia.md` für den Umbau.)
 - **Direktiv-Sub-Parser (`NavDirectiveParser`) statt Hand-Scan:** Der Hauptparser-Cursor sieht Präprozessor-
   Token nicht (sie sind Trivia). Der cursor-basierte `NavDirectiveParser` (`Nav.Language/Syntax/
   NavDirectiveParser.cs`) erkennt pro `#`-Lauf generisch per **Keyword-Dispatch über die Token-Art**: der
   Lexer erkennt die Direktiv-Schlüsselwörter bereits tabellengesteuert als eigene Token (`PragmaKeyword`,
-  `VersionKeyword`; kein `Substring`-Vergleich mehr im Sub-Parser). `At(PragmaKeyword)` mit `VersionKeyword`-
-  Subjekt und genau einem `PreprocessorNumber`-Argument (validiert via `NavLanguageVersion.TryParse`) →
-  `VersionDirectiveSyntax` (`Nav3002` bei fehlend/ungültig/mehrfach), alles andere → `BadDirectiveTriviaSyntax`
-  (`Nav3000`). Der **Lexer** erzwingt die Zeilenanfang-Regel (`#` nur als erstes Nicht-Whitespace der Zeile,
-  sonst `Unknown`/`Nav0000`) —
-  ein eigenes `Nav3001` gibt es **nicht mehr**. Die **Platzierungs-Semantik** (welche Versions-Direktive
-  wirksam ist, `Nav3003`/`Nav3004`) liegt separat in `NavParser.ResolveLanguageVersion` (aus den erzeugten
-  Läufen, nicht im generischen Sub-Parser). `BuildTrivia` faltet den Lauf zu einem `DirectiveTrivia`-Stück und
-  hängt es als Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an. Der `switch`-Dispatch ist der Andockpunkt
-  für weitere Direktiven (z.B. `#pragma warning disable` → `case`-Zweig + `WarningDirectiveSyntax`).
+  `VersionKeyword`; kein `Substring`-Vergleich mehr im Sub-Parser). `At(VersionKeyword)` unmittelbar hinter dem
+  `#` mit genau einem `PreprocessorNumber`-Argument (validiert via `NavLanguageVersion.TryParse`) →
+  `VersionDirectiveSyntax` (`Nav3002` bei fehlend/ungültig/mehrfach). `At(PragmaKeyword)` → `ParsePragma`: es
+  gibt keine bekannten Pragmas mehr, ein Subjekt hinter `pragma` meldet `Nav3001` („Unknown pragma"), ein
+  `#pragma` ohne Subjekt `Nav3000`; jedes unbekannte Direktiv-Schlüsselwort ebenfalls `Nav3000`. Alle drei
+  Nicht-Versions-Fälle ergeben eine `BadDirectiveTriviaSyntax`. Der **Lexer** erzwingt die Zeilenanfang-Regel
+  (`#` nur als erstes Nicht-Whitespace der Zeile, sonst `Unknown`/`Nav0000`). Die **Platzierungs-Semantik**
+  (welche Versions-Direktive wirksam ist, `Nav3003`/`Nav3004`) liegt separat in
+  `NavParser.ResolveLanguageVersion` (aus den erzeugten Läufen, nicht im generischen Sub-Parser). `BuildTrivia`
+  faltet den Lauf zu einem `DirectiveTrivia`-Stück und hängt es als Leading-Trivia des Folge-Tokens (bzw.
+  `EndOfFile`) an. Der Keyword-Dispatch ist der Andockpunkt für weitere Direktiven; der `#pragma`-Zweig ist der
+  Andockpunkt für spätere Pragma-Subjekte (z.B. `#pragma warning disable` → `WarningDirectiveSyntax`).
 
 ## Zulässige Versionsnummern — Stand (umgesetzt)
 
@@ -87,14 +92,14 @@ Ganzzahl (kein Vorzeichen, keine `1.0`, kein Text). Fehlt der Wert oder ist er k
 Rückfall auf `Default`. Das ist die reine Token-Form (siehe `NavDirectiveParser.ParseVersion`).
 
 **Semantisch (`Nav5001`, im Analyzer):** Eine syntaktisch wohlgeformte, aber **nicht unterstützte** Version
-(`#pragma version 99`, ebenso `#pragma version 0`) meldet `Nav5001NavLanguageVersionNotSupported` (Kategorie
+(`#version 99`, ebenso `#version 0`) meldet `Nav5001NavLanguageVersionNotSupported` (Kategorie
 `Semantic`, Severity `Error`) — parallel zum Feature-Gate `Nav5000`. Der Parser bleibt bewusst permissiv (er
 kennt stets die volle Syntax); ob die Engine die Version **kennt**, ist eine reine Bedeutungsfrage. Geprüft wird
 nur die **wirksame** `LanguageVersionDirective` (eine deplatzierte Direktive ist bereits `Nav3003`, bekommt kein
 zusätzliches `Nav5001`). So bleibt „Syntax vs. Bedeutung" sauber getrennt, und `version 0`/`version < 1` fällt
 ohne Sonderregel unter dieselbe Mitgliedschaftsprüfung (nicht in `SupportedVersions` ⇒ `Nav5001`).
 
-**Erledigt — Doppel-/Platzierung:** `#pragma version` wird an **jeder** Stelle strukturell als
+**Erledigt — Doppel-/Platzierung:** `#version` wird an **jeder** Stelle strukturell als
    `VersionDirectiveSyntax` erkannt; wirksam ist nur die **erste** und nur, wenn ihr ausschließlich Trivia
    vorausgeht (ganz oben). Eine weiter unten stehende meldet **`Nav3003`**, eine doppelte **`Nav3004`** (das
    erste gewinnt) — beide bleiben **eigenständige `VersionDirectiveSyntax`-Knoten** (in
@@ -102,7 +107,7 @@ ohne Sonderregel unter dieselbe Mitgliedschaftsprüfung (nicht in `SupportedVers
    selbst eine andere Direktive davor verletzt die Regel. Die Auswahl trifft `NavParser.ResolveLanguageVersion`;
    `CodeGenerationUnitSyntax.LanguageVersionDirective` ist der so bestimmte wirksame Knoten (kein
    `Directives().First()` mehr).
-5. **Doppel-/Platzierung — erledigt:** `#pragma version` wird an **jeder** Stelle strukturell als
+5. **Doppel-/Platzierung — erledigt:** `#version` wird an **jeder** Stelle strukturell als
    `VersionDirectiveSyntax` erkannt; wirksam ist nur die **erste** und nur, wenn ihr ausschließlich Trivia
    vorausgeht (ganz oben). Eine weiter unten stehende meldet **`Nav3003`**, eine doppelte **`Nav3004`** (das
    erste gewinnt) — beide bleiben **eigenständige `VersionDirectiveSyntax`-Knoten** (in
@@ -117,11 +122,13 @@ Einstieg ist der geteilte `NavCompletionService` (`Nav.Language/Completion/`), d
 `NavCompletionContext.Classify(unit, position)` → `NavCompletionContextKind` dispatcht (VS + LSP teilen ihn).
 Für Pragmas sind **neue Kontext-Arten** nötig:
 
-- **`#` am Zeilenanfang** (bzw. leere `#`-Direktive) → Vorschlag `pragma` (+ künftige Direktiven-Keywords).
-- **hinter `#pragma `** → Vorschlag `version` (+ künftige Pragma-Namen wie `warning`).
-- **hinter `#pragma version `** → Vorschlag der **unterstützten** Versionsnummern `1 … Latest`
+- **`#` am Zeilenanfang** (bzw. leere `#`-Direktive) → Vorschlag `version` (+ `pragma` als Erweiterungspunkt
+  und künftige Direktiven-Keywords).
+- **hinter `#version `** → Vorschlag der **unterstützten** Versionsnummern `1 … Latest`
   (heute nur `1`). **Das ist die kanonische Antwort auf „welche Versionsnummern sind zulässig":** die
   Completion bietet genau die von der Engine unterstützten an.
+- **hinter `#pragma `** → derzeit keine Vorschläge (keine bekannten Pragmas); Andockpunkt für künftige
+  Pragma-Namen wie `warning`.
 
 **Gotchas (wichtig):**
 - `NavCompletionContext.Classify` arbeitet heute über den **signifikanten** Syntaxbaum. Direktiv-Token sind
@@ -149,7 +156,7 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   Direktiv-Sub-Parser, der Färbung unberührt lässt (die Direktiv-Token-Spans emittieren die Host-Färber aus
   der strukturierten Trivia). Der ungültige Versionswert (`Nav3002`) ist ein Wort, also
   Keyword-, nicht Zahl-gefärbt. Beide Hosts ziehen automatisch nach (LSP-Token-Typ `number`; VS `NavNumber` auf
-  Basis C#-`NumericLiteral`); der VS-Code-Client hat zusätzlich statisches TextMate-Fallback für `#pragma version <N>`.
+  Basis C#-`NumericLiteral`); der VS-Code-Client hat zusätzlich statisches TextMate-Fallback für `#version <N>`.
   Nebeneffekt (gewollt): der Rumpf **jeder** `#`-Direktive ist jetzt sauber tokenisiert (z.B. `#if DEBUG` → `DEBUG`
   ein Wort-Token statt Einzelzeichen).
 - **`#pragma warning disable <NavXXXX>` (heißer Kandidat):** dank Direktiv-Sub-Parser jetzt eine kleine
@@ -174,7 +181,7 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
 
 ## Fallstricke (bereits gelernt)
 
-- **CRLF-Pflicht** für `#pragma`-Zeilen in Fixtures/Tests (s.o. LF-Fallstrick). Test-Strings mit `\r\n`.
+- **CRLF-Pflicht** für `#`-Direktiv-Zeilen in Fixtures/Tests (s.o. LF-Fallstrick). Test-Strings mit `\r\n`.
 - **Encoding:** `.nav`-Bestand ist teils **Windows-1252** (Einzelbyte-Umlaute); niemals blind über
   UTF-8-`ReadAllText`/`WriteAllText` umschreiben (macht Umlaute zu permanentem U+FFFD). Immer UTF-8 **mit
   BOM**. Siehe [[nav-utf8-bom-discipline]].

@@ -12,7 +12,7 @@ sealed class CodeGeneratorContext {
     public bool          NullableContext => Generator.Options.NullableContext;
 
     /// <summary>
-    /// Die Sprach-Version der übersetzten <c>.nav</c>-Datei (aus <c>#pragma version</c>, sonst
+    /// Die Sprach-Version der übersetzten <c>.nav</c>-Datei (aus <c>#version</c>, sonst
     /// <see cref="NavLanguageVersion.Default"/>). Durchreiche-Punkt in die StringTemplates, damit künftige
     /// Templates versionsabhängig verzweigen können.
     /// </summary>

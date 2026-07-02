@@ -32,7 +32,7 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
     }
 
     /// <summary>
-    /// Die (optionale) wirksame Sprach-Versions-Direktive <c>#pragma version</c> am Dateikopf, oder
+    /// Die (optionale) wirksame Sprach-Versions-Direktive <c>#version</c> am Dateikopf, oder
     /// <c>null</c>, wenn die Datei keine wirksame trägt. Welche Direktive wirksam ist (nur ganz oben, nicht
     /// doppelt), bestimmt der Parser beim Aufbau; deplatzierte oder wiederholte Versions-Direktiven bleiben
     /// als Knoten in den <see cref="SyntaxTree.Directives"/> erhalten, sind aber nicht wirksam.

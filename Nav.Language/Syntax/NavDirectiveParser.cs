@@ -66,10 +66,11 @@ sealed class NavDirectiveParser {
     /// <summary>
     /// Erkennt aus dem Direktiv-Lauf <c>[hashIndex, end)</c> anhand des Schlüsselwort-Tokens unmittelbar
     /// hinter dem <c>#</c> den passenden Knoten. Der Lexer hat die Direktiv-Schlüsselwörter bereits als
-    /// eigene Token-Typen erkannt (<see cref="SyntaxTokenType.PragmaKeyword"/> …); der Dispatch läuft daher
-    /// über die Token-Art, nicht über einen Textvergleich. Der Keyword-Dispatch ist der Erweiterungspunkt für
-    /// spätere Direktiven (<c>#if</c>, <c>#region</c>, …). Ein unbekanntes oder fehlendes Schlüsselwort ergibt
-    /// eine <see cref="BadDirectiveTriviaSyntax"/> samt <c>Nav3000</c>.
+    /// eigene Token-Typen erkannt (<see cref="SyntaxTokenType.VersionKeyword"/>, <see cref="SyntaxTokenType.PragmaKeyword"/>);
+    /// der Dispatch läuft daher über die Token-Art, nicht über einen Textvergleich. <c>#version</c> ergibt die
+    /// <see cref="VersionDirectiveSyntax"/>. Der Keyword-Dispatch ist der Erweiterungspunkt für spätere Direktiven
+    /// (<c>#if</c>, <c>#region</c>, …). Ein unbekanntes oder fehlendes Schlüsselwort ergibt eine
+    /// <see cref="BadDirectiveTriviaSyntax"/> samt <c>Nav3000</c>.
     /// </summary>
     DirectiveTriviaSyntax ParseDirective(int hashIndex, int end) {
 
@@ -79,6 +80,10 @@ sealed class NavDirectiveParser {
         TryEat(SyntaxTokenType.HashToken, out _);
 
         // Direktiven-Schlüsselwort: ein eigenes Keyword-Token unmittelbar hinter dem '#'.
+        if (At(SyntaxTokenType.VersionKeyword)) {
+            return ParseVersion(hashIndex, end);
+        }
+
         if (At(SyntaxTokenType.PragmaKeyword)) {
             return ParsePragma(hashIndex, end);
         }
@@ -87,25 +92,24 @@ sealed class NavDirectiveParser {
     }
 
     /// <summary>
-    /// Parst einen <c>#pragma</c>-Lauf. Subjekt ist das erste Wort-/Zahl-Token hinter <c>pragma</c>; zwischen
-    /// beiden darf nur Zwischenraum stehen. Ein Subjekt <c>version</c> ergibt <b>immer</b> eine
-    /// <see cref="VersionDirectiveSyntax"/> (die <i>Wirksamkeit</i> entscheidet der <see cref="NavParser"/>
-    /// nachgelagert), jedes andere oder fehlende Subjekt (<c>#pragma warning</c> o.Ä.) eine
-    /// <see cref="BadDirectiveTriviaSyntax"/> samt <c>Nav3000</c>.
+    /// Parst einen <c>#pragma</c>-Lauf. Es gibt derzeit <b>keine</b> bekannten Pragmas — die Versionsdirektive
+    /// ist mit <c>#version</c> eine eigene Direktive und kein Pragma-Subjekt mehr. Ein Subjekt hinter
+    /// <c>pragma</c> (das erste Wort-/Zahl-Token) ergibt daher eine wirkungslose <see cref="BadDirectiveTriviaSyntax"/>
+    /// samt <c>Nav3001</c> („Unknown pragma"); fehlt das Subjekt ganz (<c>#pragma</c> allein), bleibt es die
+    /// generische unbekannte Direktive (<c>Nav3000</c>). Der <c>#pragma</c>-Zweig bleibt als Erweiterungspunkt
+    /// für spätere Pragma-Subjekte erhalten.
     /// </summary>
     DirectiveTriviaSyntax ParsePragma(int hashIndex, int end) {
 
-        TryEat(SyntaxTokenType.PragmaKeyword, out var pragma);
+        TryEat(SyntaxTokenType.PragmaKeyword, out _);
 
         // Zwischenraum bis zum Subjekt überspringen; das Subjekt ist das erste signifikante Token danach.
         SkipPreprocessorText();
 
-        // Ein Subjekt "version" (vom Lexer als eigenes Token erkannt) — und zwischen "pragma" und ihm
-        // ausschließlich Zwischenraum (ein '#pragma .version' o.Ä. ist keine Versions-Direktive) — macht die
-        // Direktive zur Versions-Direktive. Der Gap-Check ist eine reine Layout-Prüfung, keine Text-Erkennung.
-        if (At(SyntaxTokenType.VersionKeyword) &&
-            string.IsNullOrWhiteSpace(_sourceText.Substring(TextExtent.FromBounds(pragma.Extent.End, Current.Extent.Start)))) {
-            return ParseVersion(hashIndex, end);
+        // Ein Subjekt hinter "pragma" ist ein (derzeit stets unbekanntes) Pragma; sein Text speist die
+        // Nav3001-Meldung. Ohne Subjekt ist der '#pragma'-Lauf selbst die unbekannte Direktive.
+        if (!AtRunEnd && !At(SyntaxTokenType.PreprocessorNewLine)) {
+            return UnknownPragma(hashIndex, end, _sourceText.Substring(Current.Extent));
         }
 
         return BadDirective(hashIndex, end);
@@ -122,12 +126,12 @@ sealed class NavDirectiveParser {
     ///   Rückfall auf <see cref="NavLanguageVersion.Default"/>;</description></item>
     ///   <item><description>Nicht-Zahl bzw. ungültiger Wert ⇒ über den Wert selbst, Rückfall auf
     ///   <see cref="NavLanguageVersion.Default"/>;</description></item>
-    ///   <item><description>gültige Zahl mit überzähligem Rest (<c>#pragma version 1 2</c>) ⇒ die Zahl
+    ///   <item><description>gültige Zahl mit überzähligem Rest (<c>#version 1 2</c>) ⇒ die Zahl
     ///   <b>gilt</b>, der Rest wird als <see cref="TextClassification.Skiped"/> ausgegraut und über seine
     ///   Spanne gemeldet.</description></item>
     /// </list>
     /// Die Methode ist bewusst dispatch-agnostisch: sie frisst das <c>version</c>-Schlüsselwort und das
-    /// Argument, ohne vorauszusetzen, dass ein <c>pragma</c> vorausging.
+    /// Argument, ohne vorauszusetzen, wie der Dispatch dorthin fand.
     /// </summary>
     VersionDirectiveSyntax ParseVersion(int hashIndex, int end) {
 
@@ -167,7 +171,24 @@ sealed class NavDirectiveParser {
     /// <summary>Meldet eine <c>Nav3002</c> (fehlerhafte Versions-Direktive) über <paramref name="extent"/>.</summary>
     void ReportNav3002(TextExtent extent) {
         _diagnostics.Add(new Diagnostic(_sourceText.GetLocation(extent),
-                                        DiagnosticDescriptors.Syntax.Nav3002InvalidPragmaVersion));
+                                        DiagnosticDescriptors.Syntax.Nav3002InvalidVersionDirective));
+    }
+
+    /// <summary>
+    /// Baut aus dem Lauf <c>[hashIndex, end)</c> eine wirkungslose <see cref="BadDirectiveTriviaSyntax"/> für ein
+    /// unbekanntes Pragma und meldet <c>Nav3001</c> („Unknown pragma '<paramref name="pragmaName"/>'") über die
+    /// ganze Direktiv-Breite. Es gibt derzeit keine bekannten Pragmas; der Zweig ist der Erweiterungspunkt für
+    /// spätere <c>#pragma</c>-Subjekte.
+    /// </summary>
+    BadDirectiveTriviaSyntax UnknownPragma(int hashIndex, int end, string pragmaName) {
+
+        _diagnostics.Add(new Diagnostic(DirectiveLocation(hashIndex, end),
+                                        DiagnosticDescriptors.Syntax.Nav3001UnknownPragma,
+                                        pragmaName));
+
+        var node = new BadDirectiveTriviaSyntax(DirectiveExtent(hashIndex, end));
+        PopulateLocalTokens(node, hashIndex, end, end);
+        return node;
     }
 
     /// <summary>

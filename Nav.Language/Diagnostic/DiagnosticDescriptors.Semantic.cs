@@ -392,11 +392,11 @@ public partial class DiagnosticDescriptors {
         // Language Version
 
         /// <summary>
-        /// '{0}' requires Nav language version {1}. Add '#pragma version {1}'.
+        /// '{0}' requires Nav language version {1}. Add '#version {1}'.
         /// </summary>
         public static readonly DiagnosticDescriptor Nav5000Feature0RequiresNavLanguageVersion1 = new(
             id             : DiagnosticId.Nav5000,
-            messageFormat  : "'{0}' requires Nav language version {1}. Add '#pragma version {1}'.",
+            messageFormat  : "'{0}' requires Nav language version {1}. Add '#version {1}'.",
             category       : Category,
             defaultSeverity: DiagnosticSeverity.Error
         );

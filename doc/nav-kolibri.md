@@ -243,14 +243,14 @@ Lexen und Direktiven-Auswertung ist die eigentliche Komplexität.
 **Für Nav (vereinfacht) — umgesetzt:** Kein konditionaler Stack, kein Disabled-Text, keine
 Symbol-Auswertung — nur der zustandslose Teil. Beim `#` läuft ein **Mini-Sub-Parser**, der `#` + Keyword +
 Text-bis-EOL zu **einer** `DirectiveTriviaSyntax` zusammenfasst; der Hauptparser sieht nur Trivia. Details
-in „Stand: `#pragma version`" unten und in `doc/nav-weg-b-structured-trivia.md`.
+in „Stand: `#version`" unten und in `doc/nav-weg-b-structured-trivia.md`.
 
-### Stand: `#pragma version` + Sprach-Versionierung (Fundament, umgesetzt)
+### Stand: `#version` + Sprach-Versionierung (Fundament, umgesetzt)
 
 Der erste strukturierte Direktiven-Fall ist implementiert — als Träger einer **Sprach-/Schema-Version**
 je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Elemente):
 
-- **Syntax** `#pragma version <int>` → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
+- **Syntax** `#version <int>` → `VersionDirectiveSyntax: DirectiveTriviaSyntax`.
   Umgesetzt als **Weg B** (siehe „architektonischer Gabelpunkt"): die Direktive ist **strukturierte
   Trivia** — ein `SyntaxTokenType.DirectiveTrivia`-Stück im angehängten `_allTrivia`, dessen
   `GetStructure()` auf den `DirectiveTriviaSyntax`-Knoten zeigt. Der Knoten hält seine Präprozessor-Token
@@ -261,28 +261,30 @@ je `.nav`-Datei (Grundlage für künftige versionsabhängige Syntax-/Codegen-Ele
   `Nav.Language\Syntax\NavDirectiveParser.cs`), der pro `#`-Lauf per **Keyword-Dispatch über die Token-Art**
   entscheidet. Der **Lexer** erkennt die Direktiv-Schlüsselwörter bereits tabellengesteuert
   (`PreprocessorKeywords`) als eigene Token (`PragmaKeyword`, `VersionKeyword`) — der Sub-Parser dispatcht
-  über `At(PragmaKeyword)`/`At(VersionKeyword)` statt per `Substring`-Textvergleich, und das Argument ist
+  über `At(VersionKeyword)`/`At(PragmaKeyword)` statt per `Substring`-Textvergleich, und das Argument ist
   genau ein bereits gelextes `PreprocessorNumber`-Token:
-  `#pragma version <int>` → **immer** `VersionDirectiveSyntax`; **jede andere, unbekannte** Direktive →
+  `#version <int>` → **immer** `VersionDirectiveSyntax`; ein `#pragma <subjekt>` (auch `version`) → unbekanntes
+  Pragma `Nav3001`, ein `#pragma` ohne Subjekt bzw. **jede andere, unbekannte** Direktive →
   `BadDirectiveTriviaSyntax` + `Nav3000`. Fehlender/nicht-ganzzahliger/mehrfacher Wert → genau eine `Nav3002`, Rückfall
   auf `NavLanguageVersion.Default` (= 1). Welche Versions-Direktive **wirksam** ist, entscheidet **separat**
   `NavParser.ResolveLanguageVersion` (nur die erste ganz oben, nur Trivia davor): eine weiter unten stehende
   meldet `Nav3003`, eine doppelte `Nav3004` (erste gewinnt) — beide bleiben eigenständige
   `VersionDirectiveSyntax`-Knoten, aber unwirksam, ihre Token normal eingefärbt. Die Zeilenanfang-Regel
-  erzwingt der **Lexer** (mid-line-`#` → `Unknown`/`Nav0000`); ein eigenes `Nav3001` gibt es nicht mehr.
+  erzwingt der **Lexer** (mid-line-`#` → `Unknown`/`Nav0000`). Das frühere Zeilenanfang-`Nav3001` ist entfallen;
+  die ID wird jetzt für „Unknown pragma" wiederverwendet.
   `BuildTrivia` faltet jeden Präprozessor-Lauf zu einem `DirectiveTrivia`-Stück und hängt es als
   Leading-Trivia des Folge-Tokens (bzw. `EndOfFile`) an.
 - **Fallstrick (wichtig):** Der Lexer beendet eine Direktive im Textmodus **nur bei `\r\n`** (einzelnes
   `\n` bleibt `PreprocessorText` — Alt-Grammatik-Verhalten, gilt für **alle** `#`-Direktiven). Ein
-  `#pragma version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
+  `#version` auf einer reinen-LF-Zeile verschluckt daher den Rest bis zum nächsten `\r\n`/EOF.
   `.nav`-Fixtures/Dateien sind CRLF; Tests entsprechend `\r\n`.
 - **Durchgereicht:** `CodeGenerationUnitSyntax.LanguageVersion` → `CodeGenerationUnit.LanguageVersion` →
   `CodeGeneratorContext.LanguageVersion` (Durchreiche-Punkt in die StringTemplates). Gate-Mechanik in
   `NavLanguageFeature`/`NavLanguageFeatures` (`Nav5000`) steht bereit, **noch ohne** registrierte
-  Features (permissiv parsen + semantisch diagnostizieren, Roslyn-Stil). Default ohne Pragma = Version 1
+  Features (permissiv parsen + semantisch diagnostizieren, Roslyn-Stil). Default ohne Direktive = Version 1
   ⇒ Bestand bit-identisch.
-- **Tests:** `LanguageVersionTests` + Golden-Fixtures `VersionPragma(.Invalid).nav` (`.tokens`/`.tree`/
-  `.trivia`); `AllRules.nav` trägt ein `#pragma version 1`. `BadDirectiveTriviaSyntax` deckt
+- **Tests:** `LanguageVersionTests` + Golden-Fixtures `VersionDirective(Invalid).nav` (`.tokens`/`.tree`/
+  `.trivia`); `AllRules.nav` trägt ein `#version 1`. `BadDirectiveTriviaSyntax` deckt
   `SyntaxTreeAllRulesTests` über ein **eigenes Fehler-Schnipsel** ab (Zähler 47 → 48), damit `AllRules.nav`
   fehlerfrei bleibt.
 

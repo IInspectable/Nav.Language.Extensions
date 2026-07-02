@@ -32,7 +32,7 @@ public class SyntaxWalkerTests {
         walker.Walk(tree.Root);
 
         // Direktiven sind strukturierte Trivia (keine Kindknoten der Wurzel) — separat einspeisen, damit auch
-        // ihre generierten WalkXxx-Methoden erreicht werden. AllRules trägt die wirksame #pragma version
+        // ihre generierten WalkXxx-Methoden erreicht werden. AllRules trägt die wirksame #version
         // (VersionDirectiveSyntax); eine unbekannte Direktive (BadDirectiveTriviaSyntax) aus einem eigenen
         // Schnipsel, da AllRules bewusst fehlerfrei bleibt.
         foreach (var directive in tree.Directives()) {

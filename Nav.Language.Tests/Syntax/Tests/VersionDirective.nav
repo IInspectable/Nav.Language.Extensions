@@ -1,4 +1,4 @@
-﻿#pragma version
+﻿#version 2
 task A
 {
     init I1;
