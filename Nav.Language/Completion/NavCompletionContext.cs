@@ -316,7 +316,34 @@ sealed class NavCompletionContext {
             return index > 0 ? tokens[index - 1] : SyntaxToken.Missing;
         }
 
+        // Klebt der Cursor an einer gerade angefangenen Edge (`-`, `--`, `==`, `*` …), sind deren Zeichen nur
+        // das Präfix des Edge-Keywords. Solche unvollständigen Edge-Zeichen bleiben als unbekannte Token übrig
+        // und hängen — nicht an einem Task-Knoten, sondern an der Wurzel; sie tragen daher weder den Task- noch
+        // den Edge-Kontext. Wie beim Wort-Präfix ist der eigentliche Kontext ihr Vorgänger, der Quellknoten →
+        // EdgeSlot. (Die mehrzeichigen Edges werden zeichenweise als eigene Unknown-Token gelext, daher der
+        // Rücklauf über den ganzen zusammenhängenden Lauf.)
+        if (IsPartialEdgeToken(token) && position <= token.End) {
+            while (index > 0 && IsPartialEdgeToken(tokens[index - 1])) {
+                index--;
+            }
+
+            return index > 0 ? tokens[index - 1] : SyntaxToken.Missing;
+        }
+
         return token;
+    }
+
+    // Ein Präfix einer noch unvollständigen Edge: ein unbekanntes Token, dessen Text ausschließlich aus
+    // Edge-Zeichen besteht (`-`, `>`, `o`, `*`). Vollständige Edge-Keywords (`-->`, `o->`, …) tragen einen
+    // eigenen Token-Typ und fallen bewusst heraus — sie bleiben ihr eigener Kontext (→ Ziel-Slot).
+    static bool IsPartialEdgeToken(SyntaxToken token) {
+
+        if (token.IsMissing || token.Type != SyntaxTokenType.Unknown) {
+            return false;
+        }
+
+        var text = token.ToString();
+        return text.Length > 0 && text.All(SyntaxFacts.IsEdgeCharacter);
     }
 
     // Index des letzten Tokens mit Start &lt; position (Binärsuche über die nach Start sortierte Liste), bzw. -1.

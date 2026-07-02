@@ -145,6 +145,41 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void PartialEdge_AfterSourceNode_OffersEdgeKeywords() {
+
+        // Angefangene Edge: der Nutzer hat hinter dem Quellknoten ein `-` getippt (Beginn von `-->`). Das
+        // einzelne `-` ist kein gültiges Edge-Keyword und bleibt als unbekanntes, an die Wurzel gehängtes
+        // Token übrig — trotzdem MUSS hier (wie beim `o` von `o->`) der Quellknoten-Kontext greifen und die
+        // Edge-Keywords anbieten, statt auf die Member-Ebene (task/taskref) zurückzufallen.
+        const string nav = "task A\n"      +
+                           "{\n"            +
+                           "    init i;\n"  +
+                           "    exit e;\n"  +
+                           "    i -\n"      + // angefangene Edge — Cursor hinter dem `-`
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\partial-dash.nav");
+        var caret = IndexOfToken(nav, "    i -\n", "    i -"); // direkt hinter dem `-`
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Die sichtbaren Edge-Keywords werden angeboten...
+        Assert.That(labels, Does.Contain(SyntaxFacts.GoToEdgeKeyword)); // -->
+        Assert.That(labels, Does.Contain(SyntaxFacts.ModalEdgeKeyword)); // o->
+        // ...aber KEINE Member-Ebenen-Keywords und keine Knoten.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskrefKeyword));
+        Assert.That(labels, Has.None.EqualTo("i"));
+
+        // Das getippte `-` gehört zum Ersetzungsbereich, damit der Commit es durch das vollständige Keyword
+        // ersetzt (statt `--->` zu erzeugen).
+        var edge = items.Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
+        Assert.That(edge.ReplacementExtent!.Value.End,   Is.EqualTo(caret));
+        Assert.That(edge.ReplacementExtent!.Value.Start, Is.EqualTo(caret - 1)); // das getippte `-`
+    }
+
+    [Test]
     public void StatementStart_OffersNodeDeclarationKeywordsAndNodes() {
 
         const string nav = "task A\n"            +
