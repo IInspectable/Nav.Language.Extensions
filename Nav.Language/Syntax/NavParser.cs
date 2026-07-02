@@ -379,7 +379,7 @@ sealed class NavParser {
         var open      = Eat(SyntaxTokenType.OpenBracket);
         var keyword   = Eat(SyntaxTokenType.NamespaceprefixKeyword);
         var nsSyntax  = ParseIdentifierOrString();
-        var close     = Eat(SyntaxTokenType.CloseBracket);
+        var close     = EatCloseBracket();
 
         var node = new CodeNamespaceDeclarationSyntax(Span(open, keyword, nsSyntax, close), nsSyntax);
 
@@ -401,7 +401,7 @@ sealed class NavParser {
         var open     = Eat(SyntaxTokenType.OpenBracket);
         var keyword  = Eat(SyntaxTokenType.UsingKeyword);
         var nsSyntax = ParseIdentifierOrString();
-        var close    = Eat(SyntaxTokenType.CloseBracket);
+        var close    = EatCloseBracket();
 
         var node = new CodeUsingDeclarationSyntax(Span(open, keyword, nsSyntax, close), nsSyntax);
 
@@ -462,6 +462,8 @@ sealed class NavParser {
         var codeNamespace  = AtCodeDeclaration(SyntaxTokenType.NamespaceprefixKeyword) ? ParseCodeNamespaceDeclaration()       : null;
         var notImplemented = AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword)  ? ParseCodeNotImplementedDeclaration()  : null;
         var result         = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)          ? ParseCodeResultDeclaration()          : null;
+
+        SkipMalformedBrackets();
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsConnectionPoint() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -540,6 +542,8 @@ sealed class NavParser {
         var generateTo = AtCodeDeclaration(SyntaxTokenType.GeneratetoKeyword) ? ParseCodeGenerateToDeclaration() : null;
         var codeParams = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)     ? ParseCodeParamsDeclaration()     : null;
         var result     = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)     ? ParseCodeResultDeclaration()     : null;
+
+        SkipMalformedBrackets();
 
         Recover(() => At(SyntaxTokenType.OpenBrace) || StartsNodeDeclaration() || StartsTransition() || BreaksBody());
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -647,9 +651,15 @@ sealed class NavParser {
 
         var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
         var codeParams     = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)         ? ParseCodeParamsDeclaration()         : null;
-        var doClause       = At(SyntaxTokenType.DoKeyword)                            ? ParseDoClause()                      : null;
 
-        var semi = Eat(SyntaxTokenType.Semicolon);
+        // Ein '[' an dieser Stelle, das keiner bekannten Code-Deklaration entspricht (leeres `[]`, beim
+        // Tippen noch unfertiges `[par`), wird als Fehlerproduktion in der Klammer verschluckt — sonst
+        // bräche die Knoten-Deklaration hier ab und die restlichen Body-Zeilen liefen als Kaskade auf.
+        var malformedBracket = SkipMalformedBrackets();
+
+        var doClause = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
+
+        var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
 
         var node = new InitNodeDeclarationSyntax(Span(keyword, name, abstractMethod, codeParams, doClause, semi),
                                                  abstractMethod, codeParams, doClause);
@@ -720,7 +730,11 @@ sealed class NavParser {
         var doNotInject    = AtCodeDeclaration(SyntaxTokenType.DonotinjectKeyword)    ? ParseCodeDoNotInjectDeclaration()    : null;
         var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
 
-        var semi = Eat(SyntaxTokenType.Semicolon);
+        // Nicht erkanntes '[' als Fehlerproduktion in der Klammer verschlucken (siehe
+        // ParseInitNodeDeclaration) — hält die Kaskade aus der abgebrochenen Knoten-Deklaration auf.
+        var malformedBracket = SkipMalformedBrackets();
+
+        var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
 
         var node = new TaskNodeDeclarationSyntax(Span(keyword, name, alias, doNotInject, abstractMethod, semi),
                                                  doNotInject, abstractMethod);
@@ -1254,7 +1268,7 @@ sealed class NavParser {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
         var keyword = Eat(SyntaxTokenType.NotimplementedKeyword);
-        var close   = Eat(SyntaxTokenType.CloseBracket);
+        var close   = EatCloseBracket();
 
         var node = new CodeNotImplementedDeclarationSyntax(Span(open, keyword, close));
 
@@ -1275,7 +1289,7 @@ sealed class NavParser {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
         var keyword = Eat(SyntaxTokenType.DonotinjectKeyword);
-        var close   = Eat(SyntaxTokenType.CloseBracket);
+        var close   = EatCloseBracket();
 
         var node = new CodeDoNotInjectDeclarationSyntax(Span(open, keyword, close));
 
@@ -1296,7 +1310,7 @@ sealed class NavParser {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
         var keyword = Eat(SyntaxTokenType.AbstractmethodKeyword);
-        var close   = Eat(SyntaxTokenType.CloseBracket);
+        var close   = EatCloseBracket();
 
         var node = new CodeAbstractMethodDeclarationSyntax(Span(open, keyword, close));
 
@@ -1323,7 +1337,7 @@ sealed class NavParser {
             literals.Add(literal);
         }
 
-        var close = Eat(SyntaxTokenType.CloseBracket);
+        var close = EatCloseBracket();
 
         var span = new ExtentBuilder();
         span.Add(open); span.Add(keyword);
@@ -1371,7 +1385,7 @@ sealed class NavParser {
             }
         }
 
-        var close = Eat(SyntaxTokenType.CloseBracket);
+        var close = EatCloseBracket();
 
         var span = new ExtentBuilder();
         span.Add(open); span.Add(keyword); span.AddRange(baseTypes); span.Add(colon); span.Add(comma); span.Add(close);
@@ -1398,7 +1412,7 @@ sealed class NavParser {
         var open    = Eat(SyntaxTokenType.OpenBracket);
         var keyword = Eat(SyntaxTokenType.GeneratetoKeyword);
         var literal = Eat(SyntaxTokenType.StringLiteral);
-        var close   = Eat(SyntaxTokenType.CloseBracket);
+        var close   = EatCloseBracket();
 
         var node = new CodeGenerateToDeclarationSyntax(Span(open, keyword, literal, close));
 
@@ -1423,7 +1437,7 @@ sealed class NavParser {
 
         var parameterList = At(SyntaxTokenType.Identifier) ? ParseParameterList() : null;
 
-        var close = Eat(SyntaxTokenType.CloseBracket);
+        var close = EatCloseBracket();
 
         var node = new CodeParamsDeclarationSyntax(Span(open, keyword, parameterList, close), parameterList);
 
@@ -1445,7 +1459,7 @@ sealed class NavParser {
         var open      = Eat(SyntaxTokenType.OpenBracket);
         var keyword   = Eat(SyntaxTokenType.ResultKeyword);
         var parameter = ParseParameter();
-        var close     = Eat(SyntaxTokenType.CloseBracket);
+        var close     = EatCloseBracket();
 
         var node = new CodeResultDeclarationSyntax(Span(open, keyword, parameter, close), parameter);
 
@@ -1454,6 +1468,59 @@ sealed class NavParser {
         Tok(node, close,   TextClassification.Punctuation);
 
         return node;
+    }
+
+    /// <summary>
+    /// Überspringt eine Folge von <c>[</c>-Klammern an einer Code-Deklarations-Position, die keiner
+    /// bekannten <c>[keyword …]</c>-Deklaration entsprechen. Gibt <c>true</c> zurück, sobald mindestens
+    /// eine solche Klammer verschluckt wurde — der aufrufende Wirt unterdrückt dann das mechanisch
+    /// ebenfalls fehlende <c>;</c> (eine Diagnose pro Divergenzstelle, analog zu einer an der
+    /// Zeilengrenze abgebrochenen Transition).
+    /// </summary>
+    bool SkipMalformedBrackets() {
+
+        var skipped = false;
+        while (At(SyntaxTokenType.OpenBracket)) {
+            ParseMalformedBracketDeclaration();
+            skipped = true;
+        }
+
+        return skipped;
+    }
+
+    /// <summary>
+    /// Fehlerproduktion für ein <c>[</c> an einer Code-Deklarations-Position, das keiner bekannten
+    /// <c>[keyword …]</c>-Deklaration entspricht (leeres <c>[]</c>, <c>[foo]</c>, beim Tippen noch
+    /// unfertiges <c>[par</c>). Meldet genau eine Diagnose über die ganze Klammer und resynchronisiert
+    /// bis zum schließenden <c>]</c> bzw. einem harten Anker (<see cref="ClosesBracketRegion"/>) — der
+    /// Schaden bleibt auf die Klammer beschränkt. Die übersprungenen Token gehen nicht verloren: sie
+    /// hängen anschließend als <see cref="TextClassification.Skiped"/>-Token an der Wurzel.
+    /// </summary>
+    void ParseMalformedBracketDeclaration() {
+
+        var start = CurrentStart;
+
+        // Das '[' und den (ungültigen) Inhalt bis zum ']' oder einem harten Anker überspringen. Das '['
+        // selbst ist per Aufrufkontext gesichert, der Rumpf läuft also mindestens einmal (Fortschritt).
+        do {
+            _firstSignificantStart ??= CurrentStart;
+            _pos++;
+            SkipHidden();
+        } while (!ClosesBracketRegion());
+
+        // Steht ein ']' bereit, gehört es noch zur Klammer und wird mitverschluckt; sonst endet die
+        // Diagnose am zuletzt übersprungenen Token (nicht in dessen Trailing-Trivia).
+        int end;
+        if (At(SyntaxTokenType.CloseBracket)) {
+            end = CurrentEnd;
+            _pos++;
+            SkipHidden();
+        } else {
+            end = PreviousSignificantEnd() ?? CurrentStart;
+        }
+
+        var extent = TextExtent.FromBounds(start, end);
+        ReportUnexpected(extent, _sourceText.Substring(extent));
     }
 
     #endregion
@@ -1711,6 +1778,21 @@ sealed class NavParser {
                AtEof;
     }
 
+    /// <summary>
+    /// Anker, an denen die Recovery <b>innerhalb</b> einer eckigen Klammer abbricht: das schließende
+    /// <c>]</c> selbst sowie harte äußere Anker (<c>;</c>, Body-<c>{</c>, Knoten-Start und die
+    /// äußeren Body-Anker von <see cref="BreaksBody"/>). So bleibt der Schaden einer unvollständigen
+    /// <c>[ … ]</c>-Deklaration auf die Klammer beschränkt, statt in die folgenden Deklarationen
+    /// auszubluten (das Klammer-Pendant zu <see cref="TargetStartsNextTransition"/> bei Transitionen).
+    /// </summary>
+    bool ClosesBracketRegion() {
+        return At(SyntaxTokenType.CloseBracket) ||
+               At(SyntaxTokenType.Semicolon)    ||
+               At(SyntaxTokenType.OpenBrace)    ||
+               StartsNodeDeclaration()          ||
+               BreaksBody();
+    }
+
     /// <summary>Typ des n-ten parser-sichtbaren Tokens ab der aktuellen Position (Trivia übersprungen).</summary>
     SyntaxTokenType PeekType(int n) {
         var index = _pos;
@@ -1752,6 +1834,19 @@ sealed class NavParser {
         SkipHidden();
 
         return token;
+    }
+
+    /// <summary>
+    /// Konsumiert das schließende <c>]</c> einer <c>[ … ]</c>-Code-Deklaration. Zuvor überspringt ein
+    /// gezielter Panic-Mode überzähligen bzw. ungültigen Klammerinhalt bis zum <c>]</c> oder einem
+    /// harten Anker (<see cref="ClosesBracketRegion"/>) — eine Diagnose an der Divergenzstelle. So blutet
+    /// ein unvollständiges <c>[ … ]</c> (etwa ein beim Tippen noch nicht geschlossenes <c>[params …</c>)
+    /// nicht in die folgenden Deklarationen aus, statt dass <see cref="Eat"/> das <c>]</c> still
+    /// synthetisiert und die Folgetoken downstream als Kaskade auflaufen.
+    /// </summary>
+    RawToken? EatCloseBracket() {
+        Recover(ClosesBracketRegion);
+        return Eat(SyntaxTokenType.CloseBracket);
     }
 
     /// <summary>

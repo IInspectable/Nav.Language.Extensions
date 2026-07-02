@@ -254,6 +254,21 @@ direkt hinter dem `:`, Transition endet. Same-line-Fälle (`I1 e1;`, `Node:OK --
 echter Nav-Code bricht eine Transition nie über Zeilen um (Korpus: 1104/1104 einzeilig). Golden:
 `IncompleteEdgeBleed.nav` / `IncompleteTargetBleed.nav` / `IncompleteExitColonBleed.nav`.
 
+**Eckige Klammern als geschlossene Recovery-Region.** Das Pendant zur Zeilengrenze für die
+`[ keyword … ]`-Code-Deklarationen: Ein unvollständiges `[ … ]` (beim Tippen noch nicht geschlossenes
+`[params …`, oder ein `[`, das keiner bekannten Deklaration entspricht wie das leere `[]` oder
+`[foo]`) darf nicht in die folgenden Deklarationen ausbluten — sonst bricht die Knoten-Deklaration ab
+und die restlichen Body-Zeilen laufen als Kaskade auf (jedes Knoten-Keyword wird übersprungen, der
+folgende Identifier als Transitions-Quelle fehlgedeutet → „halbe Datei rot"). Zwei Stellschrauben,
+beide auf den Anker `ClosesBracketRegion` (`]` selbst plus die harten äußeren Anker `;`, `{`,
+Knoten-Start, `BreaksBody`) gestützt: (1) alle `code*`-Parser schließen mit `EatCloseBracket()` statt
+`Eat(CloseBracket)` — ein gezielter Panic-Mode resynchronisiert vor dem `]` auf die Region, statt das
+`]` still zu synthetisieren; (2) an den Wirten (Init-/Task-Knoten, Task-/Taskref-Kopf) verschluckt
+`SkipMalformedBrackets` ein nicht zuordenbares `[` als Fehlerproduktion mit **einer** Diagnose über die
+ganze Klammer (`ParseMalformedBracketDeclaration`). Wie bei der Transition wird — wenn die Klammer die
+Divergenz war — das mechanisch fehlende `;` unterdrückt (`TryEatSemicolonQuiet`). Golden:
+`EmptyBracketInInit.nav` / `IncompleteParamsBleed.nav`.
+
 ---
 
 ## Präprozessor-Direktiven
