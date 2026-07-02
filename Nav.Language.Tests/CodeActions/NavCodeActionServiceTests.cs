@@ -122,6 +122,46 @@ public class NavCodeActionServiceTests {
     }
 
     [Test]
+    public void AddMissingExitTransition_OfferedPerMissingExitAndSortedByName() {
+
+        // Exits bewusst in der Reihenfolge e2, e1 deklariert: die Fixes müssen
+        // nach Name sortiert (e1, e2) angeboten werden, nicht in Deklarationsreihenfolge.
+        const string nav = "taskref A\n"      +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e2;\n"   +
+                           "    exit e1;\n"   +
+                           "}\n"              +
+                           "\n"               +
+                           "task B\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    task A;\n"    +
+                           "    view v;\n"    +
+                           "    exit e1;\n"   +
+                           "\n"               +
+                           "    I1 --> A;\n"  +
+                           "    v  --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "I1 --> "); // auf der Ziel-Referenz 'A'
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var fixes = actions.Where(a => a.Title == "Add Missing Edge").ToList();
+        Assert.That(fixes, Has.Count.EqualTo(2), "Je unverbundenem Exit ('e1', 'e2') eine Aktion erwartet.");
+
+        var first = Apply(nav, fixes[0]);
+        Assert.That(first, Does.Contain("A:e1"));
+        Assert.That(first, Does.Not.Contain("A:e2"));
+
+        var second = Apply(nav, fixes[1]);
+        Assert.That(second, Does.Contain("A:e2"));
+        Assert.That(second, Does.Not.Contain("A:e1"));
+    }
+
+    [Test]
     public void Caret_InLeadingWhitespace_OffersActionOnFollowingNode() {
 
         // Owning-Semantik (Roslyn): Der Caret in der Einrückung vor 'view v;' löst auf das 'view'-Token auf —

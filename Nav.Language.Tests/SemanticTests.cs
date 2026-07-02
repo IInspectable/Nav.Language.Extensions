@@ -415,6 +415,52 @@ task
     }
 
     [Test]
+    public void TestOutgoingCallsOverMultipleEdges() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+task C
+{
+    init I1;
+    task A;
+
+    choice C1;
+    choice C2;
+    choice C3;
+    exit e1;
+
+    I1  --> C1;
+    C1  --> C2;
+    C1  --> C3;
+    C2  --> A;
+    C3  --> A;
+
+    A:e1 --> e1;
+}
+        ";
+
+        var model  = ParseModel(nav);
+        var taskC  = model.TryFindTaskDefinition("C");
+        var choice = taskC.TryFindNode<IChoiceNodeSymbol>("C1");
+
+        var calls = choice.Outgoings.GetReachableCalls();
+
+        // Der über beide Ausgangskanten erreichbare Call 'A' erscheint nur einmal
+        // (geteiltes Seen-Set über alle Kanten der Überladung für Kanten-Mengen)
+        Assert.That(calls.Select(call => call.Node.Name), Is.EqualTo(new[] { "A" }));
+
+        // Wiederholte Enumeration liefert dasselbe Ergebnis — das Seen-Set muss pro
+        // Enumeration frisch sein, sonst wäre der zweite Durchlauf leer gefiltert
+        Assert.That(calls.Select(call => call.Node.Name), Is.EqualTo(new[] { "A" }));
+    }
+
+    [Test]
     public void TestTaskDeclarationConnectionPointFilters() {
 
         var nav = @"
