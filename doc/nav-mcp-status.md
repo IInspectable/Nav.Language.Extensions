@@ -1,4 +1,4 @@
-# Nav-MCP — Status & Handoff
+﻿# Nav-MCP — Status & Handoff
 
 Stand-Dokument für den MCP-Server (`Nav.Language.Mcp`, net10.0, Assembly **`nav.mcp`**). Der MCP-Server
 exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen KI-Agenten, der
@@ -89,7 +89,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   Hauptregel (`codeType`) — bei unbekanntem `rule` liefert das Result `error` + `availableRules` (die
   bekannten Schlüssel) statt einer Exception. `includeTerminals` spiegelt die Terminal-Tabelle aus
   `SyntaxFacts` (Keywords + Punctuation + kategorische Terminale Identifier/StringLiteral/EOF); das
-  `?`-Terminal (Questionmark) ist **nicht** in `SyntaxFacts.Punctuations` und wird gesondert ergänzt.
+  `?`-Terminal (Questionmark) kommt seit dem Lückenschluss direkt aus `SyntaxFacts.Punctuations`.
 - **Agentenfreundliche DTOs.** Schlanke, 1-basierte Sichten (nicht die LSP-DTOs), Fehler als `error`-
   Feld statt Exception (außer Protokollfehlern). Mapping-Helfer: `NavEditDto` (Offset→Zeile/Spalte via
   `sourceText.GetLocation`), `NavLocationDto`, `NavSymbolRef`, `NavSymbolKind`.

@@ -53,7 +53,8 @@ public class SyntaxFactsTest {
         '}',
         '{',
         ']',
-        '['
+        '[',
+        '?'
     };
 
     static readonly char[] ExpectedIdentifierCharacters = {

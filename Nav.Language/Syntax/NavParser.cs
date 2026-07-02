@@ -647,7 +647,7 @@ sealed partial class NavParser {
                 return true;
             case SyntaxTokenType.InitKeyword:
                 // 'init' gefolgt von einer Kante ist eine Transition (initSourceNode), keine Knoten-Deklaration.
-                return !IsEdge(PeekType(1));
+                return !SyntaxFacts.IsEdgeKeyword(PeekType(1));
             default:
                 return false;
         }
@@ -1086,7 +1086,7 @@ sealed partial class NavParser {
     }
 
     bool StartsEdge() {
-        return IsEdge(At0);
+        return SyntaxFacts.IsEdgeKeyword(At0);
     }
 
     bool StartsTargetNode() {
@@ -2065,7 +2065,7 @@ sealed partial class NavParser {
     /// Zeilengrenze in die nächste, für sich genommen korrekte Zeile).
     /// </summary>
     bool TargetStartsNextTransition() {
-        return OnNewLine() && (IsEdge(PeekType(1)) || PeekType(1) == SyntaxTokenType.Colon);
+        return OnNewLine() && (SyntaxFacts.IsEdgeKeyword(PeekType(1)) || PeekType(1) == SyntaxTokenType.Colon);
     }
 
     /// <summary>Meldet ein unerwartetes (übersprungenes) Token (Deletion) über dessen Extent.</summary>
@@ -2074,19 +2074,18 @@ sealed partial class NavParser {
                                         DiagnosticDescriptors.NewSyntaxError($"unexpected input '{text}'")));
     }
 
-    /// <summary>Lesbare Bezeichnung eines erwarteten Tokens für „missing …"-Diagnosen.</summary>
+    /// <summary>
+    /// Lesbare Bezeichnung eines erwarteten Tokens für „missing …"-Diagnosen: der kanonische Text
+    /// (Autorität <see cref="SyntaxFacts.GetText"/>) in Quotes, sonst ein Kategorie-Wort für die
+    /// kategorischen Terminale.
+    /// </summary>
     static string Describe(SyntaxTokenType type) {
+        var text = SyntaxFacts.GetText(type);
+        if (text != null) {
+            return $"'{text}'";
+        }
+
         switch (type) {
-            case SyntaxTokenType.Semicolon:     return "';'";
-            case SyntaxTokenType.OpenBrace:     return "'{'";
-            case SyntaxTokenType.CloseBrace:    return "'}'";
-            case SyntaxTokenType.OpenBracket:   return "'['";
-            case SyntaxTokenType.CloseBracket:  return "']'";
-            case SyntaxTokenType.Colon:         return "':'";
-            case SyntaxTokenType.Comma:         return "','";
-            case SyntaxTokenType.LessThan:      return "'<'";
-            case SyntaxTokenType.GreaterThan:   return "'>'";
-            case SyntaxTokenType.Questionmark:  return "'?'";
             case SyntaxTokenType.Identifier:    return "identifier";
             case SyntaxTokenType.StringLiteral: return "string literal";
             default:                            return $"'{type}'";
@@ -2343,9 +2342,9 @@ sealed partial class NavParser {
     /// (Direktiv-Läufe) und das <see cref="SyntaxTokenType.EndOfFile"/> zählen nicht dazu.
     /// </summary>
     static bool IsSkippedToken(RawToken token, HashSet<int> consumedStarts) {
-        return !token.IsTrivia                            &&
-               token.Type != SyntaxTokenType.EndOfFile    &&
-               !IsPreprocessorToken(token.Type)           &&
+        return !token.IsTrivia                                &&
+               token.Type != SyntaxTokenType.EndOfFile        &&
+               !SyntaxFacts.IsPreprocessorToken(token.Type)   &&
                !consumedStarts.Contains(token.Extent.Start);
     }
 
@@ -2415,36 +2414,18 @@ sealed partial class NavParser {
         return end - start;
     }
 
-    static bool IsEdge(SyntaxTokenType type) {
-        return type is SyntaxTokenType.GoToEdgeKeyword or SyntaxTokenType.ModalEdgeKeyword or SyntaxTokenType.NonModalEdgeKeyword;
-    }
-
     /// <summary>
     /// Ob der Token-Typ für den Parser-Cursor unsichtbar ist: lexikalische Trivia (Autorität
     /// <see cref="SyntaxFacts.IsLexicalTrivia"/>), unbekannte Zeichen (werden nie konsumiert, sondern
-    /// als Skip-Trivia gefaltet) und Präprozessor-Token (Autorität <see cref="IsPreprocessorToken"/> —
-    /// strukturiert im Direktiven-Vorlauf verarbeitet). Bewusst eine Komposition der drei Teilmengen
-    /// statt einer eigenen Aufzählung, damit jede Menge genau eine Pflege-Stelle hat.
+    /// als Skip-Trivia gefaltet) und Präprozessor-Token (Autorität
+    /// <see cref="SyntaxFacts.IsPreprocessorToken"/> — strukturiert im Direktiven-Vorlauf verarbeitet).
+    /// Bewusst eine Komposition der drei Teilmengen statt einer eigenen Aufzählung, damit jede Menge
+    /// genau eine Pflege-Stelle hat.
     /// </summary>
     static bool IsHidden(SyntaxTokenType type) {
         return SyntaxFacts.IsLexicalTrivia(type) ||
                type == SyntaxTokenType.Unknown   ||
-               IsPreprocessorToken(type);
-    }
-
-    /// <summary>
-    /// Ob der Token-Typ ein Präprozessor-Token einer Direktive ist (<c>#</c> plus Rumpf und Zeilenende). Diese
-    /// Token stehen nicht mehr im flachen <see cref="SyntaxTree.Tokens"/>-Strom: der Vorlauf faltet jeden Lauf
-    /// zu strukturierter <see cref="SyntaxTokenType.DirectiveTrivia"/> (die Token liegen lokal am Direktiv-Knoten).
-    /// </summary>
-    static bool IsPreprocessorToken(SyntaxTokenType type) {
-        return type is SyntaxTokenType.HashToken
-                    or SyntaxTokenType.PreprocessorKeyword
-                    or SyntaxTokenType.PreprocessorText
-                    or SyntaxTokenType.PreprocessorNewLine
-                    or SyntaxTokenType.PreprocessorNumber
-                    or SyntaxTokenType.PragmaKeyword
-                    or SyntaxTokenType.VersionKeyword;
+               SyntaxFacts.IsPreprocessorToken(type);
     }
 
     #endregion

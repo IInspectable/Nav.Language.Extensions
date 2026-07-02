@@ -106,7 +106,7 @@ Muster: `Nav.Language.Mcp\Tools\NavOutlineTool.cs` + `NavOutlineResult.cs`; Auto
   `includeTerminals` (Terminal-Tabelle). Beide optional.
 - `NavGrammarResult.cs`: DTO mit voller `NavGrammar.Ebnf` bzw. einzelner Regel; bei unbekanntem `rule`
   `error` + `availableRules` (statt Exception). `NavGrammarTerminals` spiegelt `SyntaxFacts` (Keywords +
-  Punctuations + kategorische Identifier/StringLiteral/EOF), `?` gesondert ergänzt.
+  Punctuations + kategorische Identifier/StringLiteral/EOF); `?` kommt direkt aus `SyntaxFacts.Punctuations`.
 - `doc\nav-mcp-status.md`: Tool-Tabelle (§2) + Design-Notiz (§3) + Verifikation (§4) ergänzt.
 - **Stolperstein (umgesetzt):** `NavGrammar.Rules` ist je Fragment-Haupt-LHS verschlüsselt — `arrayType`
   hat keinen eigenen Schlüssel (steckt im `codeType`-Fragment). Unbekanntes `rule` liefert daher Hinweis
@@ -172,8 +172,8 @@ teilen `SourceBuilder` aus dem Shared-Projekt — das validiert das Shared-Proje
   + `public static IReadOnlyDictionary<string,string> Rules`.
 - **`NavParser` und `NavParser.Rule` sind internal** (IVT für `Nav.Language.Tests`). `NavParser.Rule` darf
   daher kein Parametertyp einer public Testmethode sein → Regel-Namen als `string` übergeben.
-- **`?`-Terminal** (Questionmark) ist NICHT in `SyntaxFacts.Punctuations` — beim Terminal-Check
-  gesondert zulassen.
+- **`?`-Terminal** (Questionmark) ist inzwischen in `SyntaxFacts.Punctuations` enthalten
+  (`SyntaxFacts.Questionmark`) — die frühere Sonderbehandlung beim Terminal-Check ist entfallen.
 - **Voll-Solution-Build** (`nav build`) braucht weiterhin `MSBuild.exe` (VS-Extension). Der .NET-Teil (inkl.
   Generator + Tests) baut mit `dotnet build`/`dotnet test`. Voll-Build mit MSBuild.exe ist noch nicht
   verifiziert (Generator ist Standard-netstandard2.0 — sollte laufen).

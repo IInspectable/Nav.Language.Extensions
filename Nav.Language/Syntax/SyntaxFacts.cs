@@ -126,6 +126,16 @@ public static class SyntaxFacts {
         return EdgeKeywords.Contains(value);
     }
 
+    /// <summary>
+    /// Ob der Token-Typ ein Edge-Keyword ist — die Token-Typ-Sicht auf <see cref="IsEdgeKeyword(string)"/>
+    /// (beide Schreibweisen der modalen Kante lexen zum selben <see cref="SyntaxTokenType.ModalEdgeKeyword"/>).
+    /// </summary>
+    public static bool IsEdgeKeyword(SyntaxTokenType type) {
+        return type is SyntaxTokenType.GoToEdgeKeyword
+                    or SyntaxTokenType.ModalEdgeKeyword
+                    or SyntaxTokenType.NonModalEdgeKeyword;
+    }
+
     // Die Zeichen, aus denen sich Edge-Keywords zusammensetzen (`-`, `>`, `o`, `*`). Einzige Autorität für
     // den Rückwärtslauf, der den Ersetzungsbereich einer angefangenen Edge bestimmt (Completion).
     public static readonly ImmutableHashSet<char> EdgeCharacters = EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
@@ -146,6 +156,7 @@ public static class SyntaxFacts {
     public static readonly char Semicolon    = ';';
     public static readonly char Comma        = ',';
     public static readonly char Colon        = ':';
+    public static readonly char Questionmark = '?';
 
     public static readonly ImmutableHashSet<char> Punctuations = new[] {
         OpenBrace,
@@ -158,7 +169,8 @@ public static class SyntaxFacts {
         GreaterThan,
         Semicolon,
         Comma,
-        Colon
+        Colon,
+        Questionmark
     }.ToImmutableHashSet();
 
     public static bool IsPunctuation(string value) {
@@ -172,6 +184,29 @@ public static class SyntaxFacts {
 
     public static bool IsPunctuation(char value) {
         return Punctuations.Contains(value);
+    }
+
+    /// <summary>
+    /// Der kanonische Text eines Token-Typs mit festem Literal — gespeist aus den Punctuation-Konstanten
+    /// (die einzige Autorität für die Zeichen bleibt). Für Typen ohne festen Text (Identifier, Literale,
+    /// Keywords — letztere teils mit Schreibvarianten) <c>null</c>.
+    /// </summary>
+    public static string GetText(SyntaxTokenType type) {
+        switch (type) {
+            case SyntaxTokenType.OpenBrace:    return OpenBrace.ToString();
+            case SyntaxTokenType.CloseBrace:   return CloseBrace.ToString();
+            case SyntaxTokenType.OpenParen:    return OpenParen.ToString();
+            case SyntaxTokenType.CloseParen:   return CloseParen.ToString();
+            case SyntaxTokenType.OpenBracket:  return OpenBracket.ToString();
+            case SyntaxTokenType.CloseBracket: return CloseBracket.ToString();
+            case SyntaxTokenType.LessThan:     return LessThan.ToString();
+            case SyntaxTokenType.GreaterThan:  return GreaterThan.ToString();
+            case SyntaxTokenType.Semicolon:    return Semicolon.ToString();
+            case SyntaxTokenType.Comma:        return Comma.ToString();
+            case SyntaxTokenType.Colon:        return Colon.ToString();
+            case SyntaxTokenType.Questionmark: return Questionmark.ToString();
+            default:                           return null;
+        }
     }
 
     public static bool IsIdentifierCharacter(char c) {
@@ -206,15 +241,39 @@ public static class SyntaxFacts {
     }
 
     /// <summary>
+    /// Ob der Token-Typ ein Kommentar ist (ein- oder mehrzeilig) — Teilmenge von
+    /// <see cref="IsLexicalTrivia"/>.
+    /// </summary>
+    public static bool IsCommentTrivia(SyntaxTokenType type) {
+        return type is SyntaxTokenType.SingleLineComment
+                    or SyntaxTokenType.MultiLineComment;
+    }
+
+    /// <summary>
     /// Ob der Token-Typ rein <b>lexikalische</b> Trivia ist (Whitespace, Zeilenende, Kommentar) — die
     /// Autorität für diese Typmenge; <see cref="RawToken.IsTrivia"/> und die Parser-Sicht der
     /// versteckten Token leiten sich hieraus ab, statt die Menge zu duplizieren.
     /// </summary>
     public static bool IsLexicalTrivia(SyntaxTokenType type) {
         return type is SyntaxTokenType.Whitespace
-                    or SyntaxTokenType.NewLine
-                    or SyntaxTokenType.SingleLineComment
-                    or SyntaxTokenType.MultiLineComment;
+                    or SyntaxTokenType.NewLine ||
+               IsCommentTrivia(type);
+    }
+
+    /// <summary>
+    /// Ob der Token-Typ ein Präprozessor-Token einer Direktive ist (<c>#</c> plus Rumpf und Zeilenende).
+    /// Diese Token stehen nicht im flachen <see cref="SyntaxTree.Tokens"/>-Strom: der Direktiven-Vorlauf
+    /// des Parsers faltet jeden Lauf zu strukturierter <see cref="SyntaxTokenType.DirectiveTrivia"/>
+    /// (die Token liegen lokal am Direktiv-Knoten).
+    /// </summary>
+    public static bool IsPreprocessorToken(SyntaxTokenType type) {
+        return type is SyntaxTokenType.HashToken
+                    or SyntaxTokenType.PreprocessorKeyword
+                    or SyntaxTokenType.PreprocessorText
+                    or SyntaxTokenType.PreprocessorNewLine
+                    or SyntaxTokenType.PreprocessorNumber
+                    or SyntaxTokenType.PragmaKeyword
+                    or SyntaxTokenType.VersionKeyword;
     }
 
     /// <summary>

@@ -313,7 +313,7 @@ public abstract partial class SyntaxNode: IExtent {
             // Whitespace-Strecke (Leerzeilen + Einrückung der Knotenzeile) ist Trivia.
             var lastComment = -1;
             for (var i = 0; i < leadingTrivia.Length; i++) {
-                if (IsCommentTrivia(leadingTrivia[i].Type)) {
+                if (SyntaxFacts.IsCommentTrivia(leadingTrivia[i].Type)) {
                     lastComment = i;
                 }
             }
@@ -367,7 +367,7 @@ public abstract partial class SyntaxNode: IExtent {
 
         var end = End;
         foreach (var trivia in trailingTrivia) {
-            if (onlyWhiteSpace && IsCommentTrivia(trivia.Type)) {
+            if (onlyWhiteSpace && SyntaxFacts.IsCommentTrivia(trivia.Type)) {
                 break;
             }
 
@@ -375,11 +375,6 @@ public abstract partial class SyntaxNode: IExtent {
         }
 
         return TextExtent.FromBounds(End, end);
-    }
-
-    /// <summary>Ob der Trivia-Typ ein Kommentar ist (ein- oder mehrzeilig) — für die <c>onlyWhiteSpace</c>-Grenze.</summary>
-    static bool IsCommentTrivia(SyntaxTokenType type) {
-        return type == SyntaxTokenType.SingleLineComment || type == SyntaxTokenType.MultiLineComment;
     }
 
     /// <summary>Der <see cref="SyntaxTree"/>, zu dem dieser Knoten gehört. Erst nach <see cref="FinalConstruct"/> verfügbar.</summary>

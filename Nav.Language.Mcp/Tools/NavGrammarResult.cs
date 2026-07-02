@@ -55,14 +55,14 @@ public sealed class NavGrammarResult {
 
 /// <summary>
 /// Die Terminale der Nav-Grammatik, gespiegelt aus <see cref="SyntaxFacts"/>: Schlüsselwörter,
-/// Interpunktion und die kategorischen Terminale (Identifier, StringLiteral, EOF, <c>?</c>).
+/// Interpunktion und die kategorischen Terminale (Identifier, StringLiteral, EOF).
 /// </summary>
 public sealed class NavGrammarTerminals {
 
     /// <summary>Die Schlüsselwort-Literale (Nav- und Code-Keywords sowie Kanten-Operatoren).</summary>
     public List<string> Keywords { get; set; } = new();
 
-    /// <summary>Die Interpunktions-Literale, inklusive des Fragezeichens (<c>?</c>).</summary>
+    /// <summary>Die Interpunktions-Literale.</summary>
     public List<string> Punctuations { get; set; } = new();
 
     /// <summary>Die kategorischen (nicht-literalen) Terminale.</summary>
@@ -70,9 +70,7 @@ public sealed class NavGrammarTerminals {
 
     public static NavGrammarTerminals FromSyntaxFacts() => new() {
         Keywords     = SyntaxFacts.Keywords.OrderBy(k => k, System.StringComparer.Ordinal).ToList(),
-        // "?" (SyntaxTokenType.Questionmark) ist kein Eintrag in SyntaxFacts.Punctuations — gesondert ergänzen.
         Punctuations = SyntaxFacts.Punctuations.Select(c => c.ToString())
-                                  .Concat(new[] { "?" })
                                   .OrderBy(p => p, System.StringComparer.Ordinal)
                                   .ToList()
     };

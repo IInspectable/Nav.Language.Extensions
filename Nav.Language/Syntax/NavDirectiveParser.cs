@@ -337,23 +337,22 @@ sealed class NavDirectiveParser {
 
     /// <summary>
     /// Ende (exklusiv) des Direktiv-Laufs, der beim <c>#</c> an <paramref name="hashIndex"/> beginnt: die
-    /// unmittelbar folgenden Präprozessor-Token bis einschließlich des abschließenden PreprocessorNewLine.
+    /// unmittelbar folgenden Präprozessor-Token (Autorität <see cref="SyntaxFacts.IsPreprocessorToken"/>)
+    /// bis einschließlich des abschließenden PreprocessorNewLine; ein weiteres <c>#</c> beginnt den
+    /// nächsten Lauf.
     /// </summary>
     int RunEnd(int hashIndex) {
         var end = hashIndex + 1;
         while (end < _raw.Length) {
             var type = _raw[end].Type;
-            if (type is SyntaxTokenType.PreprocessorKeyword or SyntaxTokenType.PreprocessorText or SyntaxTokenType.PreprocessorNumber
-                     or SyntaxTokenType.PragmaKeyword       or SyntaxTokenType.VersionKeyword) {
-                end++;
-                continue;
+            if (type == SyntaxTokenType.HashToken || !SyntaxFacts.IsPreprocessorToken(type)) {
+                break;
             }
 
+            end++;
             if (type == SyntaxTokenType.PreprocessorNewLine) {
-                end++;
+                break;
             }
-
-            break;
         }
 
         return end;

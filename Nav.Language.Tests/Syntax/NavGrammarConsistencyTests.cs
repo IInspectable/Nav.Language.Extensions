@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 
 using Pharmatechnik.Nav.Language;
-using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -65,9 +64,8 @@ public class NavGrammarConsistencyTests {
 
         foreach (var terminal in QuotedTerminals(NavGrammar.Ebnf)) {
 
-            var known = SyntaxFacts.IsKeyword(terminal)                            ||
-                        terminal.Length == 1 && SyntaxFacts.IsPunctuation(terminal[0]) ||
-                        terminal == "?"; // SyntaxTokenType.Questionmark (nicht in SyntaxFacts.Punctuations)
+            var known = SyntaxFacts.IsKeyword(terminal) ||
+                        terminal.Length == 1 && SyntaxFacts.IsPunctuation(terminal[0]);
 
             Assert.That(known, Is.True, $"Das literale Terminal \"{terminal}\" ist kein bekanntes Nav-Literal (SyntaxFacts).");
         }
