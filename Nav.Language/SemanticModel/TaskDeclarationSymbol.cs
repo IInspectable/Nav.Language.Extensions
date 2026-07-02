@@ -78,4 +78,33 @@ sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
         CodeGenerationUnit = codeGenerationUnit;
     }
 
+    /// <summary>
+    /// Erstellt eine Kopie dieser Deklaration samt ihrer Connection Points.
+    /// </summary>
+    /// <remarks>
+    /// Inkludierte Deklarationen werden je Include-Datei nur einmal extrahiert und als Prototypen
+    /// gecacht (siehe <see cref="TaskDeclarationSymbolBuilder"/>). Da die inkludierende Datei
+    /// Zustand an der Deklaration verdrahtet (<see cref="References"/> der Task-Knoten), erhält
+    /// jede inkludierende Datei ihren eigenen Klon; die unveränderlichen Bestandteile
+    /// (Location, Syntax, <see cref="CodeTaskResult"/>) werden geteilt.
+    /// </remarks>
+    internal TaskDeclarationSymbol Clone() {
+
+        var clone = new TaskDeclarationSymbol(
+            name: Name,
+            location: Location,
+            origin: Origin,
+            isIncluded: IsIncluded,
+            codeTaskResult: CodeTaskResult,
+            syntax: Syntax,
+            codeNamespace: CodeNamespace,
+            codeNotImplemented: CodeNotImplemented);
+
+        foreach (var connectionPoint in ConnectionPoints) {
+            clone.ConnectionPoints.Add(connectionPoint.WithTaskDeclaration(clone));
+        }
+
+        return clone;
+    }
+
 }

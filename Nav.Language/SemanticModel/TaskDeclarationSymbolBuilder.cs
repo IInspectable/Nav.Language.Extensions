@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Collections.Generic;
 
@@ -11,6 +12,54 @@ using System.Collections.Generic;
 namespace Pharmatechnik.Nav.Language; 
 
 sealed class TaskDeclarationSymbolBuilder {
+
+    /// <summary>
+    /// Cache für die Deklarations-Extraktion inkludierter Dateien, gekeyt auf die Syntax-Instanz
+    /// der Include-Datei. Die Extraktion hängt ausschließlich von dieser Syntax ab (Include-
+    /// Direktiven werden in inkludierten Dateien nicht weiterverfolgt) — eine neue Syntax-Instanz
+    /// (z.B. nach Re-Parse einer geänderten Datei) bedeutet damit automatisch einen neuen
+    /// Cache-Eintrag, alte Einträge werden mit ihrer Syntax vom GC eingesammelt.
+    /// </summary>
+    static readonly ConditionalWeakTable<CodeGenerationUnitSyntax, IncludeExtraction> IncludeExtractionCache = new();
+
+    /// <summary>
+    /// Das cachebare Extraktions-Ergebnis einer Include-Datei: die Task-Deklarationen als
+    /// Prototypen plus die zusammengeführten Diagnostics der Include-Datei (ihre Syntax-Fehler
+    /// und die Diagnostics der Deklarations-Extraktion — eine Voll-Semantik der Include-Datei
+    /// wird hier bewusst nicht berechnet).
+    /// </summary>
+    /// <remarks>
+    /// Die Prototypen selbst dürfen nicht in die Modelle der inkludierenden Dateien gelangen,
+    /// da dort per-Datei-Zustand an den Deklarationen verdrahtet wird
+    /// (<see cref="TaskDeclarationSymbol.References"/>) — Konsumenten erhalten daher Klone
+    /// (<see cref="CloneTaskDeclarations"/>). Die Diagnostics-Liste ist unveränderlich und wird
+    /// von allen Konsumenten geteilt.
+    /// </remarks>
+    sealed class IncludeExtraction {
+
+        IncludeExtraction(SymbolCollection<TaskDeclarationSymbol> taskDeclarationPrototypes, IReadOnlyList<Diagnostic> diagnostics) {
+            _taskDeclarationPrototypes = taskDeclarationPrototypes;
+            Diagnostics                = diagnostics;
+        }
+
+        readonly SymbolCollection<TaskDeclarationSymbol> _taskDeclarationPrototypes;
+
+        public IReadOnlyList<Diagnostic> Diagnostics { get; }
+
+        public static IncludeExtraction Create(CodeGenerationUnitSyntax includeFileSyntax, CancellationToken cancellationToken) {
+            // syntaxProvider: null — in inkludierten Dateien werden keine Include-Direktiven
+            // verarbeitet, das Ergebnis ist damit unabhängig vom Provider des Konsumenten.
+            var result      = FromCodeGenerationUnitSyntax(includeFileSyntax, processAsIncludedFile: true, syntaxProvider: null, cancellationToken: cancellationToken);
+            var diagnostics = includeFileSyntax.SyntaxTree.Diagnostics.Union(result.Diagnostics).ToList();
+
+            return new IncludeExtraction(result.TaskDeclarations, diagnostics);
+        }
+
+        public SymbolCollection<TaskDeclarationSymbol> CloneTaskDeclarations() {
+            return new SymbolCollection<TaskDeclarationSymbol>(_taskDeclarationPrototypes.Select(td => td.Clone()));
+        }
+
+    }
 
     readonly CodeGenerationUnitSyntax                _codeGenerationUnitSyntax;
     readonly bool                                    _processAsIncludedFile;
@@ -120,9 +169,8 @@ sealed class TaskDeclarationSymbolBuilder {
             }
 
             var fileLocation = new Location(filePath);
-            var result       = FromCodeGenerationUnitSyntax(includeFileSyntax, processAsIncludedFile: true, syntaxProvider: _syntaxProvider, cancellationToken: cancellationToken);
-            var diagnostics  = includeFileSyntax.SyntaxTree.Diagnostics.Union(result.Diagnostics).ToList();
-            var include      = new IncludeSymbol(filePath, location, fileLocation, includeDirectiveSyntax, diagnostics, result.TaskDeclarations);
+            var extraction   = IncludeExtractionCache.GetValue(includeFileSyntax, syntax => IncludeExtraction.Create(syntax, cancellationToken));
+            var include      = new IncludeSymbol(filePath, location, fileLocation, includeDirectiveSyntax, extraction.Diagnostics, extraction.CloneTaskDeclarations());
 
             AddInclude(include);
 
