@@ -1,6 +1,6 @@
-using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -10,15 +10,14 @@ namespace Pharmatechnik.Nav.Language;
 [SampleSyntax("do \"instruction\"")]
 public partial class DoClauseSyntax: SyntaxNode {
 
-    readonly IdentifierOrStringSyntax _identifierOrString;
+    readonly IdentifierOrStringSyntax? _identifierOrString;
 
-    internal DoClauseSyntax(TextExtent extent, IdentifierOrStringSyntax identifierOrString): base(extent) {
+    internal DoClauseSyntax(TextExtent extent, IdentifierOrStringSyntax? identifierOrString): base(extent) {
         AddChildNode(_identifierOrString = identifierOrString);
     }
 
     public SyntaxToken DoKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.DoKeyword);
 
-    [CanBeNull]
-    public IdentifierOrStringSyntax IdentifierOrString => _identifierOrString;
+    public IdentifierOrStringSyntax? IdentifierOrString => _identifierOrString;
 
 }

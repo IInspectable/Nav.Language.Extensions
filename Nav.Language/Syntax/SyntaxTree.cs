@@ -1,12 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -16,9 +16,9 @@ namespace Pharmatechnik.Nav.Language;
 
 public class SyntaxTree {
 
-    internal SyntaxTree(SourceText sourceText,
+    internal SyntaxTree(SourceText? sourceText,
                         SyntaxNode root,
-                        SyntaxTokenList tokens,
+                        SyntaxTokenList? tokens,
                         ImmutableArray<Diagnostic> diagnostics) {
 
         Root        = root       ?? throw new ArgumentNullException(nameof(root));
@@ -27,13 +27,10 @@ public class SyntaxTree {
         Diagnostics = diagnostics;
     }
 
-    [NotNull]
     public SyntaxNode Root { get; }
 
-    [NotNull]
     public SourceText SourceText { get; }
 
-    [NotNull]
     public SyntaxTokenList Tokens { get; }
 
     public ImmutableArray<Diagnostic> Diagnostics { get; }
@@ -43,7 +40,6 @@ public class SyntaxTree {
     /// gesamten Datei in Quelltext-Reihenfolge — das echte Roslyn-Modell. Jede Trivia hängt als Leading-
     /// oder Trailing-Trivia an genau einem Token und erscheint hier daher genau einmal.
     /// </summary>
-    [NotNull]
     public IEnumerable<SyntaxTrivia> DescendantTrivia() {
         foreach (var token in Tokens) {
             foreach (var trivia in token.LeadingTrivia) {
@@ -60,7 +56,6 @@ public class SyntaxTree {
     /// Alle Kommentar-Trivia der Datei (ein- und mehrzeilig) in Quelltext-Reihenfolge — die einzige
     /// semantisch tragende Trivia-Art. Filtert <see cref="DescendantTrivia"/> auf <see cref="SyntaxTrivia.IsComment"/>.
     /// </summary>
-    [NotNull]
     public IEnumerable<SyntaxTrivia> Comments() {
         return DescendantTrivia().Where(trivia => trivia.IsComment);
     }
@@ -72,7 +67,6 @@ public class SyntaxTree {
     /// sind strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und keine Kindknoten der Wurzel; sie
     /// werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
     /// </summary>
-    [NotNull]
     public IEnumerable<DirectiveTriviaSyntax> Directives() {
         return DescendantTrivia().Where(trivia => trivia.HasStructure)
                                  .Select(trivia => trivia.GetStructure())
@@ -86,7 +80,6 @@ public class SyntaxTree {
     /// strukturierte Trivia (<see cref="SyntaxTokenType.SkippedTokensTrivia"/>) und keine Kindknoten der
     /// Wurzel; sie werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
     /// </summary>
-    [NotNull]
     public IEnumerable<SkippedTokensTriviaSyntax> SkippedTokens() {
         return DescendantTrivia().Where(trivia => trivia.HasStructure)
                                  .Select(trivia => trivia.GetStructure())
@@ -124,7 +117,7 @@ public class SyntaxTree {
         return FindTrivia(position).IsComment;
     }
 
-    public static SyntaxTree ParseText(string text, string filePath = null, CancellationToken cancellationToken = default) {
+    public static SyntaxTree ParseText(string? text, string? filePath = null, CancellationToken cancellationToken = default) {
         return NavParser.Parse(text, filePath, cancellationToken);
     }
 

@@ -1,4 +1,4 @@
-using JetBrains.Annotations;
+﻿#nullable enable
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -10,14 +10,13 @@ namespace Pharmatechnik.Nav.Language;
 [SampleSyntax("[params Type1 p1, Type2 p2]")]
 public partial class CodeParamsDeclarationSyntax: CodeSyntax {
 
-    internal CodeParamsDeclarationSyntax(TextExtent extent, ParameterListSyntax parameterList)
+    internal CodeParamsDeclarationSyntax(TextExtent extent, ParameterListSyntax? parameterList)
         : base(extent) {
         AddChildNode(ParameterList = parameterList);
     }
 
     public SyntaxToken ParamsKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.ParamsKeyword);
 
-    [CanBeNull]
-    public ParameterListSyntax ParameterList { get; }
+    public ParameterListSyntax? ParameterList { get; }
 
 }

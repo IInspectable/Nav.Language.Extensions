@@ -1,6 +1,6 @@
-﻿using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -16,7 +16,6 @@ public partial class CodeResultDeclarationSyntax: CodeSyntax {
 
     public SyntaxToken ResultKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.ResultKeyword);
 
-    [CanBeNull]
     public ParameterSyntax Result { get; }
 
 }

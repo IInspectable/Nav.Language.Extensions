@@ -1,6 +1,6 @@
-﻿using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -13,7 +13,8 @@ public abstract class IdentifierOrStringSyntax: SyntaxNode {
         : base(extent) {
     }
 
-    [CanBeNull]
+    // Bewusst nicht-nullable (das frühere [CanBeNull] war zu breit): beide Ausprägungen leiten den Text
+    // aus SyntaxToken.ToString() ab, das für fehlende Token String.Empty liefert — nie null.
     public abstract string Text { get; }
 
     public abstract Location GetTextLocation();

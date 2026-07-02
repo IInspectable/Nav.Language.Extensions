@@ -1,6 +1,6 @@
-using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -11,9 +11,9 @@ namespace Pharmatechnik.Nav.Language;
 public partial class InitNodeDeclarationSyntax: ConnectionPointNodeSyntax {
 
     internal InitNodeDeclarationSyntax(TextExtent extent,
-                                       CodeAbstractMethodDeclarationSyntax codeAbstractMethodDeclaration,
-                                       CodeParamsDeclarationSyntax codeParamsDeclaration,
-                                       DoClauseSyntax doClause)
+                                       CodeAbstractMethodDeclarationSyntax? codeAbstractMethodDeclaration,
+                                       CodeParamsDeclarationSyntax? codeParamsDeclaration,
+                                       DoClauseSyntax? doClause)
         : base(extent) {
 
         AddChildNode(CodeAbstractMethodDeclaration = codeAbstractMethodDeclaration);
@@ -25,13 +25,10 @@ public partial class InitNodeDeclarationSyntax: ConnectionPointNodeSyntax {
 
     public SyntaxToken Identifier => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);
 
-    [CanBeNull]
-    public CodeParamsDeclarationSyntax CodeParamsDeclaration { get; }
+    public CodeParamsDeclarationSyntax? CodeParamsDeclaration { get; }
 
-    [CanBeNull]
-    public CodeAbstractMethodDeclarationSyntax CodeAbstractMethodDeclaration { get; }
+    public CodeAbstractMethodDeclarationSyntax? CodeAbstractMethodDeclaration { get; }
 
-    [CanBeNull]
-    public DoClauseSyntax DoClause { get; }
+    public DoClauseSyntax? DoClause { get; }
 
 }

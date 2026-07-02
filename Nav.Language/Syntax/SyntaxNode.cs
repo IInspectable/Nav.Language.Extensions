@@ -1,11 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
-
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -25,9 +26,9 @@ namespace Pharmatechnik.Nav.Language;
 [DebuggerDisplay("{" + nameof(ToDebuggerDisplayString) + "(), nq}")]
 public abstract partial class SyntaxNode: IExtent {
 
-    List<SyntaxNode> _childNodes;
-    SyntaxTree       _syntaxTree;
-    SyntaxNode       _parent;
+    List<SyntaxNode>? _childNodes;
+    SyntaxTree?       _syntaxTree;
+    SyntaxNode?       _parent;
 
     /// <summary>
     /// Erzeugt einen Knoten mit seinem Quelltext-<paramref name="extent"/>. Der Knoten ist danach noch im
@@ -43,7 +44,7 @@ public abstract partial class SyntaxNode: IExtent {
     /// nach und ruft sich rekursiv für alle Kindknoten auf. Danach ist der Knoten eingefroren und nur noch
     /// lesend benutzbar. Darf je Knoten genau einmal aufgerufen werden.
     /// </summary>
-    internal void FinalConstruct(SyntaxTree syntaxTree, SyntaxNode parent) {
+    internal void FinalConstruct(SyntaxTree syntaxTree, SyntaxNode? parent) {
 
         EnsureConstructionMode();
 
@@ -83,8 +84,7 @@ public abstract partial class SyntaxNode: IExtent {
     /// Der übergeordnete Knoten, oder <c>null</c> für die Wurzel des Baums. Erst nach
     /// <see cref="FinalConstruct"/> verfügbar.
     /// </summary>
-    [CanBeNull]
-    public SyntaxNode Parent {
+    public SyntaxNode? Parent {
         get {
             EnsureConstructed();
             return _parent;
@@ -103,7 +103,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// Wurzelknoten und erscheint hier nur für die Wurzel. Knoten, deren Token nicht im flachen
     /// <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia), überschreiben diese Methode.
     /// </summary>
-    [NotNull]
     public virtual IEnumerable<SyntaxToken> ChildTokens() {
         return SyntaxTree.Tokens[Extent].Where(token => token.Parent == this);
     }
@@ -111,7 +110,6 @@ public abstract partial class SyntaxNode: IExtent {
     static readonly IReadOnlyList<SyntaxNode> EmptyNodeList = new List<SyntaxNode>();
 
     /// <summary>Die unmittelbaren Kindknoten dieses Knotens (eine Ebene tief), in Quelltext-Reihenfolge.</summary>
-    [NotNull]
     public IReadOnlyList<SyntaxNode> ChildNodes() {
         EnsureConstructed();
         return _childNodes ?? EmptyNodeList;
@@ -120,7 +118,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// <summary>
     /// Alle Nachfahren dieses Knotens (rekursiv, ohne den Knoten selbst) in Tiefendurchlauf-Reihenfolge.
     /// </summary>
-    [NotNull]
     public IEnumerable<SyntaxNode> DescendantNodes() {
         return DescendantNodes<SyntaxNode>();
     }
@@ -128,7 +125,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// <summary>
     /// Dieser Knoten und alle seine Nachfahren (rekursiv) in Tiefendurchlauf-Reihenfolge.
     /// </summary>
-    [NotNull]
     public IEnumerable<SyntaxNode> DescendantNodesAndSelf() {
         return DescendantNodesAndSelf<SyntaxNode>();
     }
@@ -137,7 +133,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// Alle Nachfahren vom Typ <typeparamref name="T"/> (rekursiv, ohne den Knoten selbst) in
     /// Tiefendurchlauf-Reihenfolge.
     /// </summary>
-    [NotNull]
     public IEnumerable<T> DescendantNodes<T>() where T : SyntaxNode {
         return DescendantNodesAndSelfImpl<T>(includeSelf: false);
     }
@@ -146,7 +141,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// Dieser Knoten (sofern vom Typ <typeparamref name="T"/>) und alle seine Nachfahren vom Typ
     /// <typeparamref name="T"/> (rekursiv) in Tiefendurchlauf-Reihenfolge.
     /// </summary>
-    [NotNull]
     public IEnumerable<T> DescendantNodesAndSelf<T>() where T : SyntaxNode {
         return DescendantNodesAndSelfImpl<T>(includeSelf: true);
     }
@@ -156,7 +150,6 @@ public abstract partial class SyntaxNode: IExtent {
     /// (sofern vom Typ <typeparamref name="T"/>) und steigt dann in die Kindknoten ab. Kann über
     /// <see cref="PromiseNoDescendantNodeOfSameType"/> den Abstieg vorzeitig abbrechen.
     /// </summary>
-    [NotNull]
     IEnumerable<T> DescendantNodesAndSelfImpl<T>(bool includeSelf) where T : SyntaxNode {
         EnsureConstructed();
         if (includeSelf && this is T) {
@@ -193,7 +186,7 @@ public abstract partial class SyntaxNode: IExtent {
     /// Dieser Knoten und seine Vorfahren — von ihm selbst aufwärts bis zur Wurzel.
     /// </summary>
     public IEnumerable<SyntaxNode> AncestorsAndSelf() {
-        for (var node = this; node != null; node = node.Parent) {
+        for (SyntaxNode? node = this; node != null; node = node.Parent) {
             yield return node;
         }
     }
@@ -219,7 +212,7 @@ public abstract partial class SyntaxNode: IExtent {
     /// Der Knoten, dem das Token an der angegebenen <paramref name="position"/> zugeordnet ist — sofern
     /// dieses Token innerhalb des <see cref="Extent"/> dieses Knotens liegt; sonst <c>null</c>.
     /// </summary>
-    public SyntaxNode FindNode(int position) {
+    public SyntaxNode? FindNode(int position) {
         var token = SyntaxTree.Tokens.FindAtPosition(position);
         if (token.IsMissing) {
             return null;
@@ -378,7 +371,6 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>Der <see cref="SyntaxTree"/>, zu dem dieser Knoten gehört. Erst nach <see cref="FinalConstruct"/> verfügbar.</summary>
-    [NotNull]
     public SyntaxTree SyntaxTree {
         get {
             EnsureConstructed();
@@ -390,7 +382,7 @@ public abstract partial class SyntaxNode: IExtent {
     /// Fügt — nur während des Aufbaus — einen Kindknoten an. <c>null</c> wird ignoriert. Nach
     /// <see cref="FinalConstruct"/> nicht mehr erlaubt.
     /// </summary>
-    protected void AddChildNode(SyntaxNode syntaxNode) {
+    protected void AddChildNode(SyntaxNode? syntaxNode) {
         EnsureConstructionMode();
         EnsureChildNodes();
         if (syntaxNode != null) {
@@ -410,6 +402,7 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>Wirft, wenn der Knoten noch im Aufbau ist (kein <see cref="SyntaxTree"/> gesetzt).</summary>
+    [MemberNotNull(nameof(_syntaxTree))]
     void EnsureConstructed() {
         if (_syntaxTree == null) {
             throw new InvalidOperationException();
@@ -417,6 +410,7 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>Legt die Kindknoten-Liste bei Bedarf an (nur im Aufbau-Modus).</summary>
+    [MemberNotNull(nameof(_childNodes))]
     void EnsureChildNodes() {
         if (_childNodes == null) {
             EnsureConstructionMode();

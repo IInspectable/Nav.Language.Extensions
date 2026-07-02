@@ -1,15 +1,17 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Linq;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public static class SampleSyntax {
 
-    public static string Of<T>() where T : SyntaxNode {
+    public static string? Of<T>() where T : SyntaxNode {
         return SampleSyntaxAttribute.GetAttribute<T>()?.Syntax;
     }
 
-    public static string Of(Type type) {
+    public static string? Of(Type type) {
         return SampleSyntaxAttribute.GetAttribute(type)?.Syntax;
     }
 
@@ -24,11 +26,11 @@ public sealed class SampleSyntaxAttribute: Attribute {
 
     public string Syntax { get; }
 
-    public static SampleSyntaxAttribute GetAttribute<T>() where T : SyntaxNode {
+    public static SampleSyntaxAttribute? GetAttribute<T>() where T : SyntaxNode {
         return typeof(T).GetCustomAttributes(false).OfType<SampleSyntaxAttribute>().FirstOrDefault();
     }
 
-    public static SampleSyntaxAttribute GetAttribute(Type t) {
+    public static SampleSyntaxAttribute? GetAttribute(Type t) {
         return t.GetCustomAttributes(false).OfType<SampleSyntaxAttribute>().FirstOrDefault();
     }
 

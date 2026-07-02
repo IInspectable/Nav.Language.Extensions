@@ -1,7 +1,7 @@
+﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -17,7 +17,6 @@ public partial class GenericTypeSyntax: CodeTypeSyntax {
 
     public SyntaxToken Identifier => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);
 
-    [NotNull]
     public IReadOnlyList<CodeTypeSyntax> GenericArguments { get; }
 
 }

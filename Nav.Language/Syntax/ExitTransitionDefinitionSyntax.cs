@@ -1,11 +1,11 @@
-using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 [Serializable]
 [SampleSyntax("SourceNode:ExitIdentifier --> TargetNode if Condition do Instruction;")]
@@ -13,10 +13,10 @@ public partial class ExitTransitionDefinitionSyntax: SyntaxNode {
 
     internal ExitTransitionDefinitionSyntax(TextExtent extent,
                                             IdentifierSourceNodeSyntax sourceNode,
-                                            EdgeSyntax edge,
-                                            TargetNodeSyntax targetNode,
-                                            ConditionClauseSyntax conditionClause,
-                                            DoClauseSyntax doClause): base(extent) {
+                                            EdgeSyntax? edge,
+                                            TargetNodeSyntax? targetNode,
+                                            ConditionClauseSyntax? conditionClause,
+                                            DoClauseSyntax? doClause): base(extent) {
 
         AddChildNode(SourceNode      = sourceNode);
         AddChildNode(Edge            = edge);
@@ -25,25 +25,20 @@ public partial class ExitTransitionDefinitionSyntax: SyntaxNode {
         AddChildNode(DoClause        = doClause);
     }
 
-    [CanBeNull]
     public IdentifierSourceNodeSyntax SourceNode { get; }
 
     public SyntaxToken Colon => ChildTokens().FirstOrMissing(SyntaxTokenType.Colon);
 
-    [SuppressCodeSanityCheck("Der Name ExitIdentifier ist hier ausdr�cklich gewollt.")]
+    [SuppressCodeSanityCheck("Der Name ExitIdentifier ist hier ausdrücklich gewollt.")]
     public SyntaxToken ExitIdentifier => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);
 
-    [CanBeNull]
-    public EdgeSyntax Edge { get; }
+    public EdgeSyntax? Edge { get; }
 
-    [CanBeNull]
-    public TargetNodeSyntax TargetNode { get; }
+    public TargetNodeSyntax? TargetNode { get; }
 
-    [CanBeNull]
-    public ConditionClauseSyntax ConditionClause { get; }
+    public ConditionClauseSyntax? ConditionClause { get; }
 
-    [CanBeNull]
-    public DoClauseSyntax DoClause { get; }
+    public DoClauseSyntax? DoClause { get; }
 
     public SyntaxToken Semicolon => ChildTokens().FirstOrMissing(SyntaxTokenType.Semicolon);
 

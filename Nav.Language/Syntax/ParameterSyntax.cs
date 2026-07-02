@@ -1,6 +1,6 @@
-using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -16,7 +16,6 @@ public partial class ParameterSyntax: SyntaxNode {
         AddChildNode(_type = type);
     }
 
-    [CanBeNull]
     public CodeTypeSyntax Type => _type;
 
     public SyntaxToken Identifier => ChildTokens().FirstOrMissing(SyntaxTokenType.Identifier);

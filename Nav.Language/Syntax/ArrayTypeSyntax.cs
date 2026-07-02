@@ -1,7 +1,7 @@
+﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -18,12 +18,10 @@ public partial class ArrayTypeSyntax: CodeTypeSyntax {
         AddChildNodes(RankSpecifiers = rankSpecifiers);
     }
 
-    [CanBeNull]
     public CodeTypeSyntax Type { get; }
 
     public int Rank => RankSpecifiers.Count;
 
-    [NotNull]
     public IReadOnlyList<ArrayRankSpecifierSyntax> RankSpecifiers { get; }
 
 }

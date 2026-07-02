@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Immutable;
@@ -173,7 +175,7 @@ public static class SyntaxFacts {
         Questionmark
     }.ToImmutableHashSet();
 
-    public static bool IsPunctuation(string value) {
+    public static bool IsPunctuation(string? value) {
 
         if (value?.Length != 1) {
             return false;
@@ -191,7 +193,7 @@ public static class SyntaxFacts {
     /// (die einzige Autorität für die Zeichen bleibt). Für Typen ohne festen Text (Identifier, Literale,
     /// Keywords — letztere teils mit Schreibvarianten) <c>null</c>.
     /// </summary>
-    public static string GetText(SyntaxTokenType type) {
+    public static string? GetText(SyntaxTokenType type) {
         switch (type) {
             case SyntaxTokenType.OpenBrace:    return OpenBrace.ToString();
             case SyntaxTokenType.CloseBrace:   return CloseBrace.ToString();
@@ -219,8 +221,10 @@ public static class SyntaxFacts {
                c == 'ß'               || c == '.' || c == '_';
     }
 
-    public static bool IsValidIdentifier(string value) {
-        if (string.IsNullOrEmpty(value)) {
+    public static bool IsValidIdentifier(string? value) {
+        // Bewusst kein string.IsNullOrEmpty: die netstandard2.0-BCL trägt keine Nullable-Annotationen,
+        // erst der explizite null-Vergleich lässt die Flussanalyse den Wert als nicht-null erkennen.
+        if (value is null || value.Length == 0) {
             return false;
         }
 

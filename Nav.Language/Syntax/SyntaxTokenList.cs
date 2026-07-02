@@ -1,11 +1,11 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;
@@ -20,10 +20,10 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
     static readonly IReadOnlyList<SyntaxToken> EmptyTokens = new List<SyntaxToken>(Enumerable.Empty<SyntaxToken>()).AsReadOnly();
     readonly        IReadOnlyList<SyntaxToken> _tokens;
 
-    public SyntaxTokenList(List<SyntaxToken> tokens): this(tokens, attachSorted: false) {
+    public SyntaxTokenList(List<SyntaxToken>? tokens): this(tokens, attachSorted: false) {
     }
 
-    SyntaxTokenList(IReadOnlyList<SyntaxToken> tokens, bool attachSorted) {
+    SyntaxTokenList(IReadOnlyList<SyntaxToken>? tokens, bool attachSorted) {
 
         if (attachSorted || tokens == null || tokens.Count == 0) {
             // Tokens sind bereits sortiert oder es gibt keine Tokens
@@ -53,7 +53,6 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
 
     public SyntaxToken this[int index] => _tokens[index];
 
-    [NotNull]
     public IEnumerable<SyntaxToken> this[TextExtent extent, bool includeOverlapping = false] => _tokens.GetElements(extent, includeOverlapping);
 
     /// <summary>
@@ -140,7 +139,7 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return lo;
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
             if (token.Type == type) {
@@ -151,7 +150,7 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, TextClassification classification, bool nextToken) {
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, TextClassification classification, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
             if (token.Classification == classification) {
@@ -162,7 +161,7 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, bool nextToken) {
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, bool nextToken) {
         return _tokens.NextOrPreviousElement(node, currentToken, nextToken, SyntaxToken.Missing);
     }
 

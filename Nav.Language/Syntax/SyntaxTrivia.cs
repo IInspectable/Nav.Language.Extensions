@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -18,7 +20,7 @@ namespace Pharmatechnik.Nav.Language;
 [Serializable]
 public readonly struct SyntaxTrivia: IExtent {
 
-    readonly SyntaxNode _structure;
+    readonly SyntaxNode? _structure;
 
     /// <summary>
     /// Erzeugt eine strukturlose Trivia mit ihrem lexikalischen Typ und dem von ihr abgedeckten
@@ -39,7 +41,7 @@ public readonly struct SyntaxTrivia: IExtent {
     /// <param name="type">Der lexikalische Typ der Trivia.</param>
     /// <param name="extent">Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</param>
     /// <param name="structure">Der zugehörige strukturierte Knoten, oder <c>null</c> für strukturlose Trivia.</param>
-    internal SyntaxTrivia(SyntaxTokenType type, TextExtent extent, SyntaxNode structure) {
+    internal SyntaxTrivia(SyntaxTokenType type, TextExtent extent, SyntaxNode? structure) {
         Type       = type;
         Extent     = extent;
         _structure = structure;
@@ -80,7 +82,7 @@ public readonly struct SyntaxTrivia: IExtent {
     /// <see cref="SyntaxTokenType.DirectiveTrivia"/> ist dies der zugehörige <see cref="DirectiveTriviaSyntax"/>,
     /// für eine <see cref="SyntaxTokenType.SkippedTokensTrivia"/> der <see cref="SkippedTokensTriviaSyntax"/>.
     /// </summary>
-    public SyntaxNode GetStructure() => _structure;
+    public SyntaxNode? GetStructure() => _structure;
 
     /// <summary>
     /// Liefert den Quelltext dieser Trivia aus dem übergebenen <paramref name="sourceText"/> — gedacht für
@@ -90,7 +92,7 @@ public readonly struct SyntaxTrivia: IExtent {
     /// <param name="sourceText">Der Quelltext, aus dem der Ausschnitt geschnitten wird.</param>
     /// <returns>Der Quelltext der Trivia, oder <see cref="String.Empty"/>, wenn
     /// <paramref name="sourceText"/> <c>null</c> ist.</returns>
-    public string ToString(SourceText sourceText) {
+    public string ToString(SourceText? sourceText) {
         return sourceText?.Substring(Extent) ?? String.Empty;
     }
 

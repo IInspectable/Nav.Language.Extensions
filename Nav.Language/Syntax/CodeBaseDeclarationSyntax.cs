@@ -1,11 +1,11 @@
+﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.Text;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 [Serializable]
 [SampleSyntax("[base StandardWFS<TSType> : IWFServiceBase, IBeginWFSType]")]
@@ -20,9 +20,8 @@ public partial class CodeBaseDeclarationSyntax: CodeSyntax {
 
     public SyntaxToken BaseKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.BaseKeyword);
 
-    // TODO WfsBaseType d�rfte eigentlich nie null sein?
-    [CanBeNull]
-    public CodeTypeSyntax WfsBaseType {
+    // TODO WfsBaseType dürfte eigentlich nie null sein?
+    public CodeTypeSyntax? WfsBaseType {
         get {
             if (_baseTypes.Count == 0) {
                 return null;
@@ -32,8 +31,7 @@ public partial class CodeBaseDeclarationSyntax: CodeSyntax {
         }
     }
 
-    [CanBeNull]
-    public CodeTypeSyntax IwfsBaseType {
+    public CodeTypeSyntax? IwfsBaseType {
         get {
             if (_baseTypes.Count < 2) {
                 return null;
@@ -43,9 +41,8 @@ public partial class CodeBaseDeclarationSyntax: CodeSyntax {
         }
     }
 
-    [CanBeNull]
     // ReSharper disable once InconsistentNaming
-    public CodeTypeSyntax IBeginWfsBaseType {
+    public CodeTypeSyntax? IBeginWfsBaseType {
         get {
             if (_baseTypes.Count < 3) {
                 return null;
@@ -55,7 +52,6 @@ public partial class CodeBaseDeclarationSyntax: CodeSyntax {
         }
     }
 
-    [NotNull]
     public IReadOnlyList<CodeTypeSyntax> BaseTypes => _baseTypes;
 
 }

@@ -1,6 +1,6 @@
-using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -18,14 +18,13 @@ public abstract class ConditionClauseSyntax: SyntaxNode {
 [SampleSyntax("if Condition")]
 public partial class IfConditionClauseSyntax: ConditionClauseSyntax {
 
-    internal IfConditionClauseSyntax(TextExtent extent, IdentifierOrStringSyntax identifierOrString): base(extent) {
+    internal IfConditionClauseSyntax(TextExtent extent, IdentifierOrStringSyntax? identifierOrString): base(extent) {
         AddChildNode(IdentifierOrString = identifierOrString);
     }
 
     public SyntaxToken IfKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.IfKeyword);
 
-    [CanBeNull]
-    public IdentifierOrStringSyntax IdentifierOrString { get; }
+    public IdentifierOrStringSyntax? IdentifierOrString { get; }
 
 }
 
@@ -49,10 +48,8 @@ public partial class ElseIfConditionClauseSyntax: ConditionClauseSyntax {
         AddChildNode(IfCondition   = ifCondition);
     }
 
-    [NotNull]
     public ElseConditionClauseSyntax ElseCondition { get; }
 
-    [NotNull]
     public IfConditionClauseSyntax IfCondition { get; }
 
 }

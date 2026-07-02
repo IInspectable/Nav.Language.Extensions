@@ -1,7 +1,7 @@
-﻿using System;
-using System.Diagnostics;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
+using System.Diagnostics;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -19,11 +19,11 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
     readonly SyntaxTriviaList _leadingTrivia;
     readonly SyntaxTriviaList _trailingTrivia;
 
-    internal SyntaxToken(SyntaxNode parent, SyntaxTokenType type, TextClassification classification, TextExtent extent)
+    internal SyntaxToken(SyntaxNode? parent, SyntaxTokenType type, TextClassification classification, TextExtent extent)
         : this(parent, type, classification, extent, leadingTrivia: default, trailingTrivia: default) {
     }
 
-    internal SyntaxToken(SyntaxNode parent, SyntaxTokenType type, TextClassification classification, TextExtent extent,
+    internal SyntaxToken(SyntaxNode? parent, SyntaxTokenType type, TextClassification classification, TextExtent extent,
                          SyntaxTriviaList leadingTrivia, SyntaxTriviaList trailingTrivia) {
         Extent          = extent;
         Parent          = parent;
@@ -79,8 +79,7 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
     /// </summary>
     public SyntaxTriviaList TrailingTrivia => _trailingTrivia;
 
-    [CanBeNull]
-    public Location GetLocation() {
+    public Location? GetLocation() {
         return SyntaxTree?.SourceText.GetLocation(Extent);
     }
 
@@ -93,11 +92,9 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
     public int  End       => Extent.End;
     public bool IsMissing => Parent == null || Extent.IsMissing;
 
-    [CanBeNull]
-    public SyntaxNode Parent { get; }
+    public SyntaxNode? Parent { get; }
 
-    [CanBeNull]
-    public SyntaxTree SyntaxTree => Parent?.SyntaxTree;
+    public SyntaxTree? SyntaxTree => Parent?.SyntaxTree;
 
     public SyntaxToken NextToken() {
         return SyntaxTree?.Tokens.NextOrPrevious(Parent, this, nextToken: true) ?? Missing;
@@ -145,7 +142,7 @@ public readonly struct SyntaxToken: IExtent, IEquatable<SyntaxToken> {
                ReferenceEquals(Parent, other.Parent);
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         return obj is SyntaxToken other && Equals(other);
     }
 
