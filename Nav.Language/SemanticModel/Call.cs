@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -69,7 +69,7 @@ class FoldExitsCallComparer: CallComparer {
             return typeof(IExitNodeSymbol).GetHashCode();
         }
 
-        return base.GetHashCode();
+        return base.GetHashCode(call);
 
     }
 

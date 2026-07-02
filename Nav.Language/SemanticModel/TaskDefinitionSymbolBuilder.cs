@@ -1,4 +1,4 @@
-#region Using Directives
+ï»¿#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
@@ -23,14 +23,14 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         var identifier = taskDefinitionSyntax.Identifier;
         var location   = identifier.GetLocation();
 
-        if (location == null) {
+        if (identifier.IsMissing || location == null) {
             return;
         }
 
         var taskName = identifier.ToString();
 
         var taskDeclaration = _taskDeklarations.TryFindSymbol(taskName);
-        if (taskDeclaration.Location != location) {
+        if (taskDeclaration?.Location != location) {
             taskDeclaration = null;
         }
 
@@ -114,7 +114,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         var nodeIdentifier = taskAlias.IsMissing ? taskIdentifier : taskAlias;
 
         if (nodeIdentifier.IsMissing) {
-            // Diesen Fall haben wir, wenn nur "task ;" eingegeben wird. Dafür gibt es aber bereits einen Syntax Fehler.
+            // Diesen Fall haben wir, wenn nur "task ;" eingegeben wird. DafÃ¼r gibt es aber bereits einen Syntax Fehler.
             return;
         }
 
@@ -217,7 +217,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
             }
         }
 
-        // Source: Ohne Source Node können wir keine Transitions hinzufügen, da dieser Knoten relevant ist für die Bestimmung
+        // Source: Ohne Source Node kÃ¶nnen wir keine Transitions hinzufÃ¼gen, da dieser Knoten relevant ist fÃ¼r die Bestimmung
         // der Transition (Init, Choice, Trigger)
 
         var sourceNodeSyntax = transitionDefinitionSyntax.SourceNode;
@@ -227,7 +227,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
         var sourceNode = _taskDefinition.NodeDeclarations.TryFindSymbol(sourceNodeSyntax.Name);
 
-        // Special case "init": Hier ist implizit auch Großschreibung erlaubt
+        // Special case "init": Hier ist implizit auch GroÃŸschreibung erlaubt
         if (sourceNode == null && sourceNodeSyntax.Name == SyntaxFacts.InitKeyword) {
             sourceNode = _taskDefinition.NodeDeclarations.TryFindSymbol(SyntaxFacts.InitKeywordAlt);
         }

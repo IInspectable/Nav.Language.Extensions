@@ -320,6 +320,100 @@ task C
         Assert.That(a3.IsReachable(), Is.False);
     }
 
+    [Test]
+    public void TestCodeUsingsAfterIncompleteUsingAreCollected() {
+
+        var nav = @"
+[namespaceprefix N]
+[using A.B]
+[using]
+[using C.D]
+
+task T
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+        ";
+
+        var model = ParseModel(nav);
+
+        // Ein unvollständiges [using] darf das Einsammeln der nachfolgenden Usings nicht abbrechen
+        Assert.That(model.CodeUsings, Is.EquivalentTo(new[] { "A.B", "C.D" }));
+    }
+
+    [Test]
+    public void TestFoldExitsCallComparerHashCodeContract() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+task C
+{
+    init I1;
+    task A;
+
+    exit e1;
+    exit e2;
+    choice C1;
+
+    I1   --> C1;
+    C1   --> A;
+    C1   --> e1;
+    C1   --> e2;
+
+    A:e1 --> e1;
+}
+        ";
+
+        var model = ParseModel(nav);
+
+        var taskC     = model.TryFindTaskDefinition("C");
+        var initTrans = taskC.TryFindNode<IInitNodeSymbol>("I1")?.Outgoings.Single();
+        var calls     = initTrans.GetReachableCalls().ToList();
+
+        var taskCall  = calls.Single(call => call.Node is ITaskNodeSymbol);
+        var exitCalls = calls.Where(call => call.Node is IExitNodeSymbol).ToList();
+
+        Assert.That(exitCalls, Has.Count.EqualTo(2));
+
+        // Nicht-Exit-Calls hashen wie der Default-Comparer (kein konstanter Instanz-Hash)
+        Assert.That(CallComparer.FoldExits.GetHashCode(taskCall),
+                    Is.EqualTo(CallComparer.Default.GetHashCode(taskCall)));
+
+        // Gleichheits-Kontrakt: gefaltete Exits sind gleich und hashen gleich
+        Assert.That(CallComparer.FoldExits.Equals(exitCalls[0], exitCalls[1]), Is.True);
+        Assert.That(CallComparer.FoldExits.GetHashCode(exitCalls[0]),
+                    Is.EqualTo(CallComparer.FoldExits.GetHashCode(exitCalls[1])));
+
+        // Exits falten sich auf einen Call zusammen
+        Assert.That(calls.Distinct(CallComparer.FoldExits).Count(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TestTaskDefinitionWithMissingIdentifierDoesNotThrow() {
+
+        var nav = @"
+task
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+        ";
+
+        // Namenlose Taskdefinition (Syntaxfehler) darf den Semantic-Model-Aufbau nicht crashen
+        Assert.That(() => ParseModel(nav), Throws.Nothing);
+    }
+
     CodeGenerationUnit ParseModel(string source) {
         var syntax =Syntax.ParseCodeGenerationUnit(source);
         var model  = CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);
