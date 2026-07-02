@@ -103,6 +103,48 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void EdgeSlot_EdgeItemsCarryReplacementExtent() {
+
+        var unit  = ParseModel(Nav, @"n:\av\a.nav");
+        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, vor der Edge
+
+        var edgeItem = NavCompletionService.GetCompletions(unit, caret)
+                                           .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
+
+        // Jedes Edge-Item trägt seinen eigenen Ersetzungsbereich (Edge-Keywords bestehen aus Nicht-Bezeichner-
+        // Zeichen; der Host ersetzt darüber die angefangene Edge). Hier ist vor dem Caret nichts Edge-artiges
+        // getippt (davor steht Whitespace) → leerer Bereich, der am Caret endet.
+        Assert.That(edgeItem.ReplacementExtent, Is.Not.Null);
+        Assert.That(edgeItem.ReplacementExtent!.Value.IsEmpty, Is.True);
+        Assert.That(edgeItem.ReplacementExtent!.Value.End,     Is.EqualTo(caret));
+    }
+
+    [Test]
+    public void EdgeSlot_ReplacementExtentCoversTypedEdgeCharacters() {
+
+        // Angefangene modale Edge (`o` getippt, Beginn von `o->`) hinter dem Quellknoten: das `o` ist zugleich
+        // Bezeichner- und Edge-Zeichen und wird als Wort-Präfix behandelt (Kontext bleibt der Quellknoten →
+        // EdgeSlot). Der Ersetzungsbereich MUSS das getippte `o` einschließen, damit der Commit es durch das
+        // vollständige Keyword ersetzt (statt `oo->` zu erzeugen).
+        const string nav = "task A\n"      +
+                           "{\n"            +
+                           "    init i;\n"  +
+                           "    exit e;\n"  +
+                           "    i o\n"      + // angefangene Edge — Cursor hinter dem `o`
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\partial.nav");
+        var caret = IndexOfToken(nav, "    i o\n", "    i o"); // direkt hinter dem `o`
+
+        var edge = NavCompletionService.GetCompletions(unit, caret)
+                                       .Single(i => i.Label == SyntaxFacts.ModalEdgeKeyword); // o->
+
+        var extent = edge.ReplacementExtent!.Value;
+        Assert.That(extent.End,   Is.EqualTo(caret));
+        Assert.That(extent.Start, Is.EqualTo(caret - 1)); // das getippte `o`
+    }
+
+    [Test]
     public void StatementStart_OffersNodeDeclarationKeywordsAndNodes() {
 
         const string nav = "task A\n"            +

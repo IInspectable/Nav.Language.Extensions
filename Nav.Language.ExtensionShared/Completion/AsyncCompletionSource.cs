@@ -14,6 +14,7 @@ using Microsoft.VisualStudio.Text.Adornments;
 
 using Pharmatechnik.Nav.Language.Completion;
 using Pharmatechnik.Nav.Language.Extension.QuickInfo;
+using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Utilities.IO;
 
 using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
@@ -115,19 +116,29 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
     }
 
     /// <summary>
-    /// Bildet einen neutralen <see cref="NavCompletionItem"/> des Engine-Service auf ein reiches VS-Item ab:
-    /// symbolbasierte Vorschläge behalten Icon und QuickInfo-Tooltip (über das mitgeführte Symbol),
-    /// Keyword-Vorschläge werden zu Keyword-Items.
+    /// Bildet einen neutralen <see cref="NavCompletionItem"/> des Engine-Service auf ein reiches VS-Item ab.
+    /// Pfad-Vorschläge (<see cref="NavCompletionItemKind.File"/>) werden zu Datei-Items (relativer Einfügetext,
+    /// QuickInfo-<see cref="FileInfo"/>); symbolbasierte Vorschläge behalten Icon und QuickInfo-Tooltip (über
+    /// das mitgeführte Symbol); alles Übrige wird zum Keyword-Item. Trägt das Engine-Item einen
+    /// <see cref="NavCompletionItem.ReplacementExtent"/> (Pfade, Edge-Keywords), wird der per-Item-Ersetzungs-
+    /// bereich über den <see cref="ReplacementTrackingSpanProperty"/>-Pfad angehängt — sonst gilt der
+    /// Identifier-Span der Session.
     /// </summary>
-    protected CompletionItem ToCompletionItem(NavCompletionItem item) {
-        return item.Symbol != null
+    protected CompletionItem ToCompletionItem(NavCompletionItem item, ITextSnapshot snapshot, [CanBeNull] DirectoryInfo navDirectory) {
+
+        if (item.Kind == NavCompletionItemKind.File) {
+            return CreatePathCompletion(item, snapshot, navDirectory);
+        }
+
+        var completionItem = item.Symbol != null
             ? CreateSymbolCompletion(item.Symbol, item.Label)
             : CreateKeywordCompletion(item.Label);
-    }
 
-    /// <summary>Ob der Vorschlag ein (sichtbares) Edge-Keyword ist — diese liefert die EdgeCompletionSource.</summary>
-    protected static bool IsEdgeKeyword(NavCompletionItem item) {
-        return item.Kind == NavCompletionItemKind.Keyword && SyntaxFacts.IsEdgeKeyword(item.Label);
+        if (item.ReplacementExtent is { } extent) {
+            ApplyReplacementExtent(completionItem, snapshot, extent);
+        }
+
+        return completionItem;
     }
 
     protected CompletionItem CreateKeywordCompletion(string keyword) {
@@ -165,8 +176,7 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
                                                 attributeIcons: ImmutableArray<ImageElement>.Empty);
 
         if (item.ReplacementExtent is { } extent) {
-            var replacementSpan = snapshot.CreateTrackingSpan(new Span(extent.Start, extent.Length), SpanTrackingMode.EdgeInclusive);
-            completionItem.Properties.AddProperty(ReplacementTrackingSpanProperty, replacementSpan);
+            ApplyReplacementExtent(completionItem, snapshot, extent);
         }
 
         if (navDirectory != null && PathHelper.TryCombinePath(navDirectory.FullName, item.InsertText, out var fullPath)) {
@@ -174,6 +184,17 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         }
 
         return completionItem;
+    }
+
+    /// <summary>
+    /// Hängt einem VS-Item den per-Item-Ersetzungsbereich an (absolute Dokument-Offsets aus dem Engine-Item):
+    /// beim Commit ersetzt der <see cref="CompletionCommitManager"/> genau diesen (mitwachsenden) Bereich durch
+    /// den Einfügetext — statt des Identifier-Spans der Session. So ersetzt ein Pfad den gesamten String-Inhalt
+    /// und ein Edge-Keyword die bereits getippten Edge-Zeichen.
+    /// </summary>
+    static void ApplyReplacementExtent(CompletionItem completionItem, ITextSnapshot snapshot, TextExtent extent) {
+        var replacementSpan = snapshot.CreateTrackingSpan(new Span(extent.Start, extent.Length), SpanTrackingMode.EdgeInclusive);
+        completionItem.Properties.AddProperty(ReplacementTrackingSpanProperty, replacementSpan);
     }
 
     // ReSharper disable InconsistentNaming

@@ -112,8 +112,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionFilters.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionImages.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionProviderNames.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\EdgeCompletionSource.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\EdgeCompletionSourceProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\NavCompletionSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\NavCompletionSourceProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\TextSnaphotLineExtensions.cs" />

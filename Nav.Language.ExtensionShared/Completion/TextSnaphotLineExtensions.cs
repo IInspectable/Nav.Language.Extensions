@@ -56,16 +56,4 @@ static class TextSnaphotLineExtensions {
         return Path.GetInvalidFileNameChars().All(c => ch != c);
     }
 
-    public static SnapshotPoint GetStartOfEdge(this ITextSnapshotLine line, SnapshotPoint start) {
-        while (start > line.Start && IsEdgeChar((start - 1).GetChar())) {
-            start -= 1;
-        }
-
-        return start;
-    }
-
-    static bool IsEdgeChar(this char ch) {
-        return SyntaxFacts.EdgeKeywords.SelectMany(k => k).Contains(ch);
-    }
-
 }

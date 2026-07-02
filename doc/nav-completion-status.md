@@ -171,8 +171,25 @@ honoriert `item.ReplacementExtent`, wenn gesetzt (per-Item-Replacement über den
   verschachteltes „MessageBoxes.nav"). Das ist die „eine Engine"-Vereinheitlichung. Engine-Pfadlogik
   (`GetPathCompletions`) blieb unverändert; ihre Tests (`NavCompletionPathTests`) weiterhin grün
   (net10 1163/0, net472 1171/0).
-- [ ] **C3 — Edge in die Nav-Quelle mergen.** Mit per-Item-`ReplacementExtent` entfällt
-  `EdgeCompletionSource` und das fragile `IsEdgeKeyword`-Heraus-/Wieder-Hinzufügen.
+- [x] **C3 — Edge in die Nav-Quelle mergen.** Die Engine setzt jetzt auch für Edge-Keywords einen
+  `ReplacementExtent`: neuer Helfer `NavCompletionService.EdgeReplacementExtent(source, position)` (Port des
+  VS-`GetStartOfEdge` — Rückwärtslauf über die neue SSOT `SyntaxFacts.EdgeCharacters`/`IsEdgeCharacter` bis zum
+  Zeilenanfang) speist `VisibleEdgeKeywordItems(replacement)` im `EdgeSlot`- **und** im `Fallback`-Fall. Ist
+  nichts Edge-artiges vorgetippt, ist der Bereich leer (reines Einfügen an der Position); der eine reale
+  Nicht-leer-Fall ist das getippte `o` (Beginn von `o->`) — Buchstabe **und** Edge-Zeichen, das als Wort-Präfix
+  behandelt wird, sodass der Kontext der Quellknoten (EdgeSlot) bleibt und der Bereich das `o` einschließt.
+  Die VS-Quelle honoriert den Extent jetzt kind-unabhängig: `AsyncCompletionSource.ToCompletionItem(item,
+  snapshot, navDirectory)` dispatcht Pfad→Datei-Item, sonst Symbol-/Keyword-Item, und hängt bei gesetztem
+  `ReplacementExtent` per-Item den `ReplacementTrackingSpanProperty` an (extrahierter Helfer
+  `ApplyReplacementExtent`, von `CreatePathCompletion` mitgenutzt). `NavCompletionSource` filtert **nichts** mehr
+  heraus — die frühere `EdgeCompletionSource(+Provider)`, das `IsEdgeKeyword`-Heraus-/Wieder-Hinzufügen, der
+  `[Order]`-Bezug in `NavCompletionSourceProvider` sowie die toten `TextSnaphotLineExtensions.GetStartOfEdge`/
+  `IsEdgeChar` sind entfernt. Der LSP profitiert automatisch (sein Handler mappt `ReplacementExtent` bereits
+  generisch auf einen `TextEdit`) — Edge-Keywords bekommen dort jetzt einen präzisen Ersetzungsbereich.
+  **Bewusst hingenommen:** nach dem Merge hat die eine VS-Session **einen** `applicableToSpan` (Identifier-Span);
+  bei getipptem `-` filtert die Vorschlagsliste nicht mehr über das `-` (der Commit bleibt über den per-Item-Extent
+  korrekt). Tests: `EdgeSlot_EdgeItemsCarryReplacementExtent`, `EdgeSlot_ReplacementExtentCoversTypedEdgeCharacters`
+  (net10 1165/0, net472 1173/0).
 - [ ] **C4 — Baumbasierte Suppression (Umfang erst bei Ankunft entscheiden).** Idee: den
   zeilenbasierten `IsInQuotation`/`IsInTextBlock`-Scan in der Engine (`Classify`) und in der
   VS-`ShouldProvideCompletions` durch baumbasierte Erkennung ersetzen. **Zuerst** prüfen, wie

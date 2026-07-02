@@ -126,6 +126,14 @@ public static class SyntaxFacts {
         return EdgeKeywords.Contains(value);
     }
 
+    // Die Zeichen, aus denen sich Edge-Keywords zusammensetzen (`-`, `>`, `o`, `*`). Einzige Autorität für
+    // den Rückwärtslauf, der den Ersetzungsbereich einer angefangenen Edge bestimmt (Completion).
+    public static readonly ImmutableHashSet<char> EdgeCharacters = EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
+
+    public static bool IsEdgeCharacter(char c) {
+        return EdgeCharacters.Contains(c);
+    }
+
     // Punctuation. Wie die Keywords: die Zeichen entsprechen 1:1 den ursprünglichen Grammatik-Literalen.
     public static readonly char OpenBrace    = '{';
     public static readonly char CloseBrace   = '}';

@@ -66,17 +66,11 @@ class NavCompletionSource: AsyncCompletionSource {
         var completionItems = ImmutableArray.CreateBuilder<CompletionItem>();
 
         // Eine Quelle der Wahrheit: der Engine-Service entscheidet kontextsensitiv über den Syntaxbaum, was
-        // an dieser Position sinnvoll ist (inkl. Pfaden in `taskref "…"`). Diese Quelle zeigt alles AUSSER den
-        // Edge-Keywords — die liefert EdgeCompletionSource mit ihrem eigenen Ersetzungsbereich.
+        // an dieser Position sinnvoll ist (inkl. Pfaden in `taskref "…"` und Edge-Keywords). Items, die einen
+        // eigenen Ersetzungsbereich brauchen (Pfade, Edge-Keywords), tragen ihn als ReplacementExtent selbst —
+        // das Mapping honoriert ihn per-Item.
         foreach (var item in NavCompletionService.GetCompletions(codeGenerationUnit, triggerLocation, solution)) {
-
-            if (IsEdgeKeyword(item)) {
-                continue;
-            }
-
-            completionItems.Add(item.Kind == NavCompletionItemKind.File
-                                     ? CreatePathCompletion(item, triggerLocation.Snapshot, navDirectory)
-                                     : ToCompletionItem(item));
+            completionItems.Add(ToCompletionItem(item, triggerLocation.Snapshot, navDirectory));
         }
 
         return CreateCompletionContext(completionItems);

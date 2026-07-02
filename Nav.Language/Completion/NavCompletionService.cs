@@ -129,7 +129,7 @@ public static class NavCompletionService {
                 return ExitConnectionPointItems(context);
 
             case NavCompletionContextKind.EdgeSlot:
-                return VisibleEdgeKeywordItems();
+                return VisibleEdgeKeywordItems(EdgeReplacementExtent(source, position));
 
             case NavCompletionContextKind.TargetSlot:
                 return TargetItems(context);
@@ -147,7 +147,7 @@ public static class NavCompletionService {
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
             default:
-                return FallbackItems(context);
+                return FallbackItems(context, source, position);
         }
     }
 
@@ -220,7 +220,7 @@ public static class NavCompletionService {
 
     // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
     // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
-    static List<NavCompletionItem> FallbackItems(NavCompletionContext context) {
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context, SourceText source, int position) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task);
 
@@ -230,7 +230,7 @@ public static class NavCompletionService {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
-        items.AddRange(VisibleEdgeKeywordItems());
+        items.AddRange(VisibleEdgeKeywordItems(EdgeReplacementExtent(source, position)));
         return items;
     }
 
@@ -246,15 +246,32 @@ public static class NavCompletionService {
         return items;
     }
 
-    static List<NavCompletionItem> VisibleEdgeKeywordItems() {
+    // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Jedes Item trägt denselben Ersetzungsbereich
+    // (<paramref name="replacement"/>) — die bereits getippten Edge-Zeichen —, damit der Host beim Commit
+    // die angefangene Edge komplett ersetzt (Edge-Keywords bestehen aus Nicht-Bezeichner-Zeichen, die der
+    // Standard-Wortersatz des Clients nicht abdeckt).
+    static List<NavCompletionItem> VisibleEdgeKeywordItems(TextExtent replacement) {
         var items = new List<NavCompletionItem>();
         foreach (var keyword in SyntaxFacts.EdgeKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword, replacementExtent: replacement));
         }
 
         return items;
+    }
+
+    // Der Ersetzungsbereich einer (angefangenen) Edge: der Rückwärtslauf über die Edge-Zeichen bis zum
+    // Zeilenanfang (Port des VS-`GetStartOfEdge`). Ist nichts Edge-artiges vorgetippt, ist der Bereich leer
+    // (Start == position) → ein reines Einfügen an der Cursor-Position.
+    static TextExtent EdgeReplacementExtent(SourceText source, int position) {
+        var line  = source.GetTextLineAtPosition(position);
+        var start = position;
+        while (start > line.Start && SyntaxFacts.IsEdgeCharacter(source[start - 1])) {
+            start--;
+        }
+
+        return TextExtent.FromBounds(start, position);
     }
 
     // Die gültigen Sprach-Versionsnummern (heute nur `1`) — Label ist der numerische Wert. Single Source of
