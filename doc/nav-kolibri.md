@@ -30,6 +30,28 @@ Handparser ist also ein exakter Ersatz end-to-end.
 
 → **~2,0× schneller** als ANTLR beim reinen Parsen, bei ~31 % weniger Allokation.
 
+**Performance — End-to-End über die CLI** (alte `nav.exe` v6.0.2 mit ANTLR vs. neue mit Kolibri;
+`nav.exe -d D:\tfs\Main -g None`, also voller Parse **+ Semantic Model** über 1895 verarbeitete `.nav`,
+**ohne** Codegen/File-Write — quellschonend; gemessen der interne Engine-Timer „Completed in … seconds",
+Median aus 6 Läufen, warmer OS-Cache):
+
+| Build | Parser | Engine-Zeit (Median) | Wall (Median) | Durchsatz |
+|---|---|---|---|---|
+| alt `v6.0.2` (Release/Debug¹) | ANTLR | ~6,69 s (6,37–6,80) | ~7,47 s | ~283 Dateien/s |
+| neu Release `v6.0.166` | Kolibri | **~3,65 s** (3,56–3,86) | ~4,35 s | ~519 Dateien/s |
+| neu Debug | Kolibri | ~3,74 s (3,59–3,91) | ~4,45 s | ~507 Dateien/s |
+
+→ **~1,8× schneller** end-to-end (Engine-Zeit −45 %). Der reine Parser-Vorteil (~2,0×) verwässert
+über die volle Pipeline inkl. Semantic Model erwartungsgemäß leicht. Alle Builds verarbeiten
+deckungsgleich 1895 Dateien / 7 Task-Defs mit identischen Semantik-Diagnosen — es wird gleich viel
+Arbeit gemessen.
+
+> ¹ **Debug ≈ Release** beim neuen Parser (nur ~2 % Unterschied) → der Gewinn ist **algorithmisch**
+> (ANTLR-Overhead entfällt), nicht optimizer-abhängig. Die alte Deploy-`nav.exe` ist Debug-gepublisht
+> (Deploy-Pipeline baut Debug); da die Config hier kaum durchschlägt, ist der Vergleich fair.
+> Nicht gemessen: End-to-End **inkl.** Codegen (`-g All`) — das würde `.cs` in die Quelle schreiben und
+> war daher ausgeschlossen; `-g None` isoliert ohnehin genau den geänderten Teil (Parser + Semantik).
+
 ### Erkenntnisse (durabel — bitte beim Weiterarbeiten beachten)
 
 1. **Der Parser ist *nicht* der Flaschenhals des Build-Generators.** Parsen ist **< 2 %** der
