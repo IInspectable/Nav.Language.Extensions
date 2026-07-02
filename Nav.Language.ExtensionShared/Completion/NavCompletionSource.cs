@@ -92,12 +92,9 @@ class NavCompletionSource: AsyncCompletionSource {
             return false;
         }
 
-        // Kein Auto Completion in Code Blöcken
-        // TODO Nicht vollständig, da nur aktuelle Zeile betrachtet wird
-        var isInCodeBlock = lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket);
-        if (isInCodeBlock) {
-            return false;
-        }
+        // Code-Blöcke ([ … ]) werden NICHT mehr hier unterdrückt: die Engine entscheidet über den Syntaxbaum,
+        // ob im Schlüsselwort-Slot direkt hinter `[` die Code-Block-Keywords angeboten werden (sonst liefert
+        // sie eine leere Liste). Damit entfällt die frühere, separate CodeCompletionSource.
 
         var start = line.GetStartOfIdentifier(triggerLocation);
 

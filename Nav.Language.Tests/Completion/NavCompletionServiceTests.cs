@@ -230,9 +230,39 @@ public class NavCompletionServiceTests {
                            "}\n";
 
         var unit  = ParseModel(nav, @"n:\av\b.nav");
-        var caret = IndexOfToken(nav, "[using Foo]", "[using F"); // innerhalb des Code-Blocks
+        var caret = IndexOfToken(nav, "[using Foo]", "[using F"); // im C#-Inhalt des Code-Blocks
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OffersCodeKeywords() {
+
+        const string nav = "[using Foo]\n" +
+                           "\n"            +
+                           "task A\n"      +
+                           "{\n"           +
+                           "    init i;\n" +
+                           "    exit e;\n" +
+                           "    i --> e;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\b.nav");
+        var caret = IndexOfToken(nav, "[using Foo]", "[u"); // Schlüsselwort-Slot direkt hinter `[`
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Die Code-Block-Keywords werden angeboten, als Keyword-Kategorie...
+        Assert.That(labels, Does.Contain(SyntaxFacts.UsingKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ResultKeyword));
+        Assert.That(items.Single(i => i.Label == SyntaxFacts.UsingKeyword).Kind,
+                    Is.EqualTo(NavCompletionItemKind.Keyword));
+        // ...aber keine Nav-Sprach-Keywords oder Knoten.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+        // Versteckte Code-Keywords nicht (z.B. `notimplemented`).
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NotimplementedKeyword));
     }
 
     [Test]

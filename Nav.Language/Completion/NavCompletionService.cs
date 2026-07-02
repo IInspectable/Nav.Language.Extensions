@@ -22,8 +22,9 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
 /// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
 /// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
-/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>do</c>. Keine Vorschläge in Kommentaren, Zeichenketten
-/// (<c>"…"</c>) oder Code-Blöcken (<c>[ … ]</c>); innerhalb von <c>taskref "…"</c> die Pfad-Vervollständigung.
+/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>do</c>; im Schlüsselwort-Slot eines Code-Blocks
+/// (direkt hinter <c>[</c>) die Code-Block-Keywords. Keine Vorschläge in Kommentaren, Zeichenketten
+/// (<c>"…"</c>) oder im C#-Inhalt eines Code-Blocks; innerhalb von <c>taskref "…"</c> die Pfad-Vervollständigung.
 /// </summary>
 public static class NavCompletionService {
 
@@ -113,6 +114,10 @@ public static class NavCompletionService {
             // validiert (kein hartkodierter Wert).
             case NavCompletionContextKind.DirectiveVersionValue:
                 return VersionValueItems();
+
+            // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die Code-Block-Keywords.
+            case NavCompletionContextKind.CodeBlock:
+                return CodeBlockKeywordItems();
 
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
@@ -226,6 +231,18 @@ public static class NavCompletionService {
         }
 
         items.AddRange(VisibleEdgeKeywordItems());
+        return items;
+    }
+
+    // Die sichtbaren Code-Block-Keywords (`[ using … ]`, `[ result … ]`, …) — je alphabetisch.
+    static List<NavCompletionItem> CodeBlockKeywordItems() {
+        var items = new List<NavCompletionItem>();
+        foreach (var keyword in SyntaxFacts.CodeKeywords
+                                           .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                           .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+        }
+
         return items;
     }
 

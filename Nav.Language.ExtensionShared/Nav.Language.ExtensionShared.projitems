@@ -107,8 +107,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\WpfTextViewExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\AsyncCompletionSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\AsyncCompletionSourceProvider.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\CodeCompletionSource.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\CodeCompletionSourceProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionCommitManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionCommitManagerProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\CompletionFilters.cs" />

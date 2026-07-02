@@ -146,8 +146,15 @@ verallgemeinern — die Engine liefert `ReplacementExtent` auch für Edge-Keywor
 honoriert `item.ReplacementExtent`, wenn gesetzt (per-Item-Replacement über den vorhandenen
 `ReplacementTrackingSpanProperty`-Pfad), sonst den Identifier-Span der Session.
 
-- [ ] **C1 — Code-Block-Keywords in die Engine.** Kontext `CodeBlock` in `Classify` erkennen und die
-  Code-Keywords aus dem Service liefern; `CodeCompletionSource(+Provider)` entfällt.
+- [x] **C1 — Code-Block-Keywords in die Engine.** Neuer Kontext `NavCompletionContextKind.CodeBlock`:
+  `Classify` erkennt im Code-Block (`[ … ]`) den **Schlüsselwort-Slot direkt hinter `[`** (Kontext-Anker
+  `contextToken.Type == OpenBracket`) und liefert darüber `CodeBlockKeywordItems()` aus dem Service
+  (`SyntaxFacts.CodeKeywords` ohne versteckte); im C#-Inhalt dahinter weiterhin `Suppress`. Die
+  `ContextToken`-Berechnung wanderte dafür **vor** die `IsInTextBlock`-Prüfung. Die frühere separate
+  `CodeCompletionSource(+Provider)` ist entfernt; `NavCompletionSource.ShouldProvideCompletions`
+  unterdrückt Code-Blöcke nicht mehr selbst, sondern überlässt der Engine die Entscheidung (leere Liste
+  im C#-Inhalt). Mehrzeilige Blöcke bleiben die bekannte „nur aktuelle Zeile"-Grenze (→ C4). Tests:
+  `InCodeBlockKeywordSlot_OffersCodeKeywords` (net10 1163/0, net472 1171/0).
 - [ ] **C2 — Pfade über die Engine.** VS-Quelle auf `GetPathCompletions` umstellen;
   `PathCompletionSource(+Provider)` + Duplikat-Logik entfällt.
 - [ ] **C3 — Edge in die Nav-Quelle mergen.** Mit per-Item-`ReplacementExtent` entfällt

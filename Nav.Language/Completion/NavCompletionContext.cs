@@ -17,8 +17,14 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// </summary>
 enum NavCompletionContextKind {
 
-    /// <summary>Keine Vorschläge (Kommentar, Zeichenkette, Code-Block oder außerhalb des Texts).</summary>
+    /// <summary>Keine Vorschläge (Kommentar, Zeichenkette, C#-Inhalt eines Code-Blocks oder außerhalb des Texts).</summary>
     Suppress,
+
+    /// <summary>
+    /// Im Schlüsselwort-Slot einer Code-Deklaration direkt hinter <c>[</c> (z.B. <c>[using …]</c>,
+    /// <c>[result …]</c>): die Code-Block-Schlüsselwörter (<see cref="SyntaxFacts.CodeKeywords"/>).
+    /// </summary>
+    CodeBlock,
 
     /// <summary>
     /// Direkt hinter dem <c>#</c> einer Präprozessor-Direktive (Schlüsselwort-Slot): das
@@ -121,14 +127,18 @@ sealed class NavCompletionContext {
             return Of(NavCompletionContextKind.Suppress);
         }
 
-        // Keine Vorschläge in Code-Blöcken ([ … ]).
-        if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
-            return Of(NavCompletionContextKind.Suppress);
-        }
-
         // Das signifikante Token LINKS der Position bzw. links des gerade getippten Wortes — der eigentliche
         // Kontext-Anker. Trägt über seinen Parent-Knoten die grammatische Rolle (Quelle/Ziel/Edge/Klausel).
         var contextToken = ContextToken(tree, position);
+
+        // Code-Blöcke ([ … ]): direkt hinter `[` (Schlüsselwort-Slot) die Code-Block-Keywords, im C#-Inhalt
+        // dahinter nichts. Der zeilenbegrenzte Scan sieht das öffnende `[` nur auf derselben Zeile (mehrzeilige
+        // Blöcke bleiben offen, siehe doc/nav-completion-status.md, C4).
+        if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
+            return contextToken.Type == SyntaxTokenType.OpenBracket
+                       ? Of(NavCompletionContextKind.CodeBlock)
+                       : Of(NavCompletionContextKind.Suppress);
+        }
 
         // Kein tragendes Token (leere Datei, Position hinter dem letzten Member): Member-Ebene.
         if (contextToken.IsMissing || contextToken.Parent == null) {
