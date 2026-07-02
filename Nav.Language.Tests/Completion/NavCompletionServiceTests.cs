@@ -354,7 +354,7 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
-    public void InCodeBlockKeywordSlot_OffersCodeKeywords() {
+    public void InCodeBlockKeywordSlot_AtFileLevel_OffersOnlyUsingAndNamespacePrefix() {
 
         const string nav = "[using Foo]\n" +
                            "\n"            +
@@ -371,16 +371,113 @@ public class NavCompletionServiceTests {
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
 
-        // Die Code-Block-Keywords werden angeboten, als Keyword-Kategorie...
-        Assert.That(labels, Does.Contain(SyntaxFacts.UsingKeyword));
-        Assert.That(labels, Does.Contain(SyntaxFacts.ResultKeyword));
+        // Auf Datei-Ebene erlaubt die Grammatik nur `using` und `namespaceprefix`, als Keyword-Kategorie.
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.UsingKeyword, SyntaxFacts.NamespaceprefixKeyword }));
         Assert.That(items.Single(i => i.Label == SyntaxFacts.UsingKeyword).Kind,
                     Is.EqualTo(NavCompletionItemKind.Keyword));
-        // ...aber keine Nav-Sprach-Keywords oder Knoten.
+        // Code-Keywords anderer Wirte gehören NICHT hierher.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ResultKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.AbstractmethodKeyword));
+        // Keine Nav-Sprach-Keywords oder Knoten; versteckte Code-Keywords (`notimplemented`) nicht.
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
-        // Versteckte Code-Keywords nicht (z.B. `notimplemented`).
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NotimplementedKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_InTaskHeader_OffersTaskHeaderCodeKeywords() {
+
+        // Code-Block im task-Definitions-Kopf (nach `task A`, vor dem Body-`{`).
+        const string nav = "task A\n"      +
+                           "[]\n"           + // frisch getippter, leerer Code-Block — Cursor hinter `[`
+                           "{\n"            +
+                           "    init i;\n"  +
+                           "    exit e;\n"  +
+                           "    i --> e;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\hdr.nav");
+        var caret = IndexOfToken(nav, "[]\n", "[");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Der task-Kopf erlaubt code/base/generateto/params/result.
+        Assert.That(labels, Is.EquivalentTo(new[] {
+            SyntaxFacts.CodeKeyword, SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword,
+            SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword
+        }));
+        // NICHT die Datei-/Knoten-Keywords.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.UsingKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.AbstractmethodKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DonotinjectKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OnInitNode_OffersAbstractMethodAndParams() {
+
+        // Code-Block an einem init-Knoten (`init i [ … ];`).
+        const string nav = "task A\n"        +
+                           "{\n"              +
+                           "    init i [];\n" + // Cursor hinter `[`
+                           "    exit e;\n"    +
+                           "    i --> e;\n"   +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\init.nav");
+        var caret = IndexOfToken(nav, "init i [];", "init i [");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.AbstractmethodKeyword, SyntaxFacts.ParamsKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.UsingKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DonotinjectKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OnTaskNode_OffersDoNotInjectAndAbstractMethod() {
+
+        // Code-Block an einem task-Knoten (`task Sub [ … ];`).
+        const string nav = "task A\n"           +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    exit e;\n"       +
+                           "    task Sub [];\n"  + // Cursor hinter `[`
+                           "    i --> e;\n"      +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\tasknode.nav");
+        var caret = IndexOfToken(nav, "task Sub [];", "task Sub [");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.DonotinjectKeyword, SyntaxFacts.AbstractmethodKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ParamsKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.UsingKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_InTaskRef_OffersTaskRefCodeKeywords() {
+
+        // Code-Block in einer taskref-Deklaration (nach `taskref Sub`, vor dem Body-`{`).
+        const string nav = "taskref Sub\n" +
+                           "[]\n"           + // Cursor hinter `[`
+                           "{\n"            +
+                           "    init si;\n" +
+                           "    exit se;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\ref.nav");
+        var caret = IndexOfToken(nav, "[]\n", "[");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // taskref erlaubt namespaceprefix + result (notimplemented ist versteckt).
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.NamespaceprefixKeyword, SyntaxFacts.ResultKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NotimplementedKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.UsingKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
     }
 
     [Test]

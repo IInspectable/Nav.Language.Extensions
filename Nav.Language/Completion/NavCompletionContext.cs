@@ -22,7 +22,8 @@ enum NavCompletionContextKind {
 
     /// <summary>
     /// Im Schlüsselwort-Slot einer Code-Deklaration direkt hinter <c>[</c> (z.B. <c>[using …]</c>,
-    /// <c>[result …]</c>): die Code-Block-Schlüsselwörter (<see cref="SyntaxFacts.CodeKeywords"/>).
+    /// <c>[result …]</c>): die Code-Block-Schlüsselwörter. <em>Welche</em> zulässig sind, hängt vom Wirt des
+    /// Blocks ab (<see cref="NavCompletionContext.Host"/>).
     /// </summary>
     CodeBlock,
 
@@ -85,16 +86,42 @@ enum NavCompletionContextKind {
 }
 
 /// <summary>
+/// Der „Wirt" eines Code-Blocks (<c>[ … ]</c>) — er bestimmt, welche Code-Schlüsselwörter dort grammatisch
+/// zulässig sind. Die zugehörigen Grammatikregeln stehen im <c>NavParser</c> (jeweils die optionalen
+/// <c>code*</c>-Deklarationen des Wirts).
+/// </summary>
+enum CodeBlockHost {
+
+    /// <summary>Datei-Ebene (Kopf der CodeGenerationUnit): <c>namespaceprefix</c>, <c>using</c>.</summary>
+    CompilationUnit,
+
+    /// <summary><c>taskref</c>-Deklaration: <c>namespaceprefix</c>, <c>result</c> (<c>notimplemented</c> ist versteckt).</summary>
+    TaskRef,
+
+    /// <summary><c>task</c>-Definitions-Kopf: <c>code</c>, <c>base</c>, <c>generateto</c>, <c>params</c>, <c>result</c>.</summary>
+    TaskDefinition,
+
+    /// <summary><c>init</c>-Knoten: <c>abstractmethod</c>, <c>params</c>.</summary>
+    InitNode,
+
+    /// <summary><c>task</c>-Knoten: <c>donotinject</c>, <c>abstractmethod</c>.</summary>
+    TaskNode
+
+}
+
+/// <summary>
 /// Bestimmt die <see cref="NavCompletionContextKind"/> an einer Cursor-Position. Trägt zusätzlich die
-/// für die jeweilige Kategorie nötigen Bezugspunkte: die umschließende Task-Definition und — bei
-/// <see cref="NavCompletionContextKind.ExitConnectionPoint"/> — den Namen des Exit-Knotens.
+/// für die jeweilige Kategorie nötigen Bezugspunkte: die umschließende Task-Definition, — bei
+/// <see cref="NavCompletionContextKind.ExitConnectionPoint"/> — den Namen des Exit-Knotens, und — bei
+/// <see cref="NavCompletionContextKind.CodeBlock"/> — den <see cref="Host"/> des Code-Blocks.
 /// </summary>
 sealed class NavCompletionContext {
 
-    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol task, string exitNodeName) {
+    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol task, string exitNodeName, CodeBlockHost host) {
         Kind         = kind;
         Task         = task;
         ExitNodeName = exitNodeName;
+        Host         = host;
     }
 
     public NavCompletionContextKind Kind { get; }
@@ -105,8 +132,12 @@ sealed class NavCompletionContext {
     [CanBeNull]
     public string ExitNodeName { get; }
 
-    static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol task = null, string exitNodeName = null)
-        => new(kind, task, exitNodeName);
+    /// <summary>Der Wirt eines Code-Blocks — nur für <see cref="NavCompletionContextKind.CodeBlock"/> aussagekräftig.</summary>
+    public CodeBlockHost Host { get; }
+
+    static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol task = null,
+                                   string exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit)
+        => new(kind, task, exitNodeName, host);
 
     [NotNull]
     public static NavCompletionContext Classify([NotNull] CodeGenerationUnit unit, int position) {
@@ -147,7 +178,7 @@ sealed class NavCompletionContext {
         // Blöcke bleiben offen, siehe doc/nav-completion-status.md, C4).
         if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
             return contextToken.Type == SyntaxTokenType.OpenBracket
-                       ? Of(NavCompletionContextKind.CodeBlock)
+                       ? Of(NavCompletionContextKind.CodeBlock, host: CodeBlockHostAt(tree, contextToken))
                        : Of(NavCompletionContextKind.Suppress);
         }
 
@@ -244,6 +275,35 @@ sealed class NavCompletionContext {
         }
 
         return unit.TaskDefinitions.FirstOrDefault(t => t.Syntax.Extent == taskSyntax.Extent);
+    }
+
+    /// <summary>
+    /// Bestimmt den <see cref="CodeBlockHost"/> eines Code-Blocks anhand seines öffnenden <c>[</c>. Ein gerade
+    /// getippter, leerer <c>[]</c> wird NICHT als Code-Deklaration geparst (kein Lookahead-Match auf <c>[</c> +
+    /// Schlüsselwort) und hängt daher nicht an seinem Wirt — der verlässliche Anker ist stattdessen das
+    /// signifikante Token <b>links</b> des <c>[</c>: das schließende <c>]</c> der vorigen Code-Deklaration bzw.
+    /// der Name/das einleitende Schlüsselwort des Wirts. Über dessen Ancestor-Kette wird der <em>innerste</em>
+    /// Wirt-Knoten bestimmt (Knoten-Deklarationen liegen in der Task-Definition geschachtelt); ohne tragenden
+    /// Knoten (Datei-Kopf) ist es die Datei-Ebene.
+    /// </summary>
+    static CodeBlockHost CodeBlockHostAt(SyntaxTree tree, SyntaxToken openBracket) {
+
+        var tokens = tree.Tokens;
+        var index  = LastIndexStartingBefore(tokens, openBracket.Start);
+        var anchor = index >= 0 ? tokens[index].Parent : null;
+
+        if (anchor != null) {
+            foreach (var node in anchor.AncestorsAndSelf()) {
+                switch (node) {
+                    case InitNodeDeclarationSyntax: return CodeBlockHost.InitNode;
+                    case TaskNodeDeclarationSyntax: return CodeBlockHost.TaskNode;
+                    case TaskDefinitionSyntax:      return CodeBlockHost.TaskDefinition;
+                    case TaskDeclarationSyntax:     return CodeBlockHost.TaskRef;
+                }
+            }
+        }
+
+        return CodeBlockHost.CompilationUnit;
     }
 
     /// <summary>

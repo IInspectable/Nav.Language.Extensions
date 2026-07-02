@@ -37,7 +37,10 @@ Transitions-Block); entsprechend trennt die Completion den Satzanfang: `Statemen
 — Deklarations-Keywords **und** quellfähige Knoten) vs. `TransitionStart` (Transitions-Block — nur
 quellfähige Knoten plus `init`, **keine** Deklarations-Keywords). Knoten-Referenzen werden zudem auf ihre
 grammatische Rolle gefiltert: Quell-Slots bieten nur `ISourceNodeSymbol`, der Ziel-Slot nur
-`ITargetNodeSymbol`.
+`ITargetNodeSymbol`. Auch der **Code-Block** (`CodeBlock`) ist wirt-sensitiv: der `CodeBlockHost` (Datei-Kopf,
+`taskref`, `task`-Kopf, `init`-Knoten, `task`-Knoten) entscheidet über die zulässige Keyword-Teilmenge (z.B.
+Datei-Ebene nur `using`/`namespaceprefix`), statt pauschal aller `SyntaxFacts.CodeKeywords`. Der Wirt wird am
+Token **links** des `[` bestimmt (verlässlich auch beim leeren, noch nicht geparsten `[]`).
 
 **VS-Extension** (`Nav.Language.ExtensionShared/Completion/`): vier Async-Completion-Quellen mit je
 eigenem Provider und gemeinsamer Basis `AsyncCompletionSource.cs`:
