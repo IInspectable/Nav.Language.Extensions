@@ -80,6 +80,20 @@ public class SyntaxTree {
     }
 
     /// <summary>
+    /// Die vom Parser übersprungenen Läufe (Panic-Mode-Recovery, unbekannte Zeichen) der Datei in
+    /// Quelltext-Reihenfolge — je Lauf ein <see cref="SkippedTokensTriviaSyntax"/>, der seine Token lokal
+    /// trägt (Klassifikation <see cref="TextClassification.Skiped"/>). Wie die Direktiven sind sie
+    /// strukturierte Trivia (<see cref="SyntaxTokenType.SkippedTokensTrivia"/>) und keine Kindknoten der
+    /// Wurzel; sie werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
+    /// </summary>
+    [NotNull]
+    public IEnumerable<SkippedTokensTriviaSyntax> SkippedTokens() {
+        return DescendantTrivia().Where(trivia => trivia.HasStructure)
+                                 .Select(trivia => trivia.GetStructure())
+                                 .OfType<SkippedTokensTriviaSyntax>();
+    }
+
+    /// <summary>
     /// Die Trivia, die die angegebene <paramref name="position"/> abdeckt — Halbintervall
     /// <c>[Start, End)</c>, also dieselbe Regel wie <see cref="SyntaxNode.FindToken"/> bei den Token —, oder
     /// <c>default</c>, wenn an der Position keine Trivia liegt.

@@ -1,7 +1,5 @@
 ﻿    0    7  TaskrefKeyword          Keyword                      TaskDeclarationSyntax
     8    2  Identifier              TaskName                     TaskDeclarationSyntax
-   11    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
-   12    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
    14    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
    20    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
    25    2  Identifier              Identifier                   InitNodeDeclarationSyntax

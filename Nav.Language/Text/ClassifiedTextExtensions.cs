@@ -66,9 +66,17 @@ public static class ClassifiedTextExtensions {
     }
 
     static TextClassification ClassificationOf(SyntaxTokenType triviaType) {
-        return triviaType == SyntaxTokenType.SingleLineComment || triviaType == SyntaxTokenType.MultiLineComment
-            ? TextClassification.Comment
-            : TextClassification.Whitespace;
+        if (triviaType == SyntaxTokenType.SingleLineComment || triviaType == SyntaxTokenType.MultiLineComment) {
+            return TextClassification.Comment;
+        }
+
+        // Übersprungene Läufe (strukturierte Skip-Trivia) behalten ihre Fehler-Klassifikation — wie zuvor,
+        // als die übersprungenen Token noch als Skiped-Token im flachen Strom standen.
+        if (triviaType == SyntaxTokenType.SkippedTokensTrivia) {
+            return TextClassification.Skiped;
+        }
+
+        return TextClassification.Whitespace;
     }
 
 }

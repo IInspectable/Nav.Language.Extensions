@@ -11,20 +11,21 @@
     T Whitespace        [20-21]       " "
    21 DoKeyword
     T Whitespace        [23-24]       " "
+    T SkippedTokensTrivia[24-25]       """
    25 Identifier
     T Whitespace        [29-30]       " "
    30 Identifier
     T Whitespace        [42-43]       " "
    60 Semicolon
     T NewLine           [61-62]       "\n"
-   66 ExitKeyword
+   71 Identifier
     L Whitespace        [62-66]       "    "
-    T Whitespace        [70-71]       " "
+    L SkippedTokensTrivia[66-70]       "exit"
+    L Whitespace        [70-71]       " "
    73 Semicolon
     T NewLine           [74-75]       "\n"
-   79 EndKeyword
-    L Whitespace        [75-79]       "    "
-   82 Semicolon
-    T NewLine           [83-84]       "\n"
    84 CloseBrace
+    L Whitespace        [75-79]       "    "
+    L SkippedTokensTrivia[79-83]       "end;"
+    L NewLine           [83-84]       "\n"
     T NewLine           [85-86]       "\n"

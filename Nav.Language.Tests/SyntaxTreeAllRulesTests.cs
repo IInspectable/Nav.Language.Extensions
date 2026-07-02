@@ -27,14 +27,16 @@ public class SyntaxTreeTests {
 
         // Die Anzahl kann/darf sich über die Zeit auch ändern.
         // Blöd wäre nur, wenn hier keine Syntaxen gefunden würden ;-)
-        Assert.That(nodeTypes.Count, Is.EqualTo(48));
+        Assert.That(nodeTypes.Count, Is.EqualTo(49));
 
-        // Direktiven sind strukturierte Trivia (keine Kindknoten) und werden daher über die Trivia erreicht:
-        // AllRules trägt die wirksame #version (VersionDirectiveSyntax); eine unbekannte Direktive
-        // (BadDirectiveTriviaSyntax) kommt aus einem eigenen Schnipsel, da AllRules bewusst fehlerfrei bleibt.
+        // Direktiven und übersprungene Läufe sind strukturierte Trivia (keine Kindknoten) und werden daher
+        // über die Trivia erreicht: AllRules trägt die wirksame #version (VersionDirectiveSyntax); eine
+        // unbekannte Direktive (BadDirectiveTriviaSyntax) und ein Skip-Lauf (SkippedTokensTriviaSyntax)
+        // kommen aus eigenen Schnipseln, da AllRules bewusst fehlerfrei bleibt.
         var presentTypes = new HashSet<Type>(cgu.DescendantNodesAndSelf().Select(node => node.GetType()));
         presentTypes.UnionWith(cgu.SyntaxTree.Directives().Select(directive => directive.GetType()));
         presentTypes.UnionWith(SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives().Select(directive => directive.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText("task A\r\n{\r\n    init [];\r\n}").SkippedTokens().Select(skipped => skipped.GetType()));
 
         foreach (var nodeType in nodeTypes) {
 

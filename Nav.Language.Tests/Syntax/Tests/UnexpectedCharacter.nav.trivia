@@ -17,8 +17,8 @@
    43 Identifier
     L Whitespace        [39-43]       "    "
     T Whitespace        [45-46]       " "
-   48 Identifier
-    L Whitespace        [47-48]       " "
+    T SkippedTokensTrivia[46-47]       "$"
+    T Whitespace        [47-48]       " "
    50 Semicolon
     T NewLine           [51-53]       "\r\n"
    53 CloseBrace

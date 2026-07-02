@@ -91,6 +91,23 @@ sealed class SyntacticClassificationTagger: ParserServiceDependent, ITagger<ICla
                     yield return CreateTagSpan(syntaxTreeAndSnapshot.Snapshot, span, token.Start, token.Length, ct);
                 }
             }
+
+            // Vom Parser übersprungene Läufe liegen ebenfalls als strukturierte Trivia vor; ihre lokalen
+            // Token tragen die Skiped-Klassifizierung — sie werden weiterhin als Syntaxfehler eingefärbt.
+            foreach (var skipped in syntaxTree.SkippedTokens()) {
+                foreach (var token in skipped.ChildTokens()) {
+
+                    if (token.Extent.IsEmptyOrMissing || !token.Extent.IntersectsWith(extent)) {
+                        continue;
+                    }
+
+                    if (!_classificationMap.TryGetValue(token.Classification, out var ct) || ct == null) {
+                        continue;
+                    }
+
+                    yield return CreateTagSpan(syntaxTreeAndSnapshot.Snapshot, span, token.Start, token.Length, ct);
+                }
+            }
         }
     }
 

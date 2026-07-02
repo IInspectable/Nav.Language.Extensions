@@ -8,7 +8,6 @@
    34    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
    36    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
    43    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
-   46    1  Unknown                 Skiped                       CodeGenerationUnitSyntax
    48    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
    50    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    53    1  CloseBrace              Punctuation                  TaskDefinitionSyntax

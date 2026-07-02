@@ -2,17 +2,7 @@
     T Whitespace        [7-8]         " "
     8 Identifier
     T Whitespace        [10-11]       " "
-   12 ParamsKeyword
-    T Whitespace        [18-19]       " "
-   19 Identifier
-    T Whitespace        [21-22]       " "
-   24 Comma
-    T Whitespace        [25-26]       " "
-   31 Comma
-    T Whitespace        [32-33]       " "
-   39 GreaterThan
-    T Whitespace        [40-41]       " "
-   43 CloseBracket
+    T SkippedTokensTrivia[11-44]       "[params T1 p1, T2<T3, T4<T5>> p2]"
     T NewLine           [44-45]       "\n"
    45 OpenBrace
     T NewLine           [46-47]       "\n"

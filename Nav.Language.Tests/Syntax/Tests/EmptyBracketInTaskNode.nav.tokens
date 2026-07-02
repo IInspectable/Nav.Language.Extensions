@@ -6,8 +6,6 @@
    37    4  TaskKeyword             Keyword                      TaskNodeDeclarationSyntax
    45   15  Identifier              TaskName                     TaskNodeDeclarationSyntax
    61   15  Identifier              Identifier                   TaskNodeDeclarationSyntax
-   77    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
-   78    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
    79    1  Semicolon               Punctuation                  TaskNodeDeclarationSyntax
    85    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
    93    4  Identifier              Identifier                   ExitNodeDeclarationSyntax

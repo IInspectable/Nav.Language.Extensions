@@ -6,9 +6,9 @@
     T Whitespace        [43-44]       " "
    66 CloseBracket
     T NewLine           [67-68]       "\n"
-   69 CloseBracket
-    T NewLine           [70-71]       "\n"
    72 TaskKeyword
+    L SkippedTokensTrivia[68-70]       "[]"
+    L NewLine           [70-71]       "\n"
     L NewLine           [71-72]       "\n"
     T Whitespace        [76-77]       " "
    77 Identifier

@@ -336,11 +336,11 @@ sealed class NavCompletionContext {
     /// <summary>
     /// Bestimmt den <see cref="CodeBlockHost"/> eines Code-Blocks anhand seines öffnenden <c>[</c>. Ein gerade
     /// getippter, leerer <c>[]</c> wird NICHT als Code-Deklaration geparst (kein Lookahead-Match auf <c>[</c> +
-    /// Schlüsselwort) und hängt daher nicht an seinem Wirt — der verlässliche Anker ist stattdessen das
-    /// signifikante Token <b>links</b> des <c>[</c>: das schließende <c>]</c> der vorigen Code-Deklaration bzw.
-    /// der Name/das einleitende Schlüsselwort des Wirts. Über dessen Ancestor-Kette wird der <em>innerste</em>
-    /// Wirt-Knoten bestimmt (Knoten-Deklarationen liegen in der Task-Definition geschachtelt); ohne tragenden
-    /// Knoten (Datei-Kopf) ist es die Datei-Ebene.
+    /// Schlüsselwort); sein <c>[</c> ist ein übersprungenes Token (Skip-Trivia) ohne Wirt-Knoten — der
+    /// verlässliche Anker ist stattdessen das <b>konsumierte</b> Token <b>links</b> des <c>[</c>: das
+    /// schließende <c>]</c> der vorigen Code-Deklaration bzw. der Name/das einleitende Schlüsselwort des Wirts.
+    /// Über dessen Ancestor-Kette wird der <em>innerste</em> Wirt-Knoten bestimmt (Knoten-Deklarationen liegen
+    /// in der Task-Definition geschachtelt); ohne tragenden Knoten (Datei-Kopf) ist es die Datei-Ebene.
     /// </summary>
     static CodeBlockHost CodeBlockHostAt(SyntaxTree tree, SyntaxToken openBracket) {
 
@@ -431,44 +431,88 @@ sealed class NavCompletionContext {
     /// <summary>
     /// Das signifikante Token, das den Kontext links der Position bestimmt — über den flachen, nach
     /// <see cref="SyntaxToken.Start"/> sortierten Tokenstrom (NICHT <see cref="SyntaxToken.PreviousToken()"/>,
-    /// das nur innerhalb desselben Parent-Knotens navigiert). Tippt der Nutzer gerade ein Wort
+    /// das nur innerhalb desselben Parent-Knotens navigiert), ergänzt um die vom Parser übersprungenen Token
+    /// aus der Skip-Trivia (siehe <see cref="TokenLeftOf"/>). Tippt der Nutzer gerade ein Wort
     /// (Identifier/Keyword, in dessen Mitte oder an dessen Ende der Cursor klebt), ist der Kontext dessen
     /// <em>Vorgänger</em> (das Wort selbst ist nur das Filter-Präfix); steht zwischen Token und Cursor ein
     /// Whitespace, ist das Wort abgeschlossen und selbst der Kontext.
     /// </summary>
     static SyntaxToken ContextToken(SyntaxTree tree, int position) {
 
-        var tokens = tree.Tokens;
-
-        // Index des letzten Tokens, das echt links der Position beginnt (Start < position).
-        var index = LastIndexStartingBefore(tokens, position);
-        if (index < 0) {
+        var token = TokenLeftOf(tree, position);
+        if (token.IsMissing) {
             return SyntaxToken.Missing;
         }
-
-        var token = tokens[index];
 
         // Klebt der Cursor in oder am Ende eines gerade getippten Wortes, ist dieses Wort das Präfix — der
         // eigentliche Kontext ist sein Vorgänger.
         if (IsWordToken(token) && position <= token.End) {
-            return index > 0 ? tokens[index - 1] : SyntaxToken.Missing;
+            return TokenLeftOf(tree, token.Start);
         }
 
         // Klebt der Cursor an einer gerade angefangenen Edge (`-`, `--`, `==`, `*` …), sind deren Zeichen nur
-        // das Präfix des Edge-Keywords. Solche unvollständigen Edge-Zeichen bleiben als unbekannte Token übrig
-        // und hängen — nicht an einem Task-Knoten, sondern an der Wurzel; sie tragen daher weder den Task- noch
-        // den Edge-Kontext. Wie beim Wort-Präfix ist der eigentliche Kontext ihr Vorgänger, der Quellknoten →
+        // das Präfix des Edge-Keywords. Solche unvollständigen Edge-Zeichen sind unbekannte Zeichen und liegen
+        // in der Skip-Trivia — nicht an einem Task-Knoten; sie tragen daher weder den Task- noch den
+        // Edge-Kontext. Wie beim Wort-Präfix ist der eigentliche Kontext ihr Vorgänger, der Quellknoten →
         // EdgeSlot. (Die mehrzeichigen Edges werden zeichenweise als eigene Unknown-Token gelext, daher der
         // Rücklauf über den ganzen zusammenhängenden Lauf.)
         if (IsPartialEdgeToken(token) && position <= token.End) {
-            while (index > 0 && IsPartialEdgeToken(tokens[index - 1])) {
-                index--;
+            var previous = TokenLeftOf(tree, token.Start);
+            while (IsPartialEdgeToken(previous)) {
+                previous = TokenLeftOf(tree, previous.Start);
             }
 
-            return index > 0 ? tokens[index - 1] : SyntaxToken.Missing;
+            return previous;
         }
 
         return token;
+    }
+
+    /// <summary>
+    /// Das letzte Token, das echt links der <paramref name="position"/> beginnt (<c>Start &lt; position</c>) —
+    /// aus dem flachen Strom <b>und</b> den vom Parser übersprungenen Token. Letztere stehen als strukturierte
+    /// <see cref="SyntaxTokenType.SkippedTokensTrivia"/> neben dem Strom, bestimmen den Kontext links der
+    /// Position aber mit: das <c>[</c> eines noch unvollständigen <c>[]</c> oder die Zeichen einer gerade
+    /// angefangenen Edge sind übersprungene Token. Von beiden Kandidaten gewinnt der näher an der Position
+    /// beginnende; <see cref="SyntaxToken.Missing"/>, wenn links der Position kein Token liegt.
+    /// </summary>
+    static SyntaxToken TokenLeftOf(SyntaxTree tree, int position) {
+
+        var tokens = tree.Tokens;
+        var index  = LastIndexStartingBefore(tokens, position);
+        var token  = index >= 0 ? tokens[index] : SyntaxToken.Missing;
+
+        var skipped = LastSkippedTokenStartingBefore(tree, position);
+        if (!skipped.IsMissing && (token.IsMissing || skipped.Start > token.Start)) {
+            return skipped;
+        }
+
+        return token;
+    }
+
+    /// <summary>
+    /// Das letzte <b>übersprungene</b> Token (aus der Skip-Trivia, siehe <see cref="SyntaxTree.SkippedTokens"/>),
+    /// das echt links der <paramref name="position"/> beginnt — oder <see cref="SyntaxToken.Missing"/>.
+    /// </summary>
+    static SyntaxToken LastSkippedTokenStartingBefore(SyntaxTree tree, int position) {
+
+        var result = SyntaxToken.Missing;
+
+        foreach (var run in tree.SkippedTokens()) {
+            if (run.Start >= position) {
+                break; // Die Läufe kommen in Quelltext-Reihenfolge — ab hier beginnt keiner mehr links der Position.
+            }
+
+            foreach (var token in run.ChildTokens()) {
+                if (token.Start >= position) {
+                    break;
+                }
+
+                result = token;
+            }
+        }
+
+        return result;
     }
 
     // Ein Präfix einer noch unvollständigen Edge: ein unbekanntes Token, dessen Text ausschließlich aus

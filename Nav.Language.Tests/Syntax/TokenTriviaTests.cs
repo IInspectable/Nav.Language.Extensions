@@ -7,6 +7,7 @@ using System.Text;
 using NUnit.Framework;
 
 using Pharmatechnik.Nav.Language;
+using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -135,6 +136,39 @@ public class TokenTriviaTests {
         Assert.That(directiveTrivia.HasStructure,        Is.True);
         Assert.That(directiveTrivia.GetStructure(),      Is.InstanceOf<BadDirectiveTriviaSyntax>());
         Assert.That(directiveTrivia.ToString(tree.SourceText), Is.EqualTo("#if DEBUG"));
+    }
+
+    // Vom Panic-Mode übersprungene Token (hier das '[]' in 'init [];') stehen nicht mehr als Skiped-Token
+    // im flachen Strom, sondern sind ein einziges strukturiertes SkippedTokensTrivia-Stück — nach der
+    // Roslyn-Zuordnungsregel in der Trailing-Trivia des vorangehenden Tokens ('init', gleiche Zeile).
+    // Die übersprungenen Token liegen lokal am Knoten und behalten ihre Skiped-Klassifikation.
+    [Test]
+    public void SkippedTokensAreStructuredTriviaNotInTokenStream() {
+
+        var source = "task A\r\n{\r\n    init [];\r\n}\r\n";
+        var tree   = SyntaxTree.ParseText(source);
+
+        // Die übersprungenen Klammern verbleiben nicht im flachen Strom.
+        Assert.That(tree.Tokens.Any(t => t.Type == SyntaxTokenType.OpenBracket ||
+                                         t.Type == SyntaxTokenType.CloseBracket),
+                    Is.False, "Übersprungene Token dürfen nicht mehr im flachen Token-Strom stehen.");
+
+        var initKeyword   = First(tree, SyntaxTokenType.InitKeyword);
+        var skippedTrivia = initKeyword.TrailingTrivia.Single(t => t.Type == SyntaxTokenType.SkippedTokensTrivia);
+
+        Assert.That(skippedTrivia.HasStructure,              Is.True);
+        Assert.That(skippedTrivia.ToString(tree.SourceText), Is.EqualTo("[]"));
+        Assert.That(skippedTrivia.GetStructure(),            Is.InstanceOf<SkippedTokensTriviaSyntax>());
+
+        var skipped = (SkippedTokensTriviaSyntax) skippedTrivia.GetStructure();
+        Assert.That(skipped.ChildTokens().Select(t => t.Type),
+                    Is.EqualTo(new[] { SyntaxTokenType.OpenBracket, SyntaxTokenType.CloseBracket }));
+        Assert.That(skipped.ChildTokens().Select(t => t.Classification),
+                    Is.All.EqualTo(TextClassification.Skiped));
+        Assert.That(skipped.ChildTokens().Select(t => t.Parent), Is.All.SameAs(skipped));
+
+        // Auch über die Baum-Sicht erreichbar (wie Directives()).
+        Assert.That(tree.SkippedTokens().Single(), Is.SameAs(skipped));
     }
 
     // Querschnitt: Bei trenner-freier Eingabe partitioniert das angehängte Modell die gesamte Trivia

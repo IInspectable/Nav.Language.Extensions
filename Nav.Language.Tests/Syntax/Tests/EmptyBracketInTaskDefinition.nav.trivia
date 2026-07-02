@@ -2,7 +2,7 @@
     T Whitespace        [4-5]         " "
     5 Identifier
     T Whitespace        [20-21]       " "
-   22 CloseBracket
+    T SkippedTokensTrivia[21-23]       "[]"
     T NewLine           [23-24]       "\n"
    24 OpenBrace
     T NewLine           [25-26]       "\n"

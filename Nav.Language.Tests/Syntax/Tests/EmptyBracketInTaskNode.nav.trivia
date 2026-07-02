@@ -15,6 +15,7 @@
     T Whitespace        [60-61]       " "
    61 Identifier
     T Whitespace        [76-77]       " "
+    T SkippedTokensTrivia[77-79]       "[]"
    79 Semicolon
     T NewLine           [80-81]       "\n"
    85 ExitKeyword

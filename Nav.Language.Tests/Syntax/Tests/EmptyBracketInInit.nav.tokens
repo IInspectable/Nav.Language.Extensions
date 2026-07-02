@@ -2,8 +2,6 @@
     5   15  Identifier              TaskName                     TaskDefinitionSyntax
    21    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
    27    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
-   32    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
-   33    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
    40    4  ViewKeyword             Keyword                      ViewNodeDeclarationSyntax
    48   30  Identifier              GuiNode                      ViewNodeDeclarationSyntax
    78    1  Semicolon               Punctuation                  ViewNodeDeclarationSyntax

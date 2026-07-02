@@ -12,11 +12,4 @@
    46    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
    48    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
    50    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
-   53    1  Unknown                 Skiped                       CodeGenerationUnitSyntax
-   54    1  Unknown                 Skiped                       CodeGenerationUnitSyntax
-   56    7  Identifier              Skiped                       CodeGenerationUnitSyntax
-   64   14  Identifier              Skiped                       CodeGenerationUnitSyntax
-   79    4  Identifier              Skiped                       CodeGenerationUnitSyntax
-   84   12  Identifier              Skiped                       CodeGenerationUnitSyntax
-   97    5  Identifier              Skiped                       CodeGenerationUnitSyntax
   103    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

@@ -31,16 +31,21 @@ public class SyntaxWalkerTests {
         var tree = SyntaxTree.ParseText(Resources.AllRules);
         walker.Walk(tree.Root);
 
-        // Direktiven sind strukturierte Trivia (keine Kindknoten der Wurzel) — separat einspeisen, damit auch
-        // ihre generierten WalkXxx-Methoden erreicht werden. AllRules trägt die wirksame #version
-        // (VersionDirectiveSyntax); eine unbekannte Direktive (BadDirectiveTriviaSyntax) aus einem eigenen
-        // Schnipsel, da AllRules bewusst fehlerfrei bleibt.
+        // Direktiven und Skip-Läufe sind strukturierte Trivia (keine Kindknoten der Wurzel) — separat
+        // einspeisen, damit auch ihre generierten WalkXxx-Methoden erreicht werden. AllRules trägt die
+        // wirksame #version (VersionDirectiveSyntax); eine unbekannte Direktive (BadDirectiveTriviaSyntax)
+        // und ein Skip-Lauf (SkippedTokensTriviaSyntax) aus eigenen Schnipseln, da AllRules bewusst
+        // fehlerfrei bleibt.
         foreach (var directive in tree.Directives()) {
             walker.Walk(directive);
         }
 
         foreach (var directive in SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives()) {
             walker.Walk(directive);
+        }
+
+        foreach (var skipped in SyntaxTree.ParseText("task A\r\n{\r\n    init [];\r\n}").SkippedTokens()) {
+            walker.Walk(skipped);
         }
 
         return walker.Walked;

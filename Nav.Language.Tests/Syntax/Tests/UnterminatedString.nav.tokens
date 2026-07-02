@@ -4,15 +4,11 @@
    13    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
    18    2  Identifier              Identifier                   InitNodeDeclarationSyntax
    21    2  DoKeyword               ControlKeyword               DoClauseSyntax
-   24    1  Unknown                 Skiped                       CodeGenerationUnitSyntax
    25    4  Identifier              Identifier                   IdentifierSyntax
    30   12  Identifier              Identifier                   IdentifierSourceNodeSyntax
    43   17  Identifier              Identifier                   IdentifierTargetNodeSyntax
    60    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-   66    4  ExitKeyword             Skiped                       CodeGenerationUnitSyntax
    71    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
    73    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
-   79    3  EndKeyword              Skiped                       CodeGenerationUnitSyntax
-   82    1  Semicolon               Skiped                       CodeGenerationUnitSyntax
    84    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
    86    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

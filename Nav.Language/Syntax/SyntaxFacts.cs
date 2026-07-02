@@ -206,16 +206,17 @@ public static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Ob der Token-Typ nicht-signifikante Trivia ist (Whitespace, Zeilenende oder Kommentar) — im Unterschied
-    /// zu signifikanten Token sowie zu Trennern (Präprozessor/Unknown), die zwar ebenfalls nicht geparst, aber
-    /// auch nicht als Trivia angehängt werden.
+    /// Ob der Token-Typ nicht-signifikante Trivia ist: Whitespace, Zeilenende, Kommentar oder eines der
+    /// strukturierten Trivia-Stücke (Präprozessor-Direktive, übersprungene Token) — im Unterschied zu den
+    /// signifikanten, vom Parser konsumierten Token.
     /// </summary>
     public static bool IsTrivia(SyntaxTokenType type) {
         return type is SyntaxTokenType.Whitespace
                     or SyntaxTokenType.NewLine
                     or SyntaxTokenType.SingleLineComment
                     or SyntaxTokenType.MultiLineComment
-                    or SyntaxTokenType.DirectiveTrivia;
+                    or SyntaxTokenType.DirectiveTrivia
+                    or SyntaxTokenType.SkippedTokensTrivia;
     }
 
 }

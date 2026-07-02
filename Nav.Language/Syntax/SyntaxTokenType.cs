@@ -60,6 +60,7 @@ public enum SyntaxTokenType {
     DirectiveTrivia        = 52,
     PragmaKeyword          = 53,
     VersionKeyword         = 54,
+    SkippedTokensTrivia    = 55,
     EndOfFile              = 255
 
 }

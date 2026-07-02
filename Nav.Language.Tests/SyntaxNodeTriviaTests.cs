@@ -20,7 +20,8 @@ namespace Nav.Language.Tests;
 /// nicht mehr als eigene Token im flachen Strom. Abgedeckt: Leading/Trailing-Trivia-Extents (auch an
 /// den Dateirändern und in der <c>onlyWhiteSpace</c>-Variante), dass Kommentare als angehängte Trivia
 /// (statt als Strom-Token) erscheinen, der SingleLineComment-/EOL-Split, mehrzeilige Kommentare, ein
-/// führendes BOM (als Trenner-Token <see cref="SyntaxTokenType.Unknown"/>) sowie Unicode-Zs-Whitespace.
+/// führendes BOM (als übersprungenes <see cref="SyntaxTokenType.Unknown"/>-Token in der Skip-Trivia)
+/// sowie Unicode-Zs-Whitespace.
 /// Die reinen Zeilenende-Varianten (LF/CR/CRLF, NEL/LS/PS) pinnt zusätzlich
 /// <see cref="SyntaxNewLineTests"/>.
 /// </summary>
@@ -227,9 +228,10 @@ task C;
         Assert.That(RoundTrip(tree), Is.EqualTo(source));
     }
 
-    // Ein führendes BOM (U+FEFF) im geparsten Text wird heute als unerwartetes Zeichen behandelt:
-    // ein Unknown-/Skiped-Token der Länge 1 am Root plus Nav0000. (File.ReadAllText entfernt das BOM
-    // normalerweise vorab — dieser Test pinnt das Verhalten, falls es doch im Text landet.)
+    // Ein führendes BOM (U+FEFF) im geparsten Text wird heute als unerwartetes Zeichen behandelt: ein
+    // übersprungenes Unknown-Token in der Skip-Trivia des ersten Strom-Tokens plus Nav0000.
+    // (File.ReadAllText entfernt das BOM normalerweise vorab — dieser Test pinnt das Verhalten, falls
+    // es doch im Text landet.)
     [Test]
     public void LeadingByteOrderMarkBecomesUnexpectedCharacter() {
 
@@ -237,12 +239,19 @@ task C;
         var tree   = SyntaxTree.ParseText(source);
         var tokens = NonEof(tree);
 
-        var bom = tokens[0];
+        // Das BOM steht nicht mehr im flachen Strom — das erste Strom-Token ist 'task'.
+        Assert.That(tokens[0].Type, Is.EqualTo(SyntaxTokenType.TaskKeyword));
+
+        var skippedTrivia = tokens[0].LeadingTrivia.Single(t => t.Type == SyntaxTokenType.SkippedTokensTrivia);
+        Assert.That(skippedTrivia.Extent,       Is.EqualTo(new TextExtent(0, length: 1)));
+        Assert.That(skippedTrivia.HasStructure, Is.True);
+
+        var bom = ((SkippedTokensTriviaSyntax) skippedTrivia.GetStructure()).ChildTokens().Single();
         Assert.That(bom.Start,          Is.EqualTo(0));
         Assert.That(bom.Length,         Is.EqualTo(1));
         Assert.That(bom.Type,           Is.EqualTo(SyntaxTokenType.Unknown));
         Assert.That(bom.Classification, Is.EqualTo(TextClassification.Skiped));
-        Assert.That(bom.Parent,         Is.SameAs(tree.Root));
+        Assert.That(bom.Parent,         Is.InstanceOf<SkippedTokensTriviaSyntax>());
 
         var bomDiagnostics = tree.Diagnostics.Where(d => d.Location.Start == 0).ToList();
         Assert.That(bomDiagnostics.Select(d => d.Descriptor.Id), Does.Contain("Nav0000"));

@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-142]  {OpenBracket, CloseBracket, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-142]  {EndOfFile}
   CodeNamespaceDeclarationSyntax [0-36]  {OpenBracket, NamespaceprefixKeyword, CloseBracket}
     IdentifierSyntax [17-35]  {Identifier}
   CodeUsingDeclarationSyntax [37-67]  {OpenBracket, UsingKeyword, CloseBracket}

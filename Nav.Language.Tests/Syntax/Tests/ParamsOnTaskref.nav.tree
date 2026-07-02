@@ -1,4 +1,4 @@
-﻿CodeGenerationUnitSyntax [0-84]  {OpenBracket, ParamsKeyword, Identifier, Identifier, Comma, Identifier, LessThan, Identifier, Comma, Identifier, LessThan, Identifier, GreaterThan, GreaterThan, Identifier, CloseBracket, EndOfFile}
+﻿CodeGenerationUnitSyntax [0-84]  {EndOfFile}
   TaskDeclarationSyntax [0-83]  {TaskrefKeyword, Identifier, OpenBrace, CloseBrace}
     InitNodeDeclarationSyntax [51-59]  {InitKeyword, Identifier, Semicolon}
     ExitNodeDeclarationSyntax [64-72]  {ExitKeyword, Identifier, Semicolon}

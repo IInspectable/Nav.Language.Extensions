@@ -7,7 +7,7 @@
    27 InitKeyword
     L Whitespace        [23-27]       "    "
     T Whitespace        [31-32]       " "
-   33 CloseBracket
+    T SkippedTokensTrivia[32-34]       "[]"
     T NewLine           [34-35]       "\n"
    40 ViewKeyword
     L NewLine           [35-36]       "\n"

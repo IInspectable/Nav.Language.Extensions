@@ -14,6 +14,15 @@
 ausgebaut (`StringTemplate4` bleibt — nur für die Codegenerierung). Sicherheitsnetz:
 `SyntaxGoldenTests` (Token/Baum/Diagnostics/Trivia byte-genau gepinnt) + Regression (`.expected.cs`).
 
+**Trivia-Modell komplett (Stand Juli 2026):** Auch die vom Panik-Modus **übersprungenen** Token und
+lexikalisch **unbekannten** Zeichen sind aus dem flachen Strom gezogen — je Lauf eine strukturierte
+`SyntaxTokenType.SkippedTokensTrivia` mit `SkippedTokensTriviaSyntax`-Knoten (lokale Token,
+Klassifikation `Skiped`), gebaut in der Trivia-Finalisierung **nach** dem Parsen (`FinalizeTrivia`).
+`SyntaxTree.Tokens` enthält seitdem nur noch konsumierte Token + `EndOfFile`; gemeinsame Basis der
+strukturierten Trivia ist `StructuredTriviaSyntax` (Direktiven + Skips). Details/Handoff:
+`doc/nav-skiped-tokens-as-trivia.md`. Ältere Abschnitte unten, die Skiped-Token „an der Wurzel"
+beschreiben, sind Protokoll dieses früheren Zwischenstands.
+
 **Korpus-Validierung (gegen `D:\tfs\Main`, 1912 `.nav`):** Alle Dateien parsen ohne Exception;
 **Error-Diagnostics nur in 4 Dateien — alle via `.navignore` ausgeschlossen** (`.MI.`-Varianten mit
 nicht unterstützter `taskref … [namespaceprefix …]`-Syntax), **0** nicht-ignorierte Fehler. Der

@@ -17,9 +17,10 @@ namespace Pharmatechnik.Nav.Language;
 /// Handgeschriebener Recursive-Descent-Parser für die Nav-Sprache. Läuft über den flachen Token-Strom
 /// des <see cref="NavLexer"/> und baut in einem Durchlauf direkt den immutablen <see cref="SyntaxNode"/>-Baum,
 /// vergibt die kontextabhängige <see cref="TextClassification"/> je signifikantem Token und hängt es an
-/// seinen Knoten. Trivia (Whitespace, Zeilenenden, Kommentare), unbekannte Zeichen, Präprozessor-Token und
-/// das <see cref="SyntaxTokenType.EndOfFile"/> sieht der Parser nicht; sie werden in einem abschließenden
-/// Durchlauf an die Wurzel gehängt — dasselbe beobachtbare Verhalten wie die bisherige ANTLR-Pipeline.
+/// seinen Knoten. Trivia (Whitespace, Zeilenenden, Kommentare), unbekannte Zeichen und Präprozessor-Token
+/// sieht der Parser nicht; sie werden nach dem Parsen als (teils strukturierte) Trivia an die Token gehängt
+/// (siehe <see cref="FinalizeTrivia"/>), nur das abschließende <see cref="SyntaxTokenType.EndOfFile"/> wird
+/// als Token an die Wurzel gehängt.
 /// <para/>
 /// Die Struktur folgt 1:1 der bisherigen Grammatik/dem Visitor: jede <c>Parse*</c>-Methode entspricht einer
 /// Grammatikregel.
@@ -32,8 +33,10 @@ namespace Pharmatechnik.Nav.Language;
 ///   <i>nicht</i> vor.</description></item>
 ///   <item><description><b>Deletion</b> — steht an einer Stelle ein unerwartetes Token, überspringt es
 ///   der Panic-Mode (<see cref="Recover"/>) bis zu einem Wiedereinstiegs- oder äußeren Anker-Token, mit
-///   garantiertem Fortschritt je Schleifendurchlauf. Übersprungene signifikante Token werden — wie die
-///   Trivia — abschließend als <see cref="TextClassification.Skiped"/>-Token an die Wurzel gehängt.</description></item>
+///   garantiertem Fortschritt je Schleifendurchlauf. Übersprungene signifikante Token werden abschließend
+///   je Lauf zu einer strukturierten <see cref="SyntaxTokenType.SkippedTokensTrivia"/> gefaltet (die Token
+///   liegen lokal am <see cref="SkippedTokensTriviaSyntax"/>-Knoten, Klassifikation
+///   <see cref="TextClassification.Skiped"/>).</description></item>
 /// </list>
 /// Die Recovery liefert bewusst knappe, treffende Diagnosen; abgesichert ist sie über einen
 /// Golden-Satz je Korpus-Datei (Token, Baum und Diagnostics werden gepinnt).
@@ -62,14 +65,16 @@ sealed class NavParser {
     readonly ImmutableArray<Diagnostic>.Builder  _diagnostics;
     readonly int                                 _eofPos;
 
-    // Vorab aus _raw berechnete Token-Trivia (echtes Roslyn-Modell): alle Trivia der Datei liegen in genau
+    // Aus _raw berechnete Token-Trivia (echtes Roslyn-Modell): alle Trivia der Datei liegen in genau
     // einem geteilten Array (_allTrivia, Strom-Reihenfolge); je signifikantem Token — Schlüssel ist seine
     // eindeutige Start-Position — merkt _tokenTrivia nur Index-Bereiche (Leading/Trailing) hinein, plus
-    // separat die Leading-Trivia des abschließenden EndOfFile (die finale Datei-Trivia). Wird in Tok() bzw.
-    // beim EOF-Anhängen nachgeschlagen — als allokationsfreie Sicht (siehe LookupTrivia).
-    readonly ImmutableArray<SyntaxTrivia> _allTrivia;
-    readonly Dictionary<int, TriviaRange> _tokenTrivia;
-    readonly SyntaxTriviaList             _eofLeadingTrivia;
+    // separat die Leading-Trivia des abschließenden EndOfFile (die finale Datei-Trivia). Anders als die
+    // Direktiven (vor dem Parsen bekannt) stehen die übersprungenen Token erst nach dem Parsen fest —
+    // die Trivia wird daher erst in FinalizeTrivia gebaut und dort per Finalisierungs-Pass an die bereits
+    // erzeugten Token gesetzt (siehe LookupTrivia).
+    ImmutableArray<SyntaxTrivia> _allTrivia;
+    Dictionary<int, TriviaRange> _tokenTrivia;
+    SyntaxTriviaList             _eofLeadingTrivia;
 
     int  _pos;                     // Index in _raw; Invariante: zeigt stets auf ein parser-sichtbares Token (signifikant oder EOF).
     int? _firstSignificantStart;   // Start des ersten konsumierten signifikanten Tokens (für den Wurzel-Extent).
@@ -80,6 +85,10 @@ sealed class NavParser {
     // DirectiveTrivia gefaltet und nach dem Baum-Aufbau finalisiert.
     readonly List<DirectiveRun> _directiveRuns;
 
+    // Die aus den übersprungenen Läufen gefalteten SkippedTokensTrivia-Knoten (je Lauf ein Knoten mit
+    // lokalen Token) — erzeugt in BuildTrivia, nach dem Baum-Aufbau finalisiert (wie die Direktiven).
+    readonly List<SkippedTokensTriviaSyntax> _skippedTokensRuns = new();
+
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
         _raw         = NavLexer.Lex(sourceText.Text);
@@ -89,11 +98,8 @@ sealed class NavParser {
 
         // Präprozessor-Direktiven strukturiert vorab parsen — der eigentliche Cursor sieht die „hidden"
         // Präprozessor-Token nicht. Ergebnis: je #-Lauf ein Direktiv-Knoten samt lokalen Token; die Läufe
-        // faltet BuildTrivia danach zu strukturierter DirectiveTrivia.
+        // faltet BuildTrivia (nach dem Parsen, siehe FinalizeTrivia) zu strukturierter DirectiveTrivia.
         _directiveRuns = new NavDirectiveParser(_raw, _sourceText, _diagnostics).Parse();
-
-        _allTrivia        = BuildTrivia(_raw, _directiveRuns, out _tokenTrivia, out var eofStart, out var eofLength);
-        _eofLeadingTrivia = new SyntaxTriviaList(_allTrivia, eofStart, eofLength);
 
         _pos = 0;
         SkipHidden();
@@ -136,9 +142,10 @@ sealed class NavParser {
     /// <summary>
     /// Test-seitiger Einstieg je Grammatikregel (siehe <see cref="Syntax"/>): parst ein Snippet, das genau
     /// einer Regel entspricht, und liefert dessen Knoten als Wurzel. Setzt — wie <see cref="Parse"/> — den
-    /// Cursor auf, ruft die zur Regel gehörende private <c>Parse*</c>-Methode und hängt den Rest (Trivia,
-    /// im Panic-Mode übersprungene Token, das abschließende <see cref="SyntaxTokenType.EndOfFile"/>) an die
-    /// so entstandene Wurzel. Produktionscode parst ausschließlich ganze Dateien über <see cref="Parse"/>.
+    /// Cursor auf, ruft die zur Regel gehörende private <c>Parse*</c>-Methode, finalisiert die Trivia
+    /// (inkl. im Panic-Mode übersprungener Token als <see cref="SyntaxTokenType.SkippedTokensTrivia"/>) und
+    /// hängt das abschließende <see cref="SyntaxTokenType.EndOfFile"/> an die so entstandene Wurzel.
+    /// Produktionscode parst ausschließlich ganze Dateien über <see cref="Parse"/>.
     /// </summary>
     internal static SyntaxTree ParseRule(string text, Rule rule, string filePath = null, CancellationToken cancellationToken = default) {
 
@@ -149,9 +156,10 @@ sealed class NavParser {
 
         var root = parser.ParseRuleRoot(rule);
 
-        // Trivia/Unknown/Präprozessor/EndOfFile sowie übersprungene Token hängen — wie beim Whole-File-
-        // Parsing — an der Wurzel (hier dem Regel-Knoten).
-        parser.AttachNonSignificantTokens(root);
+        // Wie beim Whole-File-Parsing: Trivia (inkl. Direktiven und übersprungener Token) finalisieren,
+        // dann das abschließende EndOfFile an die Wurzel (hier den Regel-Knoten) hängen.
+        parser.FinalizeTrivia();
+        parser.AttachEndOfFile(root);
 
         var syntaxTree = new SyntaxTree(sourceText : sourceText,
                                         root       : root,
@@ -159,7 +167,7 @@ sealed class NavParser {
                                         diagnostics: parser._diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
-        parser.FinalizeDirectives(syntaxTree, root);
+        parser.FinalizeStructuredTrivia(syntaxTree, root);
 
         return syntaxTree;
     }
@@ -279,9 +287,11 @@ sealed class NavParser {
 
         var root = new CodeGenerationUnitSyntax(rootExtent, languageVersionDirective, codeNamespace, codeUsings, members);
 
-        // Trivia/Unknown/EndOfFile hängen — wie in der bisherigen Pipeline — an der Wurzel. Präprozessor-
-        // Token stehen nicht mehr im flachen Strom (sie sind zu DirectiveTrivia gefaltet).
-        AttachNonSignificantTokens(root);
+        // Trivia finalisieren (jetzt stehen die übersprungenen Token fest) und das abschließende EndOfFile
+        // an die Wurzel hängen. Weder Präprozessor- noch Skip-Token stehen im flachen Strom — sie sind zu
+        // strukturierter DirectiveTrivia bzw. SkippedTokensTrivia gefaltet.
+        FinalizeTrivia();
+        AttachEndOfFile(root);
 
         var syntaxTree = new SyntaxTree(sourceText : _sourceText,
                                         root       : root,
@@ -289,21 +299,26 @@ sealed class NavParser {
                                         diagnostics: _diagnostics.ToImmutable());
 
         root.FinalConstruct(syntaxTree, null);
-        FinalizeDirectives(syntaxTree, root);
+        FinalizeStructuredTrivia(syntaxTree, root);
 
         return syntaxTree;
     }
 
     /// <summary>
-    /// Schließt die im Vorlauf erzeugten Direktiv-Knoten (strukturierte Trivia) an den fertigen Baum an. Sie
-    /// sind <b>keine</b> Kindknoten der Wurzel, brauchen aber — wie jeder Knoten — <see cref="SyntaxTree"/>
-    /// und einen <see cref="SyntaxNode.Parent"/>, damit ihre lokalen Token Position und Quelltext auflösen
-    /// (siehe <see cref="SyntaxToken.SyntaxTree"/>). Erreichbar bleiben sie über die
-    /// <see cref="SyntaxTokenType.DirectiveTrivia"/>-Trivia (siehe <see cref="SyntaxTree.Directives"/>).
+    /// Schließt die strukturierten Trivia-Knoten — die im Vorlauf erzeugten Direktiven und die in
+    /// <see cref="FinalizeTrivia"/> gefalteten Skip-Läufe — an den fertigen Baum an. Sie sind <b>keine</b>
+    /// Kindknoten der Wurzel, brauchen aber — wie jeder Knoten — <see cref="SyntaxTree"/> und einen
+    /// <see cref="SyntaxNode.Parent"/>, damit ihre lokalen Token Position und Quelltext auflösen
+    /// (siehe <see cref="SyntaxToken.SyntaxTree"/>). Erreichbar bleiben sie über ihre Trivia (siehe
+    /// <see cref="SyntaxTree.Directives"/> bzw. <see cref="SyntaxTree.SkippedTokens"/>).
     /// </summary>
-    void FinalizeDirectives(SyntaxTree syntaxTree, SyntaxNode root) {
+    void FinalizeStructuredTrivia(SyntaxTree syntaxTree, SyntaxNode root) {
         foreach (var run in _directiveRuns) {
             run.Node.FinalConstruct(syntaxTree, root);
+        }
+
+        foreach (var skipped in _skippedTokensRuns) {
+            skipped.FinalConstruct(syntaxTree, root);
         }
     }
 
@@ -1509,7 +1524,7 @@ sealed class NavParser {
     /// unfertiges <c>[par</c>). Meldet genau eine Diagnose über die ganze Klammer und resynchronisiert
     /// bis zum schließenden <c>]</c> bzw. einem harten Anker (<see cref="ClosesBracketRegion"/>) — der
     /// Schaden bleibt auf die Klammer beschränkt. Die übersprungenen Token gehen nicht verloren: sie
-    /// hängen anschließend als <see cref="TextClassification.Skiped"/>-Token an der Wurzel.
+    /// werden anschließend zu einer strukturierten <see cref="SyntaxTokenType.SkippedTokensTrivia"/> gefaltet.
     /// </summary>
     /// <remarks>
     /// Bei einem <b>leeren</b> <c>[]</c> (öffnende Klammer direkt gefolgt von der schließenden) lautet die
@@ -1940,8 +1955,8 @@ sealed class NavParser {
     /// <summary>
     /// Panic-Mode (Deletion-Recovery): überspringt das aktuelle und alle folgenden signifikanten Token, bis
     /// <paramref name="recovered"/> zutrifft — also ein Wiedereinstiegs- oder äußeres Anker-Token (inkl.
-    /// Dateiende) erreicht ist. Die übersprungenen Token werden hier nur überlesen; an die Wurzel gehängt
-    /// werden sie — als <see cref="TextClassification.Skiped"/> — erst in <see cref="AttachNonSignificantTokens"/>
+    /// Dateiende) erreicht ist. Die übersprungenen Token werden hier nur überlesen; zu strukturierter
+    /// <see cref="SyntaxTokenType.SkippedTokensTrivia"/> gefaltet werden sie erst in <see cref="FinalizeTrivia"/>
     /// (nichts geht verloren, der Round-Trip bleibt vollständig). Pro Lauf wird genau eine Diagnose an der
     /// ersten übersprungenen Stelle gemeldet. Fortschritts-Garantie: trifft <paramref name="recovered"/> nicht
     /// schon zu Beginn zu, rückt der Aufruf um mindestens ein signifikantes Token vor — Listen-Schleifen können
@@ -2065,61 +2080,45 @@ sealed class NavParser {
     }
 
     /// <summary>
-    /// Hängt — nach dem Aufbau des Wurzelknotens — alle nicht vom Parser konsumierten, aber im flachen
-    /// Strom verbleibenden Token an die Wurzel: unbekannte Zeichen, vom Panic-Mode übersprungene signifikante
-    /// Token und das abschließende <see cref="SyntaxTokenType.EndOfFile"/>. Präprozessor-Token stehen
-    /// <b>nicht</b> mehr im flachen Strom — sie sind im Vorlauf (<see cref="NavDirectiveParser"/>) zu Direktiv-
-    /// Knoten mit lokalen Token geworden und in <see cref="BuildTrivia"/> zu strukturierter
-    /// <see cref="SyntaxTokenType.DirectiveTrivia"/> gefaltet; hier werden sie übersprungen. Trivia
-    /// (Whitespace/Zeilenende/Kommentare) wird ebenfalls nicht in den Strom aufgenommen — sie liegt
-    /// ausschließlich als Leading/Trailing an den Token. Dabei wird auch die rein lexikalische Diagnose für
-    /// unerwartete Zeichen gemeldet (die Präprozessor-Diagnosen entstehen im Vorlauf).
+    /// Baut — nach dem Parsen, wenn feststeht, welche signifikanten Token konsumiert wurden — die endgültige
+    /// Trivia der Datei und setzt sie per Finalisierungs-Pass an die bereits erzeugten Token. Der Pass ändert
+    /// weder Baumstruktur noch Token-Identitäten (Parent, Extent, Typ, Klassifikation — die Gleichheits-
+    /// Semantik von <see cref="SyntaxToken"/> klammert die Trivia ohnehin aus), nur die Trivia-Sichten.
+    /// Nicht konsumierte signifikante Token und unbekannte Zeichen falten sich dabei je Lauf zu einer
+    /// strukturierten <see cref="SyntaxTokenType.SkippedTokensTrivia"/> (siehe <see cref="BuildTrivia"/>).
     /// </summary>
-    void AttachNonSignificantTokens(SyntaxNode root) {
+    void FinalizeTrivia() {
 
-        // Vom Parser bereits an Knoten gehängte (signifikante) Token — anhand ihrer eindeutigen
-        // Start-Position. Token überlappen nie, daher ist die Start-Position ein sicherer Identitätsschlüssel.
+        // Vom Parser an Knoten gehängte (signifikante) Token — anhand ihrer eindeutigen Start-Position.
+        // Token überlappen nie, daher ist die Start-Position ein sicherer Identitätsschlüssel.
         var consumedStarts = new HashSet<int>();
         foreach (var token in _tokens) {
             consumedStarts.Add(token.Start);
         }
 
-        foreach (var raw in _raw) {
-            // Trivia (Whitespace/Zeilenende/Kommentar) hängt ausschließlich als Leading/Trailing an
-            // den signifikanten bzw. Trenner-Token (siehe BuildTrivia) — sie wird nicht mehr als
-            // eigenes Token in den flachen Strom aufgenommen.
-            if (SyntaxFacts.IsTrivia(raw.Type)) {
-                continue;
-            }
+        _allTrivia        = BuildTrivia(consumedStarts, out _tokenTrivia, out var eofStart, out var eofLength);
+        _eofLeadingTrivia = new SyntaxTriviaList(_allTrivia, eofStart, eofLength);
 
-            // Präprozessor-Token gehören keiner Strom-Position mehr: sie sind zu strukturierter
-            // DirectiveTrivia gefaltet (ihre lokalen Token trägt der jeweilige Direktiv-Knoten).
-            if (IsPreprocessorToken(raw.Type)) {
-                continue;
-            }
-
-            // Bereits materialisierte Token überspringen: die vom Parser konsumierten signifikanten Token.
-            if (consumedStarts.Contains(raw.Extent.Start)) {
-                continue;
-            }
-
-            if (SyntaxTokenFactory.TryClassifyNonSignificant(raw.Type, out var classification)) {
-                // Das abschließende EndOfFile trägt die finale Datei-Trivia als seine Leading-Trivia; ein Trenner
-                // (unbekanntes Zeichen / Präprozessor-Token) trägt die ihm vorausgehende, sonst heimatlose Trivia
-                // als Leading (siehe BuildTrivia).
-                var leading = raw.Type == SyntaxTokenType.EndOfFile ? _eofLeadingTrivia : LookupTrivia(raw.Extent.Start).Leading;
-                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, classification, root,
-                                                           leading, SyntaxTriviaList.Empty));
-
-                ReportLexicalDiagnostics(raw);
-            } else {
-                // Signifikantes Token, das der Parser nicht konsumiert hat (Panic-Mode-Skip): wie die Trivia
-                // als Skiped-Token an die Wurzel — so deckt der Token-Strom lückenlos den ganzen Text ab.
-                var (leading, trailing) = LookupTrivia(raw.Extent.Start);
-                _tokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, TextClassification.Skiped, root,
-                                                           leading, trailing));
-            }
+        for (var i = 0; i < _tokens.Count; i++) {
+            var token = _tokens[i];
+            var (leading, trailing) = LookupTrivia(token.Start);
+            _tokens[i] = SyntaxTokenFactory.CreateToken(token.Extent, token.Type, token.Classification, token.Parent,
+                                                        leading, trailing);
         }
+    }
+
+    /// <summary>
+    /// Hängt — nach dem Aufbau des Wurzelknotens — das abschließende <see cref="SyntaxTokenType.EndOfFile"/>
+    /// an die Wurzel; es trägt die finale Datei-Trivia als seine Leading-Trivia (siehe
+    /// <see cref="FinalizeTrivia"/>, das zuvor gelaufen sein muss). Alle übrigen nicht konsumierten Token
+    /// stehen nicht mehr im flachen Strom: Präprozessor-Token sind zu strukturierter
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/>, übersprungene signifikante Token und unbekannte
+    /// Zeichen zu strukturierter <see cref="SyntaxTokenType.SkippedTokensTrivia"/> gefaltet.
+    /// </summary>
+    void AttachEndOfFile(SyntaxNode root) {
+        var eof = _raw[_raw.Length - 1]; // Der Lexer terminiert den Strom stets mit dem nullbreiten EndOfFile.
+        _tokens.Add(SyntaxTokenFactory.CreateToken(eof.Extent, eof.Type, TextClassification.Whitespace, root,
+                                                   _eofLeadingTrivia, SyntaxTriviaList.Empty));
     }
 
     /// <summary>
@@ -2154,9 +2153,9 @@ sealed class NavParser {
             return;
         }
 
-        var (leading, trailing) = LookupTrivia(raw.Value.Start);
-        var token = SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent,
-                                                   leading, trailing);
+        // Zunächst ohne Trivia — die endgültige Trivia steht erst nach dem Parsen fest (welche Token
+        // übersprungen wurden) und wird in FinalizeTrivia per Finalisierungs-Pass gesetzt.
+        var token = SyntaxTokenFactory.CreateToken(raw.Value.Extent, raw.Value.Type, classification, parent);
         if (!token.IsMissing) {
             _tokens.Add(token);
         }
@@ -2193,7 +2192,8 @@ sealed class NavParser {
 
     /// <summary>
     /// Ordnet die rein lexikalische Trivia (Whitespace, Zeilenenden, Kommentare) nach der Roslyn-Regel den
-    /// signifikanten Token zu — vorab, da der Lexer-Strom <paramref name="raw"/> bereits vollständig vorliegt:
+    /// signifikanten Token zu — nach dem Parsen, wenn feststeht, welche Token konsumiert wurden
+    /// (<paramref name="consumedStarts"/>):
     /// <list type="bullet">
     ///   <item><description><b>Trailing</b> eines Tokens: die anschließende Trivia bis <b>einschließlich</b>
     ///   des ersten Zeilenendes; folgt vor einem Zeilenende bereits das nächste (nicht-Trivia-)Token, endet
@@ -2203,27 +2203,28 @@ sealed class NavParser {
     ///   <item><description>Das abschließende <see cref="SyntaxTokenType.EndOfFile"/> erhält die finale
     ///   Datei-Trivia als seine Leading-Trivia (Round-Trip bleibt lückenlos).</description></item>
     /// </list>
-    /// Unbekannte Zeichen wirken — wie signifikante Token — als Trenner einer Trivia-Folge, erhalten selbst
-    /// aber keine angehängte Trivia. Jeder Präprozessor-Direktiv-Lauf (<paramref name="directiveRuns"/>) wird
-    /// zu genau einem strukturierten <see cref="SyntaxTokenType.DirectiveTrivia"/>-Stück gefaltet (mit Verweis
-    /// auf seinen Knoten), gefolgt von seinem terminierenden <see cref="SyntaxTokenType.NewLine"/>; beides
-    /// fließt als Trivia in den umgebenden Lauf und damit an das nächste Token.
+    /// Jeder Präprozessor-Direktiv-Lauf (<see cref="_directiveRuns"/>) wird zu genau einem strukturierten
+    /// <see cref="SyntaxTokenType.DirectiveTrivia"/>-Stück gefaltet (mit Verweis auf seinen Knoten), gefolgt
+    /// von seinem terminierenden <see cref="SyntaxTokenType.NewLine"/>; beides fließt als Trivia in den
+    /// umgebenden Lauf und damit an das nächste Token. Analog wird jeder Lauf <b>übersprungener</b> Token
+    /// (nicht konsumierte signifikante Token und unbekannte Zeichen) zu genau einem strukturierten
+    /// <see cref="SyntaxTokenType.SkippedTokensTrivia"/>-Stück gefaltet (siehe <see cref="FoldSkippedRun"/>).
     /// </summary>
-    static ImmutableArray<SyntaxTrivia> BuildTrivia(ImmutableArray<RawToken> raw, List<DirectiveRun> directiveRuns,
-                                                    out Dictionary<int, TriviaRange> tokenTrivia,
-                                                    out int eofLeadingStart, out int eofLeadingLength) {
+    ImmutableArray<SyntaxTrivia> BuildTrivia(HashSet<int> consumedStarts,
+                                             out Dictionary<int, TriviaRange> tokenTrivia,
+                                             out int eofLeadingStart, out int eofLeadingLength) {
 
         // Direktiv-Läufe nach dem Roh-Index ihres '#' — so lässt sich beim Erreichen eines Laufs die ganze
         // Direktivzeile in ein Trivia-Stück falten und die Präprozessor-Token des Laufs überspringen.
         var runByStart = new Dictionary<int, DirectiveRun>();
-        foreach (var run in directiveRuns) {
+        foreach (var run in _directiveRuns) {
             runByStart[run.RawStart] = run;
         }
 
         // Alle Trivia der Datei in genau einem Array (Strom-Reihenfolge). Leading/Trailing eines Tokens sind
         // zusammenhängende Teilbereiche darin — sie werden nicht mehr je Token in eigene Arrays kopiert.
         // raw.Length/2 ist eine grobe Vorab-Kapazität (Trivia macht etwa die Hälfte des Stroms aus).
-        var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(Math.Max(16, raw.Length / 2));
+        var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(Math.Max(16, _raw.Length / 2));
 
         // Genau ein Dictionary Token-Start -> Bereiche. Die Leading-Trivia wird beim Erreichen des Tokens
         // eingetragen, die Trailing-Trivia beim nächsten Trenner per Read-Modify-Write nachgezogen.
@@ -2235,7 +2236,7 @@ sealed class NavParser {
         eofLeadingStart  = 0;
         eofLeadingLength = 0;
 
-        for (var index = 0; index < raw.Length; index++) {
+        for (var index = 0; index < _raw.Length; index++) {
 
             // Direktiv-Lauf: die ganze Direktivzeile als ein strukturiertes DirectiveTrivia-Stück (mit Verweis
             // auf seinen Knoten) plus das terminierende Zeilenende als eigenes NewLine — beides zählt als
@@ -2250,10 +2251,17 @@ sealed class NavParser {
                 continue;
             }
 
-            var token = raw[index];
+            var token = _raw[index];
 
             if (token.IsTrivia) {
                 all.Add(new SyntaxTrivia(token.Type, token.Extent));
+                continue;
+            }
+
+            // Skip-Lauf: übersprungene Token sind keine Trenner, sondern werden — wie ein Direktiv-Lauf —
+            // zu einem strukturierten SkippedTokensTrivia-Stück des umgebenden Laufs gefaltet.
+            if (IsSkippedToken(token, consumedStarts)) {
+                index = FoldSkippedRun(all, index, consumedStarts, runByStart);
                 continue;
             }
 
@@ -2277,9 +2285,9 @@ sealed class NavParser {
                 eofLeadingLength   = remainingLength;
                 lastSignificantKey = -1;
             } else if (IsHidden(token.Type)) {
-                // Trenner (unbekanntes Zeichen / Präprozessor-Token): nimmt selbst keine Trailing-Trivia auf,
-                // trägt die restliche Trivia aber als Leading. Sonst ginge der Text zwischen dem vorigen Token
-                // und dem Trenner verloren, sobald die Trivia nicht mehr separat im flachen Strom geführt wird.
+                // Verbliebener versteckter Trenner (theoretisch: ein Präprozessor-Token außerhalb eines
+                // Direktiv-Laufs): nimmt selbst keine Trailing-Trivia auf, trägt die restliche Trivia aber
+                // als Leading — sonst ginge der Text zwischen dem vorigen Token und dem Trenner verloren.
                 if (remainingLength > 0) {
                     tokenTrivia[token.Start] = new TriviaRange(remainingStart, remainingLength, 0, 0);
                 }
@@ -2294,6 +2302,70 @@ sealed class NavParser {
         }
 
         return all.ToImmutable();
+    }
+
+    /// <summary>
+    /// Ob das Roh-Token ein <b>übersprungenes</b> Token ist — ein parser-sichtbares Token, das der Parser
+    /// nicht konsumiert hat (Panic-Mode-Deletion), oder ein lexikalisch unbekanntes Zeichen
+    /// (<see cref="SyntaxTokenType.Unknown"/>, das nie konsumiert wird). Trivia, Präprozessor-Token
+    /// (Direktiv-Läufe) und das <see cref="SyntaxTokenType.EndOfFile"/> zählen nicht dazu.
+    /// </summary>
+    static bool IsSkippedToken(RawToken token, HashSet<int> consumedStarts) {
+        return !token.IsTrivia                            &&
+               token.Type != SyntaxTokenType.EndOfFile    &&
+               !IsPreprocessorToken(token.Type)           &&
+               !consumedStarts.Contains(token.Extent.Start);
+    }
+
+    /// <summary>
+    /// Faltet — analog zum Direktiv-Zweig in <see cref="BuildTrivia"/> — den an <paramref name="first"/>
+    /// beginnenden <b>maximalen</b> Lauf übersprungener Token zu genau einem strukturierten
+    /// <see cref="SyntaxTokenType.SkippedTokensTrivia"/>-Stück: reine Trivia zwischen den Skip-Token bricht
+    /// den Lauf nicht (sie fällt in dessen Extent), ein konsumiertes Token, ein Direktiv-Lauf oder das
+    /// Dateiende beendet ihn. Der zugehörige <see cref="SkippedTokensTriviaSyntax"/>-Knoten hält die
+    /// Skip-Token <b>lokal</b> (Klassifikation <see cref="TextClassification.Skiped"/>); für unbekannte
+    /// Zeichen wird dabei die lexikalische Diagnose (<c>Nav0000</c>) gemeldet. Liefert den Roh-Index des
+    /// letzten Tokens des Laufs (die aufrufende Schleife rückt dahinter weiter).
+    /// </summary>
+    int FoldSkippedRun(ImmutableArray<SyntaxTrivia>.Builder all, int first,
+                       HashSet<int> consumedStarts, Dictionary<int, DirectiveRun> runByStart) {
+
+        var last = first;
+        for (var i = first + 1; i < _raw.Length; i++) {
+            if (runByStart.ContainsKey(i)) {
+                break;
+            }
+
+            if (_raw[i].IsTrivia) {
+                continue;
+            }
+
+            if (!IsSkippedToken(_raw[i], consumedStarts)) {
+                break;
+            }
+
+            last = i;
+        }
+
+        var extent = TextExtent.FromBounds(_raw[first].Extent.Start, _raw[last].Extent.End);
+        var node   = new SkippedTokensTriviaSyntax(extent);
+
+        var localTokens = new List<SyntaxToken>();
+        for (var i = first; i <= last; i++) {
+            var raw = _raw[i];
+            if (raw.IsTrivia) {
+                continue;
+            }
+
+            localTokens.Add(SyntaxTokenFactory.CreateToken(raw.Extent, raw.Type, TextClassification.Skiped, node));
+            ReportLexicalDiagnostics(raw);
+        }
+
+        node.SetLocalTokens(new SyntaxTokenList(localTokens));
+        _skippedTokensRuns.Add(node);
+
+        all.Add(new SyntaxTrivia(SyntaxTokenType.SkippedTokensTrivia, extent, node));
+        return last;
     }
 
     /// <summary>

@@ -1,21 +1,5 @@
 ﻿    0    7  TaskrefKeyword          Keyword                      TaskDeclarationSyntax
     8    2  Identifier              TaskName                     TaskDeclarationSyntax
-   11    1  OpenBracket             Skiped                       CodeGenerationUnitSyntax
-   12    6  ParamsKeyword           Skiped                       CodeGenerationUnitSyntax
-   19    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   22    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   24    1  Comma                   Skiped                       CodeGenerationUnitSyntax
-   26    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   28    1  LessThan                Skiped                       CodeGenerationUnitSyntax
-   29    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   31    1  Comma                   Skiped                       CodeGenerationUnitSyntax
-   33    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   35    1  LessThan                Skiped                       CodeGenerationUnitSyntax
-   36    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   38    1  GreaterThan             Skiped                       CodeGenerationUnitSyntax
-   39    1  GreaterThan             Skiped                       CodeGenerationUnitSyntax
-   41    2  Identifier              Skiped                       CodeGenerationUnitSyntax
-   43    1  CloseBracket            Skiped                       CodeGenerationUnitSyntax
    45    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
    51    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
    56    2  Identifier              Identifier                   InitNodeDeclarationSyntax
