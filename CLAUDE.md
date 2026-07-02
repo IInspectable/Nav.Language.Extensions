@@ -14,6 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **In der Quellcode-Dokumentation (Code-Kommentare, XML-Doku) nicht auf „Steps" eines Plans
   verweisen.** Plan-Steps sind ein temporäres Arbeits-Artefakt und haben im dauerhaften Code keinen
   Platz — Doku beschreibt den Code, nicht den Weg dorthin.
+- **Neue `.md`-Dokumente, die hier im Projekt abgelegt werden, immer auch in die Solution
+  (`Nav.Language.Extensions.slnx`) einhängen** — in den passenden Solution-Ordner (z.B. `doc/`-Dateien
+  in den `/doc/`-Ordner, Repo-Wurzel-Dateien in `/Solution Items/`). So bleiben die Dokumente im
+  Solution Explorer sicht- und pflegbar.
 
 ## Was ist das hier?
 
