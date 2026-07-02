@@ -155,8 +155,22 @@ honoriert `item.ReplacementExtent`, wenn gesetzt (per-Item-Replacement über den
   unterdrückt Code-Blöcke nicht mehr selbst, sondern überlässt der Engine die Entscheidung (leere Liste
   im C#-Inhalt). Mehrzeilige Blöcke bleiben die bekannte „nur aktuelle Zeile"-Grenze (→ C4). Tests:
   `InCodeBlockKeywordSlot_OffersCodeKeywords` (net10 1163/0, net472 1171/0).
-- [ ] **C2 — Pfade über die Engine.** VS-Quelle auf `GetPathCompletions` umstellen;
-  `PathCompletionSource(+Provider)` + Duplikat-Logik entfällt.
+- [x] **C2 — Pfade über die Engine.** `NavCompletionSource` bezieht Pfade jetzt aus
+  `NavCompletionService.GetCompletions(unit, position, solution)`: im String-Kontext holt sie die
+  `NavSolution` (cached, via `NavLanguagePackage.GetSolutionAsync`) und reicht sie an die Engine; der
+  Applicable-/Filter-Bereich ist der getippte **Dateiname-Teil** (`GetStartOfFileNamePart`), den
+  Ersetzungsbereich (gesamter String-Inhalt) trägt jedes Item über `ReplacementExtent`. Neues Mapping
+  `AsyncCompletionSource.CreatePathCompletion` bildet ein File-Item ab (Icon, `filterText`=Dateiname,
+  `insertText`=relativer Pfad, per-Item-Replacement über den `ReplacementTrackingSpanProperty`-Pfad,
+  QuickInfo-`FileInfo` aus dem relativen Pfad rekonstruiert). `PathCompletionSource(+Provider)` sowie die
+  jetzt toten Base-Helfer (`CreateFileInfoCompletion`, `CreateDirectoryInfoCompletion`, der
+  `DirectoryInfo`-QuickInfo-Zweig, `DirectoryInfoPropertyName`) sind entfernt.
+  **Bewusster Verhaltenswechsel:** Die VS-Seite navigiert **nicht mehr** durchs Dateisystem
+  (`..`, Unterordner, `[verzeichnis]\`-Scoping); stattdessen — wie schon der LSP — **solution-weit alle
+  erreichbaren `*.nav`, gefiltert über den Dateinamen** (tippt man „Messageb", findet das auch ein tief
+  verschachteltes „MessageBoxes.nav"). Das ist die „eine Engine"-Vereinheitlichung. Engine-Pfadlogik
+  (`GetPathCompletions`) blieb unverändert; ihre Tests (`NavCompletionPathTests`) weiterhin grün
+  (net10 1163/0, net472 1171/0).
 - [ ] **C3 — Edge in die Nav-Quelle mergen.** Mit per-Item-`ReplacementExtent` entfällt
   `EdgeCompletionSource` und das fragile `IsEdgeKeyword`-Heraus-/Wieder-Hinzufügen.
 - [ ] **C4 — Baumbasierte Suppression (Umfang erst bei Ankunft entscheiden).** Idee: den

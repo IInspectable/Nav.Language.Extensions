@@ -116,8 +116,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Completion\EdgeCompletionSourceProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\NavCompletionSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\NavCompletionSourceProvider.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\PathCompletionSource.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Completion\PathCompletionSourceProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Completion\TextSnaphotLineExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CSharp\GoTo\IntraTextGoToAdornment.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CSharp\GoTo\IntraTextGoToAdornmentTagger.cs" />

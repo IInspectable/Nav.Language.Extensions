@@ -73,10 +73,6 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
             return QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword);
         }
 
-        if (item.Properties.TryGetProperty<DirectoryInfo>(DirectoryInfoPropertyName, out var dirInfo)) {
-            return QuickinfoBuilderService.BuildDirectoryInfoQuickInfoContent(dirInfo);
-        }
-
         if (item.Properties.TryGetProperty<FileInfo>(NavFileInfoPropertyName, out var fileInfo)) {
             return QuickinfoBuilderService.BuildNavFileInfoQuickInfoContent(fileInfo);
         }
@@ -147,68 +143,43 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         return completionItem;
     }
 
-    protected CompletionItem CreateDirectoryInfoCompletion(DirectoryInfo directory,
-                                                           DirectoryInfo dir,
-                                                           [CanBeNull] string displayText = null,
-                                                           [CanBeNull] ImageElement icon = null,
-                                                           [CanBeNull] ITrackingSpan replacementSpan = null) {
+    /// <summary>
+    /// Bildet einen Pfad-Vorschlag der Engine (Kind <see cref="NavCompletionItemKind.File"/>, mit relativem
+    /// <see cref="NavCompletionItem.InsertText"/> und dem <see cref="NavCompletionItem.ReplacementExtent"/>
+    /// über den gesamten String-Inhalt) auf ein VS-Item ab: GEFILTERT wird über den Dateinamen
+    /// (<see cref="NavCompletionItem.Label"/>), EINGEFÜGT der relative Pfad, ERSETZT der gesamte Inhalt
+    /// zwischen den <c>"</c> (per-Item-Replacement über den <see cref="ReplacementTrackingSpanProperty"/>-Pfad).
+    /// Die QuickInfo-<see cref="FileInfo"/> wird aus dem relativen Pfad rekonstruiert (das neutrale
+    /// Engine-Item führt kein <see cref="FileInfo"/> mit).
+    /// </summary>
+    protected CompletionItem CreatePathCompletion(NavCompletionItem item, ITextSnapshot snapshot, [CanBeNull] DirectoryInfo navDirectory) {
 
-        var directoryName = directory.FullName + Path.DirectorySeparatorChar;
-        var relativePath  = PathHelper.GetRelativePath(fromPath: directoryName, toPath: dir.FullName + Path.DirectorySeparatorChar);
-
-        displayText ??= dir.Name;
-
-        var completionItem = new CompletionItem(displayText: displayText,
-                                                source: this,
-                                                icon: icon ?? CompletionImages.Folder,
-                                                filters: ImmutableArray.Create(CompletionFilters.Folders),
-                                                suffix: "",
-                                                insertText: relativePath,
-                                                sortText: $"__{displayText}",
-                                                filterText: displayText,
-                                                attributeIcons: ImmutableArray<ImageElement>.Empty);
-
-        completionItem.Properties.AddProperty(DirectoryInfoPropertyName, dir);
-        if (replacementSpan != null) {
-            completionItem.Properties.AddProperty(ReplacementTrackingSpanProperty, replacementSpan);
-        }
-
-        return completionItem;
-    }
-
-    protected CompletionItem CreateFileInfoCompletion(DirectoryInfo directory,
-                                                      FileInfo file,
-                                                      [CanBeNull] string displayText = null,
-                                                      [CanBeNull] ITrackingSpan replacementSpan = null) {
-
-        var directoryName = directory.FullName + Path.DirectorySeparatorChar;
-        var relativePath  = PathHelper.GetRelativePath(fromPath: directoryName, toPath: file.FullName);
-
-        displayText ??= file.Name;
-
-        var completionItem = new CompletionItem(displayText: displayText,
+        var completionItem = new CompletionItem(displayText: item.Label,
                                                 source: this,
                                                 icon: CompletionImages.NavFile,
                                                 filters: ImmutableArray.Create(CompletionFilters.Files),
                                                 suffix: "",
-                                                insertText: relativePath,
-                                                sortText: $"_{displayText}",
-                                                filterText: file.Name,
+                                                insertText: item.InsertText,
+                                                sortText: $"_{item.Label}",
+                                                filterText: item.Label,
                                                 attributeIcons: ImmutableArray<ImageElement>.Empty);
 
-        completionItem.Properties.AddProperty(NavFileInfoPropertyName, file);
-        if (replacementSpan != null) {
+        if (item.ReplacementExtent is { } extent) {
+            var replacementSpan = snapshot.CreateTrackingSpan(new Span(extent.Start, extent.Length), SpanTrackingMode.EdgeInclusive);
             completionItem.Properties.AddProperty(ReplacementTrackingSpanProperty, replacementSpan);
+        }
+
+        if (navDirectory != null && PathHelper.TryCombinePath(navDirectory.FullName, item.InsertText, out var fullPath)) {
+            completionItem.Properties.AddProperty(NavFileInfoPropertyName, new FileInfo(fullPath));
         }
 
         return completionItem;
     }
 
     // ReSharper disable InconsistentNaming
-    public static string SymbolPropertyName        => nameof(SymbolPropertyName);
-    public static string KeywordPropertyName       => nameof(KeywordPropertyName);
-    public static string DirectoryInfoPropertyName => nameof(DirectoryInfoPropertyName);
-    public static string NavFileInfoPropertyName   => nameof(NavFileInfoPropertyName);
+    public static string SymbolPropertyName      => nameof(SymbolPropertyName);
+    public static string KeywordPropertyName     => nameof(KeywordPropertyName);
+    public static string NavFileInfoPropertyName => nameof(NavFileInfoPropertyName);
 
     public static string ReplacementTrackingSpanProperty => nameof(ReplacementTrackingSpanProperty);
     // ReSharper restore InconsistentNaming
