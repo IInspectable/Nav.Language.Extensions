@@ -1,22 +1,22 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
 
     public TaskDeclarationSymbol(string name, Location location,
                                  TaskDeclarationOrigin origin,
                                  bool isIncluded,
-                                 ICodeParameter codeTaskResult,
-                                 MemberDeclarationSyntax syntax,
-                                 [CanBeNull] string codeNamespace,
+                                 ICodeParameter? codeTaskResult,
+                                 MemberDeclarationSyntax? syntax,
+                                 string? codeNamespace,
                                  bool codeNotImplemented): base(name, location) {
         Origin           = origin;
         Syntax           = syntax;
@@ -29,9 +29,9 @@ sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
         CodeTaskResult     = codeTaskResult;
     }
 
-    public override SyntaxTree SyntaxTree => Syntax?.SyntaxTree;
+    public override SyntaxTree? SyntaxTree => Syntax?.SyntaxTree;
 
-    public CodeGenerationUnit CodeGenerationUnit { get; private set; }
+    public CodeGenerationUnit? CodeGenerationUnit { get; private set; }
 
     public SymbolCollection<ConnectionPointSymbol> ConnectionPoints { get; }
     public List<ITaskNodeSymbol>                   References       { get; }
@@ -52,19 +52,16 @@ sealed partial class TaskDeclarationSymbol: Symbol, ITaskDeclarationSymbol {
 
     IReadOnlyList<ITaskNodeSymbol> ITaskDeclarationSymbol.References => References;
 
-    [CanBeNull]
-    public MemberDeclarationSyntax Syntax { get; }
+    public MemberDeclarationSyntax? Syntax { get; }
 
     public bool                  IsIncluded { get; }
     public TaskDeclarationOrigin Origin     { get; }
 
-    [NotNull]
     public string CodeNamespace { get; }
 
     public bool CodeNotImplemented { get; }
 
-    [CanBeNull]
-    public ICodeParameter CodeTaskResult { get; }
+    public ICodeParameter? CodeTaskResult { get; }
 
     public IEnumerable<ISymbol> SymbolsAndSelf() {
         yield return this;

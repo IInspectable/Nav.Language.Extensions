@@ -1,17 +1,17 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public sealed class SymbolList: IReadOnlyList<ISymbol> {
 
@@ -20,7 +20,7 @@ public sealed class SymbolList: IReadOnlyList<ISymbol> {
     public SymbolList(): this(null) {
     }
 
-    public SymbolList(IEnumerable<ISymbol> symbols) {
+    public SymbolList(IEnumerable<ISymbol>? symbols) {
 
         var symbolList = new List<ISymbol>(symbols ?? Enumerable.Empty<ISymbol>());
         symbolList.Sort((x, y) => x.Start - y.Start);
@@ -40,11 +40,9 @@ public sealed class SymbolList: IReadOnlyList<ISymbol> {
 
     public ISymbol this[int index] => _symbols[index];
 
-    [NotNull]
     public IEnumerable<ISymbol> this[TextExtent extent, bool includeOverlapping = false] => _symbols.GetElements(extent, includeOverlapping);
 
-    [CanBeNull]
-    public ISymbol FindAtPosition(int position) {
+    public ISymbol? FindAtPosition(int position) {
         return _symbols.FindElementAtPosition(position, defaultIfNotFound: true);
     }
 

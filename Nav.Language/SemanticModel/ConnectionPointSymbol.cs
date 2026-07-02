@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 abstract class ConnectionPointSymbol: Symbol, IConnectionPointSymbol {
 
@@ -27,7 +29,7 @@ abstract class ConnectionPointSymbol: Symbol, IConnectionPointSymbol {
 sealed partial class InitConnectionPointSymbol: ConnectionPointSymbol, IInitConnectionPointSymbol {
 
     public InitConnectionPointSymbol(string name, Location location, InitNodeDeclarationSyntax syntax, TaskDeclarationSymbol taskDeclaration)
-        : base(syntax?.SyntaxTree, ConnectionPointKind.Init, name, location, taskDeclaration) {
+        : base(syntax.SyntaxTree, ConnectionPointKind.Init, name, location, taskDeclaration) {
         Syntax = syntax;
     }
 
@@ -42,7 +44,7 @@ sealed partial class InitConnectionPointSymbol: ConnectionPointSymbol, IInitConn
 sealed partial class ExitConnectionPointSymbol: ConnectionPointSymbol, IExitConnectionPointSymbol {
 
     public ExitConnectionPointSymbol(string name, Location location, ExitNodeDeclarationSyntax syntax, TaskDeclarationSymbol taskDeclaration)
-        : base(syntax?.SyntaxTree, ConnectionPointKind.Exit, name, location, taskDeclaration) {
+        : base(syntax.SyntaxTree, ConnectionPointKind.Exit, name, location, taskDeclaration) {
         Syntax = syntax;
     }
 

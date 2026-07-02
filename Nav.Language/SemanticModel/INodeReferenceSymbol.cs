@@ -1,10 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
 
-using JetBrains.Annotations;
-
-#endregion
-
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public enum NodeReferenceType {
 
@@ -15,12 +11,10 @@ public enum NodeReferenceType {
 
 public interface INodeReferenceSymbol: ISymbol {
 
-    [CanBeNull]
-    INodeSymbol Declaration { get; }
+    INodeSymbol? Declaration { get; }
 
     NodeReferenceType NodeReferenceType { get; }
 
-    [NotNull]
     IEdge Edge { get; }
 
 }

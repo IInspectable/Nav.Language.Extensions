@@ -1,10 +1,9 @@
-﻿using JetBrains.Annotations;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface ITaskNodeAliasSymbol: ISymbol {
 
-    [NotNull]
     ITaskNodeSymbol TaskNode { get; }
 
 }

@@ -1,14 +1,16 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class TaskNodeAliasSymbol: Symbol, ITaskNodeAliasSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized Wird im Builder festgelegt
     public TaskNodeAliasSymbol(SyntaxTree syntaxTree, string name, Location location): base(name, location) {
         SyntaxTree = syntaxTree;
     }
 
     public override SyntaxTree SyntaxTree { get; }
 
-    public ITaskNodeSymbol TaskNode { get; internal set; }
+    // Wird im Ctor der TaskNode festgelegt — in der "freien Wildbahn" darf der Null-Fall nicht auftreten.
+    public ITaskNodeSymbol TaskNode { get; internal set; } = null!;
 
 }

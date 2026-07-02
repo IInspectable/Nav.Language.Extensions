@@ -1,11 +1,10 @@
-﻿using JetBrains.Annotations;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface INodeReferenceSymbol<out T>: INodeReferenceSymbol where T : INodeSymbol {
 
-    [CanBeNull]
-    new T Declaration { get; }
+    new T? Declaration { get; }
 
 }
 

@@ -1,18 +1,15 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System.Collections.Generic;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface INodeSymbol: ISymbol {
 
-    [NotNull]
     NodeDeclarationSyntax Syntax { get; }
 
-    [NotNull]
     ITaskDefinitionSymbol ContainingTask { get; }
 
-    [NotNull]
     IReadOnlyList<INodeReferenceSymbol> References { get; }
 
     IEnumerable<ISymbol> SymbolsAndSelf();
@@ -31,88 +28,72 @@ public static class NodeSymbolExtension {
 
 public interface ITargetNodeSymbol: INodeSymbol {
 
-    [NotNull]
     IReadOnlyList<IEdge> Incomings { get; }
 
 }
 
 public interface ISourceNodeSymbol: INodeSymbol {
 
-    [NotNull]
     IReadOnlyList<IEdge> Outgoings { get; }
 
 }
 
 public interface IInitNodeSymbol: ISourceNodeSymbol {
 
-    [NotNull]
     new InitNodeDeclarationSyntax Syntax { get; }
 
-    [CanBeNull]
-    IInitNodeAliasSymbol Alias { get; }
+    IInitNodeAliasSymbol? Alias { get; }
 
-    [NotNull]
     new IReadOnlyList<IInitTransition> Outgoings { get; }
 
 }
 
 public interface IExitNodeSymbol: ITargetNodeSymbol {
 
-    [NotNull]
     new ExitNodeDeclarationSyntax Syntax { get; }
 
 }
 
 public interface IEndNodeSymbol: ITargetNodeSymbol {
 
-    [NotNull]
     new EndNodeDeclarationSyntax Syntax { get; }
 
 }
 
 public interface IChoiceNodeSymbol: ISourceNodeSymbol, ITargetNodeSymbol {
 
-    [NotNull]
     new ChoiceNodeDeclarationSyntax Syntax { get; }
 
-    [NotNull]
     new IReadOnlyList<IChoiceTransition> Outgoings { get; }
 
 }
 
 public interface IGuiNodeSymbol: ISourceNodeSymbol, ITargetNodeSymbol {
 
-    [NotNull]
     new IReadOnlyList<ITriggerTransition> Outgoings { get; }
 
 }
 
 public interface IViewNodeSymbol: IGuiNodeSymbol {
 
-    [NotNull]
     new ViewNodeDeclarationSyntax Syntax { get; }
 
 }
 
 public interface IDialogNodeSymbol: IGuiNodeSymbol {
 
-    [NotNull]
     new DialogNodeDeclarationSyntax Syntax { get; }
 
 }
 
 public interface ITaskNodeSymbol: ISourceNodeSymbol, ITargetNodeSymbol {
 
-    [NotNull]
     new TaskNodeDeclarationSyntax Syntax { get; }
 
-    [CanBeNull]
-    ITaskDeclarationSymbol Declaration { get; }
+    ITaskDeclarationSymbol? Declaration { get; }
 
-    [CanBeNull]
-    ITaskNodeAliasSymbol Alias { get; }
+    ITaskNodeAliasSymbol? Alias { get; }
 
-    [NotNull]
     new IReadOnlyList<IExitTransition> Outgoings { get; }
 
 }

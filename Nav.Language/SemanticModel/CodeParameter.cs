@@ -1,16 +1,16 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed class CodeParameter: ICodeParameter {
 
-    CodeParameter(string parameterName, string parameterType, [NotNull] Location location) {
+    CodeParameter(string? parameterName, string? parameterType, Location location) {
         ParameterType = parameterType ?? string.Empty;
         ParameterName = parameterName ?? string.Empty;
         Location      = location      ?? throw new ArgumentNullException(nameof(location));
@@ -18,13 +18,11 @@ sealed class CodeParameter: ICodeParameter {
 
     public string ParameterName { get; }
 
-    [NotNull]
     public Location Location { get; }
 
     public string ParameterType { get; }
 
-    [CanBeNull]
-    public static ICodeParameter FromResultDeclaration([CanBeNull] CodeResultDeclarationSyntax codeResult) {
+    public static ICodeParameter? FromResultDeclaration(CodeResultDeclarationSyntax? codeResult) {
 
         if (codeResult?.Result?.Type == null) {
             return null;

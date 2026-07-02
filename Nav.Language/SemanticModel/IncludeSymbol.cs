@@ -1,11 +1,13 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 /// <remarks>
 /// <see cref="ISymbol.Name"/> ist hier der kleingeschriebene vollständige Dateipfad und dient als
@@ -19,13 +21,13 @@ sealed partial class IncludeSymbol: Symbol, IIncludeSymbol {
                          Location location,
                          Location fileLocation,
                          IncludeDirectiveSyntax syntax,
-                         IReadOnlyList<Diagnostic> diagnostics,
-                         SymbolCollection<TaskDeclarationSymbol> taskDeclarations)
+                         IReadOnlyList<Diagnostic>? diagnostics,
+                         SymbolCollection<TaskDeclarationSymbol>? taskDeclarations)
         : base(fileName.ToLowerInvariant(), location) {
 
         FileName         = fileName;
-        FileLocation     = fileLocation     ?? throw new ArgumentNullException(nameof(fileLocation));
-        Syntax           = syntax           ?? throw new ArgumentNullException(nameof(syntax));
+        FileLocation     = fileLocation ?? throw new ArgumentNullException(nameof(fileLocation));
+        Syntax           = syntax       ?? throw new ArgumentNullException(nameof(syntax));
         Diagnostics      = diagnostics      ?? new List<Diagnostic>();
         TaskDeclarations = taskDeclarations ?? new SymbolCollection<TaskDeclarationSymbol>();
     }

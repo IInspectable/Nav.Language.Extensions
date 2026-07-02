@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
@@ -31,10 +33,6 @@ public static class EdgeExtensions {
 
     static IEnumerable<Call> GetReachableCallsImpl(IEdge edge, ISet<IEdge> seenEdges) {
 
-        if (edge == null) {
-            yield break;
-        }
-
         if (seenEdges.Contains(edge)) {
             yield break;
         }
@@ -62,10 +60,6 @@ public static class EdgeExtensions {
         return IsReachableImpl(source, new HashSet<IEdge>());
 
         static bool IsReachableImpl(IEdge edge, HashSet<IEdge> seenEdges) {
-
-            if (edge == null) {
-                return false;
-            }
 
             if (seenEdges.Contains(edge)) {
                 return false;

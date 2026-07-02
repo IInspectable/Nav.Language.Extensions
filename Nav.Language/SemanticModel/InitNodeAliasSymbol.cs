@@ -1,14 +1,16 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class InitNodeAliasSymbol: Symbol, IInitNodeAliasSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized Wird im Ctor der InitNode festgelegt
     public InitNodeAliasSymbol(SyntaxTree syntaxTree, string name, Location location): base(name, location) {
         SyntaxTree = syntaxTree;
     }
 
     public override SyntaxTree SyntaxTree { get; }
 
-    public IInitNodeSymbol InitNode { get; internal set; }
+    // Wird im Ctor der InitNode festgelegt — in der "freien Wildbahn" darf der Null-Fall nicht auftreten.
+    public IInitNodeSymbol InitNode { get; internal set; } = null!;
 
 }

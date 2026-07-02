@@ -1,17 +1,17 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System.Collections.Generic;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed class TriggerTransition: Transition, ITriggerTransition {
 
     public TriggerTransition(TransitionDefinitionSyntax syntax,
                              ITaskDefinitionSymbol containingTask,
-                             GuiNodeReferenceSymbol sourceReference,
-                             EdgeModeSymbol edgeMode,
-                             NodeReferenceSymbol targetReference,
-                             SymbolCollection<TriggerSymbol> triggers)
+                             GuiNodeReferenceSymbol? sourceReference,
+                             EdgeModeSymbol? edgeMode,
+                             NodeReferenceSymbol? targetReference,
+                             SymbolCollection<TriggerSymbol>? triggers)
         : base(syntax, containingTask, sourceReference, edgeMode, targetReference) {
 
         Triggers = triggers ?? new SymbolCollection<TriggerSymbol>();
@@ -21,14 +21,12 @@ sealed class TriggerTransition: Transition, ITriggerTransition {
         }
     }
 
-    public IGuiNodeReferenceSymbol GuiNodeSourceReference => (IGuiNodeReferenceSymbol) SourceReference;
+    public IGuiNodeReferenceSymbol? GuiNodeSourceReference => (IGuiNodeReferenceSymbol?) SourceReference;
 
     IReadOnlySymbolCollection<ITriggerSymbol> ITriggerTransition.Triggers => Triggers;
 
-    [NotNull]
     public SymbolCollection<TriggerSymbol> Triggers { get; }
 
-    [NotNull]
     public override IEnumerable<ISymbol> Symbols() {
 
         foreach (var symbol in base.Symbols()) {

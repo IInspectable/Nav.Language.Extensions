@@ -1,13 +1,11 @@
-﻿using JetBrains.Annotations;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface IExitConnectionPointReferenceSymbol: ISymbol {
 
-    [CanBeNull]
-    IExitConnectionPointSymbol Declaration { get; }
+    IExitConnectionPointSymbol? Declaration { get; }
 
-    [NotNull]
     IExitTransition ExitTransition { get; }
 
 }

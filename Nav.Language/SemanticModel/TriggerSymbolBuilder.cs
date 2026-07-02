@@ -1,13 +1,15 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+using System.Collections.Generic;
+
+namespace Pharmatechnik.Nav.Language;
 
 sealed class TriggerSymbolBuilder: SyntaxNodeVisitor {
 
     readonly List<TriggerSymbol> _triggers;
     readonly List<Diagnostic>    _diagnostics;
 
-    public TriggerSymbolBuilder(List<Diagnostic> diagnostics) {
+    public TriggerSymbolBuilder(List<Diagnostic>? diagnostics) {
         _diagnostics = diagnostics ?? new List<Diagnostic>();
         _triggers    = new List<TriggerSymbol>();
     }
@@ -51,10 +53,8 @@ sealed class TriggerSymbolBuilder: SyntaxNodeVisitor {
 
     public override void VisitSpontaneousTrigger(SpontaneousTriggerSyntax spontaneousTriggerSyntax) {
         var location = spontaneousTriggerSyntax.GetLocation();
-        if (location != null) {
-            var trigger = new SpontaneousTriggerSymbol(location, spontaneousTriggerSyntax);
-            _triggers.Add(trigger);
-        }
+        var trigger  = new SpontaneousTriggerSymbol(location, spontaneousTriggerSyntax);
+        _triggers.Add(trigger);
     }
 
     public override void VisitSignalTrigger(SignalTriggerSyntax signalTriggerSyntax) {
@@ -65,10 +65,8 @@ sealed class TriggerSymbolBuilder: SyntaxNodeVisitor {
 
         var signal   = signalTriggerSyntax.Identifier;
         var location = signal.GetLocation();
-        if (location != null) {
-            var trigger = new SignalTriggerSymbol(signal.Text, location, signal);
-            _triggers.Add(trigger);
-        }
+        var trigger  = new SignalTriggerSymbol(signal.Text, location, signal);
+        _triggers.Add(trigger);
 
     }
 

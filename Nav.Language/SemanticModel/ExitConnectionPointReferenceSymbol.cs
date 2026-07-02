@@ -1,11 +1,10 @@
-﻿using JetBrains.Annotations;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class ExitConnectionPointReferenceSymbol: Symbol, IExitConnectionPointReferenceSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized ExitTransition wird definitiv im Ctor der ExitTransition gesetzt
-    public ExitConnectionPointReferenceSymbol(SyntaxTree syntaxTree, string name, [NotNull] Location location, IExitConnectionPointSymbol connectionPoint)
+    public ExitConnectionPointReferenceSymbol(SyntaxTree syntaxTree, string name, Location location, IExitConnectionPointSymbol? connectionPoint)
         : base(name, location) {
         SyntaxTree  = syntaxTree;
         Declaration = connectionPoint;
@@ -13,7 +12,10 @@ sealed partial class ExitConnectionPointReferenceSymbol: Symbol, IExitConnection
 
     public override SyntaxTree SyntaxTree { get; }
 
-    public IExitConnectionPointSymbol Declaration    { get; }
-    public IExitTransition            ExitTransition { get; internal set; }
+    public IExitConnectionPointSymbol? Declaration { get; }
+
+    // Wird definitiv im Ctor der ExitTransition gesetzt — in der "freien Wildbahn" darf der
+    // Null-Fall nicht auftreten.
+    public IExitTransition ExitTransition { get; internal set; } = null!;
 
 }

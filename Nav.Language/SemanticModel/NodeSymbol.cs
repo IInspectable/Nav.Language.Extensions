@@ -1,14 +1,14 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 abstract class NodeSymbol<T>: Symbol, INodeSymbol where T : NodeDeclarationSyntax {
 
@@ -20,10 +20,8 @@ abstract class NodeSymbol<T>: Symbol, INodeSymbol where T : NodeDeclarationSynta
 
     public override SyntaxTree SyntaxTree => Syntax.SyntaxTree;
 
-    [NotNull]
     public T Syntax { get; }
 
-    [NotNull]
     public ITaskDefinitionSymbol ContainingTask { get; }
 
     public List<INodeReferenceSymbol> References { get; }
@@ -88,7 +86,7 @@ abstract class NodeSymbolWithIncomingsAndOutgoings<TSyntax, TIncomings, TOutgoin
 sealed partial class InitNodeSymbol: NodeSymbolWithOnlyOutgoings<InitNodeDeclarationSyntax, IInitTransition>,
                                      IInitNodeSymbol {
 
-    public InitNodeSymbol(string name, Location location, InitNodeDeclarationSyntax syntax, InitNodeAliasSymbol alias, TaskDefinitionSymbol containingTask)
+    public InitNodeSymbol(string name, Location location, InitNodeDeclarationSyntax syntax, InitNodeAliasSymbol? alias, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
 
         if (alias != null) {
@@ -97,8 +95,7 @@ sealed partial class InitNodeSymbol: NodeSymbolWithOnlyOutgoings<InitNodeDeclara
         }
     }
 
-    [CanBeNull]
-    public IInitNodeAliasSymbol Alias { get; }
+    public IInitNodeAliasSymbol? Alias { get; }
 
     public override string Name => Alias?.Name ?? base.Name;
 
@@ -148,8 +145,8 @@ sealed partial class EndNodeSymbol: NodeSymbolWithOnlyIncomings<EndNodeDeclarati
 sealed partial class TaskNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<TaskNodeDeclarationSyntax, IEdge, IExitTransition>,
                                      ITaskNodeSymbol, ITargetNodeSymbolConstruction {
 
-    public TaskNodeSymbol(string name, Location location, TaskNodeDeclarationSyntax syntax, TaskNodeAliasSymbol alias,
-                          TaskDeclarationSymbol declaration, TaskDefinitionSymbol containingTask)
+    public TaskNodeSymbol(string name, Location location, TaskNodeDeclarationSyntax syntax, TaskNodeAliasSymbol? alias,
+                          TaskDeclarationSymbol? declaration, TaskDefinitionSymbol containingTask)
         : base(name, location, syntax, containingTask) {
         Declaration = declaration;
 
@@ -161,14 +158,11 @@ sealed partial class TaskNodeSymbol: NodeSymbolWithIncomingsAndOutgoings<TaskNod
 
     public override string Name => Alias?.Name ?? base.Name;
 
-    [CanBeNull]
-    public TaskDeclarationSymbol Declaration { get; }
+    public TaskDeclarationSymbol? Declaration { get; }
 
-    [CanBeNull]
-    ITaskDeclarationSymbol ITaskNodeSymbol.Declaration => Declaration;
+    ITaskDeclarationSymbol? ITaskNodeSymbol.Declaration => Declaration;
 
-    [CanBeNull]
-    public ITaskNodeAliasSymbol Alias { get; }
+    public ITaskNodeAliasSymbol? Alias { get; }
 
     IReadOnlyList<IEdge> ITargetNodeSymbol.        Incomings => Incomings;
     IReadOnlyList<IEdge> ISourceNodeSymbol.        Outgoings => Outgoings;

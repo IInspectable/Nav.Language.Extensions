@@ -1,9 +1,9 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized Transition wird im Ctor der Transition während der Initialisierung gesetzt 
-    // In der "freien" Wildbahn" darf hingegen der Null Fall nicht auftreten
     public EdgeModeSymbol(SyntaxTree syntaxTree, string name, Location location, EdgeMode edgeMode)
         : base(name, location) {
 
@@ -14,7 +14,10 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     public override SyntaxTree SyntaxTree { get; }
 
     public EdgeMode EdgeMode { get; }
-    public IEdge    Edge     { get; internal set; }
+
+    // Wird im Ctor der Edge während der Initialisierung gesetzt — in der "freien Wildbahn" darf
+    // der Null-Fall nicht auftreten.
+    public IEdge Edge { get; internal set; } = null!;
 
     public string DisplayName {
         get {

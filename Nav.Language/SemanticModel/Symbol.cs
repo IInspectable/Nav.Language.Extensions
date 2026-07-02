@@ -1,23 +1,22 @@
-﻿using System;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System;
 
 using Pharmatechnik.Nav.Language.Text;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 abstract partial class Symbol: ISymbol {
 
-    protected Symbol(string name, [NotNull] Location location) {
+    protected Symbol(string name, Location location) {
         Name     = name;
         Location = location ?? throw new ArgumentNullException(nameof(location));
     }
 
-    public abstract SyntaxTree SyntaxTree { get; }
+    public abstract SyntaxTree? SyntaxTree { get; }
 
     public virtual string Name { get; }
 
-    [NotNull]
     public Location Location { get; }
 
     int IExtent.Start => Location.Start;

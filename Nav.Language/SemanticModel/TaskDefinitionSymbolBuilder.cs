@@ -1,18 +1,22 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     readonly IReadOnlySymbolCollection<TaskDeclarationSymbol> _taskDeclarations;
     readonly List<Diagnostic>                                 _diagnostics;
 
-    TaskDefinitionSymbol _taskDefinition;
+    // Wird in VisitTaskDefinition gesetzt, bevor die Knoten-/Transitions-Visits darauf zugreifen;
+    // bleibt die Task-Definition unbenannt, reicht Build den Null-Fall typisiert hinaus.
+    TaskDefinitionSymbol _taskDefinition = null!;
 
     TaskDefinitionSymbolBuilder(IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeclarations) {
         _taskDeclarations = taskDeclarations;
@@ -60,11 +64,13 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         var identifier = initNodeDeclarationSyntax.InitKeyword;
         var taskAlias  = initNodeDeclarationSyntax.Identifier;
 
-        InitNodeAliasSymbol initNodeAlias = null;
+        InitNodeAliasSymbol? initNodeAlias = null;
         if (!taskAlias.IsMissing) {
             var aliasName     = taskAlias.ToString();
             var aliasLocation = taskAlias.GetLocation();
-            initNodeAlias = new InitNodeAliasSymbol(initNodeDeclarationSyntax.SyntaxTree, aliasName, aliasLocation);
+            if (aliasLocation != null) {
+                initNodeAlias = new InitNodeAliasSymbol(initNodeDeclarationSyntax.SyntaxTree, aliasName, aliasLocation);
+            }
         }
 
         var location = identifier.GetLocation();
@@ -118,15 +124,21 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
             return;
         }
 
-        TaskNodeAliasSymbol taskNodeAlias = null;
+        TaskNodeAliasSymbol? taskNodeAlias = null;
         if (!taskAlias.IsMissing) {
             var aliasName     = taskAlias.ToString();
             var aliasLocation = taskAlias.GetLocation();
-            taskNodeAlias = new TaskNodeAliasSymbol(taskNodeDeclarationSyntax.SyntaxTree, aliasName, aliasLocation);
+            if (aliasLocation != null) {
+                taskNodeAlias = new TaskNodeAliasSymbol(taskNodeDeclarationSyntax.SyntaxTree, aliasName, aliasLocation);
+            }
         }
 
-        var taskName        = taskIdentifier.ToString();
-        var taskLocation    = taskIdentifier.GetLocation();
+        var taskName     = taskIdentifier.ToString();
+        var taskLocation = taskIdentifier.GetLocation();
+        if (taskLocation == null) {
+            return;
+        }
+
         var taskDeclaration = _taskDeclarations.TryFindSymbol(taskName);
 
         var taskNode = new TaskNodeSymbol(taskName, taskLocation, taskNodeDeclarationSyntax, taskNodeAlias, taskDeclaration, _taskDefinition);
@@ -203,27 +215,18 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     public override void VisitTransitionDefinition(TransitionDefinitionSyntax transitionDefinitionSyntax) {
 
-        // Target            
+        // Target
         var targetNodeReference = CreateTargetNodeReference(transitionDefinitionSyntax.TargetNode);
 
         // Edge
-        EdgeModeSymbol edgeMode   = null;
-        var            edgeSyntax = transitionDefinitionSyntax.Edge;
+        EdgeModeSymbol? edgeMode   = null;
+        var             edgeSyntax = transitionDefinitionSyntax.Edge;
         if (edgeSyntax != null) {
-
-            var edgeLocation = edgeSyntax.GetLocation();
-            if (edgeLocation != null) {
-                edgeMode = new EdgeModeSymbol(transitionDefinitionSyntax.SyntaxTree, edgeSyntax.ToString(), edgeLocation, edgeSyntax.Mode);
-            }
+            edgeMode = new EdgeModeSymbol(transitionDefinitionSyntax.SyntaxTree, edgeSyntax.ToString(), edgeSyntax.GetLocation(), edgeSyntax.Mode);
         }
 
-        // Source: Ohne Source Node können wir keine Transitions hinzufügen, da dieser Knoten relevant ist für die Bestimmung
-        // der Transition (Init, Choice, Trigger)
-
+        // Source: Der Source Node ist relevant für die Bestimmung der Transition (Init, Choice, Trigger)
         var sourceNodeSyntax = transitionDefinitionSyntax.SourceNode;
-        if (sourceNodeSyntax == null) {
-            return;
-        }
 
         var sourceNode = _taskDefinition.NodeDeclarations.TryFindSymbol(sourceNodeSyntax.Name);
 
@@ -233,9 +236,6 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         }
 
         var sourceNodeLocation = sourceNodeSyntax.GetLocation();
-        if (sourceNodeLocation == null) {
-            return;
-        }
 
         switch (sourceNode) {
             case null:
@@ -297,24 +297,14 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     public override void VisitExitTransitionDefinition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax) {
 
-        // Source
-        ITaskNodeSymbol            sourceTaskNodeSymbol = null;
-        TaskNodeReferenceSymbol    sourceNodeReference  = null;
-        IdentifierSourceNodeSyntax sourceNodeSyntax     = exitTransitionDefinitionSyntax.SourceNode;
-
-        if (sourceNodeSyntax != null) {
-            // Source in Exit Transition muss immer ein Task sein
-            sourceTaskNodeSymbol = _taskDefinition.NodeDeclarations.TryFindSymbol(sourceNodeSyntax.Name) as ITaskNodeSymbol;
-            var sourceNodeLocation = sourceNodeSyntax.GetLocation();
-
-            if (sourceNodeLocation != null) {
-                sourceNodeReference = new TaskNodeReferenceSymbol(exitTransitionDefinitionSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodeLocation, sourceTaskNodeSymbol, NodeReferenceType.Source);
-            }
-        }
+        // Source in Exit Transition muss immer ein Task sein
+        var sourceNodeSyntax     = exitTransitionDefinitionSyntax.SourceNode;
+        var sourceTaskNodeSymbol = _taskDefinition.NodeDeclarations.TryFindSymbol(sourceNodeSyntax.Name) as ITaskNodeSymbol;
+        var sourceNodeReference  = new TaskNodeReferenceSymbol(exitTransitionDefinitionSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodeSyntax.GetLocation(), sourceTaskNodeSymbol, NodeReferenceType.Source);
 
         // ConnectionPoint
-        ExitConnectionPointReferenceSymbol exitConnectionPointReference = null;
-        var                                exitIdentifier               = exitTransitionDefinitionSyntax.ExitIdentifier;
+        ExitConnectionPointReferenceSymbol? exitConnectionPointReference = null;
+        var                                 exitIdentifier               = exitTransitionDefinitionSyntax.ExitIdentifier;
         if (!exitIdentifier.IsMissing && sourceTaskNodeSymbol != null) {
 
             var exitIdentifierName  = exitIdentifier.ToString();
@@ -326,38 +316,34 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
             }
         }
 
-        // Target        
+        // Target
         var targetNodeReference = CreateTargetNodeReference(exitTransitionDefinitionSyntax.TargetNode);
 
         // Edge
-        EdgeModeSymbol edgeMode   = null;
-        var            edgeSyntax = exitTransitionDefinitionSyntax.Edge;
+        EdgeModeSymbol? edgeMode   = null;
+        var             edgeSyntax = exitTransitionDefinitionSyntax.Edge;
         if (edgeSyntax != null) {
-
-            var location = edgeSyntax.GetLocation();
-
-            if (location != null) {
-                edgeMode = new EdgeModeSymbol(exitTransitionDefinitionSyntax.SyntaxTree, edgeSyntax.ToString(), location, edgeSyntax.Mode);
-            }
+            edgeMode = new EdgeModeSymbol(exitTransitionDefinitionSyntax.SyntaxTree, edgeSyntax.ToString(), edgeSyntax.GetLocation(), edgeSyntax.Mode);
         }
 
         AddExitTransition(exitTransitionDefinitionSyntax, sourceNodeReference, exitConnectionPointReference, edgeMode, targetNodeReference);
     }
 
-    private void AddExitTransition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax, TaskNodeReferenceSymbol sourceNodeReference, ExitConnectionPointReferenceSymbol exitConnectionPointReference, EdgeModeSymbol edgeMode, NodeReferenceSymbol targetNodeReference) {
+    private void AddExitTransition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax, TaskNodeReferenceSymbol sourceNodeReference, ExitConnectionPointReferenceSymbol? exitConnectionPointReference, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var exitTransition = new ExitTransition(exitTransitionDefinitionSyntax, _taskDefinition, sourceNodeReference, exitConnectionPointReference, edgeMode, targetNodeReference);
-        var taskNode       = exitTransition.TaskNodeSourceReference?.Declaration as TaskNodeSymbol;
 
         _taskDefinition.ExitTransitions.Add(exitTransition);
 
-        taskNode?.Outgoings.Add(exitTransition);
-        taskNode?.References.Add(exitTransition.SourceReference);
+        if (sourceNodeReference.Declaration is TaskNodeSymbol taskNode) {
+            taskNode.Outgoings.Add(exitTransition);
+            taskNode.References.Add(sourceNodeReference);
+        }
 
         WireTargetNodeReferences(exitTransition);
     }
 
-    private void AddInitTransition(InitNodeSymbol initNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodeLocation, EdgeModeSymbol edgeMode, NodeReferenceSymbol targetNodeReference) {
+    private void AddInitTransition(InitNodeSymbol initNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodeLocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var initNodeReference = new InitNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodeLocation, initNode, NodeReferenceType.Source);
         var initTransition    = new InitTransition(transitionDefinitionSyntax, _taskDefinition, initNodeReference, edgeMode, targetNodeReference);
@@ -365,12 +351,12 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         _taskDefinition.InitTransitions.Add(initTransition);
 
         initNode.Outgoings.Add(initTransition);
-        initNode.References.Add(initTransition.SourceReference);
+        initNode.References.Add(initNodeReference);
 
         WireTargetNodeReferences(initTransition);
     }
 
-    private void AddChoiceTransition(ChoiceNodeSymbol choiceNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol edgeMode, NodeReferenceSymbol targetNodeReference) {
+    private void AddChoiceTransition(ChoiceNodeSymbol choiceNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var choiceNodeReference = new ChoiceNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodelocation, choiceNode, NodeReferenceType.Source);
         var choiceTransition    = new ChoiceTransition(transitionDefinitionSyntax, _taskDefinition, choiceNodeReference, edgeMode, targetNodeReference);
@@ -378,12 +364,12 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         _taskDefinition.ChoiceTransitions.Add(choiceTransition);
 
         choiceNode.Outgoings.Add(choiceTransition);
-        choiceNode.References.Add(choiceTransition.SourceReference);
+        choiceNode.References.Add(choiceNodeReference);
 
         WireTargetNodeReferences(choiceTransition);
     }
 
-    private void AddTriggerTransition(IGuiNodeSymbolConstruction guiNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol edgeMode, NodeReferenceSymbol targetNodeReference) {
+    private void AddTriggerTransition(IGuiNodeSymbolConstruction guiNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var (triggers, diagnostics) = TriggerSymbolBuilder.Build(transitionDefinitionSyntax);
 
@@ -395,12 +381,12 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         _taskDefinition.TriggerTransitions.Add(triggerTransition);
 
         guiNode.Outgoings.Add(triggerTransition);
-        guiNode.References.Add(triggerTransition.SourceReference);
+        guiNode.References.Add(guiNodeReference);
 
         WireTargetNodeReferences(triggerTransition);
     }
 
-    private NodeReferenceSymbol CreateTargetNodeReference(TargetNodeSyntax targetNodeSyntax) {
+    private NodeReferenceSymbol? CreateTargetNodeReference(TargetNodeSyntax? targetNodeSyntax) {
 
         if (targetNodeSyntax == null) {
             return null;
@@ -408,10 +394,6 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
         var targetNodeDeclaration = _taskDefinition.NodeDeclarations.TryFindSymbol(targetNodeSyntax.Name);
         var targetNodeLocation    = targetNodeSyntax.GetLocation();
-
-        if (targetNodeLocation == null) {
-            return null;
-        }
 
         NodeReferenceSymbol targetNodeReference;
         switch (targetNodeDeclaration) {
@@ -446,7 +428,8 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         //==============================
         // Target
         //==============================
-        switch (edge.TargetReference?.Declaration) {
+        var targetReference = edge.TargetReference;
+        switch (targetReference?.Declaration) {
             case null:
                 // Nav0011CannotResolveNode0
                 break;
@@ -455,7 +438,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
                 break;
             case ITargetNodeSymbolConstruction targetNode:
                 targetNode.Incomings.Add(edge);
-                targetNode.References.Add(edge.TargetReference);
+                targetNode.References.Add(targetReference);
                 break;
         }
     }
@@ -463,7 +446,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
     #endregion
 
     public static (
-        TaskDefinitionSymbol TaskDefinition,
+        TaskDefinitionSymbol? TaskDefinition,
         List<Diagnostic> Diagnostics)
         Build(TaskDefinitionSyntax taskDefinitionSyntax, IReadOnlySymbolCollection<TaskDeclarationSymbol> taskDeclarations) {
 

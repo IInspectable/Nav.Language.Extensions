@@ -1,25 +1,20 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
 
-using JetBrains.Annotations;
+using System.Collections.Generic;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface IEdge {
 
-    [NotNull]
     ITaskDefinitionSymbol ContainingTask { get; }
 
-    [NotNull]
     Location Location { get; }
 
-    [CanBeNull]
-    INodeReferenceSymbol SourceReference { get; }
+    INodeReferenceSymbol? SourceReference { get; }
 
-    [CanBeNull]
-    IEdgeModeSymbol EdgeMode { get; }
+    IEdgeModeSymbol? EdgeMode { get; }
 
-    [CanBeNull]
-    INodeReferenceSymbol TargetReference { get; }
+    INodeReferenceSymbol? TargetReference { get; }
 
     IEnumerable<ISymbol> Symbols();
 

@@ -1,16 +1,16 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-using JetBrains.Annotations;
-
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface IReadOnlySymbolCollection<out T>: IReadOnlyList<T> where T : ISymbol {
 
     T this[string key] { get; }
 
-    T TryFindSymbol(string key);
+    T? TryFindSymbol(string? key);
 
 }
 
@@ -44,18 +44,16 @@ public class SymbolCollection<T>: KeyedCollection<string, T>, IReadOnlySymbolCol
         }
     }
 
-    [CanBeNull]
-    public T TryFindSymbol(string key) {
+    public T? TryFindSymbol(string? key) {
         // Dictionary ist null, solange die Collection leer ist (KeyedCollection legt es erst beim ersten Add an)
-        if (!string.IsNullOrEmpty(key) && Dictionary != null && Dictionary.TryGetValue(key, out var symbol)) {
+        if (key is { Length: > 0 } && Dictionary != null && Dictionary.TryGetValue(key, out var symbol)) {
             return symbol;
         }
 
         return default;
     }
 
-    [CanBeNull]
-    public T TryFindSymbol(T value) {
+    public T? TryFindSymbol(T value) {
         return TryFindSymbol(GetKeyForItem(value));
     }
 

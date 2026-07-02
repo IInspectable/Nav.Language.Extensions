@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -6,14 +8,14 @@ using System.Linq;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed partial class TaskDefinitionSymbol: Symbol, ITaskDefinitionSymbol {
 
     public TaskDefinitionSymbol(string name,
                                 Location location,
                                 TaskDefinitionSyntax syntax,
-                                TaskDeclarationSymbol taskDeclaration): base(name, location) {
+                                TaskDeclarationSymbol? taskDeclaration): base(name, location) {
         Syntax             = syntax;
         AsTaskDeclaration  = taskDeclaration;
         NodeDeclarations   = new SymbolCollection<INodeSymbol>();
@@ -26,7 +28,7 @@ sealed partial class TaskDefinitionSymbol: Symbol, ITaskDefinitionSymbol {
     public override SyntaxTree SyntaxTree => Syntax.SyntaxTree;
 
     public TaskDefinitionSyntax          Syntax            { get; }
-    public ITaskDeclarationSymbol        AsTaskDeclaration { get; }
+    public ITaskDeclarationSymbol?       AsTaskDeclaration { get; }
     public SymbolCollection<INodeSymbol> NodeDeclarations  { get; }
 
     public List<InitTransition>    InitTransitions    { get; }
@@ -34,7 +36,7 @@ sealed partial class TaskDefinitionSymbol: Symbol, ITaskDefinitionSymbol {
     public List<TriggerTransition> TriggerTransitions { get; }
     public List<ExitTransition>    ExitTransitions    { get; }
 
-    public CodeGenerationUnit CodeGenerationUnit { get; private set; }
+    public CodeGenerationUnit? CodeGenerationUnit { get; private set; }
 
     public string CodeNamespace => (Syntax.SyntaxTree.Root as CodeGenerationUnitSyntax)?.CodeNamespace?.Namespace?.ToString() ?? String.Empty;
 

@@ -1,27 +1,29 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public static class TaskNodeSymbolExtensions {
 
-    public static bool CodeGenerateAbstractMethod(this IInitNodeSymbol initNode) {
+    public static bool CodeGenerateAbstractMethod(this IInitNodeSymbol? initNode) {
         return initNode?.Syntax.CodeAbstractMethodDeclaration?.Keyword.IsMissing == false;
     }
 
-    public static bool CodeGenerateAbstractMethod(this ITaskNodeSymbol taskNode) {
+    public static bool CodeGenerateAbstractMethod(this ITaskNodeSymbol? taskNode) {
         return taskNode?.Syntax.CodeAbstractMethodDeclaration?.Keyword.IsMissing == false;
     }
 
-    public static bool CodeNotImplemented(this INodeSymbol taskNode) {
+    public static bool CodeNotImplemented(this INodeSymbol? taskNode) {
         return (taskNode as ITaskNodeSymbol)?.Declaration?.CodeNotImplemented == true;
     }
 
-    public static bool CodeDoNotInject(this INodeSymbol node) {
+    public static bool CodeDoNotInject(this INodeSymbol? node) {
         return (node as ITaskNodeSymbol)?.Syntax.CodeDoNotInjectDeclaration?.Keyword.IsMissing == false;
     }
 
@@ -53,8 +55,8 @@ public static class TaskNodeSymbolExtensions {
 
         IEnumerable<IConnectionPointSymbol> GetConnectedExitsImpl() {
             return taskNode.Outgoings
-                           .Select(et => et?.ExitConnectionPointReference?.Declaration)
-                           .Where(cps => cps != null);
+                           .Select(et => et.ExitConnectionPointReference?.Declaration)
+                           .OfType<IConnectionPointSymbol>();
 
         }
 

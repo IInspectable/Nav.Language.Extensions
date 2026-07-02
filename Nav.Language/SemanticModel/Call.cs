@@ -1,17 +1,17 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public sealed class Call {
 
-    public Call([NotNull] INodeSymbol node, [NotNull] IEdgeModeSymbol edgeMode) {
+    public Call(INodeSymbol node, IEdgeModeSymbol edgeMode) {
         Node     = node     ?? throw new ArgumentNullException(nameof(node));
         EdgeMode = edgeMode ?? throw new ArgumentNullException(nameof(edgeMode));
     }
@@ -29,13 +29,13 @@ public class CallComparer: IEqualityComparer<Call> {
     public static readonly IEqualityComparer<Call> Default   = new CallComparer();
     public static readonly IEqualityComparer<Call> FoldExits = new FoldExitsCallComparer();
 
-    public virtual bool Equals(Call x, Call y) {
+    public virtual bool Equals(Call? x, Call? y) {
 
         if (x == null && y == null) {
             return true;
         }
 
-        if (x == null | y == null) {
+        if (x == null || y == null) {
             return false;
         }
 
@@ -56,7 +56,7 @@ public class CallComparer: IEqualityComparer<Call> {
 /// </summary>
 class FoldExitsCallComparer: CallComparer {
 
-    public override bool Equals(Call x, Call y) {
+    public override bool Equals(Call? x, Call? y) {
         if (base.Equals(x, y)) {
             return true;
         }
