@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
@@ -7,14 +9,14 @@ using System.Collections.Immutable;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 sealed class StringSourceText: SourceText {
 
     readonly ReadOnlyMemory<char>      _memory;
     readonly Lazy<ImmutableArray<int>> _textLines;
 
-    public StringSourceText(string text, string filePath) {
+    public StringSourceText(string? text, string? filePath) {
 
         _memory    = (text ?? String.Empty).AsMemory();
         _textLines = new Lazy<ImmutableArray<int>>(() => _memory.Span.ParseLineStarts(), LazyThreadSafetyMode.PublicationOnly);
@@ -22,7 +24,7 @@ sealed class StringSourceText: SourceText {
         TextLines  = new StringTextLineList(this);
     }
 
-    public override FileInfo           FileInfo  { get; }
+    public override FileInfo?          FileInfo  { get; }
     public override SourceTextLineList TextLines { get; }
     public override string             Text      => _memory.ToString();
     public override int                Length    => _memory.Length;

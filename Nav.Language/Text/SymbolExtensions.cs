@@ -1,10 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Immutable;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public static class SymbolExtensions {
 

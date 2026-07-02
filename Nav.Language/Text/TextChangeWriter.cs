@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
@@ -7,7 +9,7 @@ using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public class TextChangeWriter {
 

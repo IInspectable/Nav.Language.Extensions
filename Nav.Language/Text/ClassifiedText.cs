@@ -1,8 +1,10 @@
-﻿namespace Pharmatechnik.Nav.Language.Text; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.Text;
 
 public sealed class ClassifiedText {
 
-    public ClassifiedText(string text, TextClassification classification) {
+    public ClassifiedText(string? text, TextClassification classification) {
         Text           = text ?? "";
         Classification = classification;
 

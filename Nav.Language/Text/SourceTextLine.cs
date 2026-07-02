@@ -1,8 +1,8 @@
+﻿#nullable enable
+
 using System;
 
-using JetBrains.Annotations;
-
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 /// <summary>
 /// Represents an extent of a single line.
@@ -38,17 +38,14 @@ public readonly struct SourceTextLine: IExtent, IEquatable<SourceTextLine> {
         End        = lineEnd;
     }
 
-    [NotNull]
     public SourceText SourceText { get; }
 
     public ReadOnlySpan<char> Span => SourceText.Slice(Extent);
 
     public ReadOnlySpan<char> Slice(int charPositionInLine, int length) => SourceText.Slice(Start + charPositionInLine, length);
 
-    [NotNull]
     public Location Location => SourceText.GetLocation(Extent);
 
-    [NotNull]
     public Location GetLocation(int charPositionInLine, int length) {
         var start  = Extent.Start + charPositionInLine;
         var extent = new TextExtent(start: start, length: length);
@@ -99,7 +96,7 @@ public readonly struct SourceTextLine: IExtent, IEquatable<SourceTextLine> {
     /// Determines whether two <see cref="SourceTextLine"/> are the same.
     /// </summary>
     /// <param name="obj">The object to compare.</param>
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         return obj is SourceTextLine extent && Equals(extent);
     }
 

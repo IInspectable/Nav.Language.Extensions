@@ -1,6 +1,8 @@
+﻿#nullable enable
+
 using System;
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 static class SourceTextExtensions {
 
@@ -24,7 +26,7 @@ static class SourceTextExtensions {
         return sourceText.Slice(startIndex: fromPosition, length: line.End - fromPosition);
     }
 
-    public static int ColumnsBetweenLocations(this SourceText sourceText, Location location1, Location location2, TextEditorSettings textEditorSettings) {
+    public static int ColumnsBetweenLocations(this SourceText sourceText, Location? location1, Location? location2, TextEditorSettings textEditorSettings) {
 
         if (location1 == null || location2 == null) {
             return 0;

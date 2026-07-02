@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Immutable;
 
@@ -6,7 +8,7 @@ using Pharmatechnik.Nav.Language.CodeGen;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 class DisplayPartsBuilder: SymbolVisitor<ImmutableArray<ClassifiedText>> {
 

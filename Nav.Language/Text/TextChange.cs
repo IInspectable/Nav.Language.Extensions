@@ -1,14 +1,16 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public readonly struct TextChange: IEquatable<TextChange> {
 
-    private readonly string _replacementText;
+    private readonly string? _replacementText;
 
     TextChange(TextExtent extent, string replacementText) {
         Extent           = extent;
@@ -44,7 +46,7 @@ public readonly struct TextChange: IEquatable<TextChange> {
     public bool IsEmpty => Extent.IsEmpty && ReplacementText == String.Empty;
 
     public override string ToString() {
-        return $"{GetType().Name}: {{ {Extent}, \"{ReplacementText}\" }}";
+        return $"{nameof(TextChange)}: {{ {Extent}, \"{ReplacementText}\" }}";
     }
 
     #region Equality members
@@ -53,7 +55,7 @@ public readonly struct TextChange: IEquatable<TextChange> {
         return Extent.Equals(other.Extent) && string.Equals(ReplacementText, other.ReplacementText);
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) return false;
 
         return obj is TextChange change && Equals(change);

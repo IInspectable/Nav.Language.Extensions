@@ -1,30 +1,28 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 #endregion
 
 // ReSharper disable ForCanBeConvertedToForeach
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public static class StringExtensions {
 
-    [ContractAnnotation("null=>false")]
-    public static bool IsEmpty([NotNull] this string value) {
+    public static bool IsEmpty(this string value) {
         return value.Length == 0;
     }
 
-    [ContractAnnotation("null=>true")]
-    public static bool IsNullOrEmpty([CanBeNull] this string value) {
+    public static bool IsNullOrEmpty([NotNullWhen(false)] this string? value) {
         return String.IsNullOrEmpty(value);
     }
 
-    [ContractAnnotation("null=>true")]
-    public static bool IsNullOrWhiteSpace([CanBeNull] this string value) {
+    public static bool IsNullOrWhiteSpace([NotNullWhen(false)] this string? value) {
         return String.IsNullOrWhiteSpace(value);
     }
 
@@ -32,8 +30,7 @@ public static class StringExtensions {
     /// Liefert null, wenn die angegebene Zeichenfolge null oder String.Empty ist;
     /// andernfalls wird die angegebene Zeichenfolge zurückgegeben.
     /// </summary>
-    [CanBeNull]
-    public static string NullIfEmpty([CanBeNull] this string value) {
+    public static string? NullIfEmpty(this string? value) {
         return value.IsNullOrEmpty() ? null : value;
     }
 
@@ -41,8 +38,7 @@ public static class StringExtensions {
     /// Liefert null, wenn die angegebene Zeichenfolge null oder String.Empty ist, oder nur aus Whitespaces besteht;
     /// andernfalls wird die angegebene Zeichenfolge zurückgegeben.
     /// </summary>
-    [CanBeNull]
-    public static string NullIfWhiteSpace([CanBeNull] this string value) {
+    public static string? NullIfWhiteSpace(this string? value) {
         return value.IsNullOrWhiteSpace() ? null : value;
     }
 
@@ -263,21 +259,19 @@ public static class StringExtensions {
         return blockEntered > 0;
     }
 
-    [NotNull]
     public static string ToCamelcase(this string s) {
 
         if (String.IsNullOrEmpty(s)) {
-            return s ?? String.Empty;
+            return String.Empty;
         }
 
         return s.Substring(0, 1).ToLowerInvariant() + s.Substring(1);
     }
 
-    [NotNull]
     public static string ToPascalcase(this string s) {
 
         if (String.IsNullOrEmpty(s)) {
-            return s ?? String.Empty;
+            return String.Empty;
         }
 
         return s.Substring(0, 1).ToUpperInvariant() + s.Substring(1);

@@ -21,3 +21,18 @@ sealed class MemberNotNullAttribute: Attribute {
     public string[] Members { get; }
 
 }
+
+/// <summary>
+/// Gibt an, dass der Parameter nicht <c>null</c> ist, wenn die Methode den angegebenen
+/// <see cref="ReturnValue"/> zurückgibt.
+/// </summary>
+[AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+sealed class NotNullWhenAttribute: Attribute {
+
+    public NotNullWhenAttribute(bool returnValue) {
+        ReturnValue = returnValue;
+    }
+
+    public bool ReturnValue { get; }
+
+}

@@ -1,29 +1,26 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Internal;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public abstract class SourceText {
 
-    [CanBeNull]
-    public abstract FileInfo FileInfo { get; }
+    public abstract FileInfo? FileInfo { get; }
 
-    [NotNull]
     public abstract string Text { get; }
 
     public abstract ReadOnlySpan<char> Span {get;}
 
     public abstract int Length { get; }
 
-    [NotNull]
     public abstract SourceTextLineList TextLines { get; }
 
     public string Substring(TextExtent textExtent) {
@@ -40,7 +37,7 @@ public abstract class SourceText {
 
     public abstract ReadOnlySpan<char> Slice(int startIndex, int length);
         
-    public static SourceText From(string text, string filePath = null) {
+    public static SourceText From(string text, string? filePath = null) {
         return new StringSourceText(text: text, filePath: filePath);
     }
 
@@ -48,7 +45,6 @@ public abstract class SourceText {
 
     public abstract char this[int index] { get; }
 
-    [NotNull]
     public Location GetLocation(TextExtent extent) {
         return new Location(extent, GetLineRange(extent), FileInfo?.FullName);
     }

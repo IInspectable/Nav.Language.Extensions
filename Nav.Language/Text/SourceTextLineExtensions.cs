@@ -1,6 +1,8 @@
+ï»¿#nullable enable
+
 using System;
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public static class SourceTextLineExtensions {
 
@@ -12,30 +14,30 @@ public static class SourceTextLineExtensions {
     }
 
     /// <summary>
-    /// Liefert den Spaltenindex (beginnend bei 0) für den angegebenen Offset vom Start der Zeile. 
+    /// Liefert den Spaltenindex (beginnend bei 0) fÃ¼r den angegebenen Offset vom Start der Zeile.
     /// Es werden Tabulatoren entsprechend eingerechnet.
     /// </summary>
     /// <example>
-    /// Gegeben sei folgende Zeile mit gemischten Leerzeichen (o) und Tabulatoren (->) mit einer Tabulatorweite 
-    /// von 4 und anschließendem Text (T). Der angeforderte Offset ist 4:
+    /// Gegeben sei folgende Zeile mit gemischten Leerzeichen (o) und Tabulatoren (->) mit einer Tabulatorweite
+    /// von 4 und anschlieÃŸendem Text (T). Der angeforderte Offset ist 4:
     /// TT->--->TTTTTT
     /// ^^-^---^
-    /// Der Spaltenindex für den Zeichenindex 4 ist 8 (man beachte die 2 Tabulatoren!).
+    /// Der Spaltenindex fÃ¼r den Zeichenindex 4 ist 8 (man beachte die 2 Tabulatoren!).
     /// </example>
     public static int GetColumnForOffset(this SourceTextLine sourceText, int tabSize, int charPositionInLine) {
         return sourceText.Span.GetColumnForOffset(tabSize, charPositionInLine);
     }
 
     /// <summary>
-    /// Liefert den Spaltenindex (beginnend bei 0) für das erste Signifikante Zeichen in der angegebenen Zeile.
+    /// Liefert den Spaltenindex (beginnend bei 0) fÃ¼r das erste Signifikante Zeichen in der angegebenen Zeile.
     /// Als nicht signifikant gelten alle Arten von Leerzeichen. Dabei werden Tabulatoren entsprechend umgerechnet.
     /// </summary>
     /// <example>
-    /// Gegeben sei folgende Zeile mit gemischten Leerzeichen (o) und Tabulatoren (->) mit einer Tabulatorweite 
-    /// von 4 und anschließendem Text (T):
+    /// Gegeben sei folgende Zeile mit gemischten Leerzeichen (o) und Tabulatoren (->) mit einer Tabulatorweite
+    /// von 4 und anschlieÃŸendem Text (T):
     /// --->oo->TTTTTT
-    /// --------^ 
-    /// Der Signifikante Spaltenindex für diese Zeile ist 8.
+    /// --------^
+    /// Der Signifikante Spaltenindex fÃ¼r diese Zeile ist 8.
     /// </example>
     public static int GetSignificantColumn(this SourceTextLine sourceText, int tabSize) {
         return sourceText.Span.GetSignificantColumn(tabSize);

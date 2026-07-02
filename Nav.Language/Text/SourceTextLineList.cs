@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections;
@@ -6,7 +8,7 @@ using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public abstract class SourceTextLineList: IReadOnlyList<SourceTextLine> {
 
@@ -68,7 +70,7 @@ public abstract class SourceTextLineList: IReadOnlyList<SourceTextLine> {
         void IDisposable.Dispose() {
         }
 
-        public override bool Equals(object obj) {
+        public override bool Equals(object? obj) {
             throw new NotSupportedException();
         }
 

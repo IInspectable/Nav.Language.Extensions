@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language.Text; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.Text;
 
 public interface IExtent {
 

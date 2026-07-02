@@ -1,6 +1,8 @@
+﻿#nullable enable
+
 using System;
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 [Serializable]
 public readonly struct LineRange: IEquatable<LineRange> {
@@ -44,7 +46,7 @@ public readonly struct LineRange: IEquatable<LineRange> {
     /// Determines whether two <see cref="LineRange"/> are the same.
     /// </summary>
     /// <param name="obj">The object to compare.</param>
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         return obj is LineRange extent && Equals(extent);
     }
 

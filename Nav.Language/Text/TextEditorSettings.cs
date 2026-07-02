@@ -1,10 +1,12 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 public sealed class TextEditorSettings {
 

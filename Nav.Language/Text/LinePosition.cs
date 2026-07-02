@@ -1,6 +1,8 @@
+﻿#nullable enable
+
 using System;
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 [Serializable]
 public readonly struct LinePosition: IEquatable<LinePosition>, IComparable<LinePosition> {
@@ -22,7 +24,7 @@ public readonly struct LinePosition: IEquatable<LinePosition>, IComparable<LineP
         _character = character;
     }
 
-    // TODO Missing hinzuf�gen
+    // TODO Missing hinzufügen
     public static readonly LinePosition Empty = new(0, 0);
 
     /// <summary>
@@ -61,7 +63,7 @@ public readonly struct LinePosition: IEquatable<LinePosition>, IComparable<LineP
     /// Determines whether two <see cref="LinePosition"/> are the same.
     /// </summary>
     /// <param name="obj">The object to compare.</param>
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         return obj is LinePosition position && Equals(position);
     }
 
