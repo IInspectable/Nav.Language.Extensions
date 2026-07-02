@@ -512,8 +512,8 @@ sealed class NavLexer {
     // Die Schlüsselwörter, die nur im Präprozessor-Modus (innerhalb einer '#'-Direktive) als eigene Token
     // erkannt werden. Jedes hier nicht gelistete Wort bleibt der generische PreprocessorKeyword.
     static readonly Dictionary<string, SyntaxTokenType> PreprocessorKeywords = new() {
-        ["pragma"]  = SyntaxTokenType.PragmaKeyword,
-        ["version"] = SyntaxTokenType.VersionKeyword,
+        [SyntaxFacts.PragmaDirectiveKeyword]  = SyntaxTokenType.PragmaKeyword,
+        [SyntaxFacts.VersionDirectiveKeyword] = SyntaxTokenType.VersionKeyword,
     };
 
 }

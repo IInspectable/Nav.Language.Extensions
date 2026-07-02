@@ -42,6 +42,11 @@ public static class SyntaxFacts {
     public static readonly string ModalEdgeKeyword       = "o->";
     public static readonly string ModalEdgeKeywordAlt    = "*->";
 
+    // Direktiven-Schlüsselwörter (nur im Präprozessor-Modus hinter `#` gültig). Einzige Autorität für die
+    // Literale — der Lexer (PreprocessorKeywords) und die Completion beziehen sie von hier.
+    public static readonly string VersionDirectiveKeyword = "version";
+    public static readonly string PragmaDirectiveKeyword  = "pragma";
+
     public static readonly ImmutableHashSet<string> NavKeywords = new[] {
         TaskKeyword,
         TaskrefKeyword,

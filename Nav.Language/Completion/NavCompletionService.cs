@@ -51,11 +51,15 @@ public static class NavCompletionService {
             case NavCompletionContextKind.Suppress:
                 return Array.Empty<NavCompletionItem>();
 
-            // Direktiv-Kontexte werden bereits klassifiziert (A1); die Item-Erzeugung (`version`-Keyword bzw.
-            // die gültigen Versionsnummern) folgt in A2. Bis dahin nichts anbieten statt falscher Fallback-Items.
+            // Direkt hinter `#`: das einzige derzeit sinnvolle Direktiv-Schlüsselwort. `pragma` wird bewusst
+            // NICHT angeboten (es gibt kein bekanntes Pragma; siehe doc/nav-completion-status.md).
             case NavCompletionContextKind.DirectiveKeyword:
+                return KeywordItems(SyntaxFacts.VersionDirectiveKeyword);
+
+            // Hinter `#version `: die gültigen Sprach-Versionsnummern — aus derselben Autorität, die Nav5001
+            // validiert (kein hartkodierter Wert).
             case NavCompletionContextKind.DirectiveVersionValue:
-                return Array.Empty<NavCompletionItem>();
+                return VersionValueItems();
 
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
@@ -181,6 +185,15 @@ public static class NavCompletionService {
         }
 
         return items;
+    }
+
+    // Die gültigen Sprach-Versionsnummern (heute nur `1`) — Label ist der numerische Wert. Single Source of
+    // Truth ist NavLanguageVersion.SupportedVersions, dieselbe Tabelle, die Nav5001 validiert.
+    static IReadOnlyList<NavCompletionItem> VersionValueItems() {
+        return NavLanguageVersion.SupportedVersions
+                                 .OrderBy(v => v.Value)
+                                 .Select(v => new NavCompletionItem(v.ToString(), NavCompletionItemKind.Keyword))
+                                 .ToList();
     }
 
     static IReadOnlyList<NavCompletionItem> KeywordItems(params string[] keywords) {

@@ -87,25 +87,29 @@ Fortschritt über die Checkboxen führen.
 
 ### Workstream A — `#version`-Completion (Engine-Kern; höchster Nutzen)
 
-- [ ] **A1 — Direktiv-Kontexte in `NavCompletionContext.Classify`.** Vor der Token-Binärsuche prüfen,
-  ob die Position in einer Direktiv-Trivia liegt (`tree.FindTrivia(position)`, dann
-  `trivia.HasStructure && trivia.GetStructure() is DirectiveTriviaSyntax d`). Aus der lokalen
-  Token-Liste (`d.ChildTokens()` / `d.HashToken` / `VersionKeyword`) ableiten, wo der Cursor steht,
-  und zwei neue `NavCompletionContextKind` liefern:
-  - `DirectiveKeyword` — direkt hinter `#` → Vorschlag **nur `version`** (kein `pragma`).
+- [x] **A1 — Direktiv-Kontexte in `NavCompletionContext.Classify`.** Vor der Token-Binärsuche prüft
+  `DirectiveContext(tree, position)`, ob die Position in einer Direktive liegt, und liefert zwei neue
+  `NavCompletionContextKind`:
+  - `DirectiveKeyword` — direkt hinter `#` (bzw. im ersten Wort-Slot, auch beim getippten Präfix `#v`)
+    → Vorschlag **nur `version`** (kein `pragma`).
   - `DirectiveVersionValue` — hinter `#version ` → Vorschlag der gültigen Versionsnummern.
-  Fallstrick (analog `ContextToken`): `FindTrivia` nutzt Halbintervall `[Start, End)` — steht der Caret
-  exakt am Trivia-Ende (gerade `#version ` getippt), liefert `FindTrivia(position)` `default`; den
-  an/knapp-vor der Position endenden Direktiv-Trivia-Fall explizit behandeln.
-- [ ] **A2 — Item-Erzeugung in `NavCompletionService.GetCompletions`.** Zwei `case`-Zweige:
-  `DirectiveKeyword` → Keyword-Item `version` (Konstante aus `SyntaxFacts`); `DirectiveVersionValue`
-  → je ein Item pro `NavLanguageVersion.SupportedVersions` (heute `1`), Label = `Value.ToString()`.
-  **Single Source of Truth**: dieselbe Tabelle, die `Nav5001` validiert — kein hartkodierter Wert.
-- [ ] **A3 — Item-Kind.** Prüfen, ob ein eigenes `NavCompletionItemKind` (`Directive`/`Version` für
-  Icon) nötig ist oder `Keyword` genügt. Empfehlung: `Keyword` wiederverwenden — kleinster Eingriff.
-- [ ] **A4 — Tests** (`Nav.Language.Tests/Completion/NavCompletionServiceTests.cs`, net472 **und**
-  net10): Cursor nach `#`, nach `#v`, nach `#version `, ungültige Position; leere/Default-Datei ohne
-  Direktive.
+
+  Umsetzung wich vom Skizzen-Vorschlag ab: statt `tree.FindTrivia(position)` (Halbintervall
+  `[Start, End)` — liefert am Trivia-Ende `default`) enumeriert `DirectiveAt` `tree.Directives()` und
+  matcht den Direktiv-Extent **inklusive Endposition**. So wird der frisch getippte Fall `#version ` mit
+  Caret am Trivia-Ende sauber erfasst; der Direktiv-Extent endet vor dem Zeilenende, daher keine
+  Kollision mit der Folgezeile. Slot-Entscheidung über `VersionKeyword.End` bzw. das erste
+  Wort-Token (`PreprocessorKeyword`/`PragmaKeyword`/`VersionKeyword`); tiefer in einer nicht erkannten
+  Direktive (`#pragma foo …`) → `Suppress` statt Fallback.
+- [x] **A2 — Item-Erzeugung in `NavCompletionService.GetCompletions`.** `DirectiveKeyword` →
+  Keyword-Item `version` (neue Konstante `SyntaxFacts.VersionDirectiveKeyword`, von der der Lexer sein
+  `PreprocessorKeywords`-Literal jetzt bezieht → SSOT); `DirectiveVersionValue` → `VersionValueItems()`,
+  je ein Item pro `NavLanguageVersion.SupportedVersions` (heute `1`), Label = `v.ToString()`.
+- [x] **A3 — Item-Kind.** `NavCompletionItemKind.Keyword` wiederverwendet — kein eigenes Kind nötig.
+- [x] **A4 — Tests** (`NavCompletionServiceTests`, net472 **und** net10): Cursor nach `#`
+  (nur `version`, kein `pragma`/Sprach-Keyword), nach `#v` (Präfix), nach `#version ` (Werte-Slot am
+  Trivia-Ende → Versionsnummern), `#pragma foo …` (Subjekt-Slot → nichts). net10 1159/0, net472-Service
+  14/14.
 
 ### Workstream B — Trigger- & Commit-Chars in einer Autorität
 

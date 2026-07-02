@@ -235,6 +235,92 @@ public class NavCompletionServiceTests {
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
 
+    [Test]
+    public void AfterHash_OffersOnlyVersionKeyword() {
+
+        const string nav = "#\n"       +
+                           "task A\n"  +
+                           "{\n"       +
+                           "    init i;\n" +
+                           "    exit e;\n" +
+                           "    i --> e;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\d.nav");
+        var caret = IndexOfToken(nav, "#\n", "#"); // direkt hinter dem `#`
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Hinter `#` nur das Direktiv-Schlüsselwort `version`, als Keyword-Kategorie.
+        Assert.That(labels, Does.Contain(SyntaxFacts.VersionDirectiveKeyword));
+        Assert.That(items.Single(i => i.Label == SyntaxFacts.VersionDirectiveKeyword).Kind,
+                    Is.EqualTo(NavCompletionItemKind.Keyword));
+        // `pragma` wird bewusst NICHT angeboten (kein bekanntes Pragma).
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.PragmaDirectiveKeyword));
+        // Keine Sprach-Keywords oder Knoten auf einer Direktiv-Zeile.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+    }
+
+    [Test]
+    public void WhileTypingDirectiveKeyword_StillOffersVersion() {
+
+        const string nav = "#v\n"      +
+                           "task A\n"  +
+                           "{\n"       +
+                           "    init i;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\d.nav");
+        var caret = IndexOfToken(nav, "#v\n", "#v"); // am Ende des gerade getippten Wort-Präfixes `v`
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Das Wort `v` ist nur das Filter-Präfix — der Kontext bleibt der Schlüsselwort-Slot.
+        Assert.That(labels, Does.Contain(SyntaxFacts.VersionDirectiveKeyword));
+    }
+
+    [Test]
+    public void AfterVersionKeyword_OffersSupportedVersionNumbers() {
+
+        // Trailing Space, kein Wert: der Caret steht am Trivia-Ende (`#version ` frisch getippt) — genau der
+        // FindTrivia-[Start,End)-Fallstrick, den DirectiveAt über die inklusive Endgrenze abfängt.
+        const string nav = "#version \n" +
+                           "task A\n"     +
+                           "{\n"          +
+                           "    init i;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\d.nav");
+        var caret = IndexOfToken(nav, "#version \n", "#version "); // hinter `#version ` im Werte-Slot
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Die gültigen Versionsnummern (heute nur `1`) — aus NavLanguageVersion.SupportedVersions.
+        Assert.That(labels, Does.Contain(NavLanguageVersion.Version1.ToString()));
+        Assert.That(labels, Is.EquivalentTo(NavLanguageVersion.SupportedVersions.Select(v => v.ToString())));
+        // Kein Schlüsselwort mehr im Werte-Slot.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.VersionDirectiveKeyword));
+    }
+
+    [Test]
+    public void InsideUnknownPragmaSubject_OffersNothing() {
+
+        const string nav = "#pragma foo\n" +
+                           "task A\n"       +
+                           "{\n"            +
+                           "    init i;\n"  +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\d.nav");
+        var caret = IndexOfToken(nav, "#pragma foo", "#pragma "); // hinter dem `pragma`-Wort, im Subjekt-Slot
+
+        // Tiefer in einer nicht erkannten Direktive gibt es nichts anzubieten — auch kein Fallback.
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
     #region Helpers
 
     static string[] Labels(System.Collections.Generic.IReadOnlyList<NavCompletionItem> items) {
