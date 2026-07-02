@@ -74,6 +74,7 @@
     <File Path="doc/nav-mcp-status.md" />
     <File Path="doc/nav-parser-test-plan.md" />
     <File Path="doc/nav-pragmas-versioning-status.md" />
+    <File Path="doc/nav-skiped-tokens-as-trivia.md" />
     <File Path="doc/nav-versioning-status.md" />
     <File Path="doc/nav-weg-b-structured-trivia.md" />
     <File Path="doc/vs-call-hierarchy-plan.md" />
