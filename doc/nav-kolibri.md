@@ -46,6 +46,15 @@ Median aus 6 Läufen, warmer OS-Cache):
 deckungsgleich 1895 Dateien / 7 Task-Defs mit identischen Semantik-Diagnosen — es wird gleich viel
 Arbeit gemessen.
 
+**Output-Identität — exe-gegen-exe verifiziert.** Beide `nav.exe` (alt v6.0.2 ANTLR, neu v6.0.166
+Kolibri) mit **vollem Codegen** (`-g All`) über eine Scratch-Kopie des Korpus laufen lassen und die
+Ausgaben byte-genau verglichen: **alle 9229 `.cs` byte-für-byte identisch** (gleiche Pfade, gleiche
+MD5, 0 Abweichungen; 1948 Task-Defs). Der generierte Header trägt weder Version noch Zeitstempel, der
+Vergleich ist also ohne Normalisierung gültig. Bestätigt die frühere Golden-Aussage jetzt direkt gegen
+das deployte Alt-Binary. Nebenbefund: **`-g All` end-to-end** (Parse + Semantic Model + StringTemplate-
+Codegen + IO, 9229 Dateien geschrieben) alt ~17,1 s vs. neu ~13,9 s — nur noch ~1,23×, weil Codegen +
+IO dominieren (deckt sich mit Erkenntnis 1: Parsen ist < 2 % der Generatorzeit).
+
 > ¹ **Debug ≈ Release** beim neuen Parser (nur ~2 % Unterschied) → der Gewinn ist **algorithmisch**
 > (ANTLR-Overhead entfällt), nicht optimizer-abhängig. Die alte Deploy-`nav.exe` ist Debug-gepublisht
 > (Deploy-Pipeline baut Debug); da die Config hier kaum durchschlägt, ist der Vergleich fair.
