@@ -1,10 +1,10 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -18,8 +18,8 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
 
     internal CodeGenerationUnitSyntax(
         TextExtent extent,
-        VersionDirectiveSyntax languageVersionDirective,
-        CodeNamespaceDeclarationSyntax codeNamespaceDeclaration,
+        VersionDirectiveSyntax? languageVersionDirective,
+        CodeNamespaceDeclarationSyntax? codeNamespaceDeclaration,
         IReadOnlyList<CodeUsingDeclarationSyntax> codeUsingDeclarations,
         IReadOnlyList<MemberDeclarationSyntax> memberDeclarations
     )
@@ -37,8 +37,7 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
     /// doppelt), bestimmt der Parser beim Aufbau; deplatzierte oder wiederholte Versions-Direktiven bleiben
     /// als Knoten in den <see cref="SyntaxTree.Directives"/> erhalten, sind aber nicht wirksam.
     /// </summary>
-    [CanBeNull]
-    public VersionDirectiveSyntax LanguageVersionDirective { get; }
+    public VersionDirectiveSyntax? LanguageVersionDirective { get; }
 
     /// <summary>
     /// Die Sprach-Version dieser Datei: der von <see cref="LanguageVersionDirective"/> festgelegte Wert,
@@ -46,22 +45,16 @@ public partial class CodeGenerationUnitSyntax: SyntaxNode {
     /// </summary>
     public NavLanguageVersion LanguageVersion => LanguageVersionDirective?.Version ?? NavLanguageVersion.Default;
 
-    [CanBeNull]
-    public CodeNamespaceDeclarationSyntax CodeNamespace { get; }
+    public CodeNamespaceDeclarationSyntax? CodeNamespace { get; }
 
-    [NotNull]
     public IReadOnlyList<CodeUsingDeclarationSyntax> CodeUsings { get; }
 
-    [NotNull]
     public IReadOnlyList<MemberDeclarationSyntax> Members { get; }
 
-    [NotNull]
     public IReadOnlyList<IncludeDirectiveSyntax> Includes => Members.OfType<IncludeDirectiveSyntax>().ToList();
 
-    [NotNull]
     public IReadOnlyList<TaskDeclarationSyntax> TaskDeclarations => Members.OfType<TaskDeclarationSyntax>().ToList();
 
-    [NotNull]
     public IReadOnlyList<TaskDefinitionSyntax> TaskDefinitions => Members.OfType<TaskDefinitionSyntax>().ToList();
 
 }

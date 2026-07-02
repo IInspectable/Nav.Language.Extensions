@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -52,7 +54,7 @@ sealed class NavLexer {
 
     readonly ImmutableArray<RawToken>.Builder _tokens;
 
-    NavLexer(string text) {
+    NavLexer(string? text) {
         _text   = text ?? String.Empty;
         _length = _text.Length;
         // Heuristische Vorab-Kapazität (~1 Token je 4 Zeichen über den realen Korpus gemessen) erspart dem
@@ -61,7 +63,7 @@ sealed class NavLexer {
         _tokens = ImmutableArray.CreateBuilder<RawToken>(Math.Max(16, _length / 4));
     }
 
-    public static ImmutableArray<RawToken> Lex(string text) {
+    public static ImmutableArray<RawToken> Lex(string? text) {
         return new NavLexer(text).LexAll();
     }
 

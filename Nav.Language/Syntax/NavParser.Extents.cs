@@ -1,8 +1,11 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Generic;
 
 using Pharmatechnik.Nav.Language.Text;
+// ReSharper disable UnusedMember.Local
 
 #endregion
 
@@ -89,8 +92,8 @@ sealed partial class NavParser {
 
         public TextExtent Extent { get; }
 
-        public static implicit operator ExtentPart(RawToken? raw)   => new(raw?.Extent  ?? TextExtent.Missing);
-        public static implicit operator ExtentPart(SyntaxNode node) => new(node?.Extent ?? TextExtent.Missing);
+        public static implicit operator ExtentPart(RawToken? raw)    => new(raw?.Extent  ?? TextExtent.Missing);
+        public static implicit operator ExtentPart(SyntaxNode? node) => new(node?.Extent ?? TextExtent.Missing);
     }
 
     /// <summary>
@@ -112,7 +115,7 @@ sealed partial class NavParser {
             Add(raw.Value.Extent);
         }
 
-        public void Add(SyntaxNode node) {
+        public void Add(SyntaxNode? node) {
             if (node != null) {
                 Add(node.Extent);
             }

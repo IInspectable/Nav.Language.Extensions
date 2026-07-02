@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections.Generic;
 
 using Pharmatechnik.Nav.Language.Text;
@@ -16,7 +18,7 @@ namespace Pharmatechnik.Nav.Language;
 [Serializable]
 public abstract class StructuredTriviaSyntax: SyntaxNode {
 
-    SyntaxTokenList _localTokens;
+    SyntaxTokenList? _localTokens;
 
     private protected StructuredTriviaSyntax(TextExtent extent): base(extent) {
     }

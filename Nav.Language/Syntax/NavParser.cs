@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -73,7 +75,7 @@ sealed partial class NavParser {
     // die Trivia wird daher erst in FinalizeTrivia gebaut und dort per Finalisierungs-Pass an die bereits
     // erzeugten Token gesetzt (siehe LookupTrivia).
     ImmutableArray<SyntaxTrivia> _allTrivia;
-    Dictionary<int, TriviaRange> _tokenTrivia;
+    Dictionary<int, TriviaRange> _tokenTrivia = null!; // In FinalizeTrivia gesetzt, bevor LookupTrivia darauf zugreift.
     SyntaxTriviaList             _eofLeadingTrivia;
 
     int  _pos;                     // Index in _raw; Invariante: zeigt stets auf ein parser-sichtbares Token (signifikant oder EOF).
@@ -123,7 +125,7 @@ sealed partial class NavParser {
         SkipHidden();
     }
 
-    public static SyntaxTree Parse(string text, string filePath = null, CancellationToken cancellationToken = default) {
+    public static SyntaxTree Parse(string? text, string? filePath = null, CancellationToken cancellationToken = default) {
 
         var sourceText = SourceText.From(text ?? String.Empty, filePath);
 
@@ -165,7 +167,7 @@ sealed partial class NavParser {
     /// hängt das abschließende <see cref="SyntaxTokenType.EndOfFile"/> an die so entstandene Wurzel.
     /// Produktionscode parst ausschließlich ganze Dateien über <see cref="Parse"/>.
     /// </summary>
-    internal static SyntaxTree ParseRule(string text, Rule rule, string filePath = null, CancellationToken cancellationToken = default) {
+    internal static SyntaxTree ParseRule(string? text, Rule rule, string? filePath = null, CancellationToken cancellationToken = default) {
 
         var sourceText = SourceText.From(text ?? String.Empty, filePath);
         var parser     = new NavParser(sourceText);
@@ -258,7 +260,7 @@ sealed partial class NavParser {
     /// </remarks>
     SyntaxTree ParseCodeGenerationUnit(CancellationToken cancellationToken) {
 
-        CodeNamespaceDeclarationSyntax    codeNamespace = null;
+        CodeNamespaceDeclarationSyntax?   codeNamespace = null;
         var codeUsings = new List<CodeUsingDeclarationSyntax>();
         var members    = new List<MemberDeclarationSyntax>();
 
@@ -357,10 +359,10 @@ sealed partial class NavParser {
     /// Platzierungs-Semantik hinzu. Läuft <b>nach</b> der Member-Schleife (damit <c>_firstSignificantStart</c>
     /// endgültig ist) und vor dem Einfrieren der Diagnostics.
     /// </summary>
-    VersionDirectiveSyntax ResolveLanguageVersion() {
+    VersionDirectiveSyntax? ResolveLanguageVersion() {
 
-        VersionDirectiveSyntax effective = null;
-        var                    sawAnyDirective = false;
+        VersionDirectiveSyntax? effective = null;
+        var                     sawAnyDirective = false;
 
         foreach (var run in _directiveRuns) {
             if (run.Node is VersionDirectiveSyntax version) {
@@ -1789,7 +1791,7 @@ sealed partial class NavParser {
     /// Steht weder ein <c>Identifier</c> noch ein <c>StringLiteral</c> an, liefert die Methode <c>null</c>
     /// (der aufrufende Knoten entsteht dann ohne diesen Bestandteil).
     /// </remarks>
-    IdentifierOrStringSyntax ParseIdentifierOrString() {
+    IdentifierOrStringSyntax? ParseIdentifierOrString() {
         if (At(SyntaxTokenType.Identifier)) {
             return ParseIdentifier();
         }
