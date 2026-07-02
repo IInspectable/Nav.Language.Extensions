@@ -124,9 +124,14 @@ Fortschritt über die Checkboxen führen.
   Quelle bleibt `ShouldProvideCompletions`). Damit löst insbesondere `#` jetzt auch in VS die
   Direktiv-Completion aus. Tests: `TriggerCharacters_ContainAllContextDelimiters`,
   `IsTriggerCharacter_MatchesTriggerCharacters` (net10 1161/0, net472 1169/0).
-- [ ] **B2 — Commit-Chars.** Den `// TODO … Sinnhaftigkeit prüfen` in `CompletionCommitManager.cs`
-  auflösen: Commit-Char-Menge bewusst festlegen und aus derselben Autorität beziehen (VS + LSP
-  konsistent).
+- [x] **B2 — Commit-Chars.** Der `// TODO … Sinnhaftigkeit prüfen` in `CompletionCommitManager.cs` ist
+  aufgelöst: `NavCompletionService.CommitCharacters` ist jetzt die eine Autorität mit einer bewusst
+  festgelegten Menge — `{ Leerzeichen, `,`, `;`, `:`, `"`, `[`, `]`, `/`, `\` }` (Trenner,
+  Connection-Point-Doppelpunkt, Zeichenketten-/Code-Block-Begrenzer, Pfadtrenner). Der **Punkt bleibt
+  bewusst draußen** (in Nav ein gültiges Bezeichner-Zeichen — ein Commit darauf würde qualifizierte Namen
+  zerreißen), ebenso das frühere `'` (kein Nav-Konstrukt). VS bezieht daraus
+  `PotentialCommitCharacters`, der LSP-Server `CompletionOptions.AllCommitCharacters` (vorher gar keine)
+  → beide Hosts konsistent. Test: `CommitCharacters_AreTheDeliberateSet` (net10 17/17, net472 1170/0).
 
 ### Workstream C — VS-Quellen-Konsolidierung (engine-getrieben)
 

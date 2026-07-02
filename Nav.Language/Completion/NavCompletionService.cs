@@ -58,6 +58,29 @@ public static class NavCompletionService {
     }
 
     /// <summary>
+    /// Die kanonische Menge der Abschluss-Zeichen (Commit-Chars): Zeichen, deren Eingabe bei offener
+    /// Vorschlagsliste den markierten Vorschlag übernimmt und dann selbst eingefügt wird. Bewusst nur die
+    /// Zeichen, die in der Nav-Grammatik ein Bezeichner-/Keyword-Token beenden oder trennen — Trenner
+    /// (<c>, ;</c>), der Connection-Point-Doppelpunkt (<c>knoten:exit</c>), Zeichenketten-/Code-Block-
+    /// Begrenzer (<c>" [ ]</c>) und die Pfadtrenner (<c>/ \</c>). Der Punkt ist bewusst NICHT dabei — er ist
+    /// in Nav ein gültiges Bezeichner-Zeichen (siehe <see cref="SyntaxFacts.IsIdentifierCharacter"/>), ein
+    /// Commit darauf würde qualifizierte Namen zerreißen. Einzige Autorität für beide Hosts: VS speist damit
+    /// <c>IAsyncCompletionCommitManager.PotentialCommitCharacters</c>, der LSP-Server
+    /// <c>CompletionOptions.AllCommitCharacters</c>.
+    /// </summary>
+    public static readonly IReadOnlyList<char> CommitCharacters = new[] {
+        ' ',                        // Leerzeichen — Wort-/Bezeichner-Ende
+        SyntaxFacts.Comma,          // ','  — Trennzeichen
+        SyntaxFacts.Semicolon,      // ';'  — Anweisungs-Ende
+        SyntaxFacts.Colon,          // ':'  — Connection-Point-Trenner (knoten:exit)
+        '"',                        // '"'  — Zeichenketten-Begrenzer (taskref "…")
+        SyntaxFacts.OpenBracket,    // '['  — Code-Block-Beginn
+        SyntaxFacts.CloseBracket,   // ']'  — Code-Block-Ende
+        '/',                        // '/'  — Pfadtrenner
+        '\\'                        // '\\' — Pfadtrenner (Windows)
+    };
+
+    /// <summary>
     /// Liefert die Vervollständigungs-Vorschläge zur angegebenen Zeichen-Position (0-basierter Offset)
     /// in der Reihenfolge, in der sie dem Nutzer angeboten werden sollen — oder eine leere Liste, wenn
     /// an der Position nichts vorgeschlagen werden soll.

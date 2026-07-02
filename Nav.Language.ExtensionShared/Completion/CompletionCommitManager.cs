@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System.IO;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -9,26 +8,17 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 
+using Pharmatechnik.Nav.Language.Completion;
+
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Extension.Completion; 
+namespace Pharmatechnik.Nav.Language.Extension.Completion;
 
 class CompletionCommitManager: IAsyncCompletionCommitManager {
 
-    // TODO PotentialCommitCharacters aud Sinnhaftigkeit prüfen
-    readonly ImmutableArray<char> _commitChars = new[] {
-        ' ',
-        '\'',
-        '"',
-        //'.',
-        ',',
-        ';',
-        SyntaxFacts.Colon,
-        Path.DirectorySeparatorChar,
-        Path.AltDirectorySeparatorChar,
-        SyntaxFacts.OpenBracket,
-        SyntaxFacts.CloseBracket
-    }.ToImmutableArray();
+    // Abschluss-Zeichen stammen aus der einen Autorität NavCompletionService.CommitCharacters
+    // (VS + LSP konsistent).
+    readonly ImmutableArray<char> _commitChars = NavCompletionService.CommitCharacters.ToImmutableArray();
 
     public bool ShouldCommitCompletion(IAsyncCompletionSession session, SnapshotPoint location, char typedChar, CancellationToken token) {
         return true;

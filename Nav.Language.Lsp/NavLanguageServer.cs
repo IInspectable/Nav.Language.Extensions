@@ -86,7 +86,10 @@ class NavLanguageServer {
                     // Autorität NavCompletionService.TriggerCharacters ('#' Direktiven, ':' Exit-Connection-
                     // Points, '-' Edge-Beginn, '[' Code-Block, '"' + Pfadtrenner für taskref-Pfade).
                     TriggerCharacters = NavCompletionService.TriggerCharacters.Select(c => c.ToString()).ToArray(),
-                    ResolveProvider   = false
+                    // Abschluss-Zeichen aus derselben Autorität (NavCompletionService.CommitCharacters) —
+                    // konsistent mit der VS-Extension.
+                    AllCommitCharacters = NavCompletionService.CommitCharacters.Select(c => c.ToString()).ToArray(),
+                    ResolveProvider     = false
                 }
             }
         };

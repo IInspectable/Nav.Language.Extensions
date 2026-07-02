@@ -344,6 +344,19 @@ public class NavCompletionServiceTests {
 
     #endregion
 
+    #region Commit-Chars (kanonische Autorität)
+
+    [Test]
+    public void CommitCharacters_AreTheDeliberateSet() {
+        // Bewusst festgelegte Menge: Trenner, Connection-Point-Doppelpunkt, Zeichenketten-/Code-Block-
+        // Begrenzer und Pfadtrenner. Der Punkt ist bewusst NICHT dabei (gültiges Bezeichner-Zeichen).
+        Assert.That(NavCompletionService.CommitCharacters,
+                    Is.EquivalentTo(new[] { ' ', ',', ';', ':', '"', '[', ']', '/', '\\' }));
+        Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('.'));
+    }
+
+    #endregion
+
     #region Helpers
 
     static string[] Labels(System.Collections.Generic.IReadOnlyList<NavCompletionItem> items) {
