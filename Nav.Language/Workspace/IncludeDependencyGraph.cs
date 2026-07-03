@@ -1,11 +1,11 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Utilities.IO;
 
@@ -30,7 +30,7 @@ public sealed class IncludeDependencyGraph {
     /// Setzt die Vorwärtskanten einer Datei (ersetzt deren bisherige Include-Menge vollständig). Pfade werden
     /// intern normalisiert; nicht auflösbare Pfade werden übersprungen.
     /// </summary>
-    public void SetIncludes(string filePath, IEnumerable<string> includedFiles) {
+    public void SetIncludes(string filePath, IEnumerable<string>? includedFiles) {
 
         var key = PathHelper.NormalizePath(filePath);
         if (key == null) {
@@ -70,7 +70,6 @@ public sealed class IncludeDependencyGraph {
     /// Liefert alle Dateien, die <paramref name="filePath"/> transitiv inkludieren (ohne die Datei selbst).
     /// Reverse-BFS über eine Momentaufnahme der Vorwärtskanten; Zyklen sind über das visited-Set abgefangen.
     /// </summary>
-    [NotNull]
     public IReadOnlyCollection<string> GetDependentsClosure(string filePath) {
 
         var start = PathHelper.NormalizePath(filePath);

@@ -1,13 +1,13 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 using System.Threading;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class SemanticModelProvider: ISemanticModelProvider {
 
@@ -19,8 +19,7 @@ public class SemanticModelProvider: ISemanticModelProvider {
 
     public static readonly ISemanticModelProvider Default = new SemanticModelProvider(SyntaxProvider.Default);
 
-    [CanBeNull]
-    public CodeGenerationUnit GetSemanticModel(string filePath, CancellationToken cancellationToken = default) {
+    public CodeGenerationUnit? GetSemanticModel(string filePath, CancellationToken cancellationToken = default) {
 
         var syntax = _syntaxProvider.GetSyntax(filePath, cancellationToken);
         if (syntax == null) {

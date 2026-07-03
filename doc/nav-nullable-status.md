@@ -61,15 +61,15 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Dependencies | 3 / P3 | 4 | 4 | fertig |
 | FindReferences | 3 / P4 | 10 | 10 | fertig |
 | References | 3 / P4 | 3 | 3 | fertig |
-| Workspace | 3 / P5 | 8 | 5 | Rest (3) offen |
-| Provider | 3 / P5 | 13 | 0 | offen |
+| Workspace | 3 / P5 | 8 | 8 | fertig |
+| Provider | 3 / P5 | 13 | 13 | fertig |
 | Generator | 3 / P6 | 6 | 0 | offen |
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **302** | ~92 % |
+| **Gesamt** | | **329** | **318** | ~97 % |
 
-> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P4: Scan `Nav.Language\**\*.cs` ohne
+> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P5: Scan `Nav.Language\**\*.cs` ohne
 > `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren
 > (Vorbild: `nav nullaudit` gibt den Fortschritt maschinell aus).
 
@@ -272,6 +272,34 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   `x?.IsIncluded == false`-Bedingungen auf `x != null && !x.IsIncluded` (Locals) umgestellt — sauberes
   Narrowing statt fragiler Member-Slot-Analyse, verhaltensgleich. Encoding: FindReferences/ war UTF-8 **mit**
   BOM, References/ UTF-8 **ohne** BOM (valide, keine Win-1252-Falle) — Hook ergänzte den BOM.
+
+- **Welle 3 / P5 (Provider 13 + Workspace-Rest 3, 16 Dateien):** **Keine neuen Warnungen, keine neue
+  Suppression, kein Befundlog-Eintrag.** Die Provider-Schicht ist die Nav↔Datei-Grenze: `ISyntaxProvider`
+  war schon per `[CanBeNull]` als „liefert `null` bei nicht existierender Datei" markiert → jetzt
+  compiler-erzwungen `CodeGenerationUnitSyntax? GetSyntax(…)`, analog `ISemanticModelProvider.GetSemanticModel(string)`
+  → `CodeGenerationUnit?` (der zweite Overload `GetSemanticModel(CodeGenerationUnitSyntax)` bleibt non-null).
+  `CachedSyntaxProvider` cacht das **negative** Ergebnis mit → Dictionary-Wert bewusst
+  `ConcurrentDictionary<string, CodeGenerationUnitSyntax?>` (mit Kommentar); ctor nimmt `ISyntaxProvider?`
+  (der parameterlose ctor reicht `null` durch, `?? SyntaxProvider.Default` normalisiert). `PathProvider`-ctor
+  `string? generateTo = null, GenerationOptions? options = null` (Default-`null`, intern `??=`/CombinePath-Filter);
+  `CombinePath` auf `params string?[]` (die `Where(!IsNullOrEmpty)`-Filterung + netstandard2.0-oblivious
+  `Path.Combine` tragen den Rest). `PathProviderFactory`: `[NotNull]`/`ArgumentNullException`-Guard bleibt (Rule 5,
+  oblivious VS-Aufrufer), `syntaxFile`/`generateToInfo` folgen der nullbaren `SourceText.FileInfo`.
+  **Konsum-Validierung:** LSP/MCP (nativ nullable) bauen die jetzt compiler-erzwungenen `?`-Rückgaben von
+  `GetSyntax`/`GetSemanticModel` **warnungsfrei** — beide guardeten die vormaligen `[CanBeNull]`-Rückgaben schon.
+  Workspace-Rest: `NavSolution`-ctor/`SolutionDirectory` → `DirectoryInfo?`, ctor-Provider-Parameter `?`
+  (`??`-normalisiert), `ProcessCodeGenerationUnitsAsync(Func<…>, CodeGenerationUnit? startingUnit, …)`,
+  `FromDirectoryAsync(DirectoryInfo? directory, …)` — `directory` bewusst nullbar, weil der `null`/leer-Zweig als
+  `Empty`-Sentinel real ausgewertet wird (Rule 5). Der einzige neue **Warnungsfund** war dabei die
+  netstandard2.0-`IsNullOrEmpty`-Falle: `String.IsNullOrEmpty(directory?.FullName)` verengt `directory` nicht →
+  `directory.FullName` warnte CS8602. Verhaltensneutral gefixt zu `if (directory == null ||
+  String.IsNullOrEmpty(directory.FullName))` (der alte Ausdruck lieferte für `directory == null` via
+  `directory?.FullName` ohnehin `IsNullOrEmpty(null) == true`). Dadurch fällt der bisherige Baseline-`CS8602` in
+  `NavSolution` weg — Baseline jetzt **1 Eintrag** (nur noch `CallHierarchy`, dran in P6).
+  `IncludeDependencyGraph.SetIncludes(…, IEnumerable<string>? includedFiles)` (`!= null`-Guard vorhanden),
+  `GetDependentsClosure` `[NotNull]`→default; `DiagnosticsComputer.BelongsToDocument(Diagnostic, string?
+  normalizedPath)` (nur an null-tolerante `string.Equals`/`IsNullOrEmpty` gereicht). Encoding: teils UTF-8 mit,
+  teils ohne BOM, alle valides UTF-8 (keine Win-1252-Falle) — Hook ergänzte den BOM.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

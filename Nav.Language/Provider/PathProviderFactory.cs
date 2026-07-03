@@ -1,19 +1,19 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 
-using JetBrains.Annotations;
 using Pharmatechnik.Nav.Language.CodeGen;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class PathProviderFactory: IPathProviderFactory {
 
     public static readonly PathProviderFactory Default = new();
 
-    [NotNull]
     public virtual IPathProvider CreatePathProvider(ITaskDefinitionSymbol taskDefinition, GenerationOptions options) {
 
         if (taskDefinition == null) {
@@ -29,8 +29,8 @@ public class PathProviderFactory: IPathProviderFactory {
         var syntaxFileName = syntaxFile.FullName;
         var taskName       = taskDefinition.Name;
 
-        string generateToInfo  = null;
-        var    generateToToken = syntax.CodeGenerateToDeclaration?.StringLiteral ?? SyntaxToken.Missing;
+        string? generateToInfo  = null;
+        var     generateToToken = syntax.CodeGenerateToDeclaration?.StringLiteral ?? SyntaxToken.Missing;
         if (!generateToToken.IsMissing) {
             generateToInfo = generateToToken.ToString().Trim('"');
         }

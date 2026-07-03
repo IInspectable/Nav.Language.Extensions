@@ -1,6 +1,8 @@
+﻿#nullable enable
+
 // ReSharper disable InconsistentNaming
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface IPathProvider {
 

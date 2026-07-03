@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
@@ -8,7 +10,7 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class PathProvider: IPathProvider {
 
@@ -27,7 +29,7 @@ public class PathProvider: IPathProvider {
     /// </summary>
     public const string CSharpFileExtension = "cs";
 
-    public PathProvider(string syntaxFileName, string taskName, string generateTo = null, GenerationOptions options = null) {
+    public PathProvider(string syntaxFileName, string taskName, string? generateTo = null, GenerationOptions? options = null) {
 
         if (String.IsNullOrEmpty(syntaxFileName)) {
             throw new ArgumentException("Missing syntax filename", nameof(syntaxFileName));
@@ -72,7 +74,7 @@ public class PathProvider: IPathProvider {
         return CombinePath(IwflGeneratedDirectory, $"{toClassName}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
     }
 
-    static string CombinePath(string first, params string[] parts) {
+    static string CombinePath(string first, params string?[] parts) {
         return parts.Where(part => !String.IsNullOrEmpty(part)).Aggregate(first, Path.Combine);
     }
 

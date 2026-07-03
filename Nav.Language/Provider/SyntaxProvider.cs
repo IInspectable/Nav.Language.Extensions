@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.IO;
@@ -6,13 +8,13 @@ using System.Threading;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class SyntaxProvider: ISyntaxProvider {
 
     public static readonly ISyntaxProvider Default = new SyntaxProvider();
 
-    public virtual CodeGenerationUnitSyntax GetSyntax(string filePath, CancellationToken cancellationToken = default) {
+    public virtual CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         if (!File.Exists(filePath)) {
             return null;

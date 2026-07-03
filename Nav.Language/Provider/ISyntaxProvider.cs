@@ -1,14 +1,14 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Threading;
-using JetBrains.Annotations;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface ISyntaxProvider : IDisposable {
-    [CanBeNull]
-    CodeGenerationUnitSyntax GetSyntax(string filePath, CancellationToken cancellationToken = default);
+    CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default);
 }

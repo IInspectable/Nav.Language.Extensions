@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
@@ -8,7 +10,7 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public readonly struct CachedSyntaxProviderStatistic {
 
@@ -32,8 +34,9 @@ public readonly struct CachedSyntaxProviderStatistic {
 
 public class CachedSyntaxProvider: ISyntaxProvider {
 
-    readonly ConcurrentDictionary<string, CodeGenerationUnitSyntax> _cache;
-    readonly ISyntaxProvider                                        _syntaxProvider;
+    // Wert bewusst nullable: der Provider cacht auch das negative Ergebnis (nicht existierende Datei → null).
+    readonly ConcurrentDictionary<string, CodeGenerationUnitSyntax?> _cache;
+    readonly ISyntaxProvider                                         _syntaxProvider;
 
     private readonly object _gate = new();
 
@@ -41,14 +44,14 @@ public class CachedSyntaxProvider: ISyntaxProvider {
 
     }
 
-    public CachedSyntaxProvider(ISyntaxProvider syntaxProvider) {
+    public CachedSyntaxProvider(ISyntaxProvider? syntaxProvider) {
 
         _syntaxProvider = syntaxProvider ?? SyntaxProvider.Default;
-        _cache          = new ConcurrentDictionary<string, CodeGenerationUnitSyntax>();
+        _cache          = new ConcurrentDictionary<string, CodeGenerationUnitSyntax?>();
         Statistic       = default;
     }
 
-    public virtual CodeGenerationUnitSyntax GetSyntax(string filePath, CancellationToken cancellationToken = default) {
+    public virtual CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         var normalizedFilePath = PathHelper.NormalizePath(filePath);
 

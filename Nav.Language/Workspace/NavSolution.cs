@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -8,18 +10,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class NavSolution {
 
-    public NavSolution([CanBeNull] DirectoryInfo solutionRoot,
+    public NavSolution(DirectoryInfo? solutionRoot,
                        ImmutableArray<FileInfo> solutionFiles,
-                       ISyntaxProvider syntaxProvider = null,
-                       ISemanticModelProvider semanticModelProvider = null) {
+                       ISyntaxProvider? syntaxProvider = null,
+                       ISemanticModelProvider? semanticModelProvider = null) {
 
         SolutionDirectory = solutionRoot;
         SolutionFiles     = solutionFiles;
@@ -31,8 +31,7 @@ public class NavSolution {
     public ISyntaxProvider        SyntaxProvider        { get; }
     public ISemanticModelProvider SemanticModelProvider { get; }
 
-    [CanBeNull]
-    public DirectoryInfo SolutionDirectory { get; }
+    public DirectoryInfo? SolutionDirectory { get; }
 
     public ImmutableArray<FileInfo> SolutionFiles { get; }
 
@@ -50,9 +49,11 @@ public class NavSolution {
     public static bool HasNavExtension(string path) =>
         string.Equals(Path.GetExtension(path), FileExtension, StringComparison.OrdinalIgnoreCase);
 
-    public static Task<NavSolution> FromDirectoryAsync(DirectoryInfo directory, CancellationToken cancellationToken) {
+    public static Task<NavSolution> FromDirectoryAsync(DirectoryInfo? directory, CancellationToken cancellationToken) {
 
-        if (String.IsNullOrEmpty(directory?.FullName)) {
+        // netstandard2.0: String.IsNullOrEmpty verengt nicht, und directory?.FullName lässt directory
+        // nullable — daher directory explizit prüfen, bevor FullName dereferenziert wird.
+        if (directory == null || String.IsNullOrEmpty(directory.FullName)) {
             return Task.FromResult(Empty);
         }
 
@@ -81,8 +82,8 @@ public class NavSolution {
         return Task.FromResult(solution);
     }
 
-    public async Task ProcessCodeGenerationUnitsAsync([NotNull] Func<CodeGenerationUnit, Task> asyncAction,
-                                                      [CanBeNull] CodeGenerationUnit startingUnit,
+    public async Task ProcessCodeGenerationUnitsAsync(Func<CodeGenerationUnit, Task> asyncAction,
+                                                      CodeGenerationUnit? startingUnit,
                                                       CancellationToken cancellationToken) {
 
         // TODO File/Path comparer...

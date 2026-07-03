@@ -1,14 +1,9 @@
-#region Using Directives
+﻿#nullable enable
 
-using JetBrains.Annotations;
-
-#endregion
-
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public interface ISemanticModelProviderFactory {
 
-    [NotNull] 
     ISemanticModelProvider CreateProvider(ISyntaxProvider syntaxProvider);
 
 }

@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
@@ -30,7 +32,7 @@ public static class DiagnosticsComputer {
               .ToList();
     }
 
-    static bool BelongsToDocument(Diagnostic diagnostic, string normalizedPath) {
+    static bool BelongsToDocument(Diagnostic diagnostic, string? normalizedPath) {
 
         var locationPath = diagnostic.Location.NormalizedFilePath;
 
