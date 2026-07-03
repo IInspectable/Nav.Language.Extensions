@@ -1,6 +1,8 @@
+﻿#nullable enable
+
 using System.Collections.Generic;
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public static class DiagnosticSeverityExtension {
 

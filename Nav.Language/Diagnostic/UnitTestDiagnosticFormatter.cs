@@ -1,6 +1,8 @@
-﻿using System;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+using System;
+
+namespace Pharmatechnik.Nav.Language;
 
 public class UnitTestDiagnosticFormatter: DiagnosticFormatter {
 
@@ -12,11 +14,11 @@ public class UnitTestDiagnosticFormatter: DiagnosticFormatter {
 
     public static String LinePrefix => "//==>>";
 
-    public override string Format(Diagnostic diagnostic, IFormatProvider formatter = null) {
+    public override string Format(Diagnostic diagnostic, IFormatProvider? formatter = null) {
         return $"{LinePrefix}[{diagnostic.Category}]{base.Format(diagnostic, formatter)}";
     }
 
-    protected override string FormatFilePath(Diagnostic diagnostic, IFormatProvider formatter) {
+    protected override string FormatFilePath(Diagnostic diagnostic, IFormatProvider? formatter) {
         return String.Empty;
     }
 

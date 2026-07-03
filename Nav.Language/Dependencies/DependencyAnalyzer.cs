@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
@@ -24,7 +26,9 @@ public static class DependencyAnalyzer {
                              .Where(tn => tn.Incomings.Any() && tn.Declaration != null)
                              .Select(taskNode => new Dependency(
                                          usingItem: DependencyItem.FromSymbol(taskNode),
-                                         usedItem : DependencyItem.FromSymbol(taskNode.Declaration)))
+                                         // Declaration ist durch den Where-Filter oben non-null; das Narrowing
+                                         // trägt nicht in die Select-Lambda, daher die begründete Suppression.
+                                         usedItem : DependencyItem.FromSymbol(taskNode.Declaration!)))
                              .ToImmutableList();         
     }
 }

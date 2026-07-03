@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language;
 
 public static partial class DiagnosticDescriptors {
        

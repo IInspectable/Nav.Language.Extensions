@@ -1,11 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
-using JetBrains.Annotations;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         
@@ -21,17 +22,15 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         DefaultSeverity = defaultSeverity;
     }
 
-    [NotNull]
     public string Id { get; }
 
-    [NotNull]
     public string MessageFormat { get; }
 
     public DiagnosticCategory Category { get; }
 
     public DiagnosticSeverity DefaultSeverity { get; }
 
-    public bool Equals(DiagnosticDescriptor other) {
+    public bool Equals(DiagnosticDescriptor? other) {
 
         if (ReferenceEquals(null, other)) {
             return false;
@@ -47,7 +46,7 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
                DefaultSeverity == other.DefaultSeverity;
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) {
             return false;
         }
@@ -67,11 +66,11 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         }
     }
 
-    public static bool operator ==(DiagnosticDescriptor left, DiagnosticDescriptor right) {
+    public static bool operator ==(DiagnosticDescriptor? left, DiagnosticDescriptor? right) {
         return Equals(left, right);
     }
 
-    public static bool operator !=(DiagnosticDescriptor left, DiagnosticDescriptor right) {
+    public static bool operator !=(DiagnosticDescriptor? left, DiagnosticDescriptor? right) {
         return !Equals(left, right);
     }
 

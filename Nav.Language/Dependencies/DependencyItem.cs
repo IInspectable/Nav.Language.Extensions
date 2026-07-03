@@ -1,6 +1,8 @@
-﻿using System;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language.Dependencies; 
+using System;
+
+namespace Pharmatechnik.Nav.Language.Dependencies;
 
 public abstract class DependencyItem: IEquatable<DependencyItem> {
 
@@ -13,7 +15,7 @@ public abstract class DependencyItem: IEquatable<DependencyItem> {
 
     #region Equality members
 
-    public virtual bool Equals(DependencyItem other) {
+    public virtual bool Equals(DependencyItem? other) {
 
         if (ReferenceEquals(null, other)) {
             return false;
@@ -26,7 +28,7 @@ public abstract class DependencyItem: IEquatable<DependencyItem> {
         return string.Equals(Name, other.Name) && Equals(Location, other.Location);
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
 
         if (ReferenceEquals(null, obj)) {
             return false;
@@ -41,15 +43,15 @@ public abstract class DependencyItem: IEquatable<DependencyItem> {
 
     public override int GetHashCode() {
         unchecked {
-            return ((Name != null ? Name.GetHashCode() : 0) * 397) ^ (Location != null ? Location.GetHashCode() : 0);
+            return (Name.GetHashCode() * 397) ^ Location.GetHashCode();
         }
     }
 
-    public static bool operator ==(DependencyItem left, DependencyItem right) {
+    public static bool operator ==(DependencyItem? left, DependencyItem? right) {
         return Equals(left, right);
     }
 
-    public static bool operator !=(DependencyItem left, DependencyItem right) {
+    public static bool operator !=(DependencyItem? left, DependencyItem? right) {
         return !Equals(left, right);
     }
 

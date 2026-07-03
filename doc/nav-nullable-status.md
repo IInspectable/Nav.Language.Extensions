@@ -57,8 +57,8 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Completion | 3 / P2 | 3 | 3 | fertig |
 | GoTo | 3 / P2 | 2 | 2 | fertig |
 | Rename | 3 / P2 | 1 | 1 | fertig |
-| Diagnostic | 3 / P3 | 13 | 0 | offen |
-| Dependencies | 3 / P3 | 4 | 0 | offen |
+| Diagnostic | 3 / P3 | 13 | 13 | fertig |
+| Dependencies | 3 / P3 | 4 | 4 | fertig |
 | FindReferences | 3 / P4 | 10 | 0 | offen |
 | References | 3 / P4 | 3 | 0 | offen |
 | Workspace | 3 / P5 | 8 | 5 | Rest (3) offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **272** | ~83 % |
+| **Gesamt** | | **329** | **289** | ~88 % |
 
 > Zahlen verifiziert am 2026-07-03 (`nav nullaudit`: Scan `Nav.Language\**\*.cs` ohne
 > `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren
@@ -214,6 +214,27 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   `Location.FilePath` bewusst `string?` bleibt (Playbook 4a). **Encoding:** GoTo/Rename lagen als
   UTF-8 **ohne** BOM vor (valide UTF-8, keine Win-1252-Falle); der Format-Hook hat beim Speichern den
   BOM ergänzt, Umlaute blieben intakt.
+- **Welle 3 / P3 (Diagnostic 13 + Dependencies 4, 17 Dateien):** **Keine neuen Warnungen, 1 begründete
+  Suppression, kein NRE-Befund.** Der Löwenanteil (Enums `DiagnosticCategory`/`DiagnosticSeverity`,
+  `DiagnosticId`-Konstanten, die drei `DiagnosticDescriptors.*`-Tabellen, `DiagnosticExtensions`,
+  `DiagnosticSeverityExtension`) trägt keine nullbaren Flüsse → reine `#nullable enable`-Direktive.
+  Substanz: (1) `DependencyAnalyzer.CollectTasksDefinitionDependencies` — der `Where(tn => …
+  tn.Declaration != null)`-Filter narrowt nicht in die anschließende `Select`-Lambda (Null sitzt auf der
+  `Declaration`-**Property**, nicht auf dem Element → `WhereNotNull` greift nicht), daher
+  `FromSymbol(taskNode.Declaration!)` mit Begründungskommentar — dieselbe Idiomatik wie Nav1002 in 2b.
+  Einzige Suppression des Pakets. (2) `Diagnostic`/`DiagnosticDescriptor`/`DependencyItem`: `[NotNull]`→
+  default, `[CanBeNull]`→`?`; `IEquatable<T>.Equals`, `object`-`Equals` und die `==`/`!=`-Operatoren auf
+  nullbare Parameter gestellt (Standard-Muster wie `Location`/`Symbol`); tote `x != null ? … : 0`-Zweige in
+  `GetHashCode` auf beweisbar non-null Feldern (`Name`/`Location`/`Descriptor`) entfernt (Rule 4).
+  `Diagnostic(…, IEnumerable<Location>? additionalLocations, …)` bleibt bewusst nullbar — der `?.`/
+  `?? EmptyAdditionalLocations`-Pfad plus der `Where(loc => loc != null)`-Elementfilter sind reale
+  Boundary-Guards gegen oblivious-Aufrufer (Rule 5), keine tote Verteidigung. (3) `DiagnosticFormatter`:
+  `WorkingDirectory`/`workingDirectory` → `string?` (der `FilePath`/`WorkingDirectory`-`null`-Doppelcheck in
+  `FormatFilePath` ist echte Presence-Logik, `Location.FilePath` ist `string?`), alle
+  `IFormatProvider formatter`-Parameter → `IFormatProvider?` (die Methoden reichen `formatter` an
+  `String.Format` durch, das `null` akzeptiert); `UnitTestDiagnosticFormatter`-Overrides an die nullbare
+  Basis angeglichen. `ArgumentNullException`-Guards an den public Konstruktoren/`Format` blieben (Rule 5).
+  Alle 17 valides UTF-8 (drei ASCII-only-Dateien ohne BOM), Hook ergänzte den BOM.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

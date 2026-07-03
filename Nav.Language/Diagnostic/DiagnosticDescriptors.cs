@@ -1,6 +1,8 @@
-﻿using System;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+using System;
+
+namespace Pharmatechnik.Nav.Language;
 
 public static partial class DiagnosticDescriptors {
 

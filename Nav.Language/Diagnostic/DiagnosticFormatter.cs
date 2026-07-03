@@ -1,18 +1,18 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class DiagnosticFormatter {
 
-    public DiagnosticFormatter(bool displayEndLocations, [CanBeNull] string workingDirectory = null) {
+    public DiagnosticFormatter(bool displayEndLocations, string? workingDirectory = null) {
         DisplayEndLocations = displayEndLocations;
         WorkingDirectory    = workingDirectory;
     }
@@ -20,10 +20,10 @@ public class DiagnosticFormatter {
     public static readonly DiagnosticFormatter Instance = new(displayEndLocations: false, workingDirectory: null);
 
     public bool DisplayEndLocations { get; }
-    [CanBeNull]
-    public string WorkingDirectory { get; }
 
-    public virtual string Format(Diagnostic diagnostic, IFormatProvider formatter = null) {
+    public string? WorkingDirectory { get; }
+
+    public virtual string Format(Diagnostic diagnostic, IFormatProvider? formatter = null) {
 
         if (diagnostic == null) {
             throw new ArgumentNullException(nameof(diagnostic));
@@ -38,7 +38,7 @@ public class DiagnosticFormatter {
         );
     }
 
-    protected virtual string FormatFilePath(Diagnostic diagnostic, IFormatProvider formatter) {
+    protected virtual string FormatFilePath(Diagnostic diagnostic, IFormatProvider? formatter) {
 
         if (diagnostic.Location.FilePath == null) {
             return String.Empty;
@@ -51,7 +51,7 @@ public class DiagnosticFormatter {
         return PathHelper.GetRelativePath(WorkingDirectory, diagnostic.Location.FilePath);
     }
 
-    protected virtual string FormatSpan(Diagnostic diagnostic, IFormatProvider formatter) {
+    protected virtual string FormatSpan(Diagnostic diagnostic, IFormatProvider? formatter) {
             
         var location = diagnostic.Location;
 
@@ -68,7 +68,7 @@ public class DiagnosticFormatter {
         }
     }
 
-    protected virtual string FormatCategoryAndCode(Diagnostic diagnostic, IFormatProvider formatter) {
+    protected virtual string FormatCategoryAndCode(Diagnostic diagnostic, IFormatProvider? formatter) {
         // ReSharper disable once UseStringInterpolation
         return String.Format("{0} {1}",                
                              diagnostic.Severity.ToString().ToLower(),
@@ -76,7 +76,7 @@ public class DiagnosticFormatter {
         );
     }
 
-    protected virtual string FormatMessage(Diagnostic diagnostic, IFormatProvider formatter) {
+    protected virtual string FormatMessage(Diagnostic diagnostic, IFormatProvider? formatter) {
         return diagnostic.Message;
     }
 }

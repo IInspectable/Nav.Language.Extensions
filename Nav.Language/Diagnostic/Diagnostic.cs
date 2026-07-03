@@ -1,20 +1,20 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 [Serializable]
 public sealed class Diagnostic: IEquatable<Diagnostic> {
 
-    [NotNull] readonly object[] _messageArgs;
+    readonly object[] _messageArgs;
 
     public Diagnostic(Location location, DiagnosticDescriptor descriptor, params object[] messageArgs) {
         Location            = location   ?? throw new ArgumentNullException(nameof(location));
@@ -27,7 +27,7 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
         : this(location, new[] {additionalLocation}, descriptor, messageArgs) {
     }
 
-    public Diagnostic(Location location, IEnumerable<Location> additionalLocations, DiagnosticDescriptor descriptor, params object[] messageArgs) {
+    public Diagnostic(Location location, IEnumerable<Location>? additionalLocations, DiagnosticDescriptor descriptor, params object[] messageArgs) {
         Location            = location                                                          ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor                                                        ?? throw new ArgumentNullException(nameof(descriptor));
         AdditionalLocations = additionalLocations?.Where(loc => loc != null).ToImmutableArray() ?? EmptyAdditionalLocations;
@@ -41,10 +41,8 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
     static readonly object[]                EmptyMessageArgs         = { };
     static readonly IReadOnlyList<Location> EmptyAdditionalLocations = Enumerable.Empty<Location>().ToImmutableList();
 
-    [NotNull]
     public Location Location { get; }
 
-    [NotNull]
     public IReadOnlyList<Location> AdditionalLocations { get; }
 
     public IEnumerable<Location> GetLocations() {
@@ -68,14 +66,14 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
         return ToString(null);
     }
 
-    public string ToString(DiagnosticFormatter formatter) {
+    public string ToString(DiagnosticFormatter? formatter) {
         formatter ??= DiagnosticFormatter.Instance;
         return formatter.Format(this);
     }
 
     #region Equality members
 
-    public bool Equals(Diagnostic other) {
+    public bool Equals(Diagnostic? other) {
         if (ReferenceEquals(null, other)) {
             return false;
         }
@@ -87,7 +85,7 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
         return Location.Equals(other.Location) && Equals(Descriptor, other.Descriptor);
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) {
             return false;
         }
@@ -101,15 +99,15 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
 
     public override int GetHashCode() {
         unchecked {
-            return (Location.GetHashCode() * 397) ^ (Descriptor != null ? Descriptor.GetHashCode() : 0);
+            return (Location.GetHashCode() * 397) ^ Descriptor.GetHashCode();
         }
     }
 
-    public static bool operator ==(Diagnostic left, Diagnostic right) {
+    public static bool operator ==(Diagnostic? left, Diagnostic? right) {
         return Equals(left, right);
     }
 
-    public static bool operator !=(Diagnostic left, Diagnostic right) {
+    public static bool operator !=(Diagnostic? left, Diagnostic? right) {
         return !Equals(left, right);
     }
 
