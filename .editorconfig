@@ -1,0 +1,10 @@
+root = true
+
+[*.cs]
+# ReSharper "UnusedAutoPropertyAccessor.Global": Die betroffenen Properties sind DTO-/CodeModel-/Polyfill-
+# Member, die zur Laufzeit genutzt werden, für die solution-weite "Global"-Heuristik aber unsichtbar bleiben:
+# die MCP-/LSP-Ergebnistypen werden über JSON-Serialisierung (System.Text.Json, reflektiv) befüllt und
+# gelesen, die CodeGen-CodeModels reflektiv über StringTemplate, die Attribute in Internal/NullableAttributes.cs
+# vom Compiler. Ein Entfernen der Accessoren bräche Serialisierung bzw. Codegenerierung — deshalb wird die
+# Inspektion projektweit abgeschaltet, statt echte Nutzung als "ungenutzt" zu melden.
+resharper_unused_auto_property_accessor_global_highlighting = none

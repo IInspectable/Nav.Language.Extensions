@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using Newtonsoft.Json;
 
@@ -6,7 +6,7 @@ using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Lsp;
+namespace Pharmatechnik.Nav.Language.Lsp.CallHierarchy;
 
 /// <summary>
 /// Erweitert die Paket-<see cref="Protocol.ServerCapabilities"/> um Capabilities, die das verwendete

@@ -65,7 +65,7 @@ public class SyntaxFactsTest {
         'ß', '.', '_'
     };
 
-    static readonly char[] SomeExpectedNonIdentifierCharacters = new char[] {
+    static readonly char[] SomeExpectedNonIdentifierCharacters = {
         '-', ' ', ';', '"', '\r', '\n', '\\', '/', '=', '*'
     };
 

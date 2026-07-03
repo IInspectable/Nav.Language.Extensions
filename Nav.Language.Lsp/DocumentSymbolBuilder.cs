@@ -2,7 +2,6 @@
 
 using System.Linq;
 
-using Pharmatechnik.Nav.Language;
 
 using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 

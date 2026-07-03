@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -8,7 +8,7 @@ using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Lsp;
+namespace Pharmatechnik.Nav.Language.Lsp.CallHierarchy;
 
 // Das Protokoll-Paket 17.2.8 kennt KEINE Call-Hierarchy-DTOs (verifiziert; wie schon prepareRename).
 // Daher hier eigene, minimale DTOs. Sie gehen über denselben Newtonsoft-Formatter wie die Paket-DTOs;

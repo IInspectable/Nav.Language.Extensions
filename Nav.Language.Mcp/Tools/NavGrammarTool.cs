@@ -4,7 +4,6 @@ using System.ComponentModel;
 
 using ModelContextProtocol.Server;
 
-using Pharmatechnik.Nav.Language;
 
 #endregion
 

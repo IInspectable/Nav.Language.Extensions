@@ -6,7 +6,7 @@ using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Lsp;
+namespace Pharmatechnik.Nav.Language.Lsp.CallHierarchy;
 
 /// <summary>
 /// Baut die LSP-<see cref="CallHierarchyItem"/>s für die Aufrufhierarchie aus den Engine-Task-Symbolen

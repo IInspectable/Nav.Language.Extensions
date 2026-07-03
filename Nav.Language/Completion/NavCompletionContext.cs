@@ -206,7 +206,7 @@ sealed class NavCompletionContext {
         // Hinter `Knoten:` einer Exit-Transition → deren Exit-Connection-Points.
         if (contextToken.Type == SyntaxTokenType.Colon &&
             contextToken.Parent is ExitTransitionDefinitionSyntax exitColon) {
-            return Of(NavCompletionContextKind.ExitConnectionPoint, task, exitColon.SourceNode?.Name);
+            return Of(NavCompletionContextKind.ExitConnectionPoint, task, exitColon.SourceNode.Name);
         }
 
         // Hinter einer Edge → Ziel-Position.

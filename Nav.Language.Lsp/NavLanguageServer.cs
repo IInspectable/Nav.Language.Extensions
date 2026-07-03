@@ -22,6 +22,8 @@ using Pharmatechnik.Nav.Language.References;
 using Pharmatechnik.Nav.Language.FindReferences;
 using Pharmatechnik.Nav.Utilities.IO;
 
+using Pharmatechnik.Nav.Language.Lsp.CallHierarchy;
+
 using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion

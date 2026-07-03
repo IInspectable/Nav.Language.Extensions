@@ -4,7 +4,7 @@ namespace Pharmatechnik.Nav.Language.Completion;
 
 /// <summary>
 /// Neutrale (VS-freie) Beschreibung eines Vervollständigungs-Vorschlags. Der LSP-Server bildet
-/// <see cref="Kind"/> auf eine LSP-<c>CompletionItemKind</c> ab und erhält die von
+/// <see cref="NavCompletionItem.Kind"/> auf eine LSP-<c>CompletionItemKind</c> ab und erhält die von
 /// <see cref="NavCompletionService"/> vorgegebene Reihenfolge über ein index-basiertes <c>SortText</c>.
 /// </summary>
 public enum NavCompletionItemKind {

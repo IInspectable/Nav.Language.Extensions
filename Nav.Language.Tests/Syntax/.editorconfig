@@ -6,3 +6,6 @@
 # (Namespace = Ordnerstruktur) ist in diesem einen Ordner nicht anwendbar und wird gezielt abgeschaltet.
 [*.cs]
 dotnet_diagnostic.IDE0130.severity = none
+# ReSharpers eigene Entsprechung zu IDE0130 greift denselben — hier bewusst gebrochenen — Ordner=Namespace-
+# Fall; ebenfalls gezielt abschalten.
+resharper_check_namespace_highlighting = none

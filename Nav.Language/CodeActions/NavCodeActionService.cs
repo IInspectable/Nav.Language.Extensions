@@ -23,7 +23,7 @@ namespace Pharmatechnik.Nav.Language.CodeActions;
 /// <remarks>
 /// Der parametrische <c>RenameCodeFix</c> ist hier bewusst NICHT enthalten: das Umbenennen läuft über
 /// den eigenen LSP-Pfad <c>textDocument/rename</c> (mit Eingabefeld + Validierung). Alle gelieferten
-/// <see cref="TextChange"/> sind dateilokal (beziehen sich auf <paramref name="unit"/>).
+/// <see cref="TextChange"/> sind dateilokal (beziehen sich auf die übergebene <c>unit</c>).
 /// </remarks>
 public static class NavCodeActionService {
 

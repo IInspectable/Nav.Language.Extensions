@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
