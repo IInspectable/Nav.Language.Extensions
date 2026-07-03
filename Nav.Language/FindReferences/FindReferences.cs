@@ -1,11 +1,13 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Threading.Tasks;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 public class ReferenceFinder {
 

@@ -1,9 +1,9 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -26,14 +26,13 @@ public static class NavReferenceService {
     /// das erste Symbol ist die Deklaration, alle weiteren sind Referenzen. Leere Liste, wenn an der
     /// Position kein referenzierbares Symbol liegt. Duplikate (Datei + Startposition) werden entfernt.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<ISymbol> GetHighlightSymbols([NotNull] CodeGenerationUnit unit, int position,
+    public static IReadOnlyList<ISymbol> GetHighlightSymbols(CodeGenerationUnit unit, int position,
                                                              bool includeReferencesUnderInclude = true) {
 
         // Vom spezifischsten Symbol unter dem Caret ausgehen ("Symbol unter Cursor").
         foreach (var origin in SymbolsAt(unit, position)) {
 
-            var seen    = new HashSet<(string, int)>();
+            var seen    = new HashSet<(string?, int)>();
             var symbols = new List<ISymbol>();
 
             foreach (var symbol in HighlightSymbolFinder.Find(origin, includeReferencesUnderInclude)) {
@@ -54,8 +53,7 @@ public static class NavReferenceService {
     /// Das spezifischste Symbol, dessen Bereich die Position enthält — oder null, wenn der Caret auf
     /// keinem Symbol steht. Grundlage für die solution-weite Referenzsuche (Ursprungssymbol).
     /// </summary>
-    [CanBeNull]
-    public static ISymbol FindSymbol([NotNull] CodeGenerationUnit unit, int position) {
+    public static ISymbol? FindSymbol(CodeGenerationUnit unit, int position) {
         return SymbolPosition.SymbolsAt(unit, position).FirstOrDefault();
     }
 

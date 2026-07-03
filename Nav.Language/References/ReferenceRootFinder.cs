@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 namespace Pharmatechnik.Nav.Language.References;
 
 /// <summary>
@@ -25,7 +27,7 @@ sealed class ReferenceRootFinder: SymbolVisitor<ISymbol> {
     public override ISymbol VisitTaskDefinitionSymbol(ITaskDefinitionSymbol taskDefinitionSymbol) {
 
         var taskDeclaration = taskDefinitionSymbol.AsTaskDeclaration;
-        if (taskDeclaration?.IsIncluded == false) {
+        if (taskDeclaration != null && !taskDeclaration.IsIncluded) {
             return Visit(taskDeclaration);
         }
 
@@ -39,8 +41,9 @@ sealed class ReferenceRootFinder: SymbolVisitor<ISymbol> {
     public override ISymbol VisitTaskNodeSymbol(ITaskNodeSymbol taskNodeSymbol) {
         // Wenn die Tasknode selbst der Ursprung ist, oder es keinen Alias gibt, dann laufen wir hoch zur
         // Deklaration - sofern sie in unserem File liegt.
-        if ((OriginatingSymbol == taskNodeSymbol || taskNodeSymbol.Alias == null) && taskNodeSymbol.Declaration?.IsIncluded == false) {
-            return Visit(taskNodeSymbol.Declaration);
+        var declaration = taskNodeSymbol.Declaration;
+        if ((OriginatingSymbol == taskNodeSymbol || taskNodeSymbol.Alias == null) && declaration != null && !declaration.IsIncluded) {
+            return Visit(declaration);
         }
 
         return DefaultVisit(taskNodeSymbol);

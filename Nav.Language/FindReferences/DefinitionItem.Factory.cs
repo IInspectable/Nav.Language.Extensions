@@ -1,15 +1,15 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Immutable;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 public partial class DefinitionItem {
 
@@ -39,7 +39,7 @@ public partial class DefinitionItem {
     public static DefinitionItem Create(ISymbol symbol,
                                         ImmutableArray<ClassifiedText> textParts,
                                         bool expandedByDefault = true,
-                                        string sortKey = null) {
+                                        string? sortKey = null) {
 
         return new DefinitionItem(symbol, textParts, expandedByDefault, sortKey);
 
@@ -59,13 +59,11 @@ public partial class DefinitionItem {
             sortKey: TaskDeclarationSortKey);
     }
 
-    [CanBeNull]
-    public static DefinitionItem CreateInitConnectionPointDefinition(ITaskDefinitionSymbol taskDefinition, bool expandedByDefault = true) {
+    public static DefinitionItem? CreateInitConnectionPointDefinition(ITaskDefinitionSymbol taskDefinition, bool expandedByDefault = true) {
         return CreateInitConnectionPointDefinition(taskDefinition.AsTaskDeclaration, expandedByDefault);
     }
 
-    [CanBeNull]
-    public static DefinitionItem CreateInitConnectionPointDefinition(ITaskDeclarationSymbol taskDeclaration, bool expandedByDefault = true) {
+    public static DefinitionItem? CreateInitConnectionPointDefinition(ITaskDeclarationSymbol? taskDeclaration, bool expandedByDefault = true) {
 
         var initConnectionPoint = taskDeclaration?.Inits().FirstOrDefault();
         if (initConnectionPoint == null) {
@@ -76,7 +74,6 @@ public partial class DefinitionItem {
 
     }
 
-    [NotNull]
     public static DefinitionItem CreateInitConnectionPointDefinition(IInitConnectionPointSymbol initConnectionPoint, bool expandedByDefault = true) {
 
         return Create(
@@ -92,7 +89,7 @@ public partial class DefinitionItem {
 
     }
 
-    public static ImmutableDictionary<Location, DefinitionItem> CreateExitConnectionPointDefinitions(ITaskDeclarationSymbol taskDeclaration, bool expandedByDefault = true) {
+    public static ImmutableDictionary<Location, DefinitionItem> CreateExitConnectionPointDefinitions(ITaskDeclarationSymbol? taskDeclaration, bool expandedByDefault = true) {
 
         var defs = ImmutableDictionary<Location, DefinitionItem>.Empty;
 
@@ -102,7 +99,7 @@ public partial class DefinitionItem {
 
         foreach (var exitConnectionPoint in taskDeclaration.Exits()) {
             var exitDefinition = CreateExitConnectionPointDefinition(exitConnectionPoint, expandedByDefault);
-            defs = defs.Add(exitDefinition.Location, exitDefinition);
+            defs = defs.Add(exitConnectionPoint.Location, exitDefinition);
         }
 
         return defs;

@@ -1,21 +1,21 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 public partial class DefinitionItem {
 
-    DefinitionItem([CanBeNull] ISymbol symbol,
+    DefinitionItem(ISymbol? symbol,
                    ImmutableArray<ClassifiedText> textParts,
                    bool expandedByDefault,
-                   string sortKey) {
+                   string? sortKey) {
 
         Symbol            = symbol;
         TextParts         = textParts;
@@ -23,11 +23,9 @@ public partial class DefinitionItem {
         SortKey           = sortKey ?? "";
     }
 
-    [CanBeNull]
-    public ISymbol Symbol { get; }
+    public ISymbol? Symbol { get; }
 
-    [CanBeNull]
-    public Location Location => Symbol?.Location;
+    public Location? Location => Symbol?.Location;
 
     public ImmutableArray<ClassifiedText> TextParts         { get; }
     public bool                           ExpandedByDefault { get; } // TODO In etwas allgemeineres umbenennen, oder ganz weglassen?

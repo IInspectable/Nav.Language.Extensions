@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;
@@ -14,7 +16,7 @@ namespace Pharmatechnik.Nav.Language.References;
 /// VS-frei portiert aus <c>Nav.Language.ExtensionShared/HighlightReferences/ReferenceFinder.cs</c>; die
 /// VS-Option <c>HighlightReferencesUnderInclude</c> ist als Parameter erhalten geblieben.
 /// </summary>
-sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
+sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
 
     readonly bool _includeReferencesUnderInclude;
 
@@ -22,17 +24,17 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         _includeReferencesUnderInclude = includeReferencesUnderInclude;
     }
 
-    public static IEnumerable<ISymbol> Find(ISymbol symbol, bool includeReferencesUnderInclude = true) {
+    public static IEnumerable<ISymbol?> Find(ISymbol symbol, bool includeReferencesUnderInclude = true) {
         var rootSymbol = ReferenceRootFinder.FindRoot(symbol);
         var finder     = new HighlightSymbolFinder(includeReferencesUnderInclude);
         return finder.Visit(rootSymbol);
     }
 
-    protected override IEnumerable<ISymbol> DefaultVisit(ISymbol symbol) {
+    protected override IEnumerable<ISymbol?> DefaultVisit(ISymbol symbol) {
         yield break;
     }
 
-    public override IEnumerable<ISymbol> VisitExitConnectionPointSymbol(IExitConnectionPointSymbol exitConnectionPointSymbol) {
+    public override IEnumerable<ISymbol?> VisitExitConnectionPointSymbol(IExitConnectionPointSymbol exitConnectionPointSymbol) {
 
         if (!exitConnectionPointSymbol.TaskDeclaration.IsIncluded) {
             yield return exitConnectionPointSymbol;
@@ -47,7 +49,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitInitNodeSymbol(IInitNodeSymbol initNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitInitNodeSymbol(IInitNodeSymbol initNodeSymbol) {
 
         if (initNodeSymbol.Alias != null) {
             yield return initNodeSymbol.Alias;
@@ -60,11 +62,11 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitInitNodeAliasSymbol(IInitNodeAliasSymbol initNodeAliasSymbol) {
+    public override IEnumerable<ISymbol?> VisitInitNodeAliasSymbol(IInitNodeAliasSymbol initNodeAliasSymbol) {
         return Visit(initNodeAliasSymbol.InitNode);
     }
 
-    public override IEnumerable<ISymbol> VisitTaskNodeSymbol(ITaskNodeSymbol taskNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitTaskNodeSymbol(ITaskNodeSymbol taskNodeSymbol) {
 
         if (taskNodeSymbol.Alias != null) {
             yield return taskNodeSymbol.Alias;
@@ -81,7 +83,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitExitNodeSymbol(IExitNodeSymbol exitNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitExitNodeSymbol(IExitNodeSymbol exitNodeSymbol) {
 
         yield return exitNodeSymbol;
 
@@ -90,7 +92,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitEndNodeSymbol(IEndNodeSymbol endNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitEndNodeSymbol(IEndNodeSymbol endNodeSymbol) {
 
         yield return endNodeSymbol;
 
@@ -99,7 +101,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitDialogNodeSymbol(IDialogNodeSymbol dialogNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitDialogNodeSymbol(IDialogNodeSymbol dialogNodeSymbol) {
 
         yield return dialogNodeSymbol;
 
@@ -112,7 +114,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitViewNodeSymbol(IViewNodeSymbol viewNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitViewNodeSymbol(IViewNodeSymbol viewNodeSymbol) {
 
         yield return viewNodeSymbol;
 
@@ -125,7 +127,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitChoiceNodeSymbol(IChoiceNodeSymbol choiceNodeSymbol) {
+    public override IEnumerable<ISymbol?> VisitChoiceNodeSymbol(IChoiceNodeSymbol choiceNodeSymbol) {
 
         yield return choiceNodeSymbol;
 
@@ -138,7 +140,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitTaskDeclarationSymbol(ITaskDeclarationSymbol taskDeclarationSymbol) {
+    public override IEnumerable<ISymbol?> VisitTaskDeclarationSymbol(ITaskDeclarationSymbol taskDeclarationSymbol) {
 
         yield return taskDeclarationSymbol;
 
@@ -154,7 +156,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
-    public override IEnumerable<ISymbol> VisitIncludeSymbol(IIncludeSymbol includeSymbol) {
+    public override IEnumerable<ISymbol?> VisitIncludeSymbol(IIncludeSymbol includeSymbol) {
 
         if (!_includeReferencesUnderInclude) {
             yield break;

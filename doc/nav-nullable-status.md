@@ -59,17 +59,17 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Rename | 3 / P2 | 1 | 1 | fertig |
 | Diagnostic | 3 / P3 | 13 | 13 | fertig |
 | Dependencies | 3 / P3 | 4 | 4 | fertig |
-| FindReferences | 3 / P4 | 10 | 0 | offen |
-| References | 3 / P4 | 3 | 0 | offen |
+| FindReferences | 3 / P4 | 10 | 10 | fertig |
+| References | 3 / P4 | 3 | 3 | fertig |
 | Workspace | 3 / P5 | 8 | 5 | Rest (3) offen |
 | Provider | 3 / P5 | 13 | 0 | offen |
 | Generator | 3 / P6 | 6 | 0 | offen |
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **289** | ~88 % |
+| **Gesamt** | | **329** | **302** | ~92 % |
 
-> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`: Scan `Nav.Language\**\*.cs` ohne
+> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P4: Scan `Nav.Language\**\*.cs` ohne
 > `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren
 > (Vorbild: `nav nullaudit` gibt den Fortschritt maschinell aus).
 
@@ -235,6 +235,43 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   `String.Format` durch, das `null` akzeptiert); `UnitTestDiagnosticFormatter`-Overrides an die nullbare
   Basis angeglichen. `ArgumentNullException`-Guards an den public Konstruktoren/`Format` blieben (Rule 5).
   Alle 17 valides UTF-8 (drei ASCII-only-Dateien ohne BOM), Hook ergänzte den BOM.
+- **Welle 3 / P4 (FindReferences 10 + References 3, 13 Dateien):** **Keine neuen Warnungen, 1 begründete
+  Suppression, kein Befundlog-Eintrag.** Kernmuster: die `.Where(x => x != null)`-Filter narrowen in NRT
+  nicht → durchgängig auf `.WhereNotNull()` umgestellt (Init-/Exit-/Node-Referenzen im
+  `FindReferencesVisitor`, plus die lokalen `IEnumerable<ISymbol?> FindReferences()`-Generatoren, die nullbare
+  `SourceReference`/`TargetReference` liefern); erst danach greift `SymbolOrderer.OrderByLocation<T> where
+  T: ISymbol` sauber. `VisitExitConnectionPointSymbol` zieht `.WhereNotNull()` **vor** den
+  `ep.Declaration == …`-Match (verhaltensgleich, null matchte die Declaration ohnehin nie). Die einzige
+  Suppression ist `ReferenceItemBuilder.Invoke`: `reference.SyntaxTree!` mit Begründung — Referenz-Site-Symbole
+  der aktuellen Unit tragen stets einen SyntaxTree (nur importierte TaskDeclarations sind `null`, die hier nie
+  als `reference` ankommen); der bisherige defensive `SyntaxTree == null`→`return null`-Zweig entfiel, wodurch
+  `Invoke` nun **non-null** `ReferenceItem` liefert (die `yield`+`OrderByLocation`-Pfade setzten Non-Null
+  ohnehin voraus). Zwei nullbar-tolerante Verträge statt Suppressions: (1) `ReferenceItem`-Ctor-Parameter
+  `Location? location` (das `?? throw ArgumentNullException` bleibt Rule-5-Guard und ist zugleich die
+  Null-Behandlung des `CreateSimpleMessage`/`NoReferencesFoundTo`-Pfads, der `DefinitionItem.Location` — für
+  eine location-lose `SimpleTextDefinition` `null` — durchreicht); (2) `FindReferencesAsync` (static) nimmt
+  `ITaskDeclarationSymbol? taskDeclaration` **und** `CodeGenerationUnit? codeGenerationUnit` mit **einem**
+  Kopf-Guard `if (taskDeclaration == null || codeGenerationUnit == null) return;` — deckt beide Aufrufkanten
+  ab: `taskDefinition.AsTaskDeclaration` (nullbar bei location-uneindeutiger Definition) und
+  `taskDeclaration.CodeGenerationUnit` (nullbar bei included Declaration). Beide sind über die cursor-basierten
+  Hosts (LSP/MCP `FindSymbol` liefert stets ein Symbol der aktuellen, geladenen Unit) real non-null; der Guard
+  wandelt den theoretisch-latenten NRE für malformed/included Eingaben verhaltensneutral in einen No-op (kein
+  über die öffentliche API konstruierbarer Repro → kein Befundlog-Eintrag). Weitere Präzisierungen:
+  `DefinitionItem.Symbol`→`ISymbol?`, `Location`→`Location?`, `sortKey`→`string?` (auf `String.Empty`
+  normalisiert); die `[CanBeNull]`-Factory-Overloads (`CreateInitConnectionPointDefinition`,
+  `CreateExitConnectionPointDefinitions`) auf `ITaskDeclarationSymbol?`/`DefinitionItem?` gesetzt;
+  `CreateExitConnectionPointDefinitions` nutzt jetzt `exitConnectionPoint.Location` (non-null `ISymbol.Location`)
+  als Dictionary-Key statt der nullbaren `exitDefinition.Location`. Tote Guards entfernt:
+  `if (taskDefinitionItem == null) yield break;` in `FindTaskNodeReferences` (Parameter beweisbar non-null,
+  Rule 4). Öffentliche Verträge geschärft ohne Konsum-Regression: `IFindReferencesContext.OnDefinition/
+  OnReferenceFoundAsync` non-null (LSP/MCP-Collectors haben nur redundante `?.`), `NavReferenceService.FindSymbol`
+  →`ISymbol?` (alle drei Hosts guarden `origin == null` bereits vor `new FindReferencesArgs`),
+  `HighlightSymbolFinder` →`SymbolVisitor<IEnumerable<ISymbol?>>` (die Node-Referenzen sind element-nullbar —
+  `NavReferenceService.GetHighlightSymbols` filtert per `symbol?.Location != null`, Dedup-`HashSet` auf
+  `(string?, int)` wegen `Location.FilePath` = `string?`, Playbook 4a). In `ReferenceRootFinder` die zwei
+  `x?.IsIncluded == false`-Bedingungen auf `x != null && !x.IsIncluded` (Locals) umgestellt — sauberes
+  Narrowing statt fragiler Member-Slot-Analyse, verhaltensgleich. Encoding: FindReferences/ war UTF-8 **mit**
+  BOM, References/ UTF-8 **ohne** BOM (valide, keine Win-1252-Falle) — Hook ergänzte den BOM.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

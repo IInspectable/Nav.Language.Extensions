@@ -1,12 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 public class FindReferencesArgs {
 
@@ -22,16 +22,12 @@ public class FindReferencesArgs {
 
     }
 
-    [NotNull]
     public ISymbol OriginatingSymbol { get; }
 
-    [NotNull]
     public CodeGenerationUnit OriginatingCodeGenerationUnit { get; }
 
-    [NotNull]
     public NavSolution Solution { get; }
 
-    [NotNull]
     public IFindReferencesContext Context { get; }
 
 }

@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Immutable;
@@ -7,12 +9,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 public class ReferenceItem {
 
     public ReferenceItem(DefinitionItem definition,
-                         Location location,
+                         Location? location,
                          ImmutableArray<ClassifiedText> textParts,
                          TextExtent textHighlightExtent,
                          ImmutableArray<ClassifiedText> toolTipParts,
@@ -54,8 +56,8 @@ public class ReferenceItem {
         );
     }
 
-    public ReferenceItem With(DefinitionItem definition = null,
-                              Location location = null,
+    public ReferenceItem With(DefinitionItem? definition = null,
+                              Location? location = null,
                               ImmutableArray<ClassifiedText>? textParts = null,
                               TextExtent? textHighlightExtent = null,
                               ImmutableArray<ClassifiedText>? toolTipParts = null,
