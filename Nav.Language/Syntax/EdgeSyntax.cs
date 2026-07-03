@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using System;
+﻿using System;
 
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;

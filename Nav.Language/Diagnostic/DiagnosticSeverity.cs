@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language;
+﻿namespace Pharmatechnik.Nav.Language;
 
 public enum DiagnosticSeverity {
 

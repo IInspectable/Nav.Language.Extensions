@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -7,8 +7,6 @@ using System.Threading;
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
-
-#nullable enable
 
 namespace Pharmatechnik.Nav.Language;
 

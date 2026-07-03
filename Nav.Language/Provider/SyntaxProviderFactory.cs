@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language;
+﻿namespace Pharmatechnik.Nav.Language;
 
 public class SyntaxProviderFactory  {
     public static readonly ISyntaxProviderFactory Default = new SyntaxProviderFactory<SyntaxProvider>();

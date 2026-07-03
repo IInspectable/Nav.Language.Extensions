@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-// ReSharper disable InconsistentNaming
+﻿// ReSharper disable InconsistentNaming
 
 namespace Pharmatechnik.Nav.Language;
 

@@ -1,16 +1,19 @@
 ﻿# Nav-Nullable — Status & Handoff
 
 Stand-Dokument für die **Nullable-Reference-Types-Kampagne** in `Nav.Language` (netstandard2.0,
-Assembly `Pharmatechnik.Nav.Language`). Der Engine-Kern wird **ordnerweise** auf NRT umgestellt —
-bewusst **pro Datei** per `#nullable enable` (erste Codezeile, BOM davor), **ohne** projektweites
-`<Nullable>enable</Nullable>`. Ziel: **messerscharfe** Annotationen — keine falschen not-null-Zusagen
-(latente `NullReferenceException`), aber auch keine unnötigen `?`/Null-Checks, wo null de facto nie
-auftritt.
+Assembly `Pharmatechnik.Nav.Language`). Der Engine-Kern wurde **ordnerweise** auf NRT umgestellt —
+ursprünglich **pro Datei** per `#nullable enable`, seit **Welle 5** projektweit. Ziel: **messerscharfe**
+Annotationen — keine falschen not-null-Zusagen (latente `NullReferenceException`), aber auch keine
+unnötigen `?`/Null-Checks, wo null de facto nie auftritt.
 
-> Dieses Dokument ist die **Quelle der Wahrheit für den Fortschritt**. Eine neue Session liest zuerst
-> hier den Stand je Ordner (Abschnitt 2) und arbeitet den nächsten offenen Step ab. Der
-> selbsttragende Gesamtplan (Wellen 0–5, Begründungen) liegt außerhalb des Repos in
-> `~\.claude\plans\wir-haben-jetzt-bereits-staged-bonbon.md`.
+> **✅ ENDZUSTAND ERREICHT (Welle 5, 2026-07-03).** `Nav.Language` trägt projektweit
+> `<Nullable>enable</Nullable>` + `<WarningsAsErrors>Nullable</WarningsAsErrors>` — der **Compiler**
+> ist das harte Gate (jede Nullable-Verletzung ist ein Build-Fehler; empirisch per Sonde verifiziert).
+> Die per-Datei-`#nullable enable`-Direktiven sind **alle entfernt** (329 Dateien). `nav nullaudit`
+> bleibt als **Hygiene- und Diagnose-Wächter** (Abschnitt 4): prüft die Projekteinstellung + Direktiven-
+> Drift und difft den (leeren) Warnungs-Stand gegen die Baseline. Abschnitte 1–3 dokumentieren die
+> Umstellungs-Mechanik als **historischen Record**; der selbsttragende Gesamtplan liegt außerhalb des
+> Repos in `~\.claude\plans\wir-haben-jetzt-bereits-staged-bonbon.md`.
 
 ## 1. Mechanik — warum das wasserdicht ist
 
@@ -69,13 +72,13 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | CodeActions | 3 / P6 | 2 | 2 | fertig |
 | **Gesamt** | | **329** | **329** | **100 %** |
 
-> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P6: Scan `Nav.Language\**\*.cs` ohne
-> `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). **Welle 3 abgeschlossen — alle Ordner auf 100 %.**
-> Der Prüfbau (`-p:Nullable=warnings` für Nav.Language + nativ nullable LSP/MCP) ist **warnungsfrei**;
-> `Build\nullaudit-baseline.txt` ist damit **leer** (0 Einträge). **Welle 4 abgeschlossen** (s. u.):
-> projekt-skopiertes `<Nullable>enable</Nullable>` in Nav.Language baut **0 Warnungen/0 Fehler**,
-> LSP + MCP konsumieren es je warnungsfrei. Offen bleibt nur noch optional Welle 5 (projektweites
-> `<Nullable>enable</…>` dauerhaft + `WarningsAsErrors=Nullable`, Direktiven raus) — Nutzerentscheid.
+> Historische Fortschrittszahlen (Stand nach Welle 3, alle Ordner 100 %). **Seit Welle 5 ist die
+> Spalte „konvertiert" gegenstandslos** — die Umstellung erfolgt projektweit, die per-Datei-Direktiven
+> sind entfernt. Der Endzustand ist erreicht: **Welle 4** bewies den warnungsfreien Voll-Enable-Build
+> (und fand die Lücke `GenerationOptions.cs`), **Welle 5** schaltete `Nav.Language` dauerhaft auf
+> `<Nullable>enable</Nullable>` + `<WarningsAsErrors>Nullable</…>` und entfernte alle 329 Direktiven.
+> `Build\nullaudit-baseline.txt` ist **leer**; `nav nullaudit` läuft als Hygiene-Wächter grün; net472
+> (1271) + net10.0 (1263) grün.
 
 ## 3. Playbook-Regeln (Review-Checkliste je Ordner)
 
@@ -107,24 +110,34 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
    `nav test` (net472) **und** `dotnet test … -f net10.0` grün, `nav nullaudit -UpdateBaseline`,
    diese Statustabelle aktualisieren, Commit-Message liefern (Nutzer committet).
 
-## 4. Tool `nav nullaudit`
+## 4. Tool `nav nullaudit` (Post-Welle-5-Rolle)
 
-> Wird in Welle-0-Step 3 angelegt (`Tools\Commands\Functions\Invoke-NullAudit.ps1`,
-> `.FUNCTIONALITY nullaudit`). Spezifikation:
+> `Tools\Commands\Functions\Invoke-NullAudit.ps1`, `.FUNCTIONALITY nullaudit`. Seit Welle 5 **kein**
+> Fortschritts-Tracker mehr, sondern **Hygiene- und Diagnose-Wächter** über den Endzustand. Der
+> harte Regressions-Schutz ist ab jetzt der **Compiler** (projektweit `enable` +
+> `WarningsAsErrors=Nullable`); `nav nullaudit` ergänzt Drift-Erkennung, einen aggregierten Report
+> und den `-Detail`-Arbeitsmodus.
 
-- **Fortschritt** (`-NoBuild`): Scan `Nav.Language\**\*.cs` (ohne bin/obj/`*.generated.cs`) auf
-  `#nullable enable` → Tabelle Ordner × (konvertiert/gesamt/%).
-- **Prüfbau**: je Projekt (Nav.Language, Nav.Language.Lsp, Nav.Language.Mcp)
-  `dotnet build --no-incremental -p:Nullable=warnings -flp:"warningsonly;logfile=…"`
-  (`--no-incremental` ist Pflicht: übersprungene Compiles emittieren keine Warnungen).
+- **Hygiene** (`-NoBuild`): (a) prüft, dass `Nav.Language.csproj` weiterhin `<Nullable>enable</Nullable>`
+  trägt (fehlt es → **Abbruch**); (b) scannt `Nav.Language\**\*.cs` (ohne bin/obj/`*.generated.cs`)
+  **zeilenbasiert** auf `#nullable`-**Direktiven-Drift** — `#nullable disable`/`restore` heben das Gate
+  lokal aus (→ **Abbruch**), ein redundantes `#nullable enable` ist nur Hinweis; (c) Tabelle
+  Ordner × (Dateien, ~Suppressions). *Wichtig:* die Direktiv-Erkennung ist **zeilenbasiert** (Trim ==
+  Direktive), nicht String-Suche — ein Vorkommen in der XML-Doku (`<c>#nullable enable</c>`) zählt
+  **nicht** (der frühere Substring-Scan zählte es fälschlich mit → die Lücke `GenerationOptions.cs`, s.
+  Welle-4-Eintrag).
+- **Prüfbau**: je Projekt (Nav.Language, Nav.Language.Lsp, Nav.Language.Mcp) `dotnet build
+  --no-incremental` in **nativer** Einstellung (alle projektweit `enable`; **kein** `-p:Nullable=warnings`
+  mehr, das würde den Annotations-Kontext abschalten und z. B. CS8618 verdecken). Für Nav.Language
+  `-p:WarningsAsErrors=`, damit Verstöße als **Warnung** einsammelbar sind statt den Build hart
+  abzubrechen. `-flp:"warningsonly;logfile=…"`, `--no-incremental` Pflicht (übersprungene Compiles
+  emittieren keine Warnungen).
 - **Aggregation**: Regex `warning CS8[67]\d\d` aus dem File-Log, Pfade repo-relativ normalisiert,
   gruppiert nach **(Datei, Warncode) → Anzahl** — bewusst ohne Zeilennummern (robust gegen Drift).
-- **Baseline-Diff** gegen `Build\nullaudit-baseline.txt`: Tab-getrenntes Zeilenformat
-  (`Nav.Language/CodeFixes/Foo.cs<TAB>CS8602<TAB>3`), sortiert. Neues Paar oder Zähler-Anstieg =
-  **Regression → Exit ≠ 0**.
-- **Parameter**: `-UpdateBaseline` (nach reviewtem Step), `-Detail <Ordner>` (Roh-Warnungen mit
-  Zeilennummern für die Arbeit), `-NoBuild` (nur Fortschritt). Zusätzlich der **Suppression-Zähler**
-  (`!`-Vorkommen pro Ordner).
+- **Baseline-Diff** gegen `Build\nullaudit-baseline.txt` (im Endzustand **leer**): Tab-getrenntes
+  Zeilenformat, sortiert. Neues Paar oder Zähler-Anstieg = **Regression → Exit ≠ 0**.
+- **Parameter**: `-UpdateBaseline`, `-Detail <Ordner>` (Roh-Warnungen mit Zeilennummern), `-NoBuild`
+  (nur Hygiene). Der **Suppression-Zähler** (`!`-Vorkommen pro Ordner) läuft mit.
 
 ## 5. Entscheidungslog
 
@@ -358,6 +371,28 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   nach dem Fix grün (329/329, Baseline 0); net472 (1271) + net10.0 (1263) grün. Die `Nav.Utilities`-
   Eigenschuld ist **kein** Kampagnen-Regress, sondern separater Scope (eigene Nullable-Umstellung, falls
   je gewünscht).
+
+- **Welle 5 (Endzustand) — abgeschlossen (2026-07-03, Nutzerentscheid „durchziehen, nullaudit behalten"):**
+  Drei Teile. **(1) Scanner-Fix vorab:** die `nav nullaudit`-Fortschritts-Erkennung suchte den String
+  `#nullable enable` per `Select-String -SimpleMatch` — matchte damit auch die XML-Doku-Erwähnung und
+  ließ so die Welle-4-Lücke `GenerationOptions.cs` durch. Umgestellt auf **zeilenbasierte** Erkennung
+  (`Trim() -eq '#nullable enable'`, BOM-fest via `ReadAllLines`); gegen den bekannten 329/329-Stand
+  verifiziert (unverändert 329, aber aus dem richtigen Grund). **(2) csproj-Umschaltung:** in
+  `Nav.Language.csproj` `<Nullable>enable</Nullable>` + `<WarningsAsErrors>$(WarningsAsErrors);Nullable</…>`.
+  Das WAE-Gate ist **empirisch per Sonde** bewiesen: eine temporäre `string? s = null; return s;`-Methode
+  erzeugt `error CS8603` (nicht warning), Build bricht ab — der `Nullable`-Kategorie-Token wird also
+  wirklich wirksam, nicht still ignoriert. **(3) Direktiven entfernt:** alle **329** per-Datei-
+  `#nullable enable` (+ jeweils die Folge-Leerzeile) per Skript entfernt — BOM-fest (raw-Bytes gelesen,
+  UTF-8-**mit**-BOM zurückgeschrieben), EOL-erhaltend, zeilenbasiert (die Doku-Zeile in
+  `GenerationOptions.cs` blieb unberührt). Verifiziert: 0 Rest-Direktiven, **0 `U+FFFD`** (keine
+  Encoding-Korruption, vgl. Win-1252-Falle), 0 Dateien ohne BOM (5 vormals BOM-lose Dateien dabei
+  gleich CLAUDE.md-konform gemacht). Nav.Language baut nativ **0 Warnungen/0 Fehler**; net472 (1271) +
+  net10.0 (1263) grün — **verhaltensneutral** (die Direktiven waren unter projektweitem `enable`
+  redundante No-ops). **nullaudit umgebaut** (Nutzerwunsch, bleibt erhalten): Fortschritts-Tabelle →
+  **Hygiene-Wächter** (Projekteinstellung vorhanden? `#nullable`-Direktiven-Drift? — `disable`/`restore`
+  fatal), Prüfbau **nativ** statt `-p:Nullable=warnings` (mit `-p:WarningsAsErrors=` fürs nicht-fatale
+  Einsammeln), Baseline bleibt leer, `nav nullaudit` grün. Damit ist die Kampagne **vollständig
+  abgeschlossen** — kein NRE-Befund über alle Wellen (Befundlog leer).
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

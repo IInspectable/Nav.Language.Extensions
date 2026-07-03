@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.Dependencies;
+﻿namespace Pharmatechnik.Nav.Language.Dependencies;
 
 public sealed class Dependency {
         

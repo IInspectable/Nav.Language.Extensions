@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Collections.Immutable;

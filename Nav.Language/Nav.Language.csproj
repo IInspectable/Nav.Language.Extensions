@@ -9,7 +9,12 @@
     <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
     <AssemblyName>Pharmatechnik.Nav.Language</AssemblyName>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Welle 5 der Nullable-Kampagne: projektweiter NRT-Kontext löst die vormaligen per-Datei-
+         `#nullable enable`-Direktiven ab (alle entfernt). WarningsAsErrors=Nullable macht künftige
+         Nullable-Verstöße zu Build-Fehlern — sonst wäre jede neue Datei zwar geprüft, aber ohne Gate. -->
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>$(WarningsAsErrors);Nullable</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

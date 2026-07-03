@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language;
+﻿namespace Pharmatechnik.Nav.Language;
 
 abstract class TriggerSymbol: Symbol, ITriggerSymbol {
 

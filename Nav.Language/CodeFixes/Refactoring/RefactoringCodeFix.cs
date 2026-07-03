@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring;
+﻿namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring;
 
 public abstract class RefactoringCodeFix: CodeFix {
 

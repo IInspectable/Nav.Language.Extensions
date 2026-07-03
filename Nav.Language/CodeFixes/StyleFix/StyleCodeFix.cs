@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using Pharmatechnik.Nav.Language.Text;
+﻿using Pharmatechnik.Nav.Language.Text;
 using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.StyleFix;

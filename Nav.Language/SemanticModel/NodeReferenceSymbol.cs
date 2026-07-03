@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using Pharmatechnik.Nav.Language.Internal;
+﻿using Pharmatechnik.Nav.Language.Internal;
 
 namespace Pharmatechnik.Nav.Language;
 

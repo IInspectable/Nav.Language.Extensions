@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.Generator;
+﻿namespace Pharmatechnik.Nav.Language.Generator;
 
 public interface ILogger {
     void LogVerbose(string message);

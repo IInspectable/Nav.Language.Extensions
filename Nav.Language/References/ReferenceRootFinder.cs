@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.References;
+﻿namespace Pharmatechnik.Nav.Language.References;
 
 /// <summary>
 /// Steigt vom Symbol unter dem Cursor zum „Wurzel"-Symbol auf, von dem aus die Referenzen aufgesammelt

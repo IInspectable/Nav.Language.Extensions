@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using System;
+﻿using System;
 using System.Linq;
 
 namespace Pharmatechnik.Nav.Language.Internal;

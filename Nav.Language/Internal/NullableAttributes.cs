@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-// Polyfill der Nullable-Flussanalyse-Attribute für netstandard2.0 — dort fehlen sie in der BCL. Der
+﻿// Polyfill der Nullable-Flussanalyse-Attribute für netstandard2.0 — dort fehlen sie in der BCL. Der
 // Compiler erkennt sie allein an Namespace und Gestalt (exakt das BCL-Original). Enthalten ist der
 // vollständige Satz, damit die Nullable-Kampagne jedes Flussattribut nutzen kann, ohne diese Datei
 // erneut anzufassen (verhindert einen Merge-Hotspot und die CS0122-Falle). Alle Typen sind internal.

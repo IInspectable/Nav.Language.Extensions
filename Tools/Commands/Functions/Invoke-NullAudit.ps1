@@ -1,29 +1,32 @@
 ﻿<#
 .SYNOPSIS
-    Auditiert den Fortschritt und die Wasserdichtheit der Nullable-Kampagne in Nav.Language.
+    Wächter über die abgeschlossene Nullable-Umstellung in Nav.Language (Endzustand, Welle 5).
 
 .DESCRIPTION
-    Werkzeug der ordnerweisen NRT-Umstellung (per Datei `#nullable enable`, ohne projektweites
-    <Nullable>). Drei Aufgaben:
+    Seit Welle 5 ist Nav.Language projektweit `<Nullable>enable</Nullable>` mit
+    `<WarningsAsErrors>Nullable</WarningsAsErrors>` — der Compiler selbst ist damit das harte Gate
+    (jede Nullable-Verletzung ist ein Build-Fehler). Die per-Datei-`#nullable enable`-Direktiven sind
+    entfernt. Dieses Werkzeug ist kein Fortschritts-Tracker mehr, sondern der Hygiene- und
+    Diagnose-Wächter über den Endzustand. Drei Aufgaben:
 
-      1. Fortschritt: Scan Nav.Language\**\*.cs (ohne bin/obj/*.generated.cs) auf `#nullable enable`,
-         gruppiert je Top-Level-Ordner → Tabelle (konvertiert/gesamt/%) plus ein approximativer
-         Suppression-Zähler (`!`-Null-forgiving) je Ordner.
+      1. Hygiene: prüft, dass Nav.Language.csproj weiterhin `<Nullable>enable</Nullable>` trägt (fehlt
+         es → Abbruch), und scannt Nav.Language\**\*.cs (ohne bin/obj/*.generated.cs) auf
+         **Direktiven-Drift**: neu eingeschlichene `#nullable`-Direktiven. `#nullable disable`/`restore`
+         hebeln das Gate lokal aus → Abbruch; ein redundantes `#nullable enable` ist nur ein Hinweis.
+         Dazu je Top-Level-Ordner ein approximativer Suppression-Zähler (`!`-Null-forgiving).
 
-      2. Prüfbau: baut Nav.Language mit `-p:Nullable=warnings` (der ganze Engine-Kern bekommt so den
-         Warning-Kontext; per-Datei-`#nullable enable` überstimmt ihn und behält die volle Prüfung),
-         sowie Nav.Language.Lsp und Nav.Language.Mcp in ihrer nativen Einstellung (bereits projektweit
-         `enable`) als Konsum-Validierung der Engine-Public-Surface. Alle mit `--no-incremental`
-         (übersprungene Compiles emittieren keine Warnungen).
-
-         Bewusst KEIN `-p:Nullable=warnings` für LSP/MCP: das würde deren Annotations-Kontext
-         abschalten und jedes `?` mit CS8632 fluten (statt echter Konsum-Regressionen).
+      2. Prüfbau: baut Nav.Language, Nav.Language.Lsp und Nav.Language.Mcp in ihrer **nativen**
+         Einstellung (alle projektweit `enable`) als Konsum-Validierung der Engine-Public-Surface, alle
+         mit `--no-incremental` (übersprungene Compiles emittieren keine Warnungen). Für Nav.Language
+         wird `-p:WarningsAsErrors=` gesetzt, damit etwaige Nullable-Verstöße als **Warnung** (statt
+         als harter Fehler) eingesammelt und gegen die Baseline diffbar werden, statt den Build sofort
+         abzubrechen. KEIN `-p:Nullable=warnings` mehr: das würde den Annotations-Kontext abschalten
+         und Diagnosen wie CS8618 verdecken.
 
       3. Baseline-Diff: aggregiert die Nullable-Warnungen (CS86xx/CS87xx) je (Datei, Warncode) — ohne
-         Zeilennummern, robust gegen Zeilen-Drift — und vergleicht gegen Build\nullaudit-baseline.txt.
-         Ein neues (Datei, Warncode)-Paar oder ein gestiegener Zähler ist eine Regression → Abbruch mit
-         Fehler. Restrauschen der noch offenen Ordner steht in der eingecheckten Baseline und zählt
-         nicht.
+         Zeilennummern, robust gegen Zeilen-Drift — und vergleicht gegen Build\nullaudit-baseline.txt
+         (im Endzustand leer). Ein neues (Datei, Warncode)-Paar oder ein gestiegener Zähler ist eine
+         Regression → Abbruch mit Fehler.
 
 .PARAMETER UpdateBaseline
     Schreibt den aktuellen Warnungs-Stand als neue Baseline (nach einem reviewten Step). Kein Diff.
@@ -33,14 +36,14 @@
     Ordners MIT Zeilennummern — der Arbeitsmodus beim Annotieren. Kein Baseline-Diff, kein Abbruch.
 
 .PARAMETER NoBuild
-    Nur der Fortschritts-Scan (Punkt 1), kein Build und kein Diff.
+    Nur der Hygiene-Scan (Punkt 1), kein Build und kein Diff.
 
 .PARAMETER Configuration
     Build-Konfiguration für den Prüfbau. Default: Debug.
 
 .EXAMPLE
     nav nullaudit
-    Fortschritt + Prüfbau + Baseline-Diff (Gate). Exit != 0 bei Regression.
+    Hygiene + Prüfbau + Baseline-Diff (Gate). Exit != 0 bei Regression oder Direktiven-Drift.
 
 .EXAMPLE
     nav nullaudit -Detail CodeFixes
@@ -78,7 +81,18 @@ function Invoke-NullAudit {
         return ($p -replace '\\', '/')
     }
 
-    # --- 1. Fortschritt ------------------------------------------------------------------------------
+    # Findet `#nullable`-Direktiven in einer Datei (zeilenbasiert, BOM-fest via ReadAllLines) und liefert
+    # die Direktiv-Wörter (enable/disable/restore). Bewusst zeilenbasiert statt String-Suche — sonst
+    # zählte ein Vorkommen in der XML-Doku (z. B. `<c>#nullable enable</c>`) fälschlich mit.
+    function Get-NullableDirectives([string] $path) {
+        $found = @()
+        foreach ($line in [System.IO.File]::ReadAllLines($path)) {
+            if ($line.Trim() -match '^#nullable\s+(?<w>enable|disable|restore)\b') { $found += $Matches['w'] }
+        }
+        return $found
+    }
+
+    # --- 1. Hygiene ----------------------------------------------------------------------------------
 
     $srcFiles = Get-ChildItem -Path $engineDir -Recurse -Filter *.cs -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' -and $_.Name -notlike '*.generated.cs' }
@@ -87,6 +101,16 @@ function Invoke-NullAudit {
     # Abschluss-Token. Schließt `!=` aus (`=` nicht im Lookahead). Heuristik → als ≈ ausgewiesen.
     $suppressRegex = [regex] '[\w\)\]]\!(?=[\.\),;\s])'
 
+    # Endzustand-Wächter: Nav.Language muss projektweit `<Nullable>enable</Nullable>` tragen.
+    $csproj     = Join-Path $engineDir 'Nav.Language.csproj'
+    $csprojText = if (Test-Path $csproj) { [System.IO.File]::ReadAllText($csproj) } else { '' }
+    $nullableOn = $csprojText -match '(?im)<Nullable>\s*enable\s*</Nullable>'
+
+    # Direktiven-Drift: im Endzustand trägt keine Handquelle mehr eine `#nullable`-Direktive.
+    # `disable`/`restore` hebeln das Gate lokal aus (fatal); ein redundantes `enable` ist nur Hinweis.
+    $strayEnable  = New-Object System.Collections.Generic.List[string]
+    $strayDisable = New-Object System.Collections.Generic.List[string]
+
     $folderGroups = $srcFiles | Group-Object {
         $rel = $_.FullName.Substring($engineDir.Length).TrimStart('\')
         $i   = $rel.IndexOf('\')
@@ -94,47 +118,55 @@ function Invoke-NullAudit {
     }
 
     $rows = foreach ($g in $folderGroups | Sort-Object Name) {
-        $conv = @($g.Group | Where-Object {
-            Select-String -Path $_.FullName -Pattern '#nullable enable' -SimpleMatch -Quiet
-        }).Count
         $supp = 0
         foreach ($f in $g.Group) {
             $supp += $suppressRegex.Matches([System.IO.File]::ReadAllText($f.FullName)).Count
+            foreach ($d in Get-NullableDirectives $f.FullName) {
+                $rel = ConvertTo-RepoRelative $f.FullName
+                if ($d -eq 'enable') { $strayEnable.Add($rel) } else { $strayDisable.Add($rel) }
+            }
         }
-        [pscustomobject]@{
-            Ordner      = $g.Name
-            Konvertiert = $conv
-            Gesamt      = $g.Count
-            Prozent     = if ($g.Count) { [math]::Round(100.0 * $conv / $g.Count) } else { 0 }
-            Suppress    = $supp
-        }
+        [pscustomobject]@{ Ordner = $g.Name; Dateien = $g.Count; Suppress = $supp }
     }
 
-    $totConv = ($rows | Measure-Object Konvertiert -Sum).Sum
-    $totAll  = ($rows | Measure-Object Gesamt      -Sum).Sum
-    $totSupp = ($rows | Measure-Object Suppress    -Sum).Sum
+    $totAll  = ($rows | Measure-Object Dateien  -Sum).Sum
+    $totSupp = ($rows | Measure-Object Suppress -Sum).Sum
 
     Write-Host ""
-    Write-Host "  Nullable-Fortschritt (Nav.Language)" -ForegroundColor Cyan
-    Write-Host ("  {0,-22} {1,5} {2,6} {3,5}  {4,7}" -f 'Ordner', 'konv.', 'gesamt', '%', '~supp.') -ForegroundColor DarkGray
+    Write-Host "  Nullable-Hygiene (Nav.Language — Endzustand, projektweit enable)" -ForegroundColor Cyan
+    Write-Host ("    Projekteinstellung <Nullable>enable</Nullable>: {0}" -f $(if ($nullableOn) { 'OK' } else { 'FEHLT!' })) `
+        -ForegroundColor $(if ($nullableOn) { 'Green' } else { 'Red' })
+    Write-Host ("    Direktiven-Drift: {0}x redundantes #nullable enable, {1}x #nullable disable/restore" -f `
+        $strayEnable.Count, $strayDisable.Count) `
+        -ForegroundColor $(if ($strayDisable.Count) { 'Red' } elseif ($strayEnable.Count) { 'Yellow' } else { 'Green' })
+    Write-Host ""
+    Write-Host ("  {0,-22} {1,7} {2,7}" -f 'Ordner', 'Dateien', '~supp.') -ForegroundColor DarkGray
     foreach ($r in $rows) {
-        $done  = $r.Konvertiert -eq $r.Gesamt
-        $color = if ($done) { 'Green' } elseif ($r.Konvertiert -gt 0) { 'Yellow' } else { 'Gray' }
-        Write-Host ("  {0,-22} {1,5} {2,6} {3,4}%  {4,7}" -f `
-            $r.Ordner, $r.Konvertiert, $r.Gesamt, $r.Prozent, $r.Suppress) -ForegroundColor $color
+        Write-Host ("  {0,-22} {1,7} {2,7}" -f $r.Ordner, $r.Dateien, $r.Suppress) -ForegroundColor Gray
     }
-    $totPct = if ($totAll) { [math]::Round(100.0 * $totConv / $totAll) } else { 0 }
-    Write-Host ("  {0,-22} {1,5} {2,6} {3,4}%  {4,7}" -f `
-        'GESAMT', $totConv, $totAll, $totPct, $totSupp) -ForegroundColor White
+    Write-Host ("  {0,-22} {1,7} {2,7}" -f 'GESAMT', $totAll, $totSupp) -ForegroundColor White
+
+    foreach ($p in ($strayEnable  | Sort-Object -Unique)) { Write-Host "    Hinweis: redundante #nullable-enable-Direktive in $p" -ForegroundColor DarkYellow }
+    foreach ($p in ($strayDisable | Sort-Object -Unique)) { Write-Host "    DRIFT: #nullable disable/restore in $p" -ForegroundColor Red }
+
+    if (-not $nullableOn) {
+        Write-Host ""; throw "Nav.Language.csproj traegt kein projektweites <Nullable>enable</Nullable> — Endzustand verletzt."
+    }
+    if ($strayDisable.Count) {
+        Write-Host ""; throw "Direktiven-Drift: $($strayDisable.Count) Datei(en) mit #nullable disable/restore heben das Gate lokal aus."
+    }
 
     if ($NoBuild) { Write-Host ""; return }
 
     # --- 2. Prüfbau ----------------------------------------------------------------------------------
 
+    # Alle drei nativ (projektweit enable). Für Nav.Language wird die csproj-Regel
+    # WarningsAsErrors=Nullable per `-p:WarningsAsErrors=` neutralisiert, damit etwaige Verstöße als
+    # einsammelbare Warnung erscheinen (Baseline-Diff) statt den Build sofort als Fehler abzubrechen.
     $builds = @(
-        [pscustomobject]@{ Proj = 'Nav.Language\Nav.Language.csproj';         Nullable = 'warnings'; Scope = 'Nav.Language/' }
-        [pscustomobject]@{ Proj = 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'; Nullable = '';         Scope = 'Nav.Language.Lsp/' }
-        [pscustomobject]@{ Proj = 'Nav.Language.Mcp\Nav.Language.Mcp.csproj'; Nullable = '';         Scope = 'Nav.Language.Mcp/' }
+        [pscustomobject]@{ Proj = 'Nav.Language\Nav.Language.csproj';         Scope = 'Nav.Language/';     ClearWae = $true  }
+        [pscustomobject]@{ Proj = 'Nav.Language.Lsp\Nav.Language.Lsp.csproj'; Scope = 'Nav.Language.Lsp/'; ClearWae = $false }
+        [pscustomobject]@{ Proj = 'Nav.Language.Mcp\Nav.Language.Mcp.csproj'; Scope = 'Nav.Language.Mcp/'; ClearWae = $false }
     )
 
     # Der MSBuild-File-Logger stellt bei Multiprozess-Builds ein Knoten-Präfix ("  1:7>") voran — der
@@ -156,10 +188,10 @@ function Invoke-NullAudit {
 
             $log    = Join-Path $logDir ((Split-Path $b.Proj -Leaf) + '.log')
             $dnArgs = @('build', $proj, '-c', $Configuration, '--no-incremental', '-nologo')
-            if ($b.Nullable) { $dnArgs += "-p:Nullable=$($b.Nullable)" }
+            if ($b.ClearWae) { $dnArgs += '-p:WarningsAsErrors=' }
             $dnArgs += "-flp:warningsonly;logfile=$log"
 
-            Write-Host "    $($b.Proj)$(if ($b.Nullable) { " (-p:Nullable=$($b.Nullable))" })" -ForegroundColor DarkGray
+            Write-Host "    $($b.Proj)$(if ($b.ClearWae) { ' (-p:WarningsAsErrors=)' })" -ForegroundColor DarkGray
             & dotnet @dnArgs | Out-Null
             if ($LASTEXITCODE) { $buildFailed = $true; Write-Host "      Build meldete Fehler (Exit $LASTEXITCODE) — Ergebnis evtl. unvollständig." -ForegroundColor Red }
 

@@ -1,12 +1,10 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Text;
 using System.Text.RegularExpressions;
 
 #endregion
-
-#nullable enable
 
 namespace Pharmatechnik.Nav.Language;
 

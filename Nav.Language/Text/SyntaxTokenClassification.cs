@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.Text;
+﻿namespace Pharmatechnik.Nav.Language.Text;
 
 public enum TextClassification {
 

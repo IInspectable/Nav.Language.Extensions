@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language.CodeGen;
+﻿namespace Pharmatechnik.Nav.Language.CodeGen;
 
 sealed class CodeGeneratorContext {
 

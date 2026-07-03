@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using System.Linq;
+﻿using System.Linq;
 using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer; 

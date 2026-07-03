@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace Pharmatechnik.Nav.Language;
+﻿namespace Pharmatechnik.Nav.Language;
 
 // Die numerischen Werte sind die ursprünglich vom ANTLR-Lexer vergebenen Token-Typ-Nummern; sie sind hier
 // auf feste Integer eingefroren, damit der Typ unabhängig von einer Grammatik-Codegenerierung ist. Die

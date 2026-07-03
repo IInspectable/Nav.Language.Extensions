@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using Pharmatechnik.Nav.Language.CodeGen;
+﻿using Pharmatechnik.Nav.Language.CodeGen;
 
 namespace Pharmatechnik.Nav.Language;
 
