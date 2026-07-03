@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **137** | ~42 % |
+| **Gesamt** | | **329** | **143** | ~43 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den

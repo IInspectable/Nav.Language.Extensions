@@ -1,0 +1,8 @@
+﻿Nav.Language/CallHierarchy/NavCallHierarchyService.cs	CS8602	1
+Nav.Language/CodeFixes/ErrorFix/AddMissingExitTransitionCodeFix.cs	CS8602	2
+Nav.Language/CodeFixes/Refactoring/IntroduceChoiceCodeFix.cs	CS8602	1
+Nav.Language/CodeGen/CodeGenerator.cs	CS8602	1
+Nav.Language/SemanticAnalyzer/Nav0024OutgoingEdgeForExit0AlreadyDeclared.cs	CS8602	4
+Nav.Language/SemanticAnalyzer/Nav0025NoOutgoingEdgeForExit0Declared.cs	CS8602	1
+Nav.Language/SemanticAnalyzer/Nav1002UsingDirective0AppearedPreviously.cs	CS8602	1
+Nav.Language/Workspace/NavSolution.cs	CS8602	1
