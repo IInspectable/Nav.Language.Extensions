@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿#nullable enable
+
+using System;
+using System.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
@@ -67,21 +70,21 @@ public record GenerationOptions {
     /// Dateien gebildet werden, und Bezugspunkt für <see cref="IwflRootDirectory"/> und
     /// <see cref="WflRootDirectory"/>.
     /// </summary>
-    public string ProjectRootDirectory { get; init; }
+    public string ProjectRootDirectory { get; init; } = String.Empty;
 
     /// <summary>
     /// Ein alternatives Wurzelverzeichnis für die IWFL-Dateien. Setzt
     /// <see cref="ProjectRootDirectory"/> voraus. Bleibt es leer, gilt
     /// <see cref="ProjectRootDirectory"/>.
     /// </summary>
-    public string IwflRootDirectory { get; init; }
+    public string IwflRootDirectory { get; init; } = String.Empty;
 
     /// <summary>
     /// Ein alternatives Wurzelverzeichnis für die WFL-Dateien. Setzt
     /// <see cref="ProjectRootDirectory"/> voraus. Bleibt es leer, gilt
     /// <see cref="ProjectRootDirectory"/>.
     /// </summary>
-    public string WflRootDirectory { get; init; }
+    public string WflRootDirectory { get; init; } = String.Empty;
 
     /// <summary>
     /// Die Kodierung der generierten Dateien. Stets <see cref="System.Text.Encoding.UTF8"/> —

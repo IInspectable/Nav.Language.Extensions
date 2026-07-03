@@ -72,8 +72,10 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 > Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P6: Scan `Nav.Language\**\*.cs` ohne
 > `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). **Welle 3 abgeschlossen — alle Ordner auf 100 %.**
 > Der Prüfbau (`-p:Nullable=warnings` für Nav.Language + nativ nullable LSP/MCP) ist **warnungsfrei**;
-> `Build\nullaudit-baseline.txt` ist damit **leer** (0 Einträge). Offen bleibt nur noch Welle 4
-> (Voll-Enable-Smoke `-p:Nullable=enable`) und optional Welle 5 (projektweites `<Nullable>enable</…>`).
+> `Build\nullaudit-baseline.txt` ist damit **leer** (0 Einträge). **Welle 4 abgeschlossen** (s. u.):
+> projekt-skopiertes `<Nullable>enable</Nullable>` in Nav.Language baut **0 Warnungen/0 Fehler**,
+> LSP + MCP konsumieren es je warnungsfrei. Offen bleibt nur noch optional Welle 5 (projektweites
+> `<Nullable>enable</…>` dauerhaft + `WarningsAsErrors=Nullable`, Direktiven raus) — Nutzerentscheid.
 
 ## 3. Playbook-Regeln (Review-Checkliste je Ordner)
 
@@ -326,6 +328,36 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   tragen die Nullbarkeit sauber). **CodeActions:** reine `#nullable enable`-Direktive — `CodeFix.Name` (abstract
   non-null), `SuggestCodeFixes`/`SuggestChoiceName` non-null, `GetTextChanges(string?)` null-tolerant; `NavCodeAction`-
   Ctor-Guards bleiben (Rule 5). Encoding: teils mit/ohne BOM, alle valides UTF-8 — Hook ergänzte den BOM.
+
+- **Welle 4 (Voll-Enable-Smoke + LSP/MCP-Konsumcheck) — abgeschlossen, 1 echte Lücke gefunden & gefixt:**
+  Der Smoke-Build deckte **eine** Datei auf, die die gesamte Kampagne unentdeckt durchlaufen hatte:
+  `CodeGen\GenerationOptions.cs` hatte **keine** `#nullable enable`-Direktive. `nav nullaudit` zählte sie
+  dennoch als „konvertiert", weil der **Fortschritts-Scan** auf den bloßen String `#nullable enable` grept
+  und dieser in der **XML-Doku** der Datei vorkommt (`<c>#nullable enable</c>`, beschreibt die
+  `NullableContext`-Option). ⇒ **Latenter Tooling-Fehler:** der Scanner sollte die Direktive am
+  Zeilenanfang (BOM-tolerant) verlangen, nicht als Teilstring irgendwo. Unter `nav nullaudit`
+  (`-p:Nullable=warnings`, Annotations-Kontext für diese oblivious-Datei **aus**) blieb die Lücke
+  unsichtbar — die drei uninitialisierten non-null String-Properties (`ProjectRootDirectory`,
+  `IwflRootDirectory`, `WflRootDirectory`) feuern `CS8618` **nur** mit vollem Annotations-Kontext
+  (`enable`). Fix: Direktive + `using System;` ergänzt, die drei Properties auf `= String.Empty`
+  (Playbook 4a — „abwesend" == „leer", deckt sich mit `GenerationOptions.Default`, der sie nicht setzt).
+  **Verhaltensneutral verifiziert:** der einzige Nav.Language-Konsument `PathProvider` reicht sie an
+  `PathHelper.TryTranslateToDirectory` durch, das `null` und `""` per `IsNullOrEmpty` **identisch**
+  behandelt (`return fileName`); der CLI-Pfad nutzt durchweg `IsNullOrEmpty`-Guards. Kein NRE, kein
+  Befundlog-Eintrag.
+  **Methodik-Befund (Skopierung des Beweises):** `dotnet build -p:Nullable=enable` als **globale**
+  MSBuild-Property ist zu grob — sie schlägt auch ins Fremd-Projekt `Nav.Utilities` durch (nie Teil der
+  Kampagne), das dann seine eigene Nullable-Schuld (`PathHelper` CS8603/CS8625) zeigt **und** über
+  geänderte Signaturen induzierte Downstream-Warnungen in Nav.Language erzeugt (`NavIgnore.cs` CS8604 —
+  `PathHelper.GetFullPathNoThrow(string)` wird non-null, plus die netstandard2.0-`IsNullOrEmpty`-Falle).
+  Der **echte** Endzustand (Welle 5) ist projekt-lokales `<Nullable>enable</Nullable>` **nur** in
+  Nav.Language; das leckt **nicht** in Dependencies. Der Welle-4-Beweis wurde daher projekt-skopiert
+  geführt (temporär `<Nullable>enable</Nullable>` in `Nav.Language.csproj`, danach zurückgenommen):
+  **Nav.Language 0 Warnungen/0 Fehler**, die induzierte `NavIgnore`-CS8604 ist damit erwartungsgemäß
+  **weg**. LSP + MCP (`-f net10.0`, nativ nullable) bauen je **0 CS86xx/87xx**. `nav nullaudit` bleibt
+  nach dem Fix grün (329/329, Baseline 0); net472 (1271) + net10.0 (1263) grün. Die `Nav.Utilities`-
+  Eigenschuld ist **kein** Kampagnen-Regress, sondern separater Scope (eigene Nullable-Umstellung, falls
+  je gewünscht).
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 
