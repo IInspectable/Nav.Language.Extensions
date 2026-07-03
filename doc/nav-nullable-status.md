@@ -47,10 +47,10 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Text | ✅ | 20 | 20 | fertig |
 | SemanticModel | ✅ | 49 | 49 | fertig (Revalidierung in 2b) |
 | Symbols | ✅ | 1 | 1 | fertig |
-| Internal | 1 | 4 | 1 | Polyfill fertig; Rest offen |
-| Common | 1 | 4 | 0 | offen |
-| (Projektwurzel) | 1 | 2 | 0 | offen |
-| Properties | 1 | 1 | 0 | offen |
+| Internal | 1 | 4 | 4 | fertig |
+| Common | 1 | 4 | 4 | fertig |
+| (Projektwurzel) | 1 | 2 | 2 | fertig |
+| Properties | 1 | 1 | 1 | fertig |
 | CodeGen (+ CodeModel, Templates) | 2a | 37 | 1 | offen |
 | SemanticAnalyzer | 2b | 45 | 0 | offen |
 | CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 0 | offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **143** | ~43 % |
+| **Gesamt** | | **329** | **153** | ~47 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
@@ -85,6 +85,13 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 4. **Kein neues `?`** ohne benennbaren Null-Zufluss; im Zweifel non-null + Invariante an der Quelle
    herstellen (`??`-Normalisierung) statt `?.`-Kaskaden bei jedem Konsumenten. Tote `?.` auf
    beweisbar non-null entfernen.
+4a. **String-Properties bestmöglich non-null** (Default): wo „abwesend" und „leer" dasselbe meinen,
+   liefert die Property `string` (nie `null`) und normalisiert im Zweifel auf `String.Empty` — das
+   erspart Konsumenten Null-Checks und umgeht die netstandard2.0-`IsNullOrEmpty`-Falle. **Ausnahme:**
+   `null` bleibt, wenn es einen **eigenen, ausgewerteten Zustand** kodiert (z.B. `Location.FilePath` =
+   „hat gar keine Datei" — bewusst `string?`, mehrere Presence-Zweige hängen daran). Der `""`-Fallback
+   gehört dann an den **Ausgabe-Rand** (DTO/Serialisierung, z.B. `FilePath ?? ""`), nicht ins
+   Domänenmodell.
 5. **`ArgumentNullException`-Guards an public Einstiegspunkten bleiben** (oblivious-Konsumenten wie
    die VS-Extension!); interne Guards dürfen fallen, wenn die Annotation den Vertrag trägt.
 6. **Keine Verhaltensänderung außer NRE-Fixes** — und die nur mit **Repro-Test vor dem Fix**
@@ -126,6 +133,10 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 - **SemanticModel/ (fertig) hängt über die einzige Kante `CodeGenerationUnitBuilder.cs` an
   SemanticAnalyzer** → Welle 2b re-validiert SemanticModel gratis; neue Warnungen dort im selben Step
   fixen.
+- **String-Properties bestmöglich non-null (Default), `null` nur bei eigenem ausgewertetem Zustand**
+  (Playbook-Regel 4a). Entschieden am 2026-07-03 anhand `Location.FilePath`: bleibt `string?`, weil
+  `null` = „keine Datei" real ausgewertet wird (`CachedSyntaxProvider`, `NavValidateResult.crossFile`,
+  `NormalizedFilePath`); `""`-Fallback sitzt am DTO-Rand (`NavEditDto`).
 - **Endzustand (Welle 5) offen** — Empfehlung: nach 100 % auf projektweites `<Nullable>enable</…>`
   umschalten + `<WarningsAsErrors>Nullable</…>`, Direktiven raus. **Entscheidung trifft der Nutzer
   erst nach Welle 4.**

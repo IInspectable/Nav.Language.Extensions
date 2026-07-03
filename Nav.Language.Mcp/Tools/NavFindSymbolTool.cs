@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -71,7 +71,7 @@ public static class NavFindSymbolTool {
             cancellationToken);
 
         // Optionaler Art-Filter, solution-weite Dedup über (Datei, Startoffset), stabile Sortierung.
-        var seen = new HashSet<(string, int)>();
+        var seen = new HashSet<(string?, int)>();
         var matched = found
                      .Where(symbol => string.IsNullOrEmpty(kind) || NavNameResolution.KindMatches(symbol, kind!))
                      .Where(symbol => symbol.Location != null &&

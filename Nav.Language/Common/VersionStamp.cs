@@ -1,6 +1,8 @@
-﻿using System;
+﻿#nullable enable
 
-namespace Pharmatechnik.Nav.Language; 
+using System;
+
+namespace Pharmatechnik.Nav.Language;
 
 [Serializable]
 public struct VersionStamp: IEquatable<VersionStamp> {
@@ -55,7 +57,7 @@ public struct VersionStamp: IEquatable<VersionStamp> {
                _increment == other._increment;
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) {
             return false;
         }

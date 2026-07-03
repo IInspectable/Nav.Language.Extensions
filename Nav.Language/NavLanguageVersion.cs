@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections.Immutable;
 using System.Globalization;
 
@@ -60,7 +62,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
     /// Umschließende Leerzeichen sind zulässig; alles andere (leer, Vorzeichen, Nicht-Ziffern, Überlauf)
     /// schlägt fehl und liefert <c>false</c>.
     /// </summary>
-    public static bool TryParse(string text, out NavLanguageVersion version) {
+    public static bool TryParse(string? text, out NavLanguageVersion version) {
 
         version = default;
 
@@ -90,7 +92,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
     public int CompareTo(NavLanguageVersion other) => Value.CompareTo(other.Value);
     public bool Equals(NavLanguageVersion other) => Value == other.Value;
 
-    public override bool Equals(object obj) => obj is NavLanguageVersion other && Equals(other);
+    public override bool Equals(object? obj) => obj is NavLanguageVersion other && Equals(other);
     public override int GetHashCode() => Value;
     public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 

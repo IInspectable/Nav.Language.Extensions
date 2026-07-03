@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -7,11 +9,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Internal; 
+namespace Pharmatechnik.Nav.Language.Internal;
 
 static class ExtentExtensions {
 
-    public static TElement NextOrPreviousElement<TExtent, TElement>(this IReadOnlyList<TElement> tokens, TExtent extent, TElement currentToken, bool nextToken, TElement missing)
+    public static TElement NextOrPreviousElement<TExtent, TElement>(this IReadOnlyList<TElement> tokens, TExtent? extent, TElement currentToken, bool nextToken, TElement missing)
         where TExtent : IExtent where TElement : IExtent {
 
         if(extent ==null || currentToken ==null) {
@@ -100,7 +102,7 @@ static class ExtentExtensions {
         }
     }
 
-    public static T FindElementAtPosition<T>(this IReadOnlyList<T> tokens, int position, bool defaultIfNotFound=false) where T : IExtent {
+    public static T? FindElementAtPosition<T>(this IReadOnlyList<T> tokens, int position, bool defaultIfNotFound=false) where T : IExtent {
 
         int index = tokens.FindIndexAtOrAfterPosition(position);
         if (index < 0) {

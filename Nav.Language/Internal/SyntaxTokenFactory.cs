@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -10,7 +12,7 @@ static class SyntaxTokenFactory {
 
     public static SyntaxToken CreateToken(TextExtent extend, SyntaxTokenType type,
                                           TextClassification classification,
-                                          SyntaxNode parent,
+                                          SyntaxNode? parent,
                                           SyntaxTriviaList leadingTrivia = default,
                                           SyntaxTriviaList trailingTrivia = default) {
 

@@ -1,14 +1,14 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 static class EnumerableExtensions {
 
@@ -25,14 +25,14 @@ static class EnumerableExtensions {
     /// <summary>
     /// Filtert aus einer Sequenz von Elementen alle Null-Objekte heraus.
     /// </summary>
-    [NotNull]
-    [ItemNotNull]
-    public static IEnumerable<T> WhereNotNull<T>([CanBeNull] this IEnumerable<T> source) {
+    public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?>? source) where T : class {
         if (source == null) {
             return Enumerable.Empty<T>();
         }
 
-        return source.Where(t => t != null);
+        // t! ist durch das vorangehende Where(t => t != null) belegt — die Flussanalyse
+        // trägt die Filterung nicht über den Where-Aufruf hinweg.
+        return source.Where(t => t != null).Select(t => t!);
     }
 
 }

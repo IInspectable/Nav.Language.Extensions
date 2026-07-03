@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Threading;
@@ -18,8 +18,8 @@ namespace Pharmatechnik.Nav.Language.Mcp;
 /// </summary>
 sealed class McpReferenceCollector: IFindReferencesContext {
 
-    readonly bool                              _includeDeclaration;
-    readonly HashSet<(string, int)>            _seen      = new();
+    readonly bool                                          _includeDeclaration;
+    readonly HashSet<(string?, int)>                       _seen    = new();
     readonly List<(Location Location, bool IsDeclaration)> _results = new();
 
     public McpReferenceCollector(bool includeDeclaration, CancellationToken cancellationToken) {

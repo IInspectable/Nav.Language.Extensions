@@ -50,7 +50,7 @@ public static class NavSymbolSearch {
             return Array.Empty<ISymbol>();
         }
 
-        var seen    = new HashSet<(string, int)>();
+        var seen    = new HashSet<(string?, int)>();
         var results = new List<ISymbol>();
 
         if (taskScope != null) {
@@ -121,7 +121,7 @@ public static class NavSymbolSearch {
 
         prefix ??= string.Empty;
 
-        var seen    = new HashSet<(string, int)>();
+        var seen    = new HashSet<(string?, int)>();
         var results = new List<ISymbol>();
 
         // Nur Definitionen: lokale Task-Definitionen und deren Knoten. Die taskref-Deklarationen

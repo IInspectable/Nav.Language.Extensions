@@ -1,20 +1,19 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public class Location: IEquatable<Location> {
 
-    [CanBeNull]
-    string _normalizedFilePath;
+    string? _normalizedFilePath;
 
     protected Location(Location location) {
         Extent              = location.Extent;
@@ -24,14 +23,14 @@ public class Location: IEquatable<Location> {
         _normalizedFilePath = location._normalizedFilePath;
     }
 
-    public Location(TextExtent extent, LineRange lineRange, [CanBeNull] string filePath) {
+    public Location(TextExtent extent, LineRange lineRange, string? filePath) {
         Extent            = extent;
         StartLinePosition = lineRange.Start;
         EndLinePosition   = lineRange.End;
         FilePath          = filePath;
     }
 
-    public Location(TextExtent extent, LinePosition linePosition, [CanBeNull] string filePath):
+    public Location(TextExtent extent, LinePosition linePosition, string? filePath):
         this(extent, new LineRange(linePosition, linePosition), filePath) {
     }
 
@@ -52,11 +51,9 @@ public class Location: IEquatable<Location> {
     /// <summary>
     /// The path to the file or null.
     /// </summary>
-    [CanBeNull]
-    public string FilePath { get; }
+    public string? FilePath { get; }
 
-    [CanBeNull]
-    public string NormalizedFilePath => FilePath == null ? null : _normalizedFilePath ??= PathHelper.NormalizePath(FilePath);
+    public string? NormalizedFilePath => FilePath == null ? null : _normalizedFilePath ??= PathHelper.NormalizePath(FilePath);
 
     /// <summary>
     /// Gets the starting index of the location [0..n].
@@ -101,7 +98,7 @@ public class Location: IEquatable<Location> {
 
     #region Equality members
 
-    public bool Equals(Location other) {
+    public bool Equals(Location? other) {
         if (ReferenceEquals(null, other)) {
             return false;
         }
@@ -116,7 +113,7 @@ public class Location: IEquatable<Location> {
                string.Equals(NormalizedFilePath, other.NormalizedFilePath);
     }
 
-    public override bool Equals(object obj) {
+    public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) {
             return false;
         }
@@ -138,11 +135,11 @@ public class Location: IEquatable<Location> {
         }
     }
 
-    public static bool operator ==(Location left, Location right) {
+    public static bool operator ==(Location? left, Location? right) {
         return Equals(left, right);
     }
 
-    public static bool operator !=(Location left, Location right) {
+    public static bool operator !=(Location? left, Location? right) {
         return !Equals(left, right);
     }
 
