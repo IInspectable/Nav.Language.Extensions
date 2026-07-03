@@ -45,14 +45,14 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 |---|---|---:|---:|---|
 | Syntax | ✅ | 66 | 66 | fertig |
 | Text | ✅ | 20 | 20 | fertig |
-| SemanticModel | ✅ | 49 | 49 | fertig (Revalidierung in 2b) |
+| SemanticModel | ✅ | 49 | 49 | fertig (in 2b revalidiert — keine geratenen Verträge) |
 | Symbols | ✅ | 1 | 1 | fertig |
 | Internal | 1 | 4 | 4 | fertig |
 | Common | 1 | 4 | 4 | fertig |
 | (Projektwurzel) | 1 | 2 | 2 | fertig |
 | Properties | 1 | 1 | 1 | fertig |
 | CodeGen (+ CodeModel, Templates) | 2a | 37 | 37 | fertig |
-| SemanticAnalyzer | 2b | 45 | 0 | offen |
+| SemanticAnalyzer | 2b | 45 | 45 | fertig |
 | CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 0 | offen |
 | Completion | 3 / P2 | 3 | 0 | offen |
 | GoTo | 3 / P2 | 2 | 0 | offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **189** | ~57 % |
+| **Gesamt** | | **329** | **234** | ~71 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
@@ -165,6 +165,18 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   String-Parameter → `string?`; tote `?? String.Empty` auf beweisbar non-null `ISymbol.Name` entfernt.
   netstandard2.0-BCL bleibt oblivious → `Path.GetDirectoryName`/`GetManifestResourceStream` erzeugen
   trotz „Lass krachen"-`null`-Durchreichung keine Warnung.
+- **Welle 2b (SemanticAnalyzer, 45 Dateien):** Die uniformen `Nav####*.cs`-Analyzer konsumieren nur
+  das (bereits fertige) SemanticModel und deklarieren kaum eigene Verträge → `#nullable enable` liess
+  ausser den drei Baseline-Files (`Nav0024`, `Nav0025`, `Nav1002`, zusammen 6× `CS8602`) **keine**
+  neuen Warnungen entstehen. Insbesondere blieb die Revalidierungs-Kante
+  `SemanticModel\CodeGenerationUnitBuilder.cs` warnungsfrei — SemanticModel hatte hier **keine
+  geratenen Verträge**. Alle drei Baseline-`CS8602` waren **Narrowing-Artefakte hinter bereits
+  vorhandenen Null-Guards**, keine echten NREs: `.Where(x => x != null)` verengt in NRT nicht.
+  Nav0024/Nav0025 daher verhaltensneutral per `.WhereNotNull()` (Element-Null, gleiche Idiomatik wie
+  `TransitionCodeModel.GetTaskDeclarations`); Nav1002 per `!` mit Begründungskommentar (Null liegt auf
+  der `Namespace`-**Property**, nicht dem Element → `WhereNotNull` greift nicht; das vorherige `Where`
+  beweist non-null). Kein Befundlog-Eintrag (keine über die öffentliche API auslösbare NRE). Einzige
+  neue Suppression: das eine begründete `!` in Nav1002.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

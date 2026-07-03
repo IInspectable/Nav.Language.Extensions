@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿#nullable enable
+
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer; 
@@ -17,7 +19,7 @@ public class Nav0024OutgoingEdgeForExit0AlreadyDeclared: NavAnalyzer {
 
                 var actualExits = taskNode.Outgoings
                                           .Select(et => et.ExitConnectionPointReference)
-                                          .Where(cp => cp != null)
+                                          .WhereNotNull()
                                           .ToList();
 
                 foreach (var duplicates in actualExits.GroupBy(e => e.Name).Where(g => g.Count() > 1)) {

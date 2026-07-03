@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
 public class AnalyzerContext {
 

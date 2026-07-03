@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿#nullable enable
+
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer; 
@@ -24,7 +26,7 @@ public class Nav0025NoOutgoingEdgeForExit0Declared: NavAnalyzer {
                     taskNode.Location,
                     taskNode.Incomings
                             .Select(edge => edge.TargetReference)
-                            .Where(nodeReference => nodeReference != null)
+                            .WhereNotNull()
                             .Select(nodeReference => nodeReference.Location),
                     Descriptor,
                     expectedExit.Name);

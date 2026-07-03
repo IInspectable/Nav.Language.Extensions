@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿#nullable enable
+
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer; 
@@ -13,7 +15,8 @@ public class Nav1002UsingDirective0AppearedPreviously: NavAnalyzer {
         //==============================
         var candidates = codeGenerationUnit.Syntax.DescendantNodes<CodeUsingDeclarationSyntax>()
                                            .Where(usingSyntax => usingSyntax.Namespace != null)
-                                           .Select(usingSyntax => (Namespace: usingSyntax.Namespace.ToString(), Syntax: usingSyntax))
+                                           // Namespace ist durch das vorherige Where non-null; der Compiler verengt nicht über die Lambda-Grenze.
+                                           .Select(usingSyntax => (Namespace: usingSyntax.Namespace!.ToString(), Syntax: usingSyntax))
                                            .GroupBy(p => p.Namespace);
 
         foreach (var candidate in candidates.Where(c => c.Count() > 1)) {
