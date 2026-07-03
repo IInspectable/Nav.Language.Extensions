@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -183,6 +183,8 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
             cancellationToken.ThrowIfCancellationRequested();
 
             // Die Aufrufstellen liegen in der AUFRUFENDEN Task (ggf. andere Datei) → Zeilentext aus deren SourceText.
+            // Für einen aufgelösten Caller ist die gesamte Kette (Unit → Syntax → Tree → SourceText) non-null.
+            // ReSharper disable once PossibleNullReferenceException
             var sourceText = call.Caller.CodeGenerationUnit.Syntax.SyntaxTree.SourceText;
 
             var child = NavCallHierarchyItemFactory.FromDefinition(call.Caller, BuildDetails(sourceText, call.CallSites));

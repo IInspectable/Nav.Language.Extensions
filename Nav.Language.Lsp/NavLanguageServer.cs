@@ -158,6 +158,8 @@ class NavLanguageServer {
     [JsonRpcMethod(Protocol.Methods.WorkspaceDidChangeWatchedFilesName, UseSingleObjectParameterDeserialization = true)]
     public async Task DidChangeWatchedFilesAsync(Protocol.DidChangeWatchedFilesParams param) {
 
+        // LSP-DTO aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (param.Changes == null) {
             return;
         }
@@ -284,6 +286,8 @@ class NavLanguageServer {
         }
 
         // Solution-weite Referenzsuche über die Engine-API; der Collector sammelt nur die Locations.
+        // LSP-DTO aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         var includeDeclaration = param.Context?.IncludeDeclaration ?? true;
         var collector          = new ReferenceCollector(includeDeclaration, CancellationToken.None);
         var args               = new FindReferencesArgs(origin, unit, _workspace.Solution, collector);
@@ -358,6 +362,8 @@ class NavLanguageServer {
         // Den neuen Namen prüfen (Identifier gültig? Name bereits vergeben?) und die Meldung als
         // JSON-RPC-Fehler melden — VS Code zeigt sie direkt am Rename-Eingabefeld an. (Eine clientseitige
         // Vorab-Validierung über prepareRename gibt es nicht: das LSP-Protokoll-Paket 17.2.8 kennt es nicht.)
+        // LSP-DTO aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         var newName           = param.NewName?.Trim() ?? string.Empty;
         var validationMessage = renameFix.ValidateSymbolName(newName);
         if (!string.IsNullOrEmpty(validationMessage)) {

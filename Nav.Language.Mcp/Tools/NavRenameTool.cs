@@ -66,6 +66,8 @@ public static class NavRenameTool {
             return result;
         }
 
+        // MCP-Parameter kommt aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
         var trimmedNewName    = newName?.Trim() ?? string.Empty;
         var validationMessage = renameFix.ValidateSymbolName(trimmedNewName);
         if (!string.IsNullOrEmpty(validationMessage)) {

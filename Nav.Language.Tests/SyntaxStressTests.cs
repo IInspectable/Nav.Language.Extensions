@@ -18,6 +18,8 @@ public class SyntaxStressTests {
 
         Assert.That(syntax.CodeBaseDeclaration, Is.Not.Null);
 
+        // Bewusste Robustheitsprüfung: der Test verifiziert die non-null-Zusage der Annotation zur Laufzeit.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
         var nullSyntaxen = syntax.CodeBaseDeclaration.BaseTypes.Where(b => b == null);
         Assert.That(nullSyntaxen.Any(), Is.False);
     }

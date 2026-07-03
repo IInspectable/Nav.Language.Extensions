@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.IO;
@@ -19,6 +19,8 @@ namespace Nav.Language.Tests.CallHierarchy;
 public class NavCallHierarchyServiceTests {
 
     // task A ruft task B auf (Knoten 'b' vom Typ B); B ist in derselben Datei definiert.
+    // Name „AB" steht bewusst für die beiden Tasks A und B in diesem Fixture.
+    // ReSharper disable once InconsistentNaming
     const string AB = "task A\n"            +
                       "{\n"                 +
                       "    init i;\n"       +

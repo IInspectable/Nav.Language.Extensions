@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -138,6 +138,8 @@ sealed class NavBuildWorkspace: IDisposable {
         var stdout = new StringBuilder();
         var stderr = new StringBuilder();
 
+        // `using var` entsorgt am Scope-Ende; die nachgelagerte Event-Verdrahtung ist hier unkritisch.
+        // ReSharper disable once UsingStatementResourceInitialization
         using var process = new Process { StartInfo = psi };
         process.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.Append(e.Data).Append('\n'); };
         process.ErrorDataReceived  += (_, e) => { if (e.Data != null) stderr.Append(e.Data).Append('\n'); };

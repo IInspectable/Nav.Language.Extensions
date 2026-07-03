@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.IO;
@@ -74,11 +74,9 @@ public class NavCallHierarchyReproTests {
     }
 
     sealed class CountingContext: IFindReferencesContext {
-        public int ReferenceCount;
         public CancellationToken CancellationToken => CancellationToken.None;
         public Task OnDefinitionFoundAsync(DefinitionItem definition) => Task.CompletedTask;
-        public Task OnReferenceFoundAsync(ReferenceItem reference) { ReferenceCount++; return Task.CompletedTask; }
-        public Task ReportProgressAsync(int current, int maximum) => Task.CompletedTask;
+        public Task OnReferenceFoundAsync(ReferenceItem reference) => Task.CompletedTask;
         public Task ReportMessageAsync(string message) => Task.CompletedTask;
         public Task SetSearchTitleAsync(string title) => Task.CompletedTask;
     }

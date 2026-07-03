@@ -119,6 +119,9 @@ public class NavGrammarConsistencyTests {
 
     #region EBNF-Analyse (unabhängige Reimplementierung — bewusste Redundanz zu den Generator-Diagnosen)
 
+    // Regex.Matches(...).Cast<Match>() ist nur unter net10 redundant — unter net472 implementiert
+    // MatchCollection nur das nicht-generische IEnumerable, dort ist der Cast Pflicht (Multi-Target).
+    // ReSharper disable RedundantEnumerableCastCall
     static HashSet<string> DefinedNames(string ebnf) {
         var clean = CommentRegex.Replace(ebnf, " ");
         return new HashSet<string>(LeftHandSide.Matches(clean).Cast<Match>().Select(m => m.Groups[1].Value), StringComparer.Ordinal);
@@ -146,6 +149,7 @@ public class NavGrammarConsistencyTests {
                           .Where(t => t.Length > 0)
                           .Distinct(StringComparer.Ordinal);
     }
+    // ReSharper restore RedundantEnumerableCastCall
 
     #endregion
 

@@ -18,6 +18,8 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
         Location            = location   ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
         AdditionalLocations = EmptyAdditionalLocations;
+        // `params object[]` kann vom Aufrufer explizit `null` erhalten — der Guard ist real.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         _messageArgs        = messageArgs ?? EmptyMessageArgs;
     }
 
@@ -29,6 +31,8 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
         Location            = location                                                          ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor                                                        ?? throw new ArgumentNullException(nameof(descriptor));
         AdditionalLocations = additionalLocations?.Where(loc => loc != null).ToImmutableArray() ?? EmptyAdditionalLocations;
+        // `params object[]` kann vom Aufrufer explizit `null` erhalten — der Guard ist real.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         _messageArgs        = messageArgs                                                       ?? EmptyMessageArgs;
     }
 

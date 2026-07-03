@@ -38,6 +38,8 @@ public static partial class WfsReferenceFinder {
             var nodeDefinition                 = DefinitionItem.CreateTaskDefinitionItem(taskDefinition);
             var initConnectionPointDefinition  = DefinitionItem.CreateInitConnectionPointDefinition(taskDefinition, false);
             var exitConnectionPointDefinitions = DefinitionItem.CreateExitConnectionPointDefinitions(taskDefinition, false);
+            // Eine TaskDefinition hat stets eine zugehörige Declaration.
+            // ReSharper disable once AssignNullToNotNullAttribute
             var taskDeclarationCodeInfo        = TaskDeclarationCodeInfo.FromTaskDeclaration(taskDefinition.AsTaskDeclaration);
 
             foreach (var project in solution.Projects) {

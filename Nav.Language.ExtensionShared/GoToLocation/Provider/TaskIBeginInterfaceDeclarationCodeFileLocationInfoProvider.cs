@@ -41,6 +41,8 @@ class TaskIBeginInterfaceDeclarationCodeFileLocationInfoProvider : CodeAnalysisL
 
             return locations.Select(location =>
                                         LocationInfo.FromLocation(
+                                            // LocationFinder liefert stets reale Datei-Locations — FilePath ist hier non-null.
+                                            // ReSharper disable once AssignNullToNotNullAttribute
                                             location    : new Location(location.FilePath), // Wir sind nur an dem Dateinamen interessiert
                                             displayName : _taskDeclarationCodeInfo.FullyQualifiedBeginInterfaceName,
                                             imageMoniker: ImageMoniker))

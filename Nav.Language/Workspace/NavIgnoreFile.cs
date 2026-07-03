@@ -75,6 +75,8 @@ sealed class NavIgnoreFile {
 
         var baseDirNormalized = (PathHelper.NormalizePath(baseDir) ?? baseDir).TrimEnd('\\', '/');
 
+        // Öffentlicher Einstieg — defensiv gegen `null` trotz non-null-Annotation.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         var patterns = (lines ?? Enumerable.Empty<string>())
                       .Select(NavIgnorePattern.TryParse)
                       .Where(p => p != null)

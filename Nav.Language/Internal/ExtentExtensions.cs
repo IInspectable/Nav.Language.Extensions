@@ -14,6 +14,8 @@ static class ExtentExtensions {
     public static TElement NextOrPreviousElement<TExtent, TElement>(this IReadOnlyList<TElement> tokens, TExtent? extent, TElement currentToken, bool nextToken, TElement missing)
         where TExtent : IExtent where TElement : IExtent {
 
+        // Defensiv: `currentToken` ist zwar non-null annotiert, der Guard bleibt bewusst stehen.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if(extent ==null || currentToken ==null) {
             return missing;
         }

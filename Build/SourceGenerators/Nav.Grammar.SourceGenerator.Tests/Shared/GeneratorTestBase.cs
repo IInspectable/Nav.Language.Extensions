@@ -35,6 +35,8 @@ public abstract class GeneratorTestBase {
         var runResult = driver.GetRunResult();
         var generated = runResult.Results[0].GeneratedSources.FirstOrDefault(s => s.HintName == hintName);
 
+        // `default(GeneratedSourceResult)` aus FirstOrDefault hat trotz non-null-Annotation ein null-SourceText.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (generated.SourceText is null) {
             var available = string.Join(", ", runResult.Results[0].GeneratedSources.Select(s => s.HintName));
             throw new InvalidOperationException($"Generierte Datei '{hintName}' nicht gefunden. Verfügbar: [{available}]");

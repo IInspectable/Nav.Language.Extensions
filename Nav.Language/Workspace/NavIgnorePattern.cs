@@ -44,6 +44,8 @@ sealed class NavIgnorePattern {
     /// </summary>
     public static NavIgnorePattern? TryParse(string rawLine) {
 
+        // TryParse-Kontrakt: nimmt bewusst beliebige Eingabe inkl. `null` entgegen.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (rawLine == null) {
             return null;
         }

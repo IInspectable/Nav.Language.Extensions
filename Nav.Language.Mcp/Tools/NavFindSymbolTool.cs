@@ -54,6 +54,8 @@ public static class NavFindSymbolTool {
         int offset = 0,
         CancellationToken cancellationToken = default) {
 
+        // MCP-Parameter kommt aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         var result = new NavFindSymbolResult { Prefix = prefix ?? "" };
 
         // Solution-weite Suche braucht die geladene Solution.

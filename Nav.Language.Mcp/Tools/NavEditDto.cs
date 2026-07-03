@@ -116,6 +116,8 @@ public sealed class NavSymbolRef {
     public int Column { get; set; }
 
     public static NavSymbolRef From(ISymbol symbol) => new() {
+        // `?? ""` am DTO-Rand (Leitlinie String-Property non-null).
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         Name   = symbol.Name ?? "",
         Kind   = NavSymbolKind.Of(symbol),
         Task   = (symbol as INodeSymbol)?.ContainingTask.Name,
