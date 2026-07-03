@@ -72,6 +72,7 @@
     <File Path="doc/nav-kolibri.md" />
     <File Path="doc/nav-lsp-status.md" />
     <File Path="doc/nav-mcp-status.md" />
+    <File Path="doc/nav-nullable-status.md" />
     <File Path="doc/nav-parser-test-plan.md" />
     <File Path="doc/nav-pragmas-versioning-status.md" />
     <File Path="doc/nav-skiped-tokens-as-trivia.md" />
