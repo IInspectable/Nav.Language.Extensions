@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -8,12 +10,12 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed record CodeGenerationSpec {
 
-    public CodeGenerationSpec(string content, string filePath) {
+    public CodeGenerationSpec(string? content, string? filePath) {
         Content  = content  ?? String.Empty;
         FilePath = filePath ?? String.Empty;
     }
 
-    public static CodeGenerationSpec Empty = new(content: null, filePath: null);
+    public static readonly CodeGenerationSpec Empty = new(content: null, filePath: null);
 
     public bool IsEmpty => this == Empty;
 

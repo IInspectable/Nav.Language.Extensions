@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -8,11 +10,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed class TaskCodeInfo {
 
-    TaskCodeInfo(string taskName, string baseNamespace, string wfsBaseBaseClassName, string iIBeginWfsBaseTypeName) {
+    TaskCodeInfo(string? taskName, string? baseNamespace, string? wfsBaseBaseClassName, string? iIBeginWfsBaseTypeName) {
         TaskName              = taskName               ?? String.Empty;
         BaseNamespace         = baseNamespace          ?? String.Empty;
         WfsBaseBaseTypeName   = wfsBaseBaseClassName   ?? String.Empty;

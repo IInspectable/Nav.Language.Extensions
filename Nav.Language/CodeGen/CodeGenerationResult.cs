@@ -1,11 +1,11 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
 
 // ReSharper disable InconsistentNaming
 
@@ -21,7 +21,7 @@ public sealed class CodeGenerationResult {
         CodeGenerationSpec iWfsCodeSpec,
         CodeGenerationSpec wfsBaseCodeSpec,
         CodeGenerationSpec wfsCodeSpec,
-        [CanBeNull] IEnumerable<CodeGenerationSpec> toCodeSpecs) {
+        IEnumerable<CodeGenerationSpec>? toCodeSpecs) {
 
         TaskDefinition    = taskDefinition    ?? throw new ArgumentNullException(nameof(taskDefinition));
         IBeginWfsCodeSpec = iBeginWfsCodeSpec ?? throw new ArgumentNullException(nameof(iBeginWfsCodeSpec));

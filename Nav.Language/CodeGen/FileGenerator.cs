@@ -1,12 +1,12 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -49,7 +49,7 @@ public class FileGenerator: Generator, IFileGenerator {
             throw new ArgumentNullException(nameof(codeGenerationResult));
         }
 
-        var results = new List<FileGeneratorResult> {
+        var results = new List<FileGeneratorResult?> {
             WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IWfsCodeSpec,      OverwritePolicy.WhenChanged),
             WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IBeginWfsCodeSpec, OverwritePolicy.WhenChanged),
             WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.WfsBaseCodeSpec,   OverwritePolicy.WhenChanged),
@@ -60,18 +60,17 @@ public class FileGenerator: Generator, IFileGenerator {
             results.Add(WriteFile(codeGenerationResult.TaskDefinition, toCodeSpec, OverwritePolicy.Never));
         }
 
-        return results.Where(result => result != null)
+        return results.WhereNotNull()
                       .ToImmutableArray();
     }
 
-    [CanBeNull]
-    FileGeneratorResult WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
+    FileGeneratorResult? WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
 
         return Resilience.Execute(WriteFileImpl,
                                  maxAttempts: 3,
                                  retryDelay: TimeSpan.FromMilliseconds(10));
 
-        FileGeneratorResult WriteFileImpl() {
+        FileGeneratorResult? WriteFileImpl() {
 
             if (codeGenerationSpec.IsEmpty) {
                 return null;

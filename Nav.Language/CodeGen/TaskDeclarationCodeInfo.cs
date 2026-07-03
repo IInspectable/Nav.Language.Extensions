@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -6,18 +8,18 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed class TaskDeclarationCodeInfo {
 
     TaskDeclarationCodeInfo(ITaskDeclarationSymbol taskDeclarationSymbol) {
-            
+
         if (taskDeclarationSymbol == null) {
             throw new ArgumentNullException(nameof(taskDeclarationSymbol));
         }
 
-        Taskname        = taskDeclarationSymbol.Name ?? String.Empty;
-        NamespacePräfix = taskDeclarationSymbol.CodeNamespace;                
+        Taskname        = taskDeclarationSymbol.Name;
+        NamespacePräfix = taskDeclarationSymbol.CodeNamespace;
     }
 
     public string Taskname                         { get; }

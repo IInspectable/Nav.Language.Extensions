@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -6,11 +8,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed class SignalTriggerCodeInfo {
 
-    SignalTriggerCodeInfo(TaskCodeInfo containingTask, string triggerName, string viewNodeName) {
+    SignalTriggerCodeInfo(TaskCodeInfo containingTask, string? triggerName, string? viewNodeName) {
 
         ContainingTask = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
         TriggerName    = triggerName    ?? String.Empty;
@@ -28,7 +30,7 @@ public sealed class SignalTriggerCodeInfo {
         return FromSignalTrigger(signalTriggerSymbol, null);
     }
 
-    internal static SignalTriggerCodeInfo FromSignalTrigger(ISignalTriggerSymbol signalTriggerSymbol, TaskCodeInfo taskCodeInfo) {
+    internal static SignalTriggerCodeInfo FromSignalTrigger(ISignalTriggerSymbol signalTriggerSymbol, TaskCodeInfo? taskCodeInfo) {
 
         if (signalTriggerSymbol == null) {
             throw new ArgumentNullException(nameof(signalTriggerSymbol));

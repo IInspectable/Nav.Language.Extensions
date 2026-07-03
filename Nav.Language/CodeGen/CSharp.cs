@@ -1,4 +1,6 @@
-﻿using Microsoft.CSharp;
+﻿#nullable enable
+
+using Microsoft.CSharp;
 
 namespace Pharmatechnik.Nav.Language.CodeGen; 
 

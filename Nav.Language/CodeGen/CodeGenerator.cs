@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
@@ -9,13 +11,11 @@ using System.Text;
 
 using Antlr4.StringTemplate;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.CodeGen.Templates;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public interface ICodeGeneratorProvider {
 
@@ -50,11 +50,10 @@ public class CodeGenerator: Generator, ICodeGenerator {
     const string ModelAttributeName   = "model";
     const string ContextAttributeName = "context";
 
-    public CodeGenerator(GenerationOptions options = null, IPathProviderFactory pathProviderFactory = null): base(options) {
+    public CodeGenerator(GenerationOptions? options = null, IPathProviderFactory? pathProviderFactory = null): base(options) {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
     }
 
-    [NotNull]
     public IPathProviderFactory PathProviderFactory { get; }
 
     public ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit) {
@@ -107,7 +106,9 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     CodeGenerationResult GenerateCode(CodeModelResult codeModelResult) {
 
-        var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit.LanguageVersion);
+        // Das TaskDefinition stammt aus codeGenerationUnit.TaskDefinitions; dessen CodeGenerationUnit
+        // ist nach FinalConstruct gesetzt und hier stets vorhanden.
+        var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
 
         var codeGenerationResult = new CodeGenerationResult(
             taskDefinition   : codeModelResult.TaskDefinition,
@@ -122,7 +123,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     static readonly ThreadLocal<TemplateGroup> IBeginWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IBeginWfsTemplate));
 
-    static CodeGenerationSpec GenerateIBeginWfsCodeSpec([CanBeNull] IBeginWfsCodeModel model, CodeGeneratorContext context) {
+    static CodeGenerationSpec GenerateIBeginWfsCodeSpec(IBeginWfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;
@@ -136,7 +137,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     static readonly ThreadLocal<TemplateGroup> IWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IWfsTemplate));
 
-    static CodeGenerationSpec GenerateIWfsCodeSpec([CanBeNull] IWfsCodeModel model, CodeGeneratorContext context) {
+    static CodeGenerationSpec GenerateIWfsCodeSpec(IWfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;
@@ -150,7 +151,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     static readonly ThreadLocal<TemplateGroup> WfsBaseTemplateGroup = new(() => LoadTemplateGroup(Resources.WfsBaseTemplate));
 
-    static CodeGenerationSpec GenerateWfsBaseCodeSpec([CanBeNull] WfsBaseCodeModel model, CodeGeneratorContext context) {
+    static CodeGenerationSpec GenerateWfsBaseCodeSpec(WfsBaseCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;
@@ -164,7 +165,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
 
     static readonly ThreadLocal<TemplateGroup> WfsTemplateGroup = new(() => LoadTemplateGroup(Resources.WFSOneShotTemplate));
 
-    static CodeGenerationSpec GenerateWfsCodeSpec([CanBeNull] WfsCodeModel model, CodeGeneratorContext context) {
+    static CodeGenerationSpec GenerateWfsCodeSpec(WfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;

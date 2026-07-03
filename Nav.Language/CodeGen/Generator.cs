@@ -1,14 +1,16 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public abstract class Generator: IDisposable {
 
-    protected Generator(GenerationOptions options) {
+    protected Generator(GenerationOptions? options) {
         Options = options ?? GenerationOptions.Default;
     }
 

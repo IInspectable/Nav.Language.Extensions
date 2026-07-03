@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -6,11 +8,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed class TaskExitCodeInfo {
 
-    TaskExitCodeInfo(TaskCodeInfo containingTask, string taskNodeName) {
+    TaskExitCodeInfo(TaskCodeInfo containingTask, string? taskNodeName) {
         ContainingTask = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
         var nodeNamePascalcase = (taskNodeName ?? String.Empty).ToPascalcase();
 
@@ -36,7 +38,7 @@ public sealed class TaskExitCodeInfo {
     }
 
     internal static TaskExitCodeInfo FromTaskNode(ITaskNodeSymbol taskNode,
-                                                  TaskCodeInfo containingTaskCodeInfo) {
+                                                  TaskCodeInfo? containingTaskCodeInfo) {
 
         if (taskNode == null) {
             throw new ArgumentNullException(nameof(taskNode));

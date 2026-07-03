@@ -51,7 +51,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Common | 1 | 4 | 4 | fertig |
 | (Projektwurzel) | 1 | 2 | 2 | fertig |
 | Properties | 1 | 1 | 1 | fertig |
-| CodeGen (+ CodeModel, Templates) | 2a | 37 | 19 | `CodeModel\` fertig, Rest (18) offen |
+| CodeGen (+ CodeModel, Templates) | 2a | 37 | 37 | fertig |
 | SemanticAnalyzer | 2b | 45 | 0 | offen |
 | CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 0 | offen |
 | Completion | 3 / P2 | 3 | 0 | offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **171** | ~52 % |
+| **Gesamt** | | **329** | **189** | ~57 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
@@ -152,6 +152,19 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   `?? String.Empty`-Normalisierung wurden auf `string?` gesetzt (Hausstil analog `CodeParameter`),
   `?? throw ArgumentNullException`-Guards für Objekt-Parameter blieben (non-null Vertrag, Schutz vor
   oblivious-Aufrufern).
+- **Welle 2a Teil 2 (CodeGen-Rest, 18 Dateien):** Der in der Baseline geführte `CS8602` in
+  `CodeGenerator.GenerateCode` stammte aus `codeModelResult.TaskDefinition.CodeGenerationUnit`
+  (`ITaskDefinitionSymbol.CodeGenerationUnit` ist `CodeGenerationUnit?` — nullable für importierte/
+  noch nicht angehängte Symbole). Hier ist die Unit aber stets vorhanden: Das `TaskDefinition` stammt
+  aus `codeGenerationUnit.TaskDefinitions`, und `TaskDefinitionSymbol.FinalConstruct` setzt die
+  Rückreferenz beim Aufbau der Unit. Fix daher per `!` mit Invariantenkommentar (kein Befundlog —
+  über die öffentliche API nicht als `null` konstruierbar). Die `[CanBeNull]`-Modellparameter der
+  `Generate…CodeSpec`-Methoden und die `CodeModelResult`-Modelle wurden zu `?` (die Modelle sind je
+  nach `GenerationOptions.Generate…`-Flags optional), `WriteFile`/`WriteFileImpl` liefern
+  `FileGeneratorResult?` und werden per `WhereNotNull()` gefiltert. `?? String.Empty`-normalisierte
+  String-Parameter → `string?`; tote `?? String.Empty` auf beweisbar non-null `ISymbol.Name` entfernt.
+  netstandard2.0-BCL bleibt oblivious → `Path.GetDirectoryName`/`GetManifestResourceStream` erzeugen
+  trotz „Lass krachen"-`null`-Durchreichung keine Warnung.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

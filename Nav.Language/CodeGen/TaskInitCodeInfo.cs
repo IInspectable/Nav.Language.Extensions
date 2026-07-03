@@ -1,14 +1,16 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 public sealed class TaskInitCodeInfo {
 
-    TaskInitCodeInfo(TaskCodeInfo containingTask, string initName) {
+    TaskInitCodeInfo(TaskCodeInfo containingTask, string? initName) {
 
         ContainingTask       = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
         BeginMethodName      = $"{CodeGenFacts.BeginMethodPrefix}";
