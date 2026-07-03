@@ -6,8 +6,34 @@ using System;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Unveränderliche Beschreibung einer Diagnose-Art — die „Vorlage", aus der über
+/// <see cref="Diagnostic"/> die konkreten, an eine <see cref="Location"/> gebundenen Meldungen
+/// entstehen. Ein Deskriptor bündelt die stabile Diagnose-Identität (<see cref="Id"/>), die
+/// Meldungsvorlage (<see cref="MessageFormat"/>), die fachliche Einordnung (<see cref="Category"/>)
+/// und den Standard-Schweregrad (<see cref="DefaultSeverity"/>). Die vordefinierten Deskriptoren
+/// der Engine liegen in <see cref="DiagnosticDescriptors"/>.
+/// </summary>
 public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
-        
+
+    /// <summary>
+    /// Erzeugt einen neuen Diagnose-Deskriptor.
+    /// </summary>
+    /// <param name="id">
+    /// Die stabile Diagnose-Kennung (z.B. <c>Nav0001</c>, siehe <see cref="DiagnosticId"/>). Darf
+    /// nicht <c>null</c>, leer oder reiner Leerraum sein.
+    /// </param>
+    /// <param name="messageFormat">
+    /// Die Meldungsvorlage. Kann Platzhalter im Stil von <see cref="String.Format(string, object[])"/>
+    /// (<c>{0}</c>, <c>{1}</c>, …) enthalten, die beim Erzeugen eines <see cref="Diagnostic"/> aus den
+    /// Meldungs-Argumenten gefüllt werden.
+    /// </param>
+    /// <param name="category">Die fachliche Einordnung der Diagnose.</param>
+    /// <param name="defaultSeverity">Der Standard-Schweregrad der Diagnose.</param>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="id"/> ist <c>null</c>, leer oder reiner Leerraum.
+    /// </exception>
+    /// <exception cref="ArgumentNullException"><paramref name="messageFormat"/> ist <c>null</c>.</exception>
     public DiagnosticDescriptor(string id, string messageFormat, DiagnosticCategory category, DiagnosticSeverity defaultSeverity) {
 
         if (String.IsNullOrWhiteSpace(id)) {
@@ -20,12 +46,26 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         DefaultSeverity = defaultSeverity;
     }
 
+    /// <summary>
+    /// Die stabile Diagnose-Kennung (z.B. <c>Nav0001</c>). Über sie wird eine Diagnose-Art dauerhaft
+    /// identifiziert (etwa zum Unterdrücken oder zum Nachschlagen).
+    /// </summary>
     public string Id { get; }
 
+    /// <summary>
+    /// Die Meldungsvorlage; kann Platzhalter im Stil von <see cref="String.Format(string, object[])"/>
+    /// enthalten, die erst beim Erzeugen eines <see cref="Diagnostic"/> aufgelöst werden.
+    /// </summary>
     public string MessageFormat { get; }
 
+    /// <summary>
+    /// Die fachliche Einordnung der Diagnose (z.B. Syntax, Semantik).
+    /// </summary>
     public DiagnosticCategory Category { get; }
 
+    /// <summary>
+    /// Der Standard-Schweregrad der Diagnose.
+    /// </summary>
     public DiagnosticSeverity DefaultSeverity { get; }
 
     public bool Equals(DiagnosticDescriptor? other) {
