@@ -119,7 +119,7 @@ public sealed class NavSymbolRef {
     public static NavSymbolRef From(ISymbol symbol) => new() {
         Name   = symbol.Name ?? "",
         Kind   = NavSymbolKind.Of(symbol),
-        Task   = (symbol as INodeSymbol)?.ContainingTask?.Name,
+        Task   = (symbol as INodeSymbol)?.ContainingTask.Name,
         File   = symbol.Location.FilePath ?? "",
         Line   = symbol.Location.StartLine      + 1,
         Column = symbol.Location.StartCharacter + 1

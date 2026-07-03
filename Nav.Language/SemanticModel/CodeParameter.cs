@@ -22,7 +22,7 @@ sealed class CodeParameter: ICodeParameter {
 
     public static ICodeParameter? FromResultDeclaration(CodeResultDeclarationSyntax? codeResult) {
 
-        if (codeResult?.Result?.Type == null) {
+        if (codeResult?.Result.Type == null) {
             return null;
         }
 

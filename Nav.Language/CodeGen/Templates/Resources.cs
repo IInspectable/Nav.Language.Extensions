@@ -22,7 +22,7 @@ static class Resources {
     static string LoadText(string resourceName) {
 
         var fullResourceName = $"{typeof(Resources).Namespace}.{resourceName}";
-
+        // ReSharper disable once AssignNullToNotNullAttribute Lass krachen...
         using Stream stream = typeof(Resources).Assembly.GetManifestResourceStream(fullResourceName);
         // ReSharper disable once AssignNullToNotNullAttribute Lass krachen...
         using StreamReader reader = new StreamReader(stream);

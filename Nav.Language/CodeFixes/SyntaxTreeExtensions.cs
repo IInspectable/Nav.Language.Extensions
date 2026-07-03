@@ -27,7 +27,7 @@ static class SyntaxTreeExtensions {
 
     public static IEnumerable<TextChange> GetRenameSourceChanges(this SyntaxTree syntaxTree, ITransition transition, string newSourceName, TextEditorSettings textEditorSettings) {
 
-        if (transition?.SourceReference == null) {
+        if (transition.SourceReference == null) {
             yield break;
         }
 
@@ -56,7 +56,7 @@ static class SyntaxTreeExtensions {
 
     public static IEnumerable<TextChange> GetRenameSourceChanges(this SyntaxTree syntaxTree, IExitTransition transition, string newSourceName, TextEditorSettings textEditorSettings) {
 
-        if (transition?.SourceReference == null || transition.ExitConnectionPointReference == null) {
+        if (transition.SourceReference == null || transition.ExitConnectionPointReference == null) {
             yield break;
         }
 

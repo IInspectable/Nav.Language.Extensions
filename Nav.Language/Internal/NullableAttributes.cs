@@ -3,6 +3,7 @@
 // vollständige Satz, damit die Nullable-Kampagne jedes Flussattribut nutzen kann, ohne diese Datei
 // erneut anzufassen (verhindert einen Merge-Hotspot und die CS0122-Falle). Alle Typen sind internal.
 
+// ReSharper disable once CheckNamespace
 namespace System.Diagnostics.CodeAnalysis;
 
 /// <summary>Gibt an, dass <c>null</c> als Eingabe erlaubt ist, auch wenn der Typ es nicht zulässt.</summary>

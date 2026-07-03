@@ -55,7 +55,7 @@ static class FoldingRangeBuilder {
         }
 
         void AddNode(SyntaxNode node, Protocol.FoldingRangeKind? kind) {
-            if (node != null && !node.Extent.IsEmptyOrMissing) {
+            if (!node.Extent.IsEmptyOrMissing) {
                 Add(node.Extent.Start, node.Extent.End, kind);
             }
         }

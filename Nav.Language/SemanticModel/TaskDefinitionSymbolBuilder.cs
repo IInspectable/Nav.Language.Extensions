@@ -39,17 +39,17 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         _taskDefinition = new TaskDefinitionSymbol(taskName, location, taskDefinitionSyntax, taskDeclaration);
 
         // Declarations
-        foreach (var nodeDeclarationSyntax in taskDefinitionSyntax.NodeDeclarationBlock?.NodeDeclarations ?? Enumerable.Empty<NodeDeclarationSyntax>()) {
+        foreach (var nodeDeclarationSyntax in taskDefinitionSyntax.NodeDeclarationBlock.NodeDeclarations) {
             Visit(nodeDeclarationSyntax);
         }
 
         // Transitions
-        foreach (var transitionDefinitionSyntax in taskDefinitionSyntax.TransitionDefinitionBlock?.TransitionDefinitions ?? Enumerable.Empty<TransitionDefinitionSyntax>()) {
+        foreach (var transitionDefinitionSyntax in taskDefinitionSyntax.TransitionDefinitionBlock.TransitionDefinitions) {
             Visit(transitionDefinitionSyntax);
         }
 
         // ExitTransitions
-        foreach (var transitionDefinitionSyntax in taskDefinitionSyntax.TransitionDefinitionBlock?.ExitTransitionDefinitions ?? Enumerable.Empty<ExitTransitionDefinitionSyntax>()) {
+        foreach (var transitionDefinitionSyntax in taskDefinitionSyntax.TransitionDefinitionBlock.ExitTransitionDefinitions) {
             Visit(transitionDefinitionSyntax);
         }
 

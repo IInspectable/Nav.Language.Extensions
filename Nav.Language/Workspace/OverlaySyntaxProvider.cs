@@ -32,13 +32,13 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
         _diskProvider = diskProvider ?? SyntaxProvider.Default;
     }
 
-    public CodeGenerationUnitSyntax GetSyntax(string filePath, CancellationToken cancellationToken = default) {
+    public CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         var normalizedPath = PathHelper.NormalizePath(filePath)
                           ?? throw new System.ArgumentNullException(nameof(filePath));
 
         if (_cache.TryGetValue(normalizedPath, out var cached)) {
-            return cached!;
+            return cached;
         }
 
         var syntax = _overlay.TryGetValue(normalizedPath, out var text)
@@ -47,7 +47,7 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
 
         _cache[normalizedPath] = syntax;
 
-        return syntax!;
+        return syntax;
     }
 
     /// <summary>Öffnet ein Dokument bzw. aktualisiert seinen Overlay-Inhalt und invalidiert den Cache.</summary>

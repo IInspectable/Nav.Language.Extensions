@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -35,7 +35,7 @@ static class CallHierarchyBuilder {
 
     static CallHierarchyItem? Build(string name, Location nameLocation, Location blockLocation) {
 
-        if (string.IsNullOrEmpty(nameLocation?.FilePath)) {
+        if (string.IsNullOrEmpty(nameLocation.FilePath)) {
             return null;
         }
 

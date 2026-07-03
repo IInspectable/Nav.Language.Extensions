@@ -134,7 +134,7 @@ public static class NavSymbolSearch {
         return results;
 
         void TryAdd(ISymbol? symbol) {
-            if (symbol?.Location == null || symbol.Name == null ||
+            if (symbol?.Location == null ||
                 !symbol.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                 return;
             }

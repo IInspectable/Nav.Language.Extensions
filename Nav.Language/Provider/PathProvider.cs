@@ -72,8 +72,9 @@ public class PathProvider: IPathProvider {
         return CombinePath(IwflGeneratedDirectory, $"{toClassName}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
     }
 
-    static string CombinePath(string first, params string?[] parts) {
-        return parts.Where(part => !String.IsNullOrEmpty(part)).Aggregate(first, Path.Combine);
+    static string CombinePath(string? first, params string?[] parts) {
+        // Path.GetDirectoryName liefert bei Wurzelpfaden null; das darf hier nicht durchschlagen.
+        return parts.Where(part => !String.IsNullOrEmpty(part)).Aggregate(first ?? String.Empty, Path.Combine);
     }
 
 }

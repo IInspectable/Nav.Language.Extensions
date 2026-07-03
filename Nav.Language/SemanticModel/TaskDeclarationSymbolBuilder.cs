@@ -261,7 +261,7 @@ sealed class TaskDeclarationSymbolBuilder {
                     codeNotImplemented: false
                 );
 
-                AddConnectionPoints(taskDeclaration, taskDefinitionSyntax.NodeDeclarationBlock?.ConnectionPoints().ToList());
+                AddConnectionPoints(taskDeclaration, taskDefinitionSyntax.NodeDeclarationBlock.ConnectionPoints().ToList());
                 AddTaskDeclaration(taskDeclaration);
             }
         }

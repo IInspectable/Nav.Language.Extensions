@@ -36,14 +36,14 @@ sealed class ReferenceCollector: IFindReferencesContext {
 
     public Task OnDefinitionFoundAsync(DefinitionItem definitionItem) {
         if (_includeDeclaration) {
-            Add(definitionItem?.Location);
+            Add(definitionItem.Location);
         }
 
         return Task.CompletedTask;
     }
 
     public Task OnReferenceFoundAsync(ReferenceItem referenceItem) {
-        Add(referenceItem?.Location);
+        Add(referenceItem.Location);
         return Task.CompletedTask;
     }
 

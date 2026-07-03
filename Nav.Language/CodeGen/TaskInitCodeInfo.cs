@@ -42,7 +42,7 @@ public sealed class TaskInitCodeInfo {
             throw new ArgumentNullException(nameof(taskCodeInfo));
         }
 
-        return new TaskInitCodeInfo(containingTask: taskCodeInfo, initName: initNodeSymbol.Name ?? String.Empty);
+        return new TaskInitCodeInfo(containingTask: taskCodeInfo, initName: initNodeSymbol.Name);
     }
 
 }

@@ -37,13 +37,13 @@ public class CallComparer: IEqualityComparer<Call> {
             return false;
         }
 
-        return x.Node.Name      == y.Node.Name &&
-               x.EdgeMode?.Name == y.EdgeMode?.Name;
+        return x.Node.Name     == y.Node.Name &&
+               x.EdgeMode.Name == y.EdgeMode.Name;
     }
 
     public virtual int GetHashCode(Call call) {
         unchecked {
-            return (call.Node.Name.GetHashCode() * 397) ^ (call.EdgeMode?.Name?.GetHashCode() ?? 0);
+            return (call.Node.Name.GetHashCode() * 397) ^ call.EdgeMode.Name.GetHashCode();
         }
     }
 
