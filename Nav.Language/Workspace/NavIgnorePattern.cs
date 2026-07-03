@@ -42,10 +42,8 @@ sealed class NavIgnorePattern {
     /// <summary>
     /// Parst eine Zeile. Liefert <c>null</c> für Kommentare, Leerzeilen und Zeilen ohne verwertbares Muster.
     /// </summary>
-    public static NavIgnorePattern? TryParse(string rawLine) {
+    public static NavIgnorePattern? TryParse(string? rawLine) {
 
-        // TryParse-Kontrakt: nimmt bewusst beliebige Eingabe inkl. `null` entgegen.
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         if (rawLine == null) {
             return null;
         }

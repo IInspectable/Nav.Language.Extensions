@@ -71,12 +71,10 @@ sealed class NavIgnoreFile {
     }
 
     /// <summary>Test-Einstieg ohne Datei-IO.</summary>
-    public static NavIgnoreFile FromLines(string baseDir, IEnumerable<string> lines) {
+    public static NavIgnoreFile FromLines(string baseDir, IEnumerable<string>? lines) {
 
         var baseDirNormalized = (PathHelper.NormalizePath(baseDir) ?? baseDir).TrimEnd('\\', '/');
 
-        // Öffentlicher Einstieg — defensiv gegen `null` trotz non-null-Annotation.
-        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         var patterns = (lines ?? Enumerable.Empty<string>())
                       .Select(NavIgnorePattern.TryParse)
                       .Where(p => p != null)

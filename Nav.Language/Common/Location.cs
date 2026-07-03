@@ -32,7 +32,7 @@ public class Location: IEquatable<Location> {
         this(extent, new LineRange(linePosition, linePosition), filePath) {
     }
 
-    public Location(string filePath) {
+    public Location(string? filePath) {
         Extent            = TextExtent.Empty;
         StartLinePosition = LinePosition.Empty;
         EndLinePosition   = LinePosition.Empty;

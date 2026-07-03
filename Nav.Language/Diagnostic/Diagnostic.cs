@@ -14,25 +14,23 @@ public sealed class Diagnostic: IEquatable<Diagnostic> {
 
     readonly object[] _messageArgs;
 
-    public Diagnostic(Location location, DiagnosticDescriptor descriptor, params object[] messageArgs) {
+    public Diagnostic(Location location, DiagnosticDescriptor descriptor, params object[]? messageArgs) {
         Location            = location   ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
         AdditionalLocations = EmptyAdditionalLocations;
-        // `params object[]` kann vom Aufrufer explizit `null` erhalten — der Guard ist real.
-        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+        // `params object[]?` kann vom Aufrufer explizit `null` erhalten (z.B. `new Diagnostic(loc, desc, null)`).
         _messageArgs        = messageArgs ?? EmptyMessageArgs;
     }
 
-    public Diagnostic(Location location, Location additionalLocation, DiagnosticDescriptor descriptor, params object[] messageArgs)
+    public Diagnostic(Location location, Location additionalLocation, DiagnosticDescriptor descriptor, params object[]? messageArgs)
         : this(location, new[] {additionalLocation}, descriptor, messageArgs) {
     }
 
-    public Diagnostic(Location location, IEnumerable<Location>? additionalLocations, DiagnosticDescriptor descriptor, params object[] messageArgs) {
+    public Diagnostic(Location location, IEnumerable<Location>? additionalLocations, DiagnosticDescriptor descriptor, params object[]? messageArgs) {
         Location            = location                                                          ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor                                                        ?? throw new ArgumentNullException(nameof(descriptor));
         AdditionalLocations = additionalLocations?.Where(loc => loc != null).ToImmutableArray() ?? EmptyAdditionalLocations;
-        // `params object[]` kann vom Aufrufer explizit `null` erhalten — der Guard ist real.
-        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+        // `params object[]?` kann vom Aufrufer explizit `null` erhalten (z.B. `new Diagnostic(loc, desc, null)`).
         _messageArgs        = messageArgs                                                       ?? EmptyMessageArgs;
     }
 
