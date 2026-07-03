@@ -54,9 +54,9 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | CodeGen (+ CodeModel, Templates) | 2a | 37 | 37 | fertig |
 | SemanticAnalyzer | 2b | 45 | 45 | fertig |
 | CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 32 | fertig |
-| Completion | 3 / P2 | 3 | 0 | offen |
-| GoTo | 3 / P2 | 2 | 0 | offen |
-| Rename | 3 / P2 | 1 | 0 | offen |
+| Completion | 3 / P2 | 3 | 3 | fertig |
+| GoTo | 3 / P2 | 2 | 2 | fertig |
+| Rename | 3 / P2 | 1 | 1 | fertig |
 | Diagnostic | 3 / P3 | 13 | 0 | offen |
 | Dependencies | 3 / P3 | 4 | 0 | offen |
 | FindReferences | 3 / P4 | 10 | 0 | offen |
@@ -67,11 +67,11 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **266** | ~81 % |
+| **Gesamt** | | **329** | **272** | ~83 % |
 
-> Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
-> `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
-> Fortschritt maschinell aus).
+> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`: Scan `Nav.Language\**\*.cs` ohne
+> `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren
+> (Vorbild: `nav nullaudit` gibt den Fortschritt maschinell aus).
 
 ## 3. Playbook-Regeln (Review-Checkliste je Ordner)
 
@@ -196,6 +196,24 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   Umlaut-Bytes durch den UTF-8-Read zu `U+FFFD` zerstört. Korrekt behandelt: aus HEAD zurückgeholt, mit
   `nav fixenc` Win-1252→UTF-8-BOM umkodiert, dann die Nullable-Änderungen erneut angewandt. Kein
   Befundlog-Eintrag.
+- **Welle 3 / P2 (Completion+GoTo+Rename, 6 Dateien):** **Null neue Warnungen, null Suppressions** — die
+  Feature-Kerne konsumieren durchweg bereits messerscharf annotierte Verträge. Kein NRE-Befund. Die
+  Konsum-Kanten trugen sauber: `TaskDefinitionSymbolExtensions.TryFindNode` ist als **null-toleranter
+  Extension-Vertrag** (`this ITaskDefinitionSymbol?`, `string? name`) geschrieben — daher kompiliert
+  `context.Task.TryFindNode(context.ExitNodeName)` in `ExitConnectionPointItems` trotz nullbarer
+  `Task`/`ExitNodeName` ohne CS8602/CS8604 (Extension-Aufruf dereferenziert `this` nicht), keine
+  zusätzlichen Guards nötig. `[CanBeNull]`→`?`/`[NotNull]`→default in allen dreien abgelöst
+  (`JetBrains.Annotations`-`using` raus). Zwei substanzielle Kontrakt-Präzisierungen: (1)
+  `NavCompletionService.GetPathCompletions` liefert bewusst `IReadOnlyList<NavCompletionItem>?` — `null`
+  ist das **Sentinel** „kein taskref-String-Kontext" (dann übernimmt die Nav-/Edge-Completion),
+  unterscheidbar von der leeren Liste „String-Kontext, aber keine Treffer". (2)
+  `GoToTargetResolver.One` nimmt jetzt `Location?` (Aufrufer reichen `…Declaration?.Location` durch) und
+  filtert die abwesende Location zur leeren Sequenz — damit sind die von `Visit` gelieferten Elemente
+  **beweisbar non-null**, weshalb in `NavGoToService.GetGoToLocations` der tote `location != null`-Guard
+  vor dem `HashSet.Add` entfiel (Rule 4). Das Dedup-`HashSet` wurde auf `(string?, int)` gestellt, weil
+  `Location.FilePath` bewusst `string?` bleibt (Playbook 4a). **Encoding:** GoTo/Rename lagen als
+  UTF-8 **ohne** BOM vor (valide UTF-8, keine Win-1252-Falle); der Format-Hook hat beim Speichern den
+  BOM ergänzt, Umlaute blieben intakt.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

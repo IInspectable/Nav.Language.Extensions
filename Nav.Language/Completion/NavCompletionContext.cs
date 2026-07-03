@@ -1,8 +1,8 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -103,7 +103,7 @@ enum NavCompletionContextKind {
 /// </summary>
 sealed class NavCompletionContext {
 
-    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol task, string exitNodeName, CodeBlockHost host) {
+    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol? task, string? exitNodeName, CodeBlockHost host) {
         Kind         = kind;
         Task         = task;
         ExitNodeName = exitNodeName;
@@ -112,21 +112,18 @@ sealed class NavCompletionContext {
 
     public NavCompletionContextKind Kind { get; }
 
-    [CanBeNull]
-    public ITaskDefinitionSymbol Task { get; }
+    public ITaskDefinitionSymbol? Task { get; }
 
-    [CanBeNull]
-    public string ExitNodeName { get; }
+    public string? ExitNodeName { get; }
 
     /// <summary>Der Wirt eines Code-Blocks — nur für <see cref="NavCompletionContextKind.CodeBlock"/> aussagekräftig.</summary>
     public CodeBlockHost Host { get; }
 
-    static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol task = null,
-                                   string exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit)
+    static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol? task = null,
+                                   string? exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit)
         => new(kind, task, exitNodeName, host);
 
-    [NotNull]
-    public static NavCompletionContext Classify([NotNull] CodeGenerationUnit unit, int position) {
+    public static NavCompletionContext Classify(CodeGenerationUnit unit, int position) {
 
         var tree   = unit.Syntax.SyntaxTree;
         var source = tree.SourceText;
@@ -279,8 +276,7 @@ sealed class NavCompletionContext {
     /// Bedingung/do INNERHALB der <see cref="ExitTransitionDefinitionSyntax"/>; deren spezifischere Rolle muss
     /// gewinnen, die Exit-Transition selbst bleibt nur der Anker für ihren Connector-Namen.
     /// </summary>
-    [CanBeNull]
-    static SyntaxNode ClassificationNode([CanBeNull] SyntaxNode node) {
+    static SyntaxNode? ClassificationNode(SyntaxNode? node) {
 
         if (node == null) {
             return null;
@@ -304,8 +300,7 @@ sealed class NavCompletionContext {
     /// <summary>
     /// Die umschließende Task-Definition (Symbol) zum gegebenen Token — oder <c>null</c> auf Member-Ebene.
     /// </summary>
-    [CanBeNull]
-    static ITaskDefinitionSymbol EnclosingTask(CodeGenerationUnit unit, SyntaxToken token) {
+    static ITaskDefinitionSymbol? EnclosingTask(CodeGenerationUnit unit, SyntaxToken token) {
 
         var taskSyntax = token.Parent?
                               .AncestorsAndSelf()
@@ -325,8 +320,7 @@ sealed class NavCompletionContext {
     /// <see cref="TaskDefinitionSyntax"/> trägt sie kein <see cref="ITaskDefinitionSymbol"/>; für die Completion
     /// im taskref-Body genügen die statischen Connection-Point-Keywords, ein Symbol wird nicht benötigt.
     /// </summary>
-    [CanBeNull]
-    static TaskDeclarationSyntax EnclosingTaskDeclaration(SyntaxToken token) {
+    static TaskDeclarationSyntax? EnclosingTaskDeclaration(SyntaxToken token) {
         return token.Parent?
                     .AncestorsAndSelf()
                     .OfType<TaskDeclarationSyntax>()
@@ -417,8 +411,7 @@ sealed class NavCompletionContext {
     /// liefert dort <c>default</c>. Der Extent einer Direktive endet vor ihrem Zeilenende (siehe
     /// <see cref="NavDirectiveParser"/>), daher kollidiert die inklusive Endgrenze nicht mit der Folgezeile.
     /// </summary>
-    [CanBeNull]
-    static DirectiveTriviaSyntax DirectiveAt(SyntaxTree tree, int position) {
+    static DirectiveTriviaSyntax? DirectiveAt(SyntaxTree tree, int position) {
         foreach (var directive in tree.Directives()) {
             if (position >= directive.Start && position <= directive.End) {
                 return directive;

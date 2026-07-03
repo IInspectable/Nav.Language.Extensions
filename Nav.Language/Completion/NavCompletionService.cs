@@ -1,11 +1,11 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Utilities.IO;
@@ -87,8 +87,7 @@ public static class NavCompletionService {
     /// in der Reihenfolge, in der sie dem Nutzer angeboten werden sollen — oder eine leere Liste, wenn
     /// an der Position nichts vorgeschlagen werden soll.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<NavCompletionItem> GetCompletions([NotNull] CodeGenerationUnit unit, int position, [CanBeNull] NavSolution solution = null) {
+    public static IReadOnlyList<NavCompletionItem> GetCompletions(CodeGenerationUnit unit, int position, NavSolution? solution = null) {
 
         var source = unit.Syntax.SyntaxTree.SourceText;
 
@@ -331,7 +330,7 @@ public static class NavCompletionService {
     // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch. Über <paramref name="roleFilter"/>
     // wird auf die im jeweiligen Slot grammatisch mögliche Rolle eingegrenzt (Quelle bzw. Ziel einer Transition);
     // ohne Filter (Fallback) werden alle Knoten angeboten.
-    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol task, Func<INodeSymbol, bool> roleFilter = null) {
+    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol? task, Func<INodeSymbol, bool>? roleFilter = null) {
 
         if (task == null) {
             return;
@@ -379,7 +378,7 @@ public static class NavCompletionService {
     /// wird clientseitig über den <em>Dateinamen</em> (so findet „Messageb" auch ein tief verschachteltes
     /// „MessageBoxes.nav"); eingefügt wird der zum aktuellen Nav-File <em>relative</em> Pfad.
     /// </summary>
-    static IReadOnlyList<NavCompletionItem> GetPathCompletions(SourceText source, int position, NavSolution solution) {
+    static IReadOnlyList<NavCompletionItem>? GetPathCompletions(SourceText source, int position, NavSolution? solution) {
 
         if (position < 0 || position > source.Length) {
             return null;

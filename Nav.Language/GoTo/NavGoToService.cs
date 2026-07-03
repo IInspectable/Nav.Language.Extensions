@@ -1,9 +1,9 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -23,17 +23,16 @@ public static class NavGoToService {
     /// zusammengeführt; Duplikate (gleiche Datei + Startposition) werden entfernt. Reihenfolge bleibt
     /// stabil (Reihenfolge der Symbole, dann der Ziele).
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<Location> GetGoToLocations([NotNull] CodeGenerationUnit unit, int position) {
+    public static IReadOnlyList<Location> GetGoToLocations(CodeGenerationUnit unit, int position) {
 
         var symbols  = SymbolPosition.SymbolsAt(unit, position);
         var resolver = new GoToTargetResolver();
 
-        var seen    = new HashSet<(string, int)>();
+        var seen    = new HashSet<(string?, int)>();
         var results = new List<Location>();
 
         foreach (var location in symbols.SelectMany(resolver.Visit)) {
-            if (location != null && seen.Add((location.FilePath, location.Start))) {
+            if (seen.Add((location.FilePath, location.Start))) {
                 results.Add(location);
             }
         }

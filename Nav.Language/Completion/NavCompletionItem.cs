@@ -1,4 +1,4 @@
-﻿using JetBrains.Annotations;
+﻿#nullable enable
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -25,7 +25,7 @@ public enum NavCompletionItemKind {
 /// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie + optional Einfügetext/Ersetzungsbereich).</summary>
 public sealed class NavCompletionItem {
 
-    public NavCompletionItem(string label, NavCompletionItemKind kind, string insertText = null, TextExtent? replacementExtent = null, string detail = null, ISymbol symbol = null) {
+    public NavCompletionItem(string label, NavCompletionItemKind kind, string? insertText = null, TextExtent? replacementExtent = null, string? detail = null, ISymbol? symbol = null) {
         Label             = label;
         Kind              = kind;
         InsertText        = insertText ?? label;
@@ -44,7 +44,7 @@ public sealed class NavCompletionItem {
     public string InsertText { get; }
 
     /// <summary>Optionaler Zusatztext (vom Client rechts/grau dargestellt) — bei Pfad-Vorschlägen der relative Pfad.</summary>
-    public string Detail { get; }
+    public string? Detail { get; }
 
     /// <summary>
     /// Der zu ersetzende Bereich (absolute Dokument-Offsets) — gesetzt bei Pfad-Vorschlägen, damit der
@@ -58,7 +58,6 @@ public sealed class NavCompletionItem {
     /// Connection-Point) — sonst <c>null</c> (Keyword-/Pfad-Vorschläge). Hosts mit reicher Darstellung
     /// (VS) bauen daraus Icon und QuickInfo-Tooltip; der LSP-Server ignoriert es.
     /// </summary>
-    [CanBeNull]
-    public ISymbol Symbol { get; }
+    public ISymbol? Symbol { get; }
 
 }
