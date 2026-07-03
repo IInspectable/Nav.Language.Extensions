@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
@@ -7,7 +9,7 @@ using System.Collections.Immutable;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 abstract class TransitionCodeModel: CodeModel {
 
@@ -58,7 +60,7 @@ abstract class TransitionCodeModel: CodeModel {
         return reachableCalls.Select(call => call.Node)
                              .OfType<ITaskNodeSymbol>()
                              .Select(node => node.Declaration)
-                             .Where(taskDeclaration => taskDeclaration != null)
+                             .WhereNotNull()
                              .Distinct();
     }
 

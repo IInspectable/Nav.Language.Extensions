@@ -1,14 +1,16 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 abstract class FileGenerationCodeModel : CodeModel {
 
-    protected FileGenerationCodeModel(TaskCodeInfo taskCodeInfo, string relativeSyntaxFileName, string filePath) {
+    protected FileGenerationCodeModel(TaskCodeInfo taskCodeInfo, string? relativeSyntaxFileName, string? filePath) {
         RelativeSyntaxFileName = relativeSyntaxFileName ?? String.Empty;
         Task                   = taskCodeInfo           ?? throw new ArgumentNullException(nameof(taskCodeInfo));
         FilePath               = filePath               ?? String.Empty;

@@ -1,16 +1,18 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Immutable;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 sealed class InitTransitionCodeModel: TransitionCodeModel {
 
     InitTransitionCodeModel(ImmutableList<ParameterCodeModel> parameter, ImmutableList<Call> reachableCalls,
-                            bool generateAbstractMethod, string nodeName)
+                            bool generateAbstractMethod, string? nodeName)
         : base(reachableCalls) {
 
         Parameter              = parameter ?? throw new ArgumentNullException(nameof(parameter));

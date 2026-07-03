@@ -1,25 +1,26 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 // ReSharper disable once InconsistentNaming
 sealed class TOCodeModel : FileGenerationCodeModel {
-        
-    TOCodeModel(string relativeSyntaxFileName, 
-                TaskCodeInfo taskCodeInfo, 
+
+    TOCodeModel(string? relativeSyntaxFileName,
+                TaskCodeInfo taskCodeInfo,
                 ImmutableList<string> usingNamespaces,
-                string className, 
-                string filePath) 
+                string? className,
+                string? filePath)
         : base(taskCodeInfo, relativeSyntaxFileName, filePath) {
 
         UsingNamespaces = usingNamespaces ?? throw new ArgumentNullException(nameof(usingNamespaces));
@@ -28,10 +29,8 @@ sealed class TOCodeModel : FileGenerationCodeModel {
 
     public string ClassName { get; }
 
-    [NotNull]
     public ImmutableList<string> UsingNamespaces { get; }
 
-    [NotNull]
     public string IwflNamespace => Task.IwflNamespace;
 
     public static IEnumerable<TOCodeModel> FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {

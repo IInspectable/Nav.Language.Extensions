@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Immutable;
@@ -7,12 +9,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 class ExitTransitionCodeModel: TransitionCodeModel {
 
     public ExitTransitionCodeModel(ImmutableList<Call> calls,
-                                   ParameterCodeModel taskResult, bool generateAbstractMethod, string nodeName)
+                                   ParameterCodeModel taskResult, bool generateAbstractMethod, string? nodeName)
         : base(calls) {
 
         TaskResult             = taskResult ?? throw new ArgumentNullException(nameof(taskResult));

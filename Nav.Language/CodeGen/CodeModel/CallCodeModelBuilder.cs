@@ -1,11 +1,13 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Linq;
 using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 sealed class CallCodeModelBuilder: SymbolVisitor<CallCodeModel> {
 

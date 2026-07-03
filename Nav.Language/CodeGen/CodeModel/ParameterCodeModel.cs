@@ -1,19 +1,20 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 class ParameterCodeModel : CodeModel {
-        
-    public ParameterCodeModel(string parameterType, string parameterName) {
+
+    public ParameterCodeModel(string? parameterType, string? parameterName) {
         ParameterType = parameterType ?? String.Empty;
         ParameterName = parameterName ?? String.Empty;
     }
@@ -25,7 +26,6 @@ class ParameterCodeModel : CodeModel {
         return new ParameterCodeModel(parameterType: ParameterType, parameterName: parameterName);
     }
 
-    [NotNull]
     public static ParameterCodeModel TaskResult(ITaskDefinitionSymbol taskDefinition) {
         var codeParameter = taskDefinition.AsTaskDeclaration?.CodeTaskResult;
         var parameterType = CodeGenFacts.DefaultTaskResultType;
@@ -37,8 +37,7 @@ class ParameterCodeModel : CodeModel {
         return new ParameterCodeModel(parameterType, parameterName);
     }
 
-    [NotNull]
-    public static ParameterCodeModel TaskResult([CanBeNull] ITaskDeclarationSymbol taskDeclaration) {
+    public static ParameterCodeModel TaskResult(ITaskDeclarationSymbol? taskDeclaration) {
         var codeParameter = taskDeclaration?.CodeTaskResult;
         if (codeParameter == null) {
             // TODO New Error in Semantic Model: No result type defined with [result] - cannot use this task with exit edges.
@@ -48,7 +47,7 @@ class ParameterCodeModel : CodeModel {
         return new ParameterCodeModel(codeParameter.ParameterType, "result");
     }        
 
-    public static IEnumerable<ParameterCodeModel> FromParameterSyntaxes(IEnumerable<ParameterSyntax> parameters) {
+    public static IEnumerable<ParameterCodeModel> FromParameterSyntaxes(IEnumerable<ParameterSyntax>? parameters) {
         if (parameters == null) {
             yield break;
         }
@@ -60,7 +59,7 @@ class ParameterCodeModel : CodeModel {
         int i = 1;
         foreach (var parameterSyntax in parameters) {
             yield return new ParameterCodeModel(
-                parameterType: parameterSyntax.Type?.ToString(),
+                parameterType: parameterSyntax.Type.ToString(),
                 parameterName: GetParameterName(parameterSyntax.Identifier.ToString(), ref i));
         }
     }

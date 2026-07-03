@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Immutable;
@@ -7,11 +9,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 class TaskBeginCodeModel : CodeModel {
 
-    public TaskBeginCodeModel(string taskNodeName,
+    public TaskBeginCodeModel(string? taskNodeName,
                               ParameterCodeModel taskBeginParameter,
                               ImmutableList<ParameterCodeModel> taskParameter,
                               bool notImplemented = false) {

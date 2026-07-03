@@ -1,8 +1,10 @@
+﻿#nullable enable
+
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 sealed class CodeModelBuilder {
 
@@ -17,6 +19,7 @@ sealed class CodeModelBuilder {
 
         var usedTaskDeclarations = GetImplementedTaskNodes(taskDefinition)
                                   .Select(taskNode => taskNode.Declaration)
+                                  .WhereNotNull()
                                   .Distinct()
                                   .ToImmutableList();
             

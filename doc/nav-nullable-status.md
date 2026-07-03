@@ -51,7 +51,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Common | 1 | 4 | 4 | fertig |
 | (Projektwurzel) | 1 | 2 | 2 | fertig |
 | Properties | 1 | 1 | 1 | fertig |
-| CodeGen (+ CodeModel, Templates) | 2a | 37 | 1 | offen |
+| CodeGen (+ CodeModel, Templates) | 2a | 37 | 19 | `CodeModel\` fertig, Rest (18) offen |
 | SemanticAnalyzer | 2b | 45 | 0 | offen |
 | CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 0 | offen |
 | Completion | 3 / P2 | 3 | 0 | offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **153** | ~47 % |
+| **Gesamt** | | **329** | **171** | ~52 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
@@ -140,6 +140,18 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 - **Endzustand (Welle 5) offen** — Empfehlung: nach 100 % auf projektweites `<Nullable>enable</…>`
   umschalten + `<WarningsAsErrors>Nullable</…>`, Direktiven raus. **Entscheidung trifft der Nutzer
   erst nach Welle 4.**
+- **Welle 2a Teil 1 (`CodeGen\CodeModel\`, 18 Dateien):** `CodeModelBuilder.GetTaskBeginParameter`
+  reichte `taskNode.Declaration` (nullable) ungefiltert an `GetTaskBeginsAsParameter` (erwartet
+  non-null) weiter → CS8620 und, isoliert betrachtet, ein latenter NRE (`GetTaskBeginAsParameter`
+  dereferenziert die Declaration). Über die öffentliche API ist der Fall aber **unerreichbar**:
+  ein Task-Node mit unaufgelöster Declaration erzeugt `Nav0010CannotResolveTask0`
+  (`DiagnosticSeverity.Error`), und `CodeGenerator.Generate` bricht bei `Diagnostics.HasErrors()`
+  vorab ab. Fix daher verhaltensneutral per `.WhereNotNull()` — dieselbe Idiomatik wie im
+  Schwester-Pfad `TransitionCodeModel.GetTaskDeclarations`. Kein Befundlog-Eintrag (nicht über die
+  öffentliche API mit konstruierbarem Input auslösbar). String-Konstruktor-Parameter mit
+  `?? String.Empty`-Normalisierung wurden auf `string?` gesetzt (Hausstil analog `CodeParameter`),
+  `?? throw ArgumentNullException`-Guards für Objekt-Parameter blieben (non-null Vertrag, Schutz vor
+  oblivious-Aufrufern).
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

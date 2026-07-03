@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 
@@ -6,11 +8,11 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
 abstract class CallCodeModel: CodeModel {
 
-    protected CallCodeModel(string name, EdgeMode edgeMode) {
+    protected CallCodeModel(string? name, EdgeMode edgeMode) {
         Name     = name ?? String.Empty;
         EdgeMode = edgeMode;
     }
