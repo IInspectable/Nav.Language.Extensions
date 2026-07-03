@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -6,28 +8,25 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.CodeGen;
 using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Generator; 
+namespace Pharmatechnik.Nav.Language.Generator;
 
 public sealed partial class NavCodeGeneratorPipeline {
 
     sealed class LoggerAdapter: IDisposable {
 
-        [CanBeNull]
-        readonly ILogger _logger;
+        readonly ILogger? _logger;
 
         readonly HashSet<Diagnostic> _loggedErrors;
         readonly HashSet<Diagnostic> _loggedWarnings;
         readonly Stopwatch           _processStopwatch;
         readonly Stopwatch           _processFileStopwatch;
 
-        public LoggerAdapter(ILogger logger) {
+        public LoggerAdapter(ILogger? logger) {
             _logger               = logger;
             _loggedErrors         = new HashSet<Diagnostic>();
             _loggedWarnings       = new HashSet<Diagnostic>();

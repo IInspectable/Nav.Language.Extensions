@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
@@ -7,7 +9,7 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Generator; 
+namespace Pharmatechnik.Nav.Language.Generator;
 
 public class FileSpec {
         

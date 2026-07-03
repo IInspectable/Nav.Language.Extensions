@@ -1,11 +1,11 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -27,8 +27,7 @@ public static class NavHoverService {
     /// Signatur liegt. Es wird vom spezifischsten Symbol unter dem Caret ausgegangen und das erste mit
     /// nicht-leeren Anzeige-Bestandteilen verwendet.
     /// </summary>
-    [CanBeNull]
-    public static NavHoverInfo GetHover([NotNull] CodeGenerationUnit unit, int position) {
+    public static NavHoverInfo? GetHover(CodeGenerationUnit unit, int position) {
 
         foreach (var symbol in SymbolPosition.SymbolsAt(unit, position)) {
 
@@ -72,7 +71,6 @@ public static class NavHoverService {
     /// anzeigt: Choices werden transitiv aufgelöst, sodass nur die tatsächlich erreichbaren Zielknoten
     /// (mit ihrem Edge-Mode) erscheinen. Für alle anderen Symbole leer. Sortiert nach Knotennamen (wie VS).
     /// </summary>
-    [NotNull]
     static IReadOnlyList<Call> GetReachableCalls(ISymbol symbol) {
 
         var calls = symbol switch {
@@ -93,8 +91,8 @@ public static class NavHoverService {
 /// </summary>
 public sealed class NavHoverInfo {
 
-    public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, [CanBeNull] Location location,
-                        [NotNull] IReadOnlyList<Call> calls, [CanBeNull] string documentation = null) {
+    public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, Location? location,
+                        IReadOnlyList<Call> calls, string? documentation = null) {
         DisplayParts  = displayParts;
         Location      = location;
         Calls         = calls;
@@ -105,21 +103,18 @@ public sealed class NavHoverInfo {
     public ImmutableArray<ClassifiedText> DisplayParts { get; }
 
     /// <summary>Der Namens-Bereich des Symbols unter dem Caret; kann <c>null</c> sein.</summary>
-    [CanBeNull]
-    public Location Location { get; }
+    public Location? Location { get; }
 
     /// <summary>
     /// Der aufbereitete Kommentartext direkt über der Deklaration des Symbols (siehe
     /// <see cref="NavSymbolDocumentation"/>); <c>null</c>, wenn dort kein Kommentar steht.
     /// </summary>
-    [CanBeNull]
-    public string Documentation { get; }
+    public string? Documentation { get; }
 
     /// <summary>
     /// Die von hier aus erreichbaren Knoten (Choices/Edges); leer für gewöhnliche Symbole. Jeder
     /// <see cref="Call"/> trägt Zielknoten und Edge-Mode für eine Zeile „Verb Zielsignatur".
     /// </summary>
-    [NotNull]
     public IReadOnlyList<Call> Calls { get; }
 
 }

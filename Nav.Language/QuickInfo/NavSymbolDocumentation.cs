@@ -1,9 +1,9 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System.Collections.Generic;
 using System.Text;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -25,8 +25,7 @@ public static class NavSymbolDocumentation {
     /// Kommentar steht bzw. das Symbol keine im Speicher gehaltene Deklaration besitzt (z.B. aus einer
     /// inkludierten Datei stammende TaskDeclarations). Referenzen lösen auf ihre Deklaration auf.
     /// </summary>
-    [CanBeNull]
-    public static string GetDocumentation([NotNull] ISymbol symbol) {
+    public static string? GetDocumentation(ISymbol symbol) {
 
         var syntax = GetDeclarationSyntax(symbol);
         if (syntax == null) {
@@ -56,8 +55,7 @@ public static class NavSymbolDocumentation {
     /// bzw. ihre Deklaration auf; ein Task-Knoten (<c>task Foo;</c>) auf die <b>Task-Definition</b>
     /// (deren Kommentar), nicht auf die Aufrufstelle; in-place deklarierte Knoten auf sich selbst.
     /// </summary>
-    [CanBeNull]
-    static SyntaxNode GetDeclarationSyntax([NotNull] ISymbol symbol) {
+    static SyntaxNode? GetDeclarationSyntax(ISymbol symbol) {
         return symbol switch {
             // Aliase auf ihren Knoten auflösen.
             ITaskNodeAliasSymbol { TaskNode: { } taskNode } => GetDeclarationSyntax(taskNode),
@@ -86,8 +84,7 @@ public static class NavSymbolDocumentation {
     /// Folge) trennt einen vorangehenden Block ab; steht zwischen letztem Kommentar und Knoten eine
     /// Leerzeile, gehört der Block nicht mehr zum Knoten.
     /// </summary>
-    [NotNull]
-    static IReadOnlyList<SyntaxTrivia> GetLeadingCommentBlock([NotNull] SyntaxNode syntax) {
+    static IReadOnlyList<SyntaxTrivia> GetLeadingCommentBlock(SyntaxNode syntax) {
 
         var block                = new List<SyntaxTrivia>();
         var newLinesSinceComment = 0;
@@ -133,7 +130,7 @@ public static class NavSymbolDocumentation {
     /// Hängt den von Kommentar-Markern befreiten Text einer Kommentar-Trivia an — eine Zeile je
     /// Quellzeile (mehrzeilige Block-Kommentare werden zeilenweise aufgeschlüsselt).
     /// </summary>
-    static void AppendCommentText([NotNull] StringBuilder sb, [NotNull] string raw) {
+    static void AppendCommentText(StringBuilder sb, string raw) {
 
         raw = raw.Trim();
 
@@ -158,7 +155,7 @@ public static class NavSymbolDocumentation {
         AppendLine(sb, raw);
     }
 
-    static void AppendLine([NotNull] StringBuilder sb, [NotNull] string line) {
+    static void AppendLine(StringBuilder sb, string line) {
         if (sb.Length > 0) {
             sb.Append('\n');
         }

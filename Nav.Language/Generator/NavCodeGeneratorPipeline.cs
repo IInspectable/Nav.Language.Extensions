@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
@@ -5,23 +7,21 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.CodeGen;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Generator; 
+namespace Pharmatechnik.Nav.Language.Generator;
 
 public sealed partial class NavCodeGeneratorPipeline {
 
-    NavCodeGeneratorPipeline(GenerationOptions options,
-                             ILogger logger,
-                             IPathProviderFactory pathProviderFactory,
-                             ISyntaxProviderFactory syntaxProviderFactory,
-                             ISemanticModelProviderFactory semanticModelProviderFactory,
-                             ICodeGeneratorProvider codeGeneratorProvider,
-                             IFileGeneratorProvider fileGeneratorProvider) {
+    NavCodeGeneratorPipeline(GenerationOptions? options,
+                             ILogger? logger,
+                             IPathProviderFactory? pathProviderFactory,
+                             ISyntaxProviderFactory? syntaxProviderFactory,
+                             ISemanticModelProviderFactory? semanticModelProviderFactory,
+                             ICodeGeneratorProvider? codeGeneratorProvider,
+                             IFileGeneratorProvider? fileGeneratorProvider) {
 
         Logger                       = logger;
         Options                      = options                      ?? GenerationOptions.Default;
@@ -34,13 +34,13 @@ public sealed partial class NavCodeGeneratorPipeline {
 
     public static NavCodeGeneratorPipeline CreateDefault() => Create();
 
-    public static NavCodeGeneratorPipeline Create(GenerationOptions options = null,
-                                                  ILogger logger = null,
-                                                  IPathProviderFactory pathProviderFactory = null,
-                                                  ISyntaxProviderFactory syntaxProviderFactory = null,
-                                                  ISemanticModelProviderFactory semanticModelProviderFactory = null,
-                                                  ICodeGeneratorProvider codeGeneratorProvider = null,
-                                                  IFileGeneratorProvider fileGeneratorProvider = null)
+    public static NavCodeGeneratorPipeline Create(GenerationOptions? options = null,
+                                                  ILogger? logger = null,
+                                                  IPathProviderFactory? pathProviderFactory = null,
+                                                  ISyntaxProviderFactory? syntaxProviderFactory = null,
+                                                  ISemanticModelProviderFactory? semanticModelProviderFactory = null,
+                                                  ICodeGeneratorProvider? codeGeneratorProvider = null,
+                                                  IFileGeneratorProvider? fileGeneratorProvider = null)
         => new(options                     : options,
                logger                      : logger,
                pathProviderFactory         : pathProviderFactory,
@@ -49,23 +49,17 @@ public sealed partial class NavCodeGeneratorPipeline {
                codeGeneratorProvider       : codeGeneratorProvider,
                fileGeneratorProvider       : fileGeneratorProvider);
 
-    [NotNull]
     public GenerationOptions Options { get; }
 
-    [NotNull]
     public ISyntaxProviderFactory SyntaxProviderFactory { get; }
 
-    [NotNull]
     public IPathProviderFactory PathProviderFactory { get; }
 
-    [NotNull]
     public ICodeGeneratorProvider CodeGeneratorProvider { get; }
 
-    [NotNull]
     public IFileGeneratorProvider FileGeneratorProvider { get; }
 
-    [CanBeNull]
-    public ILogger Logger { get; }
+    public ILogger? Logger { get; }
 
     public ISemanticModelProviderFactory SemanticModelProviderFactory { get; }
 
@@ -114,7 +108,10 @@ public sealed partial class NavCodeGeneratorPipeline {
             // eine Ebene tief (inkludierte Dateien verarbeiten ihre eigenen taskrefs nicht), daher genügt
             // die direkte Include-Menge — keine transitive Hülle nötig.
             foreach (var include in codeGenerationUnit.Includes) {
-                includedFiles.Add(include.FileLocation.FilePath);
+                // FileLocation eines Includes wird stets aus dem aufgelösten (non-null) Include-Pfad
+                // erzeugt (TaskDeclarationSymbolBuilder: new Location(filePath) nach Path.GetFullPath) —
+                // FilePath ist hier also nie null.
+                includedFiles.Add(include.FileLocation.FilePath!);
             }
 
             // 3. Generate Code

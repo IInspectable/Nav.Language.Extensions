@@ -63,15 +63,17 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | References | 3 / P4 | 3 | 3 | fertig |
 | Workspace | 3 / P5 | 8 | 8 | fertig |
 | Provider | 3 / P5 | 13 | 13 | fertig |
-| Generator | 3 / P6 | 6 | 0 | offen |
-| QuickInfo | 3 / P6 | 2 | 0 | offen |
-| CallHierarchy | 3 / P6 | 1 | 0 | offen |
-| CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **318** | ~97 % |
+| Generator | 3 / P6 | 6 | 6 | fertig |
+| QuickInfo | 3 / P6 | 2 | 2 | fertig |
+| CallHierarchy | 3 / P6 | 1 | 1 | fertig |
+| CodeActions | 3 / P6 | 2 | 2 | fertig |
+| **Gesamt** | | **329** | **329** | **100 %** |
 
-> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P5: Scan `Nav.Language\**\*.cs` ohne
-> `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren
-> (Vorbild: `nav nullaudit` gibt den Fortschritt maschinell aus).
+> Zahlen verifiziert am 2026-07-03 (`nav nullaudit`, nach Welle 3/P6: Scan `Nav.Language\**\*.cs` ohne
+> `bin`/`obj`/`*.generated.cs` auf `#nullable enable`). **Welle 3 abgeschlossen — alle Ordner auf 100 %.**
+> Der Prüfbau (`-p:Nullable=warnings` für Nav.Language + nativ nullable LSP/MCP) ist **warnungsfrei**;
+> `Build\nullaudit-baseline.txt` ist damit **leer** (0 Einträge). Offen bleibt nur noch Welle 4
+> (Voll-Enable-Smoke `-p:Nullable=enable`) und optional Welle 5 (projektweites `<Nullable>enable</…>`).
 
 ## 3. Playbook-Regeln (Review-Checkliste je Ordner)
 
@@ -300,6 +302,30 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   `GetDependentsClosure` `[NotNull]`→default; `DiagnosticsComputer.BelongsToDocument(Diagnostic, string?
   normalizedPath)` (nur an null-tolerante `string.Equals`/`IsNullOrEmpty` gereicht). Encoding: teils UTF-8 mit,
   teils ohne BOM, alle valides UTF-8 (keine Win-1252-Falle) — Hook ergänzte den BOM.
+
+- **Welle 3 / P6 (Generator 6 + QuickInfo 2 + CallHierarchy 1 + CodeActions 2, 11 Dateien) — Welle 3
+  komplett, 329/329 (100 %):** **Keine neuen Warnungen, +3 begründete Suppressions, kein Befundlog-Eintrag.**
+  Der bisher **letzte** Baseline-`CS8602` (in `NavCallHierarchyService.GetOutgoingCalls`) fällt weg → Baseline
+  jetzt **leer (0 Einträge)**. Er war das gewohnte Narrowing-Artefakt: `.Where(tn => tn.Declaration != null)`
+  verengt die `Declaration`-**Property** nicht (Null sitzt auf der Property, nicht dem Element) → verhaltensneutral
+  per `!` in `GroupBy(tn => tn.Declaration!.Location)` **und** `group.First().Declaration!` mit gemeinsamem
+  Begründungskommentar (gleiche Idiomatik wie Nav1002/DependencyAnalyzer). Die `AsTaskDeclaration?.Location`- und
+  `taskNode.Declaration?.Location`-Pfade waren bereits `?.`-sauber; `startingUnit: task.CodeGenerationUnit`
+  (nullbar) passt jetzt exakt auf `ProcessCodeGenerationUnitsAsync(…, CodeGenerationUnit? startingUnit, …)` aus P5.
+  **Generator:** die Pipeline konsumiert die in P5 geschärfte Provider-Grenze sauber — `syntaxProvider.GetSyntax(…)`
+  → `if (syntax == null) continue;` (Nav0004-Fehler), der `GetSemanticModel(syntax)`-Overload bleibt non-null, daher
+  kein Guard nötig. Einzige Suppression: `include.FileLocation.FilePath!` beim Sammeln der taskref-Include-Pfade
+  (`IncludedFiles`) — ein Include wird stets aus dem aufgelösten non-null Pfad erzeugt (`TaskDeclarationSymbolBuilder`:
+  `new Location(filePath)` nach `Path.GetFullPath`), `Location.FilePath` bleibt aber `string?` (Playbook 4a), daher
+  `!` mit Kommentar. `NavCodeGeneratorPipeline`-ctor/`Create`-Parameter alle `?` (per `??`-Default normalisiert),
+  `[CanBeNull] ILogger Logger`→`ILogger?`, `LoggerAdapter._logger`/ctor→`ILogger?` (die `_logger?.`-Aufrufe waren schon
+  null-safe), `FileInfo?.DirectoryName`-Pfad bereits guarded. `FileSpec`: `ArgumentNullException`-Guards bleiben (Rule 5).
+  **QuickInfo:** reine Vertrags-Präzisierung ohne neue Guards — `NavHoverService.GetHover`→`NavHoverInfo?`,
+  `NavHoverInfo`-Ctor/Props `Location?`/`string? Documentation`; `NavSymbolDocumentation.GetDocumentation`/
+  `GetDeclarationSyntax`→`string?`/`SyntaxNode?` (die `{ Prop: { } x }`-Pattern und `taskNode.Declaration?.Syntax`
+  tragen die Nullbarkeit sauber). **CodeActions:** reine `#nullable enable`-Direktive — `CodeFix.Name` (abstract
+  non-null), `SuggestCodeFixes`/`SuggestChoiceName` non-null, `GetTextChanges(string?)` null-tolerant; `NavCodeAction`-
+  Ctor-Guards bleiben (Rule 5). Encoding: teils mit/ohne BOM, alle valides UTF-8 — Hook ergänzte den BOM.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

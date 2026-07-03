@@ -1,11 +1,11 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
-using JetBrains.Annotations;
 
 #endregion
 
@@ -30,8 +30,7 @@ public static class NavCallHierarchyService {
     /// (0-basierter Offset) verankert wird: die Task, deren Definitionsblock die Position enthält — oder
     /// <c>null</c>, wenn die Position in keiner Task-Definition liegt (z.B. auf einer <c>taskref</c>-Zeile).
     /// </summary>
-    [CanBeNull]
-    public static ITaskDefinitionSymbol PrepareCallHierarchy([NotNull] CodeGenerationUnit unit, int position) {
+    public static ITaskDefinitionSymbol? PrepareCallHierarchy(CodeGenerationUnit unit, int position) {
 
         // Tasks sind nicht verschachtelt: höchstens eine Definition umschliesst die Position. Der
         // Definitionsblock (Syntax) deckt Kopf (inkl. Name) und Rumpf ab, sodass der Aufruf von überall
@@ -52,18 +51,20 @@ public static class NavCallHierarchyService {
     /// dieselbe Ziel-Task ergeben einen Eintrag mit mehreren Aufrufstellen. Nicht aufgelöste
     /// <c>taskref</c>-Ziele (<see cref="ITaskNodeSymbol.Declaration"/> == null) werden übersprungen.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<OutgoingCall> GetOutgoingCalls([NotNull] ITaskDefinitionSymbol task) {
+    public static IReadOnlyList<OutgoingCall> GetOutgoingCalls(ITaskDefinitionSymbol task) {
 
         var result = new List<OutgoingCall>();
 
+        // Der Where-Filter garantiert eine non-null Declaration; die Null sitzt jedoch auf der
+        // Declaration-Property (nicht dem Element), sodass die NRT-Flussanalyse hier nicht verengt —
+        // daher das begründete `!`.
         var groups = task.NodeDeclarations
                          .OfType<ITaskNodeSymbol>()
                          .Where(tn => tn.Declaration != null)
-                         .GroupBy(tn => tn.Declaration.Location);
+                         .GroupBy(tn => tn.Declaration!.Location);
 
         foreach (var group in groups) {
-            var target    = group.First().Declaration;
+            var target    = group.First().Declaration!;
             var callSites = group.Select(tn => tn.Location).ToList();
             result.Add(new OutgoingCall(target, callSites));
         }
@@ -78,10 +79,9 @@ public static class NavCallHierarchyService {
     /// Der Vergleich läuft über die Deklarations-<see cref="Location"/> (Wert-Gleichheit), exakt wie der
     /// <c>FindReferencesVisitor</c>.
     /// </summary>
-    [NotNull]
     public static async Task<IReadOnlyList<IncomingCall>> GetIncomingCallsAsync(
-        [NotNull] ITaskDefinitionSymbol task,
-        [NotNull] NavSolution solution,
+        ITaskDefinitionSymbol task,
+        NavSolution solution,
         CancellationToken cancellationToken) {
 
         // Identität der gesuchten Task = ihre Deklarations-Location (so referenzieren TaskNodes sie, auch
@@ -130,17 +130,15 @@ public static class NavCallHierarchyService {
 /// <summary>Ein ausgehender Aufruf: die aufgerufene Task-Deklaration und die Aufrufstellen (TaskNodes).</summary>
 public sealed class OutgoingCall {
 
-    public OutgoingCall([NotNull] ITaskDeclarationSymbol target, [NotNull] IReadOnlyList<Location> callSites) {
+    public OutgoingCall(ITaskDeclarationSymbol target, IReadOnlyList<Location> callSites) {
         Target    = target;
         CallSites = callSites;
     }
 
     /// <summary>Die aufgerufene Task (Deklaration; kann cross-file/inkludiert sein).</summary>
-    [NotNull]
     public ITaskDeclarationSymbol Target { get; }
 
     /// <summary>Die Aufrufstellen (TaskNode-Bezeichner) in der aufrufenden Task.</summary>
-    [NotNull]
     public IReadOnlyList<Location> CallSites { get; }
 
 }
@@ -148,17 +146,15 @@ public sealed class OutgoingCall {
 /// <summary>Ein eingehender Aufruf: die aufrufende Task und ihre Aufrufstellen (TaskNodes).</summary>
 public sealed class IncomingCall {
 
-    public IncomingCall([NotNull] ITaskDefinitionSymbol caller, [NotNull] IReadOnlyList<Location> callSites) {
+    public IncomingCall(ITaskDefinitionSymbol caller, IReadOnlyList<Location> callSites) {
         Caller    = caller;
         CallSites = callSites;
     }
 
     /// <summary>Die aufrufende Task-Definition.</summary>
-    [NotNull]
     public ITaskDefinitionSymbol Caller { get; }
 
     /// <summary>Die Aufrufstellen (TaskNode-Bezeichner) innerhalb der aufrufenden Task.</summary>
-    [NotNull]
     public IReadOnlyList<Location> CallSites { get; }
 
 }
