@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.IO;
@@ -9,7 +11,7 @@ using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed class TaskDeclarationSymbolBuilder {
 
@@ -70,7 +72,7 @@ sealed class TaskDeclarationSymbolBuilder {
 
     TaskDeclarationSymbolBuilder(CodeGenerationUnitSyntax codeGenerationUnitSyntax,
                                  bool processAsIncludedFile,
-                                 ISyntaxProvider syntaxProvider) {
+                                 ISyntaxProvider? syntaxProvider) {
         _codeGenerationUnitSyntax = codeGenerationUnitSyntax;
         _diagnostics              = new List<Diagnostic>();
         _processAsIncludedFile    = processAsIncludedFile;
@@ -83,7 +85,7 @@ sealed class TaskDeclarationSymbolBuilder {
         IReadOnlyList<Diagnostic> Diagnostics,
         SymbolCollection<TaskDeclarationSymbol> TaskDeclarations,
         SymbolCollection<IncludeSymbol> Includes)
-        FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, ISyntaxProvider syntaxProvider, CancellationToken cancellationToken) {
+        FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, ISyntaxProvider? syntaxProvider, CancellationToken cancellationToken) {
 
         return FromCodeGenerationUnitSyntax(syntax, false, syntaxProvider, cancellationToken);
     }
@@ -92,7 +94,7 @@ sealed class TaskDeclarationSymbolBuilder {
         IReadOnlyList<Diagnostic> Diagnostics,
         SymbolCollection<TaskDeclarationSymbol> TaskDeclarations,
         SymbolCollection<IncludeSymbol> Includes)
-        FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, bool processAsIncludedFile, ISyntaxProvider syntaxProvider, CancellationToken cancellationToken) {
+        FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, bool processAsIncludedFile, ISyntaxProvider? syntaxProvider, CancellationToken cancellationToken) {
 
         var builder = new TaskDeclarationSymbolBuilder(syntax, processAsIncludedFile, syntaxProvider);
         builder.ProcessCodeGenerationUnitSyntax(syntax, cancellationToken);
@@ -126,6 +128,11 @@ sealed class TaskDeclarationSymbolBuilder {
     void ProcessIncludeDirective(IncludeDirectiveSyntax includeDirectiveSyntax, CancellationToken cancellationToken) {
 
         var location = includeDirectiveSyntax.StringLiteral.GetLocation();
+        if (location == null) {
+            // Ohne String-Literal-Token gibt es weder eine Pfadangabe noch einen Ankerpunkt
+            // für Diagnostics — der Parser meldet die unvollständige Direktive bereits selbst.
+            return;
+        }
 
         try {
 
@@ -252,7 +259,7 @@ sealed class TaskDeclarationSymbolBuilder {
                     isIncluded: _processAsIncludedFile,
                     codeTaskResult: CodeParameter.FromResultDeclaration(taskDefinitionSyntax.CodeResultDeclaration),
                     syntax: syntax,
-                    codeNamespace: _codeGenerationUnitSyntax?.CodeNamespace?.Namespace?.Text,
+                    codeNamespace: _codeGenerationUnitSyntax.CodeNamespace?.Namespace?.Text,
                     codeNotImplemented: false
                 );
 
@@ -262,7 +269,7 @@ sealed class TaskDeclarationSymbolBuilder {
         }
     }
 
-    void AddConnectionPoints(TaskDeclarationSymbol taskDeclaration, IReadOnlyList<ConnectionPointNodeSyntax> connectionPoints) {
+    void AddConnectionPoints(TaskDeclarationSymbol taskDeclaration, IReadOnlyList<ConnectionPointNodeSyntax>? connectionPoints) {
 
         if (connectionPoints != null) {
 
@@ -271,8 +278,12 @@ sealed class TaskDeclarationSymbolBuilder {
                 var identifier = initNodeSyntax.Identifier.IsMissing ? initNodeSyntax.InitKeyword : initNodeSyntax.Identifier;
 
                 var location = identifier.GetLocation();
-                var name     = identifier.ToString();
-                var init     = new InitConnectionPointSymbol(name, location, initNodeSyntax, taskDeclaration);
+                if (location == null) {
+                    continue;
+                }
+
+                var name = identifier.ToString();
+                var init = new InitConnectionPointSymbol(name, location, initNodeSyntax, taskDeclaration);
 
                 AddConnectionPoint(taskDeclaration, init);
             }
@@ -282,8 +293,12 @@ sealed class TaskDeclarationSymbolBuilder {
                 var identifier = exitNodeSyntax.Identifier.IsMissing ? exitNodeSyntax.ExitKeyword : exitNodeSyntax.Identifier;
 
                 var location = identifier.GetLocation();
-                var name     = identifier.ToString();
-                var exit     = new ExitConnectionPointSymbol(name, location, exitNodeSyntax, taskDeclaration);
+                if (location == null) {
+                    continue;
+                }
+
+                var name = identifier.ToString();
+                var exit = new ExitConnectionPointSymbol(name, location, exitNodeSyntax, taskDeclaration);
 
                 AddConnectionPoint(taskDeclaration, exit);
             }
@@ -292,8 +307,12 @@ sealed class TaskDeclarationSymbolBuilder {
                 var identifier = endNodeSyntax.EndKeyword;
 
                 var location = identifier.GetLocation();
-                var name     = identifier.ToString();
-                var end      = new EndConnectionPointSymbol(name, location, endNodeSyntax, taskDeclaration);
+                if (location == null) {
+                    continue;
+                }
+
+                var name = identifier.ToString();
+                var end  = new EndConnectionPointSymbol(name, location, endNodeSyntax, taskDeclaration);
 
                 AddConnectionPoint(taskDeclaration, end);
             }

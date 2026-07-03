@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
@@ -6,13 +8,11 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 sealed class CodeGenerationUnitBuilder {
 
@@ -24,7 +24,7 @@ sealed class CodeGenerationUnitBuilder {
     readonly ImmutableArray<string>.Builder          _codeUsings;
     readonly List<ISymbol>                           _symbols;
 
-    CodeGenerationUnitBuilder(ISyntaxProvider syntaxProvider) {
+    CodeGenerationUnitBuilder(ISyntaxProvider? syntaxProvider) {
         _syntaxProvider   = syntaxProvider ?? SyntaxProvider.Default;
         _diagnostics      = ImmutableArray.CreateBuilder<Diagnostic>();
         _taskDeclarations = new SymbolCollection<TaskDeclarationSymbol>();
@@ -34,8 +34,7 @@ sealed class CodeGenerationUnitBuilder {
         _symbols          = new List<ISymbol>();
     }
 
-    [NotNull]
-    public static CodeGenerationUnit FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken, ISyntaxProvider syntaxProvider) {
+    public static CodeGenerationUnit FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken, ISyntaxProvider? syntaxProvider) {
 
         if (syntax == null) {
             throw new ArgumentNullException(nameof(syntax));
@@ -98,7 +97,7 @@ sealed class CodeGenerationUnitBuilder {
         cancellationToken.ThrowIfCancellationRequested();
 
         //====================
-        // 1. TaskDeclarations 
+        // 1. TaskDeclarations
         //====================
         var taskDeclarationResult = TaskDeclarationSymbolBuilder.FromCodeGenerationUnitSyntax(syntax, _syntaxProvider, cancellationToken);
 
@@ -152,7 +151,7 @@ sealed class CodeGenerationUnitBuilder {
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (codeUsingDeclarationSyntax?.Namespace == null) {
+            if (codeUsingDeclarationSyntax.Namespace == null) {
                 continue;
             }
 
