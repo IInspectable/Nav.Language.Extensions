@@ -1,15 +1,17 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeFixes; 
+namespace Pharmatechnik.Nav.Language.CodeFixes;
 
 static class TaskDefinitionSymbolExtensions {
 
-    public static string ValidateNewNodeName(this ITaskDefinitionSymbol taskDefinitionSymbol, string nodeName) {
+    public static string? ValidateNewNodeName(this ITaskDefinitionSymbol? taskDefinitionSymbol, string? nodeName) {
 
         nodeName = nodeName?.Trim();
 
@@ -18,14 +20,15 @@ static class TaskDefinitionSymbolExtensions {
         }
 
         var declaredNodeNames = taskDefinitionSymbol.GetDeclaredNodeNames();
-        if (declaredNodeNames.Contains(nodeName)) {
+        // IsValidIdentifier (oben) liefert nur für nicht-null true → nodeName ist hier non-null.
+        if (declaredNodeNames.Contains(nodeName!)) {
             return String.Format(DiagnosticDescriptors.Semantic.Nav0022NodeWithName0AlreadyDeclared.MessageFormat, nodeName);
         }
 
         return null;
     }
 
-    static HashSet<string> GetDeclaredNodeNames(this ITaskDefinitionSymbol taskDefinitionSymbol) {
+    static HashSet<string> GetDeclaredNodeNames(this ITaskDefinitionSymbol? taskDefinitionSymbol) {
 
         var declaredNodeNames = new HashSet<string>();
         if (taskDefinitionSymbol == null) {

@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring;
 
 abstract class RenameNodeCodeFix<T>: RenameCodeFix<T> where T : class, INodeSymbol {
 
@@ -8,7 +10,7 @@ abstract class RenameNodeCodeFix<T>: RenameCodeFix<T> where T : class, INodeSymb
 
     public ITaskDefinitionSymbol ContainingTask => Symbol.ContainingTask;
 
-    public override string ValidateSymbolName(string symbolName) {
+    public override string? ValidateSymbolName(string? symbolName) {
         // De facto kein Rename, aber OK
         if (symbolName == Symbol.Name) {
             return null;

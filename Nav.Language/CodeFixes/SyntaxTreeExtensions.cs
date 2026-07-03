@@ -1,20 +1,19 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeFixes; 
+namespace Pharmatechnik.Nav.Language.CodeFixes;
 
 static class SyntaxTreeExtensions {
 
-    [NotNull]
     public static IEnumerable<TextChange> GetRemoveSyntaxNodeChanges(this SyntaxTree syntaxTree, SyntaxNode syntaxNode, TextEditorSettings textEditorSettings) {
 
         var fullExtent = syntaxNode.GetFullExtent(onlyWhiteSpace: true);
@@ -28,7 +27,6 @@ static class SyntaxTreeExtensions {
         }
     }
 
-    [NotNull]
     public static IEnumerable<TextChange> GetRenameSourceChanges(this SyntaxTree syntaxTree, ITransition transition, string newSourceName, TextEditorSettings textEditorSettings) {
 
         if (transition?.SourceReference == null) {
@@ -58,7 +56,6 @@ static class SyntaxTreeExtensions {
         yield return TextChange.NewReplace(replaceExtent, replaceText);
     }
 
-    [NotNull]
     public static IEnumerable<TextChange> GetRenameSourceChanges(this SyntaxTree syntaxTree, IExitTransition transition, string newSourceName, TextEditorSettings textEditorSettings) {
 
         if (transition?.SourceReference == null || transition.ExitConnectionPointReference == null) {
@@ -164,7 +161,7 @@ static class SyntaxTreeExtensions {
         return result;
     }
 
-    public static int ColumnsBetweenKeywordAndIdentifier(this SyntaxTree syntaxTree, INodeSymbol node, string newKeyword, TextEditorSettings textEditorSettings) {
+    public static int ColumnsBetweenKeywordAndIdentifier(this SyntaxTree syntaxTree, INodeSymbol node, string? newKeyword, TextEditorSettings textEditorSettings) {
 
         var locations = KeywordAndIdentifierFinder.Find(node.Syntax);
         if (locations == null) {
@@ -180,49 +177,50 @@ static class SyntaxTreeExtensions {
         return spaceCount;
     }
 
-    sealed class KeywordAndIdentifierFinder: SyntaxNodeVisitor<Tuple<Location, Location>> {
+    sealed class KeywordAndIdentifierFinder: SyntaxNodeVisitor<Tuple<Location, Location>?> {
 
-        public static Tuple<Location, Location> Find(NodeDeclarationSyntax nodeDeclaration) {
+        public static Tuple<Location, Location>? Find(NodeDeclarationSyntax nodeDeclaration) {
 
             var finder = new KeywordAndIdentifierFinder();
             return finder.Visit(nodeDeclaration);
         }
 
-        public override Tuple<Location, Location> VisitChoiceNodeDeclaration(ChoiceNodeDeclarationSyntax choiceNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitChoiceNodeDeclaration(ChoiceNodeDeclarationSyntax choiceNodeDeclarationSyntax) {
             return SafeCreateTuple(choiceNodeDeclarationSyntax.ChoiceKeyword, choiceNodeDeclarationSyntax.Identifier);
         }
 
-        public override Tuple<Location, Location> VisitEndNodeDeclaration(EndNodeDeclarationSyntax endNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitEndNodeDeclaration(EndNodeDeclarationSyntax endNodeDeclarationSyntax) {
             // End hat keinen Identifier
             return DefaultVisit(endNodeDeclarationSyntax);
         }
 
-        public override Tuple<Location, Location> VisitExitNodeDeclaration(ExitNodeDeclarationSyntax exitNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitExitNodeDeclaration(ExitNodeDeclarationSyntax exitNodeDeclarationSyntax) {
             return SafeCreateTuple(exitNodeDeclarationSyntax.ExitKeyword, exitNodeDeclarationSyntax.Identifier);
         }
 
-        public override Tuple<Location, Location> VisitInitNodeDeclaration(InitNodeDeclarationSyntax initNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitInitNodeDeclaration(InitNodeDeclarationSyntax initNodeDeclarationSyntax) {
             return SafeCreateTuple(initNodeDeclarationSyntax.InitKeyword, initNodeDeclarationSyntax.Identifier);
         }
 
-        public override Tuple<Location, Location> VisitDialogNodeDeclaration(DialogNodeDeclarationSyntax dialogNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitDialogNodeDeclaration(DialogNodeDeclarationSyntax dialogNodeDeclarationSyntax) {
             return SafeCreateTuple(dialogNodeDeclarationSyntax.DialogKeyword, dialogNodeDeclarationSyntax.Identifier);
         }
 
-        public override Tuple<Location, Location> VisitTaskNodeDeclaration(TaskNodeDeclarationSyntax taskNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitTaskNodeDeclaration(TaskNodeDeclarationSyntax taskNodeDeclarationSyntax) {
             return SafeCreateTuple(taskNodeDeclarationSyntax.TaskKeyword, taskNodeDeclarationSyntax.Identifier);
         }
 
-        public override Tuple<Location, Location> VisitViewNodeDeclaration(ViewNodeDeclarationSyntax viewNodeDeclarationSyntax) {
+        public override Tuple<Location, Location>? VisitViewNodeDeclaration(ViewNodeDeclarationSyntax viewNodeDeclarationSyntax) {
             return SafeCreateTuple(viewNodeDeclarationSyntax.ViewKeyword, viewNodeDeclarationSyntax.Identifier);
         }
 
-        Tuple<Location, Location> SafeCreateTuple(SyntaxToken token1, SyntaxToken token2) {
+        Tuple<Location, Location>? SafeCreateTuple(SyntaxToken token1, SyntaxToken token2) {
             if (token1.IsMissing || token2.IsMissing) {
                 return null;
             }
 
-            return new Tuple<Location, Location>(token1.GetLocation(), token2.GetLocation());
+            // Nicht-fehlende Tokens haben ein Parent → SyntaxTree != null → GetLocation() ist non-null.
+            return new Tuple<Location, Location>(token1.GetLocation()!, token2.GetLocation()!);
         }
 
     }

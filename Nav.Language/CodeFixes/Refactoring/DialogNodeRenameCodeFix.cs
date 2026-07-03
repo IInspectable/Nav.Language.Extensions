@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -20,7 +22,7 @@ sealed class DialogNodeRenameCodeFix: RenameNodeCodeFix<IDialogNodeSymbol> {
     public override string        Name   => "Rename Dialog";
     public override CodeFixImpact Impact => CodeFixImpact.High;
 
-    public override IEnumerable<TextChange> GetTextChanges(string newName) {
+    public override IEnumerable<TextChange> GetTextChanges(string? newName) {
 
         newName = newName?.Trim() ?? String.Empty;
 

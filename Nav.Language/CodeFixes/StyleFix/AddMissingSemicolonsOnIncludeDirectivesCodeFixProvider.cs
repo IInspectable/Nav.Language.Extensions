@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;

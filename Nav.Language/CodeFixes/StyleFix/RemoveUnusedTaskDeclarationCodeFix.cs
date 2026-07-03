@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -37,7 +39,8 @@ public class RemoveUnusedTaskDeclarationCodeFix: StyleCodeFix {
         }
 
         var textChanges = new List<TextChange?>();
-        foreach (var textChange in GetRemoveSyntaxNodeChanges(TaskDeclaration.Syntax)) {
+        // CanApplyFix (oben geprüft) garantiert TaskDeclaration.Syntax != null.
+        foreach (var textChange in GetRemoveSyntaxNodeChanges(TaskDeclaration.Syntax!)) {
             textChanges.Add(textChange);
         }
 

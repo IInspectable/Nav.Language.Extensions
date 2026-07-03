@@ -1,10 +1,10 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -43,15 +43,15 @@ public sealed class AddMissingExitTransitionCodeFix: ErrorCodeFix {
         var templateEdge = GetTemplateEdge();
 
         // 1. Wir brauchen eine vollständige Kante als "Formatvorlage"
-        if (templateEdge?.SourceReference == null || templateEdge.EdgeMode == null || templateEdge.TargetReference == null) {
+        if (templateEdge.SourceReference == null || templateEdge.EdgeMode == null || templateEdge.TargetReference == null) {
             return false;
         }
 
         // 2. Es darf noch keine ExitTransition mit dem Verbindungspunkt geben
         return TaskNode.Outgoings
                        .Where(trans => trans.ExitConnectionPointReference != null)
-                        // ReSharper disable once PossibleNullReferenceException
-                       .All(o => o.ExitConnectionPointReference.Declaration != ConnectionPoint);
+                        // Das vorherige Where garantiert ExitConnectionPointReference != null.
+                       .All(o => o.ExitConnectionPointReference!.Declaration != ConnectionPoint);
     }
 
     public IList<TextChange> GetTextChanges() {
@@ -69,14 +69,14 @@ public sealed class AddMissingExitTransitionCodeFix: ErrorCodeFix {
         // Die neue Exit Transition
         var exitTransition = ComposeEdge(templateEdge, sourceName, edgeKeyword, targetName);
 
-        // ReSharper disable once PossibleNullReferenceException Check unter CanApplyFix
-        var transitionLine = SyntaxTree.SourceText.GetTextLineAtPosition(templateEdge.SourceReference.Start);
+        // CanApplyFix (oben geprüft) garantiert templateEdge.SourceReference != null.
+        var transitionLine = SyntaxTree.SourceText.GetTextLineAtPosition(templateEdge.SourceReference!.Start);
         textChanges.AddRange(GetInsertChanges(transitionLine.Extent.End, $"{exitTransition}{Context.TextEditorSettings.NewLine}"));
 
         return textChanges;
     }
 
-    public TextExtent TryGetSelectionAfterChanges([CanBeNull] CodeGenerationUnit codegenerationUnit) {
+    public TextExtent TryGetSelectionAfterChanges(CodeGenerationUnit? codegenerationUnit) {
 
         var taskDef    = codegenerationUnit?.TryFindTaskDefinition(TargetNodeRef.Declaration?.ContainingTask.Name);
         var taskNode   = taskDef.TryFindNode<ITaskNodeSymbol>(TaskNode.Name);

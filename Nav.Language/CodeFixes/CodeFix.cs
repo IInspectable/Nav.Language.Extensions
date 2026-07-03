@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
@@ -35,7 +37,7 @@ public abstract class CodeFix {
         yield return TextChange.NewRemove(extent);
     }
 
-    protected static IEnumerable<TextChange> GetInsertChanges(int position, string newText) {
+    protected static IEnumerable<TextChange> GetInsertChanges(int position, string? newText) {
         if (newText == null) {
             yield break;
         }
@@ -59,7 +61,7 @@ public abstract class CodeFix {
         return GetRenameSymbolChanges(transition.TargetReference, newSourceName);
     }
 
-    protected static IEnumerable<TextChange> GetRenameSymbolChanges(ISymbol symbol, string newName) {
+    protected static IEnumerable<TextChange> GetRenameSymbolChanges(ISymbol? symbol, string newName) {
         if (symbol == null || symbol.Name == newName) {
             yield break;
         }
@@ -79,7 +81,7 @@ public abstract class CodeFix {
         return SyntaxTree.WhiteSpaceBetweenEdgeModeAndTarget(edge, Context.TextEditorSettings);
     }
 
-    protected int ColumnsBetweenKeywordAndIdentifier(INodeSymbol node, string newKeyword = null) {
+    protected int ColumnsBetweenKeywordAndIdentifier(INodeSymbol node, string? newKeyword = null) {
         return SyntaxTree.ColumnsBetweenKeywordAndIdentifier(node, newKeyword, Context.TextEditorSettings);
     }
 

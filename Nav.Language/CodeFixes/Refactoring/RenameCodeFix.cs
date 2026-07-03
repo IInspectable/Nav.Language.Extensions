@@ -1,9 +1,9 @@
+﻿#nullable enable
+
 #region Using Directives
 
 using System;
 using System.Collections.Generic;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -17,9 +17,9 @@ public abstract class RenameCodeFix: RefactoringCodeFix {
         : base(context) {
     }
 
-    public abstract string ProvideDefaultName();
-    public abstract string ValidateSymbolName(string symbolName);
-    public abstract IEnumerable<TextChange> GetTextChanges(string newName);
+    public abstract string                  ProvideDefaultName();
+    public abstract string?                 ValidateSymbolName(string? symbolName);
+    public abstract IEnumerable<TextChange> GetTextChanges(string? newName);
 
 }
 
@@ -37,7 +37,6 @@ abstract class RenameCodeFix<T>: RenameCodeFix where T : class, ISymbol {
     public override TextExtent? ApplicableTo => OriginatingSymbol.Location.Extent;
     public override CodeFixPrio Prio         => CodeFixPrio.Low;
 
-    [NotNull]
     public T Symbol { get; }
 
     public override string ProvideDefaultName() {

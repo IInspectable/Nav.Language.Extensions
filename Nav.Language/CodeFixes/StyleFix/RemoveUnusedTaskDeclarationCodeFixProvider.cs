@@ -1,3 +1,5 @@
+ï»¿#nullable enable
+
 #region Using Directives
 
 using System.Collections.Generic;
@@ -13,16 +15,16 @@ public sealed class RemoveUnusedTaskDeclarationCodeFixProvider {
     public static IEnumerable<RemoveUnusedTaskDeclarationCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken) {
         // Wir schlagen den Codefix nur vor, wenn sich das Caret in einer Task Declaration befindet
         var taskDeclarationSyntaxes = context.FindNodes<SyntaxNode>()
-                                              // Hoch zur zugehörigen TaskDeclarationSyntax
+                                              // Hoch zur zugehÃ¶rigen TaskDeclarationSyntax
                                              .Select(syntaxNode => syntaxNode?.AncestorsAndSelf().OfType<TaskDeclarationSyntax>().FirstOrDefault())
                                              .Where(taskDeclarationSyntax => taskDeclarationSyntax != null)
-                                              // Wenn der Range mehr als eine TaskDeclarationSyntax enthält, dann müssen wir hier die doppelten Syntaxen entfernen
+                                              // Wenn der Range mehr als eine TaskDeclarationSyntax enthÃ¤lt, dann mÃ¼ssen wir hier die doppelten Syntaxen entfernen
                                              .Distinct();
 
-        // Das zur TaskDeclarationSyntax gehörige Symbol finden
+        // Das zur TaskDeclarationSyntax gehÃ¶rige Symbol finden
         var taskDeclarationSymbols = taskDeclarationSyntaxes
                                     .Select(taskDeclarationSyntax => context.CodeGenerationUnit.TaskDeclarations.FirstOrDefault(taskDeclarationSymbol => taskDeclarationSymbol.Syntax == taskDeclarationSyntax))
-                                    .Where(taskDeclarationSymbol => taskDeclarationSymbol != null);
+                                    .WhereNotNull();
 
         var codeFixes = taskDeclarationSymbols
                        .Select(taskDeclarationSymbol => new RemoveUnusedTaskDeclarationCodeFix(taskDeclarationSymbol, context))

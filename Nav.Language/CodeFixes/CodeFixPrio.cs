@@ -1,8 +1,10 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeFixes; 
+namespace Pharmatechnik.Nav.Language.CodeFixes;
 
 public enum CodeFixPrio {
 

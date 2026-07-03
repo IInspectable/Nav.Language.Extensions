@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -16,8 +18,8 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
         NodeReference = nodeReference ?? throw new ArgumentNullException(nameof(nodeReference));
     }
 
-    public INodeReferenceSymbol  NodeReference  { get; }
-    public ITaskDefinitionSymbol ContainingTask => NodeReference.Declaration?.ContainingTask;
+    public INodeReferenceSymbol   NodeReference  { get; }
+    public ITaskDefinitionSymbol? ContainingTask => NodeReference.Declaration?.ContainingTask;
 
     public override string        Name         => "Introduce Choice";
     public override CodeFixImpact Impact       => CodeFixImpact.None;
@@ -43,17 +45,17 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
                NodeReference.Edge.EdgeMode        != null;
     }
 
-    public string ValidateChoiceName(string choiceName) {
+    public string? ValidateChoiceName(string? choiceName) {
         return ContainingTask.ValidateNewNodeName(choiceName);
     }
 
-    public IList<TextChange> GetTextChanges(string choiceName) {
+    public IList<TextChange> GetTextChanges(string? choiceName) {
 
         if (!CanApplyFix()) {
             throw new InvalidOperationException();
         }
 
-        choiceName = choiceName?.Trim();
+        choiceName = choiceName?.Trim() ?? String.Empty;
 
         var validationMessage = ValidateChoiceName(choiceName);
         if (!String.IsNullOrEmpty(validationMessage)) {
@@ -62,9 +64,9 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
 
         var edge       = NodeReference.Edge;
         var edgeMode   = edge.EdgeMode;
-        var nodeSymbol = NodeReference.Declaration;
+        // CanApplyFix (oben geprüft) garantiert NodeReference.Declaration != null.
+        var nodeSymbol = NodeReference.Declaration!;
 
-        // ReSharper disable once PossibleNullReferenceException Check ist schon in CanApplyFix passiert
         var nodeDeclarationLine = SyntaxTree.SourceText.GetTextLineAtPosition(nodeSymbol.Start);
         var nodeTransitionLine  = SyntaxTree.SourceText.GetTextLineAtPosition(NodeReference.End);
 

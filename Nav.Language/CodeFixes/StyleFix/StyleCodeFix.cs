@@ -1,7 +1,9 @@
-﻿using Pharmatechnik.Nav.Language.Text;
+﻿#nullable enable
+
+using Pharmatechnik.Nav.Language.Text;
 using System.Collections.Generic;
 
-namespace Pharmatechnik.Nav.Language.CodeFixes.StyleFix; 
+namespace Pharmatechnik.Nav.Language.CodeFixes.StyleFix;
 
 public abstract class StyleCodeFix: CodeFix {
 

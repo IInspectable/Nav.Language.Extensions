@@ -1,4 +1,6 @@
-﻿namespace Pharmatechnik.Nav.Language.CodeFixes.ErrorFix; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.CodeFixes.ErrorFix;
 
 public abstract class ErrorCodeFix: CodeFix {
 

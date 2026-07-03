@@ -53,7 +53,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | Properties | 1 | 1 | 1 | fertig |
 | CodeGen (+ CodeModel, Templates) | 2a | 37 | 37 | fertig |
 | SemanticAnalyzer | 2b | 45 | 45 | fertig |
-| CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 0 | offen |
+| CodeFixes (+ ErrorFix, Refactoring, StyleFix) | 3 / P1 | 32 | 32 | fertig |
 | Completion | 3 / P2 | 3 | 0 | offen |
 | GoTo | 3 / P2 | 2 | 0 | offen |
 | Rename | 3 / P2 | 1 | 0 | offen |
@@ -67,7 +67,7 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
 | QuickInfo | 3 / P6 | 2 | 0 | offen |
 | CallHierarchy | 3 / P6 | 1 | 0 | offen |
 | CodeActions | 3 / P6 | 2 | 0 | offen |
-| **Gesamt** | | **329** | **234** | ~71 % |
+| **Gesamt** | | **329** | **266** | ~81 % |
 
 > Zahlen verifiziert am 2026-07-03 (Scan `Nav.Language\**\*.cs` ohne `bin`/`obj`/`*.generated.cs` auf
 > `#nullable enable`). Nach jedem Step diese Tabelle aktualisieren (Vorbild: `nav nullaudit` gibt den
@@ -177,6 +177,25 @@ Legende Welle: **1** Fundament · **2a** CodeGen · **2b** SemanticAnalyzer · *
   der `Namespace`-**Property**, nicht dem Element → `WhereNotNull` greift nicht; das vorherige `Where`
   beweist non-null). Kein Befundlog-Eintrag (keine über die öffentliche API auslösbare NRE). Einzige
   neue Suppression: das eine begründete `!` in Nav1002.
+- **Welle 3 / P1 (CodeFixes, 32 Dateien):** Beide Baseline-`CS8602` waren Narrowing-Artefakte hinter
+  bestehenden Guards, keine echten NREs — verhaltensneutral aufgelöst: `AddMissingExitTransitionCodeFix`
+  (2×) per `!` (Zeile mit `ExitConnectionPointReference` nach `.Where(…!=null)`; und `SourceReference`
+  nach dem `CanApplyFix`-Guard), `IntroduceChoiceCodeFix` (1×) durch **null-toleranten Vertrag** von
+  `TaskDefinitionSymbolExtensions.ValidateNewNodeName` (`this ITaskDefinitionSymbol?` — intern bereits
+  über `GetDeclaredNodeNames` null-fest) statt eines `!`. Weitere Muster: die public `RenameCodeFix`-API
+  (`ValidateSymbolName`/`GetTextChanges` + Leaf-Overrides) auf `string?`-Parameter/Rückgabe gesetzt
+  (Validate liefert `null` = „gültig"); `IntroduceChoiceCodeFix.GetTextChanges` normalisiert den Namen
+  jetzt per `?? String.Empty` (Hausstil der Rename-Fixes) — verhaltensgleich (leer/`null` wirft weiterhin
+  `ArgumentException`). Zwei `FirstOrDefault`→Konstruktor-Flüsse in den StyleFix-Providern per
+  `.WhereNotNull()` verengt (statt `.Where(x=>x!=null)`). Guard-gedeckte `!`: `SafeCreateTuple`
+  (`GetLocation()!` — nicht-fehlende Tokens haben Parent → non-null), `Contains(nodeName!)`
+  (`IsValidIdentifier` beweist non-null), `RemoveUnusedTaskDeclarationCodeFix` (`Syntax!` nach
+  CanApplyFix). ReSharper-`[NotNull]`/`[CanBeNull]` (3 Dateien) abgelöst. **Encoding-Falle:** zwei
+  Provider-Dateien (`RemoveUnusedNodesCodeFixProvider`, `RemoveUnusedTaskDeclarationCodeFixProvider`)
+  waren im Repo **Windows-1252** (Bytes 0xF6/0xE4/0xFC); ein simples „BOM davorsetzen" per Edit hätte die
+  Umlaut-Bytes durch den UTF-8-Read zu `U+FFFD` zerstört. Korrekt behandelt: aus HEAD zurückgeholt, mit
+  `nav fixenc` Win-1252→UTF-8-BOM umkodiert, dann die Nullable-Änderungen erneut angewandt. Kein
+  Befundlog-Eintrag.
 
 ## 6. Befundlog (NRE-Funde mit Testreferenz)
 

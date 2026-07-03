@@ -1,4 +1,6 @@
-namespace Pharmatechnik.Nav.Language.CodeFixes; 
+﻿#nullable enable
+
+namespace Pharmatechnik.Nav.Language.CodeFixes;
 
 public enum CodeFixImpact {
 

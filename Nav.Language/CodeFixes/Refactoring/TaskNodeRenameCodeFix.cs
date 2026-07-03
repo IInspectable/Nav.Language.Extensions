@@ -1,4 +1,6 @@
-﻿#region Using Directives
+﻿#nullable enable
+
+#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -21,7 +23,7 @@ sealed class TaskNodeRenameCodeFix: RenameCodeFix<ITaskNodeSymbol> {
     public override string        Name   => "Rename Task Node";
     public override CodeFixImpact Impact => CodeFixImpact.Medium;
 
-    public override string ValidateSymbolName(string symbolName) {
+    public override string? ValidateSymbolName(string? symbolName) {
         // De facto kein Rename, aber OK
         if (symbolName == TaskNode.Name) {
             return null;
@@ -30,7 +32,7 @@ sealed class TaskNodeRenameCodeFix: RenameCodeFix<ITaskNodeSymbol> {
         return ContainingTask.ValidateNewNodeName(symbolName);
     }
 
-    public override IEnumerable<TextChange> GetTextChanges(string newName) {
+    public override IEnumerable<TextChange> GetTextChanges(string? newName) {
 
         newName = newName?.Trim() ?? String.Empty;
 
