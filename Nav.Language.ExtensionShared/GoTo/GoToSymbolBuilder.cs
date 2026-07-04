@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Linq;
 
@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
 using Pharmatechnik.Nav.Language.CodeGen;
+using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Extension.Images;
 using Pharmatechnik.Nav.Language.Extension.GoToLocation;
 using Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider;
@@ -30,10 +31,16 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
     }
 
     public override TagSpan<GoToTag> VisitIncludeSymbol(IIncludeSymbol includeSymbol) {
+
+        var target = ResolveNavTarget(includeSymbol);
+        if (target == null) {
+            return null;
+        }
+
         return CreateGoToLocationTagSpan(includeSymbol.Location,
                                          LocationInfo.FromLocation(
-                                             location    : includeSymbol.FileLocation, 
-                                             displayName : includeSymbol.FileName, 
+                                             location    : target,
+                                             displayName : includeSymbol.FileName,
                                              imageMoniker: ImageMonikers.Include));
     }
 
@@ -65,12 +72,14 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
 
         if (taskNodeSymbol.Declaration == null) {
             return null;
-        }           
-            
+        }
+
+        var target = ResolveNavTarget(taskNodeSymbol);
+
         return CreateGoToLocationTagSpan(taskNodeSymbol.Location,
                                          LocationInfo.FromLocation(
-                                             location    : taskNodeSymbol.Declaration.Location, 
-                                             displayName : $"Task {taskNodeSymbol.Declaration.Name}", 
+                                             location    : target,
+                                             displayName : $"Task {taskNodeSymbol.Declaration.Name}",
                                              imageMoniker: ImageMonikers.FromSymbol(taskNodeSymbol)));
     }
 
@@ -79,11 +88,13 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
         if (nodeReferenceSymbol.Declaration == null) {
             return null;
         }
-            
+
+        var target = ResolveNavTarget(nodeReferenceSymbol);
+
         var tagSpan = CreateGoToLocationTagSpan(nodeReferenceSymbol.Location,
                                                 LocationInfo.FromLocation(
-                                                    location    : nodeReferenceSymbol.Declaration.Location, 
-                                                    displayName : "Node Declaration", 
+                                                    location    : target,
+                                                    displayName : "Node Declaration",
                                                     imageMoniker: ImageMonikers.GoToNodeDeclaration));
 
         var nodeTagSpan = Visit(nodeReferenceSymbol.Declaration);
@@ -100,14 +111,16 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
             return null;
         }
 
-        // GoTo Exit Declaration
+        var target = ResolveNavTarget(exitConnectionPointReferenceSymbol);
+
+        // GoTo Exit Declaration (Sprung in den generierten C#-Code — bleibt VS-seitig)
         var codeModel = TaskExitCodeInfo.FromConnectionPointReference(exitConnectionPointReferenceSymbol);
         var provider  = new TaskExitDeclarationLocationInfoProvider(_textBuffer, codeModel);
         var tagSpan   = CreateTagSpan(exitConnectionPointReferenceSymbol.Location, provider);
 
-        // GoTo Exit Definition
+        // GoTo Exit Definition (Nav→Nav — Ziel aus dem Engine-Kern)
         var defProvider = new SimpleLocationInfoProvider(LocationInfo.FromLocation(
-                                                             exitConnectionPointReferenceSymbol.Declaration.Location,
+                                                             target,
                                                              $"Exit {exitConnectionPointReferenceSymbol.Name}",
                                                              ImageMonikers.ExitConnectionPoint));
 
@@ -140,6 +153,12 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
         var provider  = new TriggerDeclarationLocationInfoProvider(_textBuffer, codeModel);
 
         return CreateTagSpan(signalTriggerSymbol.Location, provider);
+    }
+
+    // Nav→Nav-Sprungziel aus dem geteilten Engine-Kern (NavGoToService/GoToTargetResolver). Für die hier
+    // behandelten Symbole liefert der Kern höchstens ein Ziel; null bedeutet "kein Nav→Nav-Sprung".
+    static Location ResolveNavTarget(ISymbol symbol) {
+        return NavGoToService.GetGoToLocations(symbol).FirstOrDefault();
     }
 
     TagSpan<GoToTag> CreateGoToLocationTagSpan(Location sourceLocation, LocationInfo targetLocation) {

@@ -1,4 +1,4 @@
-# Nav-LSP — Status & Handoff
+﻿# Nav-LSP — Status & Handoff
 
 Stand-Dokument für die Weiterarbeit am LSP-Server (Branch `feature/nav-lsp`,
 Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche Plandatei
@@ -95,8 +95,13 @@ ExitRef→Exit-Definition. Server: `textDocument/definition`-Handler + `Definiti
 > **Provider-Klasse**, nicht Symboltyp: `SimpleLocationInfoProvider`-Zweige im `GoToSymbolBuilder` = Nav→Nav
 > (extrahiert), `CodeAnalysisLocationInfoProvider`-Zweige = VS/Roslyn (bleiben).
 
-**Noch offen (optional):** Der VS-`GoToSymbolBuilder` ruft den neuen Engine-Kern noch **nicht** auf — erst
-damit ist „eine Engine" real (aktuell nutzt nur der Server den Kern).
+**Erledigt:** Der VS-`GoToSymbolBuilder` ruft den Engine-Kern jetzt auf. Neuer public Per-Symbol-Einstieg
+`NavGoToService.GetGoToLocations(ISymbol)` (die Positions-Überladung setzt darauf auf) als geteilte
+Autorität; die vier `SimpleLocationInfoProvider`-Zweige (Include, TaskNode, NodeReference, ExitRef) beziehen
+ihr Nav→Nav-Ziel daraus statt es selbst aus `…Declaration.Location` abzuleiten. VS steuert nur noch
+Präsentation (Anzeigename/`ImageMoniker`) und die `CodeAnalysisLocationInfoProvider`-Zweige (Sprünge in den
+generierten C#-Code) bei — damit ist „eine Engine" auch für VS-GoTo real. Verhaltensneutral; net472-Suite
+(1306) + `NavGoToServiceTests` (net472+net10) grün, Solution baut inkl. VS-Extension.
 
 ### Ursprüngliches Analysebriefing (Kontext)
 

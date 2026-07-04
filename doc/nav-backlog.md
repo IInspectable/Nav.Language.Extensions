@@ -71,8 +71,12 @@ Quelle: `doc/nav-completion-status.md`.
 
 Quelle: `doc/nav-lsp-status.md §4`.
 
-- [ ] **VS-`GoToSymbolBuilder` ruft den Engine-Kern noch nicht auf** — „eine Engine" ist für VS-GoTo noch
-  nicht real (nur der Server nutzt den Kern). Einziger echter Architektur-Punkt.
+- [x] **VS-`GoToSymbolBuilder` ruft den Engine-Kern auf** — **umgesetzt**: Die Nav→Nav-Zielauflösung
+  läuft jetzt für alle vier Zweige (Include, Task-Node, Node-Referenz, Exit-Referenz) über die geteilte
+  Autorität `NavGoToService.GetGoToLocations(ISymbol)` (→ `GoToTargetResolver`); VS steuert nur noch
+  Präsentation (Anzeigename/Icon) und die Sprünge in den generierten C#-Code bei. Damit ist „eine Engine"
+  auch für VS-GoTo real — keine parallel gepflegte Zielsemantik mehr. Verhaltensneutral (net472-Suite
+  1306 grün, `NavGoToServiceTests` auf beiden TFMs grün, Solution baut).
 - [ ] **`workspace/didChangeWorkspaceFolders`** (die übrigen Watch-Events sind erledigt).
 - [ ] **Optional:** inkrementeller Doc-Sync statt Full; Severity-Mapping `Suggestion → Hint` (Geschmack).
 
