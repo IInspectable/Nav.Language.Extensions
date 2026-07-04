@@ -56,6 +56,11 @@ public static class NavCodeActionService {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
         }
 
+        // ErrorFix — deplatzierte #version-Direktive (Nav3003) an den Dateikopf verschieben bzw. entfernen.
+        foreach (var fix in MoveVersionDirectiveToTopCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
+            actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
+        }
+
         // StyleFix — Aufräum-Aktionen.
         foreach (var fix in RemoveUnusedNodesCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));

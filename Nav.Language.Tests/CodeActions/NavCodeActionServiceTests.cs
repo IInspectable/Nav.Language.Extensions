@@ -298,6 +298,132 @@ public class NavCodeActionServiceTests {
     }
 
     [Test]
+    public void MoveVersionDirectiveToTop_OfferedWhenCodePrecedes_MovesToTop() {
+
+        const string nav = "task A\n"         + // echter Code vor der Direktive (Nav3003)
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n"              +
+                           "#version 2\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver"); // Caret auf der deplatzierten Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var fix = actions.SingleOrDefault(a => a.Title == "Move '#version' to top of file");
+        Assert.That(fix, Is.Not.Null, "Erwartete Aktion zum Verschieben der '#version'-Direktive fehlt.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.StartWith("#version 2\n"), "Die Direktive muss ganz oben stehen.");
+        // Kein Rest-'#version' mehr an der alten Stelle, keine zurückgebliebene Leerzeile.
+        Assert.That(CountOccurrences(actual, "#version"), Is.EqualTo(1));
+        Assert.That(actual, Does.Not.Contain("}\n\n"));
+
+        // Das verschobene Modell ist frei von Nav3003 und die Version wird wirksam.
+        var moved = CodeGenerationUnit.FromCodeGenerationUnitSyntax(
+            Syntax.ParseCodeGenerationUnit(text: actual, filePath: @"n:\av\a.nav"));
+        Assert.That(moved.Syntax.SyntaxTree.Diagnostics.Any(d => d.Descriptor.Id == "Nav3003"), Is.False);
+        Assert.That(moved.Syntax.LanguageVersion.ToString(), Is.EqualTo("2"));
+    }
+
+    [Test]
+    public void MoveVersionDirectiveToTop_OfferedWhenOtherDirectivePrecedes_MovesBeforeIt() {
+
+        const string nav = "#pragma foo\n"    + // andere Direktive vor der Version (Nav3003)
+                           "#version 2\n"     +
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#pragma foo\n#ver"); // Caret auf der '#version'-Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var fix = actions.SingleOrDefault(a => a.Title == "Move '#version' to top of file");
+        Assert.That(fix, Is.Not.Null, "Erwartete Aktion zum Verschieben der '#version'-Direktive fehlt.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.StartWith("#version 2\n#pragma foo\n"),
+                    "Die Version muss vor das '#pragma' wandern.");
+        Assert.That(CountOccurrences(actual, "#version"), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void MoveVersionDirectiveToTop_RemovesDuplicateWhenEffectiveExists() {
+
+        const string nav = "#version 1\n"     + // wirksame Direktive am Kopf
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n"              +
+                           "#version 3\n";      // deplatziertes Duplikat (Nav3003, Code davor)
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "}\n#ver"); // Caret auf der zweiten, deplatzierten Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var fix = actions.SingleOrDefault(a => a.Title == "Remove misplaced '#version' directive");
+        Assert.That(fix, Is.Not.Null, "Bei vorhandener wirksamer Direktive muss 'Entfernen' angeboten werden.");
+        Assert.That(actions.Any(a => a.Title == "Move '#version' to top of file"), Is.False,
+                    "Verschieben würde ein Duplikat erzeugen und darf hier nicht angeboten werden.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.StartWith("#version 1\n"), "Die erste, wirksame Direktive bleibt erhalten.");
+        Assert.That(CountOccurrences(actual, "#version"), Is.EqualTo(1));
+        Assert.That(actual, Does.Not.Contain("#version 3"));
+    }
+
+    [Test]
+    public void MoveVersionDirectiveToTop_NotOfferedForEffectiveDirective() {
+
+        const string nav = "#version 1\n"     + // wirksame Direktive am Kopf — kein Nav3003
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver");
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title.Contains("'#version'")), Is.False,
+                    "Für eine korrekt platzierte Direktive darf kein Verschieben/Entfernen angeboten werden.");
+    }
+
+    [Test]
+    public void MoveVersionDirectiveToTop_NotOfferedWhenCaretNotOnDirective() {
+
+        const string nav = "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n"              +
+                           "#version 2\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "init "); // im Task-Rumpf, nicht auf der Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title.Contains("'#version'")), Is.False,
+                    "Der Fix darf nur greifen, wenn der Bereich die deplatzierte Direktive trifft.");
+    }
+
+    [Test]
     public void Caret_InLeadingWhitespace_OffersActionOnFollowingNode() {
 
         // Owning-Semantik (Roslyn): Der Caret in der Einrückung vor 'view v;' löst auf das 'view'-Token auf —
@@ -372,6 +498,15 @@ public class NavCodeActionServiceTests {
     }
 
     static TextExtent Caret(int offset) => TextExtent.FromBounds(offset, offset);
+
+    static int CountOccurrences(string text, string value) {
+        var count = 0;
+        for (var i = text.IndexOf(value, StringComparison.Ordinal); i >= 0; i = text.IndexOf(value, i + value.Length, StringComparison.Ordinal)) {
+            count++;
+        }
+
+        return count;
+    }
 
     static string Apply(string text, NavCodeAction action) {
         var writer = new TextChangeWriter();
