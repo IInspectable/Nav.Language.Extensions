@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -74,6 +74,8 @@ public static partial class ImageMonikers {
     public static ImageMoniker DeleteQuotationMarks => KnownMonikers.PendingDeleteNode;
     public static ImageMoniker RemoveUnusedSymbol   => KnownMonikers.PendingDeleteNode;
     public static ImageMoniker AddSemicolon         => KnownMonikers.PendingAddNode;
+    public static ImageMoniker SetLanguageVersion   => KnownMonikers.IntellisenseKeyword;
+    public static ImageMoniker MoveDirectiveToTop   => KnownMonikers.MoveUp;
 
     // Symbols
 

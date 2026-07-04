@@ -40,6 +40,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\Infrastructure\TextChangeService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\IntroduceChoiceSuggestedAction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\IntroduceChoiceSuggestedActionProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\MoveVersionDirectiveToTopSuggestedAction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\MoveVersionDirectiveToTopSuggestedActionProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\SetSupportedLanguageVersionSuggestedAction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\SetSupportedLanguageVersionSuggestedActionProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\SetValidLanguageVersionSuggestedAction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\SetValidLanguageVersionSuggestedActionProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\RemoveUnusedIncludeDirectiveSuggestedAction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\RemoveUnusedIncludeDirectiveSuggestedActionProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\RemoveUnusedNodesSuggestedAction.cs" />
