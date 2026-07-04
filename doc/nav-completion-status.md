@@ -85,8 +85,11 @@ NavDirectiveParser}.cs`; Versions-Autorität `Nav.Language/NavLanguageVersion.cs
   (`ParsePragma` erzeugt heute stets `BadDirectiveTriviaSyntax` + `Nav3001`), führt der Vorschlag in
   eine Sackgasse. Es wird ausschließlich `version` angeboten. `pragma` erst aktivieren, wenn ein
   echtes Pragma existiert.
-- **C4 (baumbasierte Suppression) wird erst entschieden, wenn wir dort ankommen** — Umfang/Machbarkeit
-  hängen an der Baum-Repräsentation von Code-Blöcken/Strings; nicht vorab festlegen.
+- **C4 (baumbasierte Suppression) ist additiv umgesetzt, kein Vollersatz** — die Baum-Repräsentation
+  trägt nur für wohlgeformte (an einem Wirt hängende) Code-Blöcke sauber; malformte/übersprungene
+  Blöcke liegen in `SkippedTokensTrivia` (kein `CodeSyntax`-Knoten), unterminierte Strings bilden kein
+  `StringLiteral`-Token. Daher baumbasierte Erkennung **zusätzlich** zum Zeilen-Scan (fixt mehrzeilige
+  wohlgeformte Blöcke), nicht statt seiner. Details in der Arbeitsliste unten (Workstream C, C4).
 
 ## Kontextuelle Verfeinerungen (Grammatik-Review, umgesetzt)
 
@@ -267,11 +270,32 @@ honoriert `item.ReplacementExtent`, wenn gesetzt (per-Item-Replacement über den
   bei getipptem `-` filtert die Vorschlagsliste nicht mehr über das `-` (der Commit bleibt über den per-Item-Extent
   korrekt). Tests: `EdgeSlot_EdgeItemsCarryReplacementExtent`, `EdgeSlot_ReplacementExtentCoversTypedEdgeCharacters`
   (net10 1165/0, net472 1173/0).
-- [ ] **C4 — Baumbasierte Suppression (Umfang erst bei Ankunft entscheiden).** Idee: den
-  zeilenbasierten `IsInQuotation`/`IsInTextBlock`-Scan in der Engine (`Classify`) und in der
-  VS-`ShouldProvideCompletions` durch baumbasierte Erkennung ersetzen. **Zuerst** prüfen, wie
-  Code-Blöcke (`do [ … ]`) und String-Literale im Baum repräsentiert sind; trägt das nicht sauber,
-  C4 als optionalen Folgeschritt behandeln, nicht den Umbau blockieren.
+- [x] **C4 — Baumbasierte Suppression (Umfang bei Ankunft entschieden: additiv, kein Vollersatz).**
+  Vorab-Befund zur Baum-Repräsentation (die im Schritt geforderte „Zuerst prüfen"-Analyse):
+  - **Wohlgeformte, an einem Wirt hängende Code-Blöcke** (`init i [params …]`, `[base …]`, Datei-
+    `[namespaceprefix]`+`[using]`) werden zu einem echten `CodeSyntax`-Knoten geparst — auch über
+    mehrere Zeilen. Für diese trägt der Baum **sauber**.
+  - **Malformte/übersprungene Code-Blöcke** (ein Datei-`[using …]` **ohne** vorangehendes
+    `[namespaceprefix …]`, ein unvollständiges `[`) faltet der Parser komplett in
+    `SkippedTokensTrivia` — es gibt **keinen** `CodeSyntax`-Knoten, den eine reine Baum-Erkennung
+    tragen könnte.
+  - **Zeichenketten:** eine unterminierte `"…"` zerfällt in ein Unknown-`"` plus normal gelexte
+    Token und bildet **kein** `StringLiteral`-Token; Nav-Strings sind zudem per Definition einzeilig
+    (der Lexer bricht am Zeilenende ab).
+
+  Konsequenz (kein Vollersatz möglich): In `NavCompletionContext.Classify` wurde die Code-Block-
+  Suppression auf eine **additive** Erkennung umgestellt — baumbasiert (`InCodeBlock`: Kontext-Anker
+  in einem geparsten `CodeSyntax`-Knoten vor dessen `]`) **ODER** der bisherige zeilenbegrenzte
+  `IsInTextBlock`-Scan. Damit werden **mehrzeilige wohlgeformte** Code-Blöcke jetzt korrekt
+  unterdrückt (vorher fiel die Fortsetzungszeile auf den `Fallback`), ohne die
+  SkippedTokensTrivia-/Recovery-Fälle zu regressieren, die weiter über den (dort einzeiligen)
+  Zeilen-Scan gedeckt sind. Der Schlüsselwort-Slot direkt hinter `[` läuft unverändert über
+  `contextToken.Type == OpenBracket` (deckt auch den übersprungenen `[`). Die **String**-Suppression
+  bleibt bewusst zeilenbasiert (einzeilig; unterminiert kein Baum-Knoten). Die VS-
+  `ShouldProvideCompletions` nutzt `IsInQuotation` nur noch zum **Routen** der Pfad-Vervollständigung
+  (Dateiname-Span) — kein Suppression-Scan, daher unverändert; beide Hosts profitieren automatisch
+  vom Engine-Kern. Neuer Test: `InMultilineCodeBlock_OffersNothing` (unterdrückt eine Zeile unter dem
+  `[` eines geparsten `[params …]`; scheiterte unter dem reinen Zeilen-Scan). net472 + net10 grün.
 
 **Sequenz:** C1 → C2 → C3 (jeder Schritt entfernt eine Quelle und ist einzeln prüfbar), C4 separat
 (Regressionsgefahr bei Suppression).

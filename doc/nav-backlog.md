@@ -46,8 +46,13 @@ Quelle: `doc/nav-pragmas-versioning-status.md` (Roadmap), `doc/nav-directive-sub
 
 Quelle: `doc/nav-completion-status.md`.
 
-- [ ] **C4 — baumbasierte Suppression** — zeilenbasierten `IsInQuotation`/`IsInTextBlock`-Scan durch
-  baumbasierte Erkennung ersetzen. Regressionsgefahr; bewusst optionaler Folgeschritt.
+- [x] **C4 — baumbasierte Suppression** — **additiv umgesetzt** (kein Vollersatz): Der Baum trägt nur
+  für wohlgeformte, an einem Wirt hängende Code-Blöcke sauber (`CodeSyntax`-Knoten, auch mehrzeilig);
+  malformte/übersprungene Blöcke liegen in `SkippedTokensTrivia`, unterminierte Strings bilden kein
+  `StringLiteral`-Token. `Classify` unterdrückt Code-Block-Inhalt jetzt baumbasiert (`InCodeBlock`)
+  **ODER** über den bisherigen Zeilen-Scan → mehrzeilige wohlgeformte Blöcke gefixt, Recovery-/String-
+  Fälle unverändert. Test `InMultilineCodeBlock_OffersNothing`. Detail: `doc/nav-completion-status.md`
+  (Workstream C, C4).
 - [ ] **Node-Deklarations-„Schwanz"** fällt aufs pauschale `Fallback` (Rauschen), obwohl grammatisch nur
   noch `;` (bzw. `do` beim init-Knoten) folgt → im Node-Tail `Suppress`.
 - [ ] **Singleton-Code-Deklarationen** (`code`, `base`, `generateto`, `params`, `result`,

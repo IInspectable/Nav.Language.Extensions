@@ -630,6 +630,27 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void InMultilineCodeBlock_OffersNothing() {
+
+        // Mehrzeiliger, an einem Wirt (init-Knoten) hängender Code-Block: das öffnende `[` steht auf einer
+        // FRÜHEREN Zeile als der Cursor. Der zeilenbegrenzte Klammer-Scan sieht es dort nicht und streute
+        // Fallback-Vorschläge ein; die baumbasierte Erkennung (Kontext-Anker im geparsten CodeSyntax-Knoten)
+        // unterdrückt korrekt über die Zeilengrenze hinweg.
+        const string nav = "task A\n"            +
+                           "{\n"                  +
+                           "    init i [params\n" +
+                           "        Foo];\n"       +
+                           "    exit e;\n"        +
+                           "    i --> e;\n"       +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\ml.nav");
+        var caret = IndexOfToken(nav, "        Foo];", "        Fo"); // im C#-Inhalt, eine Zeile unter dem `[`
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
     public void InCodeBlockKeywordSlot_AtFileLevel_OffersOnlyUsingAndNamespacePrefix() {
 
         const string nav = "[using Foo]\n" +

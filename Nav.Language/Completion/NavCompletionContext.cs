@@ -141,11 +141,15 @@ sealed class NavCompletionContext {
             return Of(directiveKind);
         }
 
+        // Keine Vorschläge in Zeichenketten ("…"). Bewusst zeilenbasiert: Nav-Zeichenketten sind per Definition
+        // einzeilig — der Lexer beendet ein Literal an jedem Zeilenende —, es gibt hier also keine mehrzeilige
+        // Lücke; und eine unterminierte Zeichenkette zerfällt in ein Unknown-`"` plus normal gelexte Token und
+        // bildet KEIN StringLiteral-Token, das der Baum tragen könnte. Die taskref-Pfad-Vervollständigung läuft
+        // separat (vor uns).
         var line         = source.GetTextLineAtPosition(position);
         var lineText     = source.Substring(line.ExtentWithoutLineEndings);
         var linePosition = position - line.Start;
 
-        // Keine Vorschläge in Zeichenketten ("…") — die taskref-Pfad-Vervollständigung läuft separat (vor uns).
         if (lineText.IsInQuotation(linePosition)) {
             return Of(NavCompletionContextKind.Suppress);
         }
@@ -154,13 +158,27 @@ sealed class NavCompletionContext {
         // Kontext-Anker. Trägt über seinen Parent-Knoten die grammatische Rolle (Quelle/Ziel/Edge/Klausel).
         var contextToken = ContextToken(tree, position);
 
-        // Code-Blöcke ([ … ]): direkt hinter `[` (Schlüsselwort-Slot) die Code-Block-Keywords, im C#-Inhalt
-        // dahinter nichts. Der zeilenbegrenzte Scan sieht das öffnende `[` nur auf derselben Zeile (mehrzeilige
-        // Blöcke bleiben offen, siehe doc/nav-completion-status.md, C4).
-        if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
-            return contextToken.Type == SyntaxTokenType.OpenBracket
-                       ? Of(NavCompletionContextKind.CodeBlock, host: CodeBlockHostAt(tree, contextToken))
-                       : Of(NavCompletionContextKind.Suppress);
+        // Code-Blöcke ([ … ]): direkt hinter `[` (Schlüsselwort-Slot) die Code-Block-Keywords — auch beim frisch
+        // getippten `[`/`[]`, dessen `[` als übersprungenes Token noch ohne CodeSyntax-Knoten dasteht, ist der
+        // Kontext-Anker das `[` selbst.
+        if (contextToken.Type == SyntaxTokenType.OpenBracket) {
+            return Of(NavCompletionContextKind.CodeBlock, host: CodeBlockHostAt(tree, contextToken));
+        }
+
+        // Im C#-Inhalt eines Code-Blocks nichts. Zwei einander ergänzende Erkennungen, weil ein Code-Block je
+        // nach Wohlgeformtheit UNTERSCHIEDLICH im Baum liegt:
+        //   • baumbasiert (InCodeBlock): der Kontext-Anker steckt in einem tatsächlich geparsten
+        //     CodeSyntax-Knoten (wohlgeformter, an einem Wirt hängender Block wie `init i [params …]`). Das
+        //     trägt auch über MEHRERE ZEILEN — der zeilenbegrenzte Scan sähe das öffnende `[` einer Vorzeile
+        //     nicht und streute dort fälschlich Knoten/Keywords ein.
+        //   • zeilenbasiert (IsInTextBlock): fängt zusätzlich die NICHT als CodeSyntax geparsten Blöcke ab —
+        //     ein malformter oder unvollständiger Block (etwa ein Datei-`[using …]` ohne vorangehendes
+        //     `[namespaceprefix …]`), dessen Klammern der Parser in die SkippedTokensTrivia gefaltet hat. Dort
+        //     gibt es keinen CodeSyntax-Knoten, den der Baum tragen könnte; diese Recovery-Läufe sind aber
+        //     üblicherweise einzeilig, sodass der Zeilen-Scan sie zuverlässig deckt.
+        if (InCodeBlock(contextToken, position) ||
+            lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
+            return Of(NavCompletionContextKind.Suppress);
         }
 
         // Kein tragendes Token (leere Datei, Position hinter dem letzten Member): Member-Ebene.
@@ -352,6 +370,32 @@ sealed class NavCompletionContext {
         }
 
         return CodeBlockHost.CompilationUnit;
+    }
+
+    /// <summary>
+    /// Ob die <paramref name="position"/> im C#-Inhalt eines tatsächlich geparsten Code-Blocks (<c>[ … ]</c>)
+    /// liegt — der Kontext-Anker steckt (über seine Ancestor-Kette) in einem <see cref="CodeSyntax"/>-Knoten und
+    /// die Position liegt vor dessen schließender <c>]</c> (bzw. diese fehlt noch, weil der Block unvollständig
+    /// ist). Baumbasiert und dadurch über mehrere Zeilen tragfähig — anders als der zeilenbegrenzte Klammer-Scan,
+    /// der das öffnende <c>[</c> einer Vorzeile nicht sieht. Fängt aber NUR wohlgeformte, an einem Wirt hängende
+    /// Blöcke: ein malformter Block, dessen Klammern in der SkippedTokensTrivia liegen, bildet keinen
+    /// CodeSyntax-Knoten und wird weiterhin über den (dort einzeiligen) Zeilen-Scan gedeckt. Der Schlüsselwort-
+    /// Slot direkt hinter <c>[</c> wird VORHER gesondert behandelt (dort ist der Kontext-Anker das <c>[</c>
+    /// selbst).
+    /// </summary>
+    static bool InCodeBlock(SyntaxToken contextToken, int position) {
+
+        if (contextToken.Parent == null) {
+            return false;
+        }
+
+        var codeSyntax = contextToken.Parent.AncestorsAndSelf().OfType<CodeSyntax>().FirstOrDefault();
+        if (codeSyntax == null) {
+            return false;
+        }
+
+        var close = codeSyntax.CloseBracket;
+        return close.IsMissing || position <= close.Start;
     }
 
     /// <summary>
