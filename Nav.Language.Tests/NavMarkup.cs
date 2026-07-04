@@ -45,6 +45,13 @@ namespace Nav.Language.Tests;
 /// im Test-Korpus praktisch nicht vorhanden; träte er auf, scheitert <see cref="Parse"/> wegen des
 /// fehlenden schließenden <c>|</c> <em>laut</em> (statt still danebenzuliegen). Spans verschachteln
 /// nicht und enthalten selbst keinen Caret.</para>
+/// <para><b>Test-lokal vor geteilt:</b> Positionen bevorzugt in eine <em>test-lokale</em>
+/// Markup-Quelle mit einem einzelnen <see cref="Caret"/> setzen — dort ist der Bezug direkt am Code
+/// sichtbar. Ein über mehrere Tests <em>geteilter</em> <c>NavMarkup</c> mit benannten Markern lohnt
+/// nur, wenn der Share inhaltlich trägt: mehrere Tests prüfen denselben Sachverhalt an <em>derselben</em>
+/// Quelle (z.B. „from declaration" und „from reference", die aufeinander auflösen). Andernfalls häuft
+/// er die Marker unabhängiger Tests in einer Quelle und erzwingt ein Namens-Nachschlagen aus der Ferne
+/// — genau die Indirektion, die die Marker eigentlich beseitigen.</para>
 /// </remarks>
 public sealed record NavMarkup {
 
