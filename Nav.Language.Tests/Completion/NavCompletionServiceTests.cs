@@ -1101,6 +1101,34 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void InCodeBlockKeywordSlot_InTaskRef_WithFollowingSingletons_OffersNothing() {
+
+        // Frischer (leerer) Block zwischen `[namespaceprefix …]` und den folgenden `[notimplemented]`/
+        // `[result …]`. Alle sichtbaren Singletons des taskref-Kopfs (namespaceprefix, result) sind — vor
+        // wie nach dem Caret — bereits vorhanden → es bleibt nichts mehr anzubieten. Vor dem Parser-Fix
+        // verschluckte das leere `[]` die nachfolgenden Blöcke, sodass `result` fälschlich noch erschien.
+        // Caret (|) im leeren Block direkt hinter `[namespaceprefix NS.2]`.
+        var m = NavMarkup.Parse(
+            """
+            taskref TR1 [namespaceprefix NS.2][|]
+                        [notimplemented]
+                        [result RT1 r1]
+            {
+                init si;
+                exit se;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ref2.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.Empty);
+    }
+
+    [Test]
     public void InCodeBlockKeywordSlot_InTaskHeader_WithExistingCode_OmitsCode() {
 
         // Der task-Kopf trägt bereits ein `[code …]`; ein zweiter Code-Block darf `code` (Singleton) nicht
