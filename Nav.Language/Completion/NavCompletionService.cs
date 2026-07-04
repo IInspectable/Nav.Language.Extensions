@@ -151,6 +151,10 @@ public static class NavCompletionService {
             case NavCompletionContextKind.AfterCondition:
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
+            // Im „Schwanz" einer init-Knoten-Deklaration folgt grammatisch nur noch die optionale `do`-Klausel.
+            case NavCompletionContextKind.InitNodeTail:
+                return KeywordItems(SyntaxFacts.DoKeyword);
+
             default:
                 return FallbackItems(context, unit.Syntax.SyntaxTree, position);
         }

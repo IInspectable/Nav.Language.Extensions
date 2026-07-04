@@ -626,6 +626,134 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void InitNodeTail_AfterName_OffersOnlyDo() {
+
+        // Hinter dem Namen einer init-Knoten-Deklaration folgt grammatisch nur noch die optionale `do`-Klausel
+        // (und, über `[`, die Code-Blöcke) bzw. das abschließende `;`. Statt des pauschalen Fallbacks (alle
+        // Knoten + Keywords + Edges) darf hier NUR `do` erscheinen.
+        // Caret (|) hinter `init i ` (Whitespace), vor dem `;`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i |;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\init-tail.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Ausschließlich `do` — die einzige grammatisch mögliche Fortsetzung.
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.DoKeyword }));
+    }
+
+    [Test]
+    public void InitNodeTail_WithExistingDoClause_OffersNothing() {
+
+        // Ist die `do`-Klausel bereits vorhanden, gibt es im „Schwanz" davor nichts mehr anzubieten (die
+        // Singleton-`do`-Klausel darf nicht ein zweites Mal vorgeschlagen werden).
+        // Caret (|) hinter `init i ` (Whitespace), vor der bereits vorhandenen `do`-Klausel.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i |do Foo;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\init-tail-do.nav");
+        var caret = m.Caret;
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
+    public void NodeDeclarationTail_AfterExitName_OffersNothing() {
+
+        // Hinter dem Namen einer exit-Knoten-Deklaration folgt grammatisch nur noch das `;`. Der pauschale
+        // Fallback (Knoten + Keywords + Edges) wird hier zu Suppress präzisiert.
+        // Caret (|) hinter `exit e ` (Whitespace), vor dem `;`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e |;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\exit-tail.nav");
+        var caret = m.Caret;
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
+    public void NodeDeclarationTail_AfterChoiceName_OffersNothing() {
+
+        // Caret (|) hinter `choice c ` (Whitespace), vor dem `;` — grammatisch folgt nur noch das `;`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                choice c |;
+                i --> c;
+                c --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\choice-tail.nav");
+        var caret = m.Caret;
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
+    public void NodeDeclarationTail_AfterTaskNodeName_OffersNothing() {
+
+        // Der Task-Knoten ist der subtile Fall: hinter dem Referenznamen kann noch ein Alias (freier Bezeichner)
+        // sowie `[donotinject]`/`[abstractmethod]` folgen — allesamt nichts, was die Completion anbietet. Also
+        // Suppress statt Fallback.
+        // Caret (|) hinter `task Sub ` (Whitespace), vor dem `;`.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {
+                init si;
+                exit se;
+            }
+
+            task Main
+            {
+                init i;
+                exit e;
+                task Sub |;
+                i --> Sub;
+                Sub --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\tasknode-tail.nav");
+        var caret = m.Caret;
+
+        Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
+    }
+
+    [Test]
     public void MemberLevel_OffersOnlyTaskAndTaskref() {
 
         // Caret (|) ganz am Dateianfang — außerhalb jeder Task-Definition.

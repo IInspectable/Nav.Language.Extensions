@@ -88,6 +88,14 @@ enum NavCompletionContextKind {
     AfterCondition,
 
     /// <summary>
+    /// Im „Schwanz" einer <c>init</c>-Knoten-Deklaration (hinter Schlüsselwort/Name bzw. den Code-Blöcken, vor
+    /// dem <c>;</c>): das einzige dort grammatisch noch mögliche Schlüsselwort <c>do</c> (die optionale
+    /// <c>do</c>-Klausel). Bei allen übrigen schlüsselwort-eingeleiteten Knoten-Deklarationen folgt an dieser
+    /// Stelle nur noch das <c>;</c> → dort <see cref="Suppress"/>.
+    /// </summary>
+    InitNodeTail,
+
+    /// <summary>
     /// Nicht eindeutig klassifizierbar — der Aufrufer fällt auf das konservative Alt-Verhalten zurück
     /// (vorhandene Knoten + sichtbare Keywords), damit nie weniger als bisher angeboten wird.
     /// </summary>
@@ -295,6 +303,18 @@ sealed class NavCompletionContext {
                 return Of(NavCompletionContextKind.Suppress);
         }
 
+        // „Schwanz" einer schlüsselwort-eingeleiteten Knoten-Deklaration (hinter Schlüsselwort und/oder Name,
+        // vor dem `;`): grammatisch folgt nur noch das `;` — einzig beim init-Knoten zusätzlich eine optionale
+        // `do`-Klausel (die Code-Blöcke über `[` sind bereits weiter oben gesondert behandelt). Statt über den
+        // Fallback pauschal Knoten/Keywords/Edges einzustreuen: nichts (bzw. beim init-Knoten ohne bereits
+        // vorhandene `do`-Klausel das `do`-Keyword). Ein gefüllter `do`-Wert-Slot wurde eben schon als Suppress
+        // erkannt (DoClauseSyntax), landet also nicht hier.
+        if (EnclosingNodeDeclaration(contextToken) is { } nodeDeclaration) {
+            return nodeDeclaration is InitNodeDeclarationSyntax { DoClause: null }
+                       ? Of(NavCompletionContextKind.InitNodeTail, task)
+                       : Of(NavCompletionContextKind.Suppress);
+        }
+
         return Of(NavCompletionContextKind.Fallback, task);
     }
 
@@ -356,6 +376,20 @@ sealed class NavCompletionContext {
         return token.Parent?
                     .AncestorsAndSelf()
                     .OfType<TaskDeclarationSyntax>()
+                    .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Die umschließende Knoten-Deklaration (<see cref="NodeDeclarationSyntax"/>) zum gegebenen Token — oder
+    /// <c>null</c>, wenn das Token nicht innerhalb einer solchen liegt. Deckt den „Schwanz" hinter Schlüsselwort
+    /// und Name ab: dort folgt grammatisch nur noch das <c>;</c> (einzig beim <c>init</c>-Knoten zusätzlich die
+    /// optionale <c>do</c>-Klausel). Ein gefüllter <c>do</c>-Wert-Slot wird vorher schon über die Ancestor-Kette
+    /// (<see cref="DoClauseSyntax"/>) als <see cref="NavCompletionContextKind.Suppress"/> erkannt.
+    /// </summary>
+    static NodeDeclarationSyntax? EnclosingNodeDeclaration(SyntaxToken token) {
+        return token.Parent?
+                    .AncestorsAndSelf()
+                    .OfType<NodeDeclarationSyntax>()
                     .FirstOrDefault();
     }
 

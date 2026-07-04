@@ -124,7 +124,20 @@ net10 grün):
    verschwindet an diesen Stellen. (Analoges bleibt bewusst offen: kantentyp-/choice-abhängige
    Zielfilterung — gegen „nie weniger als grammatisch gültig", Fehlalarm-Risiko.)
 
-5. **`taskref`-Body erkannt (Connection-Point-Deklarationen).** Innerhalb von `taskref Sub { … }` erlaubt die
+5. **Node-Deklarations-„Schwanz" präzisiert.** Nach Schlüsselwort und/oder Name einer schlüsselwort-eingeleiteten
+   Knoten-Deklaration (`exit e ▸`, `choice c ▸`, `dialog d ▸`, `view v ▸`, `task Sub ▸`) landete der Kontext im
+   pauschalen `Fallback` (alle Knoten + Keywords + Edges), obwohl grammatisch nur noch das `;` folgt — beim
+   `init`-Knoten zusätzlich die optionale `do`-Klausel (die Code-Blöcke über `[` werden bereits vorher gesondert
+   behandelt). `Classify` erkennt den Schwanz jetzt über den neuen Helfer `EnclosingNodeDeclaration` (innerste
+   umschließende `NodeDeclarationSyntax` der Ancestor-Kette) und liefert `Suppress` — einzig beim `init`-Knoten
+   ohne bereits vorhandene `do`-Klausel den neuen Kontext `InitNodeTail` → ausschließlich das `do`-Keyword. Ein
+   bereits gefüllter `do`-Wert-Slot fällt schon vorher über die `DoClauseSyntax`-Rolle auf `Suppress`, landet also
+   nicht hier. Aligned mit „nie weniger als grammatisch gültig" (entfernt nur Ungültiges). Neue Tests:
+   `InitNodeTail_AfterName_OffersOnlyDo`, `InitNodeTail_WithExistingDoClause_OffersNothing`,
+   `NodeDeclarationTail_AfterExitName_OffersNothing`, `NodeDeclarationTail_AfterChoiceName_OffersNothing`,
+   `NodeDeclarationTail_AfterTaskNodeName_OffersNothing` (net472 + net10 grün).
+
+6. **`taskref`-Body erkannt (Connection-Point-Deklarationen).** Innerhalb von `taskref Sub { … }` erlaubt die
    Grammatik ausschließlich Connection-Point-Deklarationen (`connectionPointNodeDeclaration ::= init | exit | end`).
    Die Completion kannte aber nur `EnclosingTask` = `TaskDefinitionSyntax`; ein `taskref` ist eine
    `TaskDeclarationSyntax` (kein `ITaskDefinitionSymbol`) → `task == null` → Rückfall auf `MemberLevel`, das im
@@ -142,19 +155,12 @@ Neue/erweiterte Tests: `UnnamedInit_NotOfferedAsDuplicateKeyword`, `AfterTrigger
 `AfterFilledCondition_OffersOnlyDo`, `AfterFilledDo_OffersNothing` sowie `else`-/`InitKeywordAlt`-Assertions
 in den bestehenden `AfterTarget`-/`StatementStart`-/`TransitionStart`-Tests.
 
-## Offene Verfeinerungs-Chancen (Grammatik-Review, noch NICHT umgesetzt)
+## Offene Verfeinerungs-Chancen (Grammatik-Review)
 
-Zwei „kontextuell besser filtern"-Chancen aus dem jüngsten Grammatik-Abgleich — bewusst noch offen:
+Eine bereits umgesetzte „kontextuell besser filtern"-Chance aus dem jüngsten Grammatik-Abgleich (die zweite,
+Node-Deklarations-„Schwanz", ist unter „Kontextuelle Verfeinerungen … umgesetzt" Punkt 5 dokumentiert):
 
-1. **Node-Deklarations-„Schwanz" fällt auf `Fallback`.** Nach dem Namen einer schlüsselwort-eingeleiteten
-   Knoten-Deklaration (`exit e ▸`, `choice c ▸`, `dialog d ▸`, `view v ▸`, `task Sub ▸`) landet der Kontext im
-   pauschalen `Fallback` (alle Knoten + alle Keywords + Edges), obwohl grammatisch nur noch `;` folgt — bei
-   `init …` zusätzlich eine `do`-Klausel (und, über `[`, die jeweiligen Code-Blöcke). Das ist dasselbe
-   Fallback-Rauschen, das für die Klausel-Kontexte (`on`/`if`/`do`) bereits ausgetrieben wurde. Präzisierung
-   möglich: im Node-Tail `Suppress` (bzw. nur `do` beim init-Knoten). Aligned mit dem „nie weniger als
-   grammatisch gültig"-Prinzip (entfernt nur Ungültiges). Subtil beim `init`-`do` und beim optionalen
-   task-Knoten-Alias.
-2. **Singleton-Code-Deklarationen werden erneut angeboten.** ~~Im Code-Block-Wirt bietet
+1. **Singleton-Code-Deklarationen werden erneut angeboten.** ~~Im Code-Block-Wirt bietet
    `CodeBlockKeywordItems` immer alle erlaubten Keywords an, auch wenn eine nur einmal zulässige Deklaration
    am selben Wirt bereits existiert.~~ **Umgesetzt.** Grammatisch ist jede `code*`-Deklaration `?` (Singleton) —
    einzige Ausnahme ist `using` im Datei-Kopf (`codeUsingDeclaration*`, wiederholbar). `CodeBlockFacts`

@@ -53,8 +53,12 @@ Quelle: `doc/nav-completion-status.md`.
   **ODER** über den bisherigen Zeilen-Scan → mehrzeilige wohlgeformte Blöcke gefixt, Recovery-/String-
   Fälle unverändert. Test `InMultilineCodeBlock_OffersNothing`. Detail: `doc/nav-completion-status.md`
   (Workstream C, C4).
-- [ ] **Node-Deklarations-„Schwanz"** fällt aufs pauschale `Fallback` (Rauschen), obwohl grammatisch nur
-  noch `;` (bzw. `do` beim init-Knoten) folgt → im Node-Tail `Suppress`.
+- [x] **Node-Deklarations-„Schwanz"** — **umgesetzt**: hinter Schlüsselwort/Name einer schlüsselwort-eingeleiteten
+  Knoten-Deklaration (`exit e ▸`, `choice c ▸`, `dialog d ▸`, `view v ▸`, `task Sub ▸`) liefert `Classify` jetzt
+  `Suppress` statt des pauschalen `Fallback`; beim init-Knoten (ohne bereits vorhandene `do`-Klausel) der neue
+  Kontext `InitNodeTail` → nur das `do`-Keyword. Grammatik-Autorität: neuer Helfer
+  `NavCompletionContext.EnclosingNodeDeclaration`. Tests: `InitNodeTail_*`, `NodeDeclarationTail_*`. Detail:
+  `doc/nav-completion-status.md`.
 - [x] **Singleton-Code-Deklarationen** (`code`, `base`, `generateto`, `params`, `result`,
   `namespaceprefix`) werden erneut angeboten, obwohl am Wirt schon vorhanden → **umgesetzt**: Die
   Completion filtert am Wirt bereits deklarierte Singletons heraus (alle Code-Deklarationen sind `?`,
