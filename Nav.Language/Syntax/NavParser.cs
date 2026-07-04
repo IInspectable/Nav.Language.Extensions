@@ -1541,10 +1541,9 @@ sealed partial class NavParser {
 
     /// <summary>
     /// Überspringt eine Folge von <c>[</c>-Klammern an einer Code-Deklarations-Position, die keiner
-    /// bekannten <c>[keyword …]</c>-Deklaration entsprechen. Gibt <c>true</c> zurück, sobald mindestens
-    /// eine solche Klammer verschluckt wurde — der aufrufende Wirt unterdrückt dann das mechanisch
-    /// ebenfalls fehlende <c>;</c> (eine Diagnose pro Divergenzstelle, analog zu einer an der
-    /// Zeilengrenze abgebrochenen Transition).
+    /// bekannten <c>[keyword …]</c>-Deklaration entsprechen — jede als eigene Fehlerproduktion mit einer
+    /// Diagnose. Anders als beim <see cref="ParseCodeDeclarations"/>-Wirt gibt es hier (Top-Level) kein
+    /// mechanisch fehlendes <c>;</c> zu unterdrücken, weshalb kein „übersprungen"-Ergebnis zurückfließt.
     /// </summary>
     /// <param name="host">
     /// Der Wirt der Klammer — er bestimmt über <see cref="CodeBlockFacts.VisibleDeclarationKeywords"/> die
@@ -1552,15 +1551,11 @@ sealed partial class NavParser {
     /// dem die Klammer hierher gehört und nur ihr Inhalt fehlt — werden sie zur Diagnose
     /// <c>expected 'a', 'b' or 'c'</c> statt des irreführenden <c>unexpected input '[]'</c>.
     /// </param>
-    bool SkipMalformedBrackets(CodeBlockHost host) {
+    void SkipMalformedBrackets(CodeBlockHost host) {
 
-        var skipped = false;
         while (At(SyntaxTokenType.OpenBracket)) {
             ParseMalformedBracketDeclaration(host);
-            skipped = true;
         }
-
-        return skipped;
     }
 
     /// <summary>
