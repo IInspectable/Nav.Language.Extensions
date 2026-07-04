@@ -1133,6 +1133,39 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void InCodeBlockKeywordSlot_InTaskHeader_WithFollowingCode_OmitsCode() {
+
+        // Wie WithExistingCode_OmitsCode, aber der frische (leere) Block steht VOR dem vorhandenen
+        // `[code …]`. Ein vorangestelltes malformes `[]` darf das nachfolgende, gültige `[code …]` nicht
+        // aus dem Baum verschlucken — sonst böte die Completion `code` fälschlich erneut an.
+        // Frisch getippter erster Block — Caret (|) hinter `[`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            [|]
+            [code "Foo"]
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\dup2.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // `code` folgt bereits → weg; base/generateto/params/result bleiben.
+        Assert.That(labels, Is.EquivalentTo(new[] {
+            SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword,
+            SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword
+        }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
+    }
+
+    [Test]
     public void InCodeBlockKeywordSlot_AtFileLevel_WithNamespacePrefix_OmitsPrefixButKeepsUsing() {
 
         // Datei-Kopf mit bereits vorhandenem `[namespaceprefix …]` (Singleton) — dieses fällt weg, `using`

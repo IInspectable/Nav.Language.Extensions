@@ -501,11 +501,16 @@ sealed partial class NavParser {
         var keyword = Eat(SyntaxTokenType.TaskrefKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
 
-        var codeNamespace  = AtCodeDeclaration(SyntaxTokenType.NamespaceprefixKeyword) ? ParseCodeNamespaceDeclaration()       : null;
-        var notImplemented = AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword)  ? ParseCodeNotImplementedDeclaration()  : null;
-        var result         = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)          ? ParseCodeResultDeclaration()          : null;
+        CodeNamespaceDeclarationSyntax?      codeNamespace  = null;
+        CodeNotImplementedDeclarationSyntax? notImplemented = null;
+        CodeResultDeclarationSyntax?         result         = null;
 
-        SkipMalformedBrackets(CodeBlockHost.TaskRef);
+        ParseCodeDeclarations(CodeBlockHost.TaskRef, () => {
+            if (codeNamespace  == null && AtCodeDeclaration(SyntaxTokenType.NamespaceprefixKeyword)) { codeNamespace  = ParseCodeNamespaceDeclaration();      return true; }
+            if (notImplemented == null && AtCodeDeclaration(SyntaxTokenType.NotimplementedKeyword))  { notImplemented = ParseCodeNotImplementedDeclaration(); return true; }
+            if (result         == null && AtCodeDeclaration(SyntaxTokenType.ResultKeyword))          { result         = ParseCodeResultDeclaration();         return true; }
+            return false;
+        });
 
         Recover(_atTaskDeclarationBodyOrAnchor);
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -581,13 +586,20 @@ sealed partial class NavParser {
         var keyword = Eat(SyntaxTokenType.TaskKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
 
-        var code       = AtCodeDeclaration(SyntaxTokenType.CodeKeyword)       ? ParseCodeDeclaration()           : null;
-        var codeBase   = AtCodeDeclaration(SyntaxTokenType.BaseKeyword)       ? ParseCodeBaseDeclaration()       : null;
-        var generateTo = AtCodeDeclaration(SyntaxTokenType.GeneratetoKeyword) ? ParseCodeGenerateToDeclaration() : null;
-        var codeParams = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)     ? ParseCodeParamsDeclaration()     : null;
-        var result     = AtCodeDeclaration(SyntaxTokenType.ResultKeyword)     ? ParseCodeResultDeclaration()     : null;
+        CodeDeclarationSyntax?           code       = null;
+        CodeBaseDeclarationSyntax?       codeBase   = null;
+        CodeGenerateToDeclarationSyntax? generateTo = null;
+        CodeParamsDeclarationSyntax?     codeParams = null;
+        CodeResultDeclarationSyntax?     result     = null;
 
-        SkipMalformedBrackets(CodeBlockHost.TaskDefinition);
+        ParseCodeDeclarations(CodeBlockHost.TaskDefinition, () => {
+            if (code       == null && AtCodeDeclaration(SyntaxTokenType.CodeKeyword))       { code       = ParseCodeDeclaration();           return true; }
+            if (codeBase   == null && AtCodeDeclaration(SyntaxTokenType.BaseKeyword))       { codeBase   = ParseCodeBaseDeclaration();       return true; }
+            if (generateTo == null && AtCodeDeclaration(SyntaxTokenType.GeneratetoKeyword)) { generateTo = ParseCodeGenerateToDeclaration(); return true; }
+            if (codeParams == null && AtCodeDeclaration(SyntaxTokenType.ParamsKeyword))     { codeParams = ParseCodeParamsDeclaration();     return true; }
+            if (result     == null && AtCodeDeclaration(SyntaxTokenType.ResultKeyword))     { result     = ParseCodeResultDeclaration();     return true; }
+            return false;
+        });
 
         Recover(_atTaskDefinitionBodyOrAnchor);
         var open = Eat(SyntaxTokenType.OpenBrace);
@@ -693,13 +705,19 @@ sealed partial class NavParser {
         var keyword = Eat(SyntaxTokenType.InitKeyword);
         var name    = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : null;
 
-        var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
-        var codeParams     = AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)         ? ParseCodeParamsDeclaration()         : null;
+        CodeAbstractMethodDeclarationSyntax? abstractMethod = null;
+        CodeParamsDeclarationSyntax?         codeParams     = null;
 
-        // Ein '[' an dieser Stelle, das keiner bekannten Code-Deklaration entspricht (leeres `[]`, beim
-        // Tippen noch unfertiges `[par`), wird als Fehlerproduktion in der Klammer verschluckt — sonst
-        // bräche die Knoten-Deklaration hier ab und die restlichen Body-Zeilen liefen als Kaskade auf.
-        var malformedBracket = SkipMalformedBrackets(CodeBlockHost.InitNode);
+        // Die Code-Deklarationen werden verschränkt mit der Klammer-Recovery geparst: ein '[' an dieser
+        // Stelle, das keiner bekannten Code-Deklaration entspricht (leeres `[]`, beim Tippen noch unfertiges
+        // `[par`), wird als Fehlerproduktion in der Klammer verschluckt — sonst bräche die Knoten-Deklaration
+        // hier ab und die restlichen Body-Zeilen liefen als Kaskade auf. Ein vorangestelltes malformes `[]`
+        // verschluckt dabei keine nachfolgende, gültige Deklaration (siehe ParseCodeDeclarations).
+        var malformedBracket = ParseCodeDeclarations(CodeBlockHost.InitNode, () => {
+            if (abstractMethod == null && AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword)) { abstractMethod = ParseCodeAbstractMethodDeclaration(); return true; }
+            if (codeParams     == null && AtCodeDeclaration(SyntaxTokenType.ParamsKeyword))         { codeParams     = ParseCodeParamsDeclaration();         return true; }
+            return false;
+        });
 
         var doClause = At(SyntaxTokenType.DoKeyword) ? ParseDoClause() : null;
 
@@ -771,12 +789,17 @@ sealed partial class NavParser {
         var name    = Eat(SyntaxTokenType.Identifier);
         var alias   = At(SyntaxTokenType.Identifier) ? Eat(SyntaxTokenType.Identifier) : null;
 
-        var doNotInject    = AtCodeDeclaration(SyntaxTokenType.DonotinjectKeyword)    ? ParseCodeDoNotInjectDeclaration()    : null;
-        var abstractMethod = AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword) ? ParseCodeAbstractMethodDeclaration() : null;
+        CodeDoNotInjectDeclarationSyntax?    doNotInject    = null;
+        CodeAbstractMethodDeclarationSyntax? abstractMethod = null;
 
         // Nicht erkanntes '[' als Fehlerproduktion in der Klammer verschlucken (siehe
-        // ParseInitNodeDeclaration) — hält die Kaskade aus der abgebrochenen Knoten-Deklaration auf.
-        var malformedBracket = SkipMalformedBrackets(CodeBlockHost.TaskNode);
+        // ParseInitNodeDeclaration) — hält die Kaskade aus der abgebrochenen Knoten-Deklaration auf. Ein
+        // vorangestelltes malformes `[]` verschluckt dabei keine nachfolgende, gültige Deklaration mehr.
+        var malformedBracket = ParseCodeDeclarations(CodeBlockHost.TaskNode, () => {
+            if (doNotInject    == null && AtCodeDeclaration(SyntaxTokenType.DonotinjectKeyword))    { doNotInject    = ParseCodeDoNotInjectDeclaration();    return true; }
+            if (abstractMethod == null && AtCodeDeclaration(SyntaxTokenType.AbstractmethodKeyword)) { abstractMethod = ParseCodeAbstractMethodDeclaration(); return true; }
+            return false;
+        });
 
         var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
 
@@ -1533,6 +1556,42 @@ sealed partial class NavParser {
 
         var skipped = false;
         while (At(SyntaxTokenType.OpenBracket)) {
+            ParseMalformedBracketDeclaration(host);
+            skipped = true;
+        }
+
+        return skipped;
+    }
+
+    /// <summary>
+    /// Treibt die (in fester Grammatik-Reihenfolge notierten) <c>[keyword …]</c>-Code-Deklarationen eines
+    /// Wirts an und verschränkt sie mit der Klammer-Recovery. Anders als ein <em>einmaliger</em> Durchlauf
+    /// mit anschließendem <see cref="SkipMalformedBrackets"/> wird hier jede Klammer <em>einzeln</em>
+    /// betrachtet: nach dem Überspringen einer fehlerhaften Klammer werden die noch offenen Deklarationen
+    /// erneut angeboten. So „verschluckt" ein vorangestelltes malformes <c>[]</c> keine nachfolgende, gültige
+    /// Deklaration mehr (<c>task A [] [code …]</c> parst <c>[code …]</c> weiterhin als Code-Deklaration statt
+    /// es als Fehlerproduktion mitzunehmen). Die Reihenfolge-Grammatik bleibt gewahrt — jede Deklaration wird
+    /// nur einmal geparst (Null-Wächter im Delegaten), eine echt deplatzierte oder doppelte Klammer wird
+    /// weiterhin als malform übersprungen.
+    /// <paramref name="tryParseNextDeclaration"/> parst die nächste an der aktuellen Position passende, noch
+    /// offene Deklaration und meldet, ob sie eine konsumiert hat. Rückgabe: ob mindestens eine Klammer als
+    /// malform übersprungen wurde (der Aufrufer unterdrückt dann das mechanisch fehlende <c>;</c>).
+    /// </summary>
+    bool ParseCodeDeclarations(CodeBlockHost host, Func<bool> tryParseNextDeclaration) {
+
+        var skipped = false;
+        while (true) {
+
+            // Alle an der aktuellen Position passenden, noch offenen Deklarationen greifen.
+            while (tryParseNextDeclaration()) {
+            }
+
+            if (!At(SyntaxTokenType.OpenBracket)) {
+                break;
+            }
+
+            // Die hier nicht zuzuordnende Klammer als Fehlerproduktion verschlucken und die noch offenen
+            // Deklarationen danach erneut anbieten — die nächste Klammer kann eine gültige sein.
             ParseMalformedBracketDeclaration(host);
             skipped = true;
         }
