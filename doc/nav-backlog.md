@@ -77,7 +77,19 @@ Quelle: `doc/nav-lsp-status.md §4`.
   Präsentation (Anzeigename/Icon) und die Sprünge in den generierten C#-Code bei. Damit ist „eine Engine"
   auch für VS-GoTo real — keine parallel gepflegte Zielsemantik mehr. Verhaltensneutral (net472-Suite
   1306 grün, `NavGoToServiceTests` auf beiden TFMs grün, Solution baut).
-- [ ] **`workspace/didChangeWorkspaceFolders`** (die übrigen Watch-Events sind erledigt).
+- [ ] **`workspace/didChangeWorkspaceFolders`** — **bewusst vertagt** (Analyse 2026-07-04). Drei Gründe:
+  (1) Das Protokoll-Paket **17.2.8 kennt Workspace-Folders gar nicht** (weder `InitializeParams.workspaceFolders`,
+  noch der `ServerCapabilities.workspace`-Zweig, noch ein `didChangeWorkspaceFolders`-DTO/`Methods`-Konstante) →
+  alle Formen müssten von Hand nachgerollt werden (wie `callHierarchyProvider` in `NavServerCapabilities`).
+  (2) Der **Engine-Kern ist strukturell Single-Root**: `NavWorkspaceCore` hält genau **eine** `NavSolution` mit
+  **einem** `SolutionDirectory`; echtes Multi-Root berührt `NavWorkspaceCore`, `NavSolution` und das
+  `.navignore`-Laden — kein reiner Host-Handler. (3) **Kein akuter Leidensdruck**: Der `vscode-languageclient`
+  füllt `rootUri` aus Rückwärtskompatibilität immer mit dem *ersten* Workspace-Ordner (auch im Multi-Root-Fall) →
+  der Server lädt heute schon (nur eben nur diesen ersten Ordner), statt still leer zu bleiben. Ein *minimaler*
+  Umbau (Fallback „erster Ordner", Notification annehmen, Voll-Reload vom primären Root) wäre beim VS-Code-Client
+  praktisch ein **No-Op** (der gepinnte `rootUri` ändert sich nicht) und brächte keinen sichtbaren Nutzen; echten
+  Mehrwert gäbe nur **volles** Multi-Root (Union aller Wurzeln). Wieder aufgreifen, wenn ein konkreter
+  Multi-Root-Bedarf entsteht oder das Protokoll-Paket auf eine Version mit nativer Folder-Unterstützung gehoben wird.
 - [ ] **Optional:** inkrementeller Doc-Sync statt Full; Severity-Mapping `Suggestion → Hint` (Geschmack).
 
 ## 4. MCP-Erweiterungen (optional)
