@@ -131,6 +131,11 @@
       <NavFilesToProcess Include="@(GenerateNavCode)" Exclude="@(SkipNavCode)"/>
     </ItemGroup>
 
+    <!-- Der Nav-Task ist oben per <UsingTask> deklariert; MSBuild lädt die Assembly zur Buildzeit
+         relativ zu dieser .targets-Datei (im Deploy liegt die DLL direkt daneben). ReSharpers
+         statische Analyse führt keinen Build aus und kann die Assembly im Quellbaum (DLL in bin\)
+         nicht auflösen ⇒ False-Positive "Task 'Nav' is not defined". -->
+    <!-- ReSharper disable once UnknownTask -->
     <Nav Sources                = "@(NavFilesToProcess)"
          Force                  = "$(NavForce)"
          Strict                 = "$(NavStrict)"
