@@ -90,7 +90,13 @@ Quelle: `doc/nav-lsp-status.md §4`.
   praktisch ein **No-Op** (der gepinnte `rootUri` ändert sich nicht) und brächte keinen sichtbaren Nutzen; echten
   Mehrwert gäbe nur **volles** Multi-Root (Union aller Wurzeln). Wieder aufgreifen, wenn ein konkreter
   Multi-Root-Bedarf entsteht oder das Protokoll-Paket auf eine Version mit nativer Folder-Unterstützung gehoben wird.
-- [ ] **Optional:** inkrementeller Doc-Sync statt Full; Severity-Mapping `Suggestion → Hint` (Geschmack).
+- [x] **Severity-Mapping `Suggestion → Hint`** — umgesetzt: `LspMapper.ToLsp` bildet `NavSeverity.Suggestion`
+  jetzt auf `DiagnosticSeverity.Hint` (statt `Information`) ab — die sauberste Tier-Zuordnung (weichste
+  Engine-Stufe → weichste LSP-Stufe). Heute noch ohne sichtbaren Effekt (kein Descriptor emittiert
+  `Suggestion`), greift aber, sobald es solche Diagnostics gibt. Fallback (unbekannt) bleibt `Information`.
+- [ ] **Optional (bewusst offen):** inkrementeller Doc-Sync statt Full — geringer Nutzen bei kleinen
+  `.nav`-Dateien, echte Zusatzkomplexität (Range-Edits auf gehaltenem Text). Wieder aufgreifen bei
+  konkretem Bedarf (sehr große Dateien / spürbare Sync-Last).
 
 ## 4. MCP-Erweiterungen (optional)
 

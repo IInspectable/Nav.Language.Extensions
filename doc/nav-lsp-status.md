@@ -296,8 +296,13 @@ diesen Kern auf und ergänzen nur UI/Codegen; der LSP-Server nutzt ihn direkt f�
   nur **volles** Multi-Root (Union aller Wurzeln, per-Root `.navignore`) — ein echter Kern-Umbau. Wieder
   aufgreifen bei konkretem Multi-Root-Bedarf oder Paket-Upgrade auf native Folder-Unterstützung. Backlog:
   `doc/nav-backlog.md §3`.
-- Inkrementeller Doc-Sync statt Full (optional).
-- Severity-Mapping `Suggestion → Information` ggf. auf `Hint` ändern (Geschmack).
+- Inkrementeller Doc-Sync statt Full — **bewusst offen gelassen**: geringer Nutzen bei kleinen
+  `.nav`-Dateien, echte Zusatzkomplexität (Range-Edits auf gehaltenem Text). Wieder aufgreifen bei
+  konkretem Bedarf.
+- ~~Severity-Mapping `Suggestion → Information`~~ **erledigt**: `LspMapper.ToLsp` bildet
+  `NavSeverity.Suggestion` jetzt auf `DiagnosticSeverity.Hint` ab (weichste Engine- → weichste
+  LSP-Stufe); Fallback bleibt `Information`. Heute ohne sichtbaren Effekt, da kein Descriptor
+  `Suggestion`-Severity emittiert.
 
 **Toolchain / Deployment:**
 - ~~**Self-contained Publish:**~~ **erledigt.** Der LSP wird beim `nav publish` als **Single-File**

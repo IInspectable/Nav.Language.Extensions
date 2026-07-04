@@ -75,7 +75,7 @@ static class LspMapper {
     static Protocol.DiagnosticSeverity ToLsp(NavSeverity severity) => severity switch {
         NavSeverity.Error      => Protocol.DiagnosticSeverity.Error,
         NavSeverity.Warning    => Protocol.DiagnosticSeverity.Warning,
-        NavSeverity.Suggestion => Protocol.DiagnosticSeverity.Information,
+        NavSeverity.Suggestion => Protocol.DiagnosticSeverity.Hint,
         _                      => Protocol.DiagnosticSeverity.Information
     };
 }
