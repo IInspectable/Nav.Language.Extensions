@@ -22,9 +22,15 @@
 function Invoke-Test {
     [CmdletBinding()]
     param(
-        [string] $Configuration = 'Debug',
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $RemainingArgs
+        # RemainingArgs MUSS der positionale Auffangkorb (Position 0) sein, damit an nunit3-console
+        # durchgereichte Optionen wie `--where` erhalten bleiben: PowerShell erkennt `--where`
+        # (Doppelstrich) NICHT als Parameternamen und würde es sonst positional an ein positionales
+        # $Configuration binden — der Filter ginge lautlos verloren. Configuration bleibt deshalb
+        # named-only (`-Configuration Release`).
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [string[]] $RemainingArgs,
+        [ValidateSet('Debug', 'Release')]
+        [string] $Configuration = 'Debug'
     )
 
     $ErrorActionPreference = 'Stop'
