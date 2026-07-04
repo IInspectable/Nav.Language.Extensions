@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System;
 using System.Linq;
 
 using NUnit.Framework;
@@ -15,26 +14,30 @@ namespace Nav.Language.Tests.Completion;
 [TestFixture]
 public class NavCompletionServiceTests {
 
-    const string Nav = "taskref Sub\n"          +
-                       "{\n"                     +
-                       "    init si;\n"          +
-                       "    exit se;\n"          +
-                       "}\n"                     +
-                       "\n"                      +
-                       "task Main\n"             +
-                       "{\n"                     +
-                       "    init i;\n"           +
-                       "    exit e;\n"           +
-                       "    task Sub;\n"         +
-                       "    i      --> Sub;\n"   +
-                       "    Sub:se --> e;\n"     +
-                       "}\n";
-
     [Test]
     public void AfterTaskKeyword_OffersTaskDeclarations() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "task Sub;", "task "); // direkt hinter `task ` vor dem Knotennamen
+        // Sub ist als taskref deklariert; Caret (|) hinter `task ` vor dem Knotennamen.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {
+                init si;
+                exit se;
+            }
+
+            task Main
+            {
+                init i;
+                exit e;
+                task |Sub;
+                i --> Sub;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var items = NavCompletionService.GetCompletions(unit, caret);
 
@@ -47,8 +50,27 @@ public class NavCompletionServiceTests {
     [Test]
     public void AfterNodeColon_OffersExitConnectionPoints() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "Sub:se --> e;", "Sub:"); // direkt hinter `Sub:`
+        // Task-Knoten Sub (Typ taskref Sub mit exit se); Caret (|) direkt hinter `Sub:`.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {
+                init si;
+                exit se;
+            }
+
+            task Main
+            {
+                init i;
+                exit e;
+                task Sub;
+                Sub:|se --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var items = NavCompletionService.GetCompletions(unit, caret);
 
@@ -62,8 +84,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void TargetSlot_OffersTargetNodesAndEndKeyword() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      --> "); // auf der Ziel-Knotenreferenz 'Sub'
+        // Caret (|) im Ziel-Slot hinter `--> `: e (exit, nur Ziel), Sub (task-Knoten), i (init, nur Quelle).
+        var m = NavMarkup.Parse(
+            """
+            task Main
+            {
+                init i;
+                exit e;
+                task Sub;
+                i --> |Sub;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -87,15 +122,20 @@ public class NavCompletionServiceTests {
         // Regression zu den zwei `end`-Einträgen: existiert ein End-Knoten (dessen Name IST `end`), darf `end`
         // im Ziel-Slot trotzdem nur EINMAL erscheinen — als Ziel-Keyword, nicht zusätzlich als benannte
         // Knoten-Referenz. Ein End-Ziel schreibt man ausschließlich über das `end`-Schlüsselwort.
-        const string nav = "task A\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    end;\n"        + // End-Knoten (Name = `end`)
-                           "    i --> end;\n"  +
-                           "}\n";
+        // End-Knoten (Name = `end`); Caret (|) im Ziel-Slot hinter der Edge.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                end;
+                i --> |end;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\end-target.nav");
-        var caret = IndexOfToken(nav, "    i --> end;\n", "    i --> "); // Ziel-Slot hinter der Edge
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\end-target.nav");
+        var caret = m.Caret;
 
         var items = NavCompletionService.GetCompletions(unit, caret);
 
@@ -108,8 +148,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void EdgeSlot_OffersOnlyVisibleEdgeKeywords() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, vor der Edge
+        // Caret (|) hinter dem Quellknoten `i`, vor der Edge `-->`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                task Sub;
+                i |--> Sub;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -130,8 +183,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void EdgeSlot_EdgeItemsCarryReplacementExtent() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, VOR der Edge `-->`
+        // Caret (|) hinter dem Quellknoten `i`, VOR der bereits vorhandenen Edge `-->`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                task Sub;
+                i |--> Sub;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var edgeItem = NavCompletionService.GetCompletions(unit, caret)
                                            .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
@@ -151,15 +217,20 @@ public class NavCompletionServiceTests {
         // Regression zu „i -->--> Sub": Caret VOR einer vorhandenen modalen Edge `o->`. Der Ersetzungsbereich
         // deckt die vorhandene Edge komplett ab (auch die Zeichen HINTER dem Caret), damit der Commit eines
         // Edge-Keywords sie ersetzt statt eine zweite Edge einzufügen.
-        const string nav = "task A\n"           +
-                           "{\n"                 +
-                           "    init i;\n"       +
-                           "    exit e;\n"       +
-                           "    i o-> e;\n"      + // vollständige modale Edge
-                           "}\n";
+        // Vollständige modale Edge `o->`; Caret (|) direkt vor dem `o->`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i |o-> e;
+            }
 
-        var unit     = ParseModel(nav, @"n:\av\before-edge.nav");
-        var edgeStart = IndexOfToken(nav, "    i o-> e;\n", "    i "); // direkt vor dem `o->`
+            """);
+
+        var unit      = ParseModel(m.Source, @"n:\av\before-edge.nav");
+        var edgeStart = m.Caret;
 
         var edge = NavCompletionService.GetCompletions(unit, edgeStart)
                                        .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
@@ -175,15 +246,20 @@ public class NavCompletionServiceTests {
         // Sicherheitsnetz gegen einen rohen Zeichen-Vorlauf: die Edge grenzt OHNE Leerzeichen an einen
         // Zielknoten, der mit einem Edge-Zeichen beginnt (`o1`). Der Ersetzungsbereich darf NUR die Edge (das
         // Lexer-Token `-->`) umfassen, nicht in das Ziel `o1` hineinfressen.
-        const string nav = "task A\n"           +
-                           "{\n"                 +
-                           "    init i;\n"       +
-                           "    view o1;\n"      +
-                           "    i -->o1;\n"      + // Edge direkt am Ziel, Ziel beginnt mit `o`
-                           "}\n";
+        // Edge direkt am Ziel, Ziel beginnt mit `o`; Caret (|) hinter der Quelle `i `, vor `-->`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                view o1;
+                i |-->o1;
+            }
 
-        var unit      = ParseModel(nav, @"n:\av\adjacent-target.nav");
-        var edgeStart = IndexOfToken(nav, "    i -->o1;\n", "    i "); // hinter der Quelle `i `, vor `-->`
+            """);
+
+        var unit      = ParseModel(m.Source, @"n:\av\adjacent-target.nav");
+        var edgeStart = m.Caret;
 
         var edge = NavCompletionService.GetCompletions(unit, edgeStart)
                                        .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
@@ -200,15 +276,20 @@ public class NavCompletionServiceTests {
         // Bezeichner- und Edge-Zeichen und wird als Wort-Präfix behandelt (Kontext bleibt der Quellknoten →
         // EdgeSlot). Der Ersetzungsbereich MUSS das getippte `o` einschließen, damit der Commit es durch das
         // vollständige Keyword ersetzt (statt `oo->` zu erzeugen).
-        const string nav = "task A\n"      +
-                           "{\n"            +
-                           "    init i;\n"  +
-                           "    exit e;\n"  +
-                           "    i o\n"      + // angefangene Edge — Cursor hinter dem `o`
-                           "}\n";
+        // Angefangene Edge — Caret (|) direkt hinter dem getippten `o`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i o|
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\partial.nav");
-        var caret = IndexOfToken(nav, "    i o\n", "    i o"); // direkt hinter dem `o`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\partial.nav");
+        var caret = m.Caret;
 
         var edge = NavCompletionService.GetCompletions(unit, caret)
                                        .Single(i => i.Label == SyntaxFacts.ModalEdgeKeyword); // o->
@@ -225,15 +306,20 @@ public class NavCompletionServiceTests {
         // einzelne `-` ist kein gültiges Edge-Keyword und bleibt als unbekanntes, an die Wurzel gehängtes
         // Token übrig — trotzdem MUSS hier (wie beim `o` von `o->`) der Quellknoten-Kontext greifen und die
         // Edge-Keywords anbieten, statt auf die Member-Ebene (task/taskref) zurückzufallen.
-        const string nav = "task A\n"      +
-                           "{\n"            +
-                           "    init i;\n"  +
-                           "    exit e;\n"  +
-                           "    i -\n"      + // angefangene Edge — Cursor hinter dem `-`
-                           "}\n";
+        // Angefangene Edge — Caret (|) direkt hinter dem getippten `-`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i -|
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\partial-dash.nav");
-        var caret = IndexOfToken(nav, "    i -\n", "    i -"); // direkt hinter dem `-`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\partial-dash.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -256,16 +342,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void StatementStart_OffersNodeDeclarationKeywordsAndNodes() {
 
-        const string nav = "task A\n"            +
-                           "{\n"                 +
-                           "    init i;\n"       +
-                           "    exit e;\n"       +
-                           "    \n"              + // leere, eingerückte Zeile — Cursor hier
-                           "    i --> e;\n"      +
-                           "}\n";
+        // Leere, eingerückte Zeile — Caret (|) am Satzanfang.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                |
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\stmt.nav");
-        var caret = IndexOfToken(nav, "exit e;\n    \n", "exit e;\n    "); // Satzanfang auf der leeren Zeile
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\stmt.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -296,16 +387,21 @@ public class NavCompletionServiceTests {
         // Ein unbenannter Init-Knoten (`init;`) trägt den Symbol-Namen `Init` (InitKeywordAlt). Am Satzanfang
         // wird er als Quellknoten (ISourceNodeSymbol) über AddNodeReferences angeboten — GENAU EINMAL, als
         // Connection-Point. Früher fügte die Keyword-Liste `Init` ein zweites Mal (als Keyword) hinzu.
-        const string nav = "task A\n"     +
-                           "{\n"           +
-                           "    init;\n"   +
-                           "    exit e;\n" +
-                           "    \n"         + // Satzanfang im Deklarations-Block — Cursor hier
-                           "    init --> e;\n" +
-                           "}\n";
+        // Satzanfang im Deklarations-Block — Caret (|) auf der leeren, eingerückten Zeile.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init;
+                exit e;
+                |
+                init --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\unnamed-init.nav");
-        var caret = IndexOfToken(nav, "exit e;\n    \n", "exit e;\n    ");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\unnamed-init.nav");
+        var caret = m.Caret;
 
         var items = NavCompletionService.GetCompletions(unit, caret);
 
@@ -324,18 +420,23 @@ public class NavCompletionServiceTests {
         // Satzanfang HINTER einer Transition, ist der Deklarations-Block abgeschlossen — nur noch eine weitere
         // Transition kann folgen. Also: quellfähige Knoten + `init` (Init-Transition), aber KEINE
         // Deklarations-Keywords (choice/dialog/end/exit/task/view).
-        const string nav = "task A\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    exit e;\n"     +
-                           "    choice c;\n"   +
-                           "    i --> c;\n"    +
-                           "    \n"            + // Satzanfang im Transitions-Block — Cursor hier
-                           "    c --> e;\n"    +
-                           "}\n";
+        // Satzanfang im Transitions-Block — Caret (|) auf der leeren Zeile hinter der Transition.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                choice c;
+                i --> c;
+                |
+                c --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\trans.nav");
-        var caret = IndexOfToken(nav, "i --> c;\n    \n", "i --> c;\n    "); // leere Zeile hinter der Transition
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\trans.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -359,15 +460,20 @@ public class NavCompletionServiceTests {
     [Test]
     public void AfterTarget_OffersFollowupClauses() {
 
-        const string nav = "task A\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    exit e;\n"     +
-                           "    i --> e ;\n"   + // Cursor hinter dem vollständigen Ziel `e`, vor `;`
-                           "}\n";
+        // Caret (|) hinter dem vollständigen Ziel `e ` (Whitespace), vor `;`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e |;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\after.nav");
-        var caret = IndexOfToken(nav, "i --> e ;", "i --> e "); // hinter `e ` (Whitespace), vor `;`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\after.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -387,15 +493,20 @@ public class NavCompletionServiceTests {
 
         // Vollständiger (spontaner) Trigger: der Kontext-Anker ist das Trigger-Keyword selbst (Parent
         // TriggerSyntax) → AfterTrigger. Danach folgen Bedingungs-Klausel (`if`/`else`) und `do`.
-        const string nav = "task A\n"                  +
-                           "{\n"                        +
-                           "    init i;\n"              +
-                           "    exit e;\n"              +
-                           "    i --> e spontaneous ;\n" + // Cursor hinter dem Trigger, vor `;`
-                           "}\n";
+        // Caret (|) hinter dem spontanen Trigger `spontaneous ` (Whitespace), vor `;`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e spontaneous |;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\after-trigger.nav");
-        var caret = IndexOfToken(nav, "spontaneous ;", "spontaneous "); // hinter `spontaneous ` (Whitespace)
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\after-trigger.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -411,15 +522,20 @@ public class NavCompletionServiceTests {
 
         // Hinter `do` steht der Wert-Slot: ein freier C#-Aufruf (identifierOrString), kein Nav-Konstrukt.
         // Es darf hier nichts angeboten werden (früher streute der Fallback pauschal Knoten + Keywords ein).
-        const string nav = "task A\n"          +
-                           "{\n"                +
-                           "    init i;\n"      +
-                           "    exit e;\n"      +
-                           "    i --> e do \n"  + // Cursor hinter `do `, im Wert-Slot
-                           "}\n";
+        // Caret (|) hinter `do ` (Whitespace), im Wert-Slot.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e do |
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\after-do.nav");
-        var caret = IndexOfToken(nav, "i --> e do \n", "i --> e do "); // hinter `do ` (Whitespace)
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\after-do.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -430,15 +546,20 @@ public class NavCompletionServiceTests {
         // Vollständiger `on Signal`-Trigger: der Kontext-Anker ist das Signal (direkter Parent = Identifier-Wert,
         // tragende Rolle erst der Trigger darüber). Über die Ancestor-Kette wird das als AfterTrigger erkannt
         // (nicht als pauschaler Fallback) → if/else/do, aber kein zweites `on`, keine Knoten, keine Edges.
-        const string nav = "task A\n"                +
-                           "{\n"                      +
-                           "    init i;\n"            +
-                           "    exit e;\n"            +
-                           "    i --> e on Signal \n" + // Cursor hinter dem gefüllten Trigger
-                           "}\n";
+        // Caret (|) hinter dem gefüllten `on Signal `-Trigger (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e on Signal |
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\filled-trigger.nav");
-        var caret = IndexOfToken(nav, "on Signal \n", "on Signal "); // hinter `on Signal ` (Whitespace)
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\filled-trigger.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -456,15 +577,20 @@ public class NavCompletionServiceTests {
 
         // Vollständige `if Bedingung`-Klausel: Anker ist der Bedingungs-Wert, tragende Rolle die Bedingung
         // darüber → AfterCondition (nur `do`), statt Fallback.
-        const string nav = "task A\n"              +
-                           "{\n"                    +
-                           "    init i;\n"          +
-                           "    exit e;\n"          +
-                           "    i --> e if Cond \n" + // Cursor hinter der gefüllten Bedingung
-                           "}\n";
+        // Caret (|) hinter der gefüllten `if Cond `-Bedingung (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e if Cond |
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\filled-cond.nav");
-        var caret = IndexOfToken(nav, "if Cond \n", "if Cond "); // hinter `if Cond ` (Whitespace)
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\filled-cond.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -481,15 +607,20 @@ public class NavCompletionServiceTests {
 
         // Vollständige `do Aufruf`-Klausel: Anker ist der Aufruf-Wert, tragende Rolle die do-Klausel darüber
         // → Suppress (freier C#-Aufruf), statt Fallback.
-        const string nav = "task A\n"              +
-                           "{\n"                    +
-                           "    init i;\n"          +
-                           "    exit e;\n"          +
-                           "    i --> e do Call \n" + // Cursor hinter dem gefüllten do-Aufruf
-                           "}\n";
+        // Caret (|) hinter dem gefüllten `do Call `-Aufruf (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                i --> e do Call |
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\filled-do.nav");
-        var caret = IndexOfToken(nav, "do Call \n", "do Call "); // hinter `do Call ` (Whitespace)
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\filled-do.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -497,17 +628,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void MemberLevel_OffersOnlyTaskAndTaskref() {
 
-        const string nav = "task A\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    exit e;\n"     +
-                           "    i --> e;\n"    +
-                           "}\n";
+        // Caret (|) ganz am Dateianfang — außerhalb jeder Task-Definition.
+        var m = NavMarkup.Parse(
+            """
+            |task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\member.nav");
+            """);
 
-        // Cursor ganz am Dateianfang — außerhalb jeder Task-Definition.
-        var items  = NavCompletionService.GetCompletions(unit, 0);
+        var unit  = ParseModel(m.Source, @"n:\av\member.nav");
+
+        var items  = NavCompletionService.GetCompletions(unit, m.Caret);
         var labels = Labels(items);
 
         Assert.That(labels, Does.Contain(SyntaxFacts.TaskKeyword));
@@ -523,14 +658,19 @@ public class NavCompletionServiceTests {
         // Im Body einer taskref-Deklaration erlaubt die Grammatik nur Connection-Point-Deklarationen
         // (init/exit/end). Ein taskref ist KEINE Task-Definition — früher fiel der Kontext auf die
         // Member-Ebene zurück und bot fälschlich task/taskref an.
-        const string nav = "taskref Sub\n" +
-                           "{\n"            + // Cursor direkt hinter dem `{` des taskref-Bodys
-                           "    init si;\n" +
-                           "    exit se;\n" +
-                           "}\n";
+        // Caret (|) direkt hinter dem `{` des taskref-Bodys.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {|
+                init si;
+                exit se;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\ref-body.nav");
-        var caret = IndexOfToken(nav, "{\n    init si;", "{"); // direkt hinter `{`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ref-body.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -545,14 +685,19 @@ public class NavCompletionServiceTests {
     [Test]
     public void TaskRefBody_AfterConnectionPointSemicolon_OffersConnectionPointKeywords() {
 
-        const string nav = "taskref Sub\n" +
-                           "{\n"            +
-                           "    init si;\n" + // Satzanfang HINTER dem `;` einer Connection-Point-Deklaration
-                           "    exit se;\n" +
-                           "}\n";
+        // Caret (|) am Satzanfang hinter dem `;` einer Connection-Point-Deklaration.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {
+                init si;|
+                exit se;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\ref-body-semi.nav");
-        var caret = IndexOfToken(nav, "init si;\n", "init si;"); // direkt hinter dem `;`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ref-body-semi.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -565,13 +710,18 @@ public class NavCompletionServiceTests {
 
         // Hinter dem Connection-Point-Keyword steht der Connector-Name — ein freier, neu vergebener Bezeichner.
         // Dort gibt es nichts anzubieten (und schon gar nicht task/taskref der Member-Ebene).
-        const string nav = "taskref Sub\n" +
-                           "{\n"            +
-                           "    exit se;\n" + // Cursor hinter `exit ` (Name-Slot)
-                           "}\n";
+        // Caret (|) hinter `exit ` im Connector-Name-Slot.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            {
+                exit |se;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\ref-name-slot.nav");
-        var caret = IndexOfToken(nav, "exit se;", "exit "); // hinter `exit `, vor dem Namen
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ref-name-slot.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -579,16 +729,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void InSingleLineComment_OffersNothing() {
 
-        const string nav = "task A\n"          +
-                           "{\n"               +
-                           "    // hier nix\n" +
-                           "    init i;\n"     +
-                           "    exit e;\n"     +
-                           "    i --> e;\n"    +
-                           "}\n";
+        // Caret (|) mitten im Zeilenkommentar.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                // h|ier nix
+                init i;
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\c.nav");
-        var caret = IndexOfToken(nav, "// hier nix", "// h"); // mitten im Kommentar
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\c.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -596,17 +751,22 @@ public class NavCompletionServiceTests {
     [Test]
     public void InStringLiteral_OffersNothing() {
 
-        const string nav = "taskref \"Sub.nav\";\n" +
-                           "\n"                      +
-                           "task A\n"                +
-                           "{\n"                     +
-                           "    init i;\n"           +
-                           "    exit e;\n"           +
-                           "    i --> e;\n"          +
-                           "}\n";
+        // Caret (|) innerhalb der Zeichenkette "Sub.nav".
+        var m = NavMarkup.Parse(
+            """
+            taskref "S|ub.nav";
 
-        var unit  = ParseModel(nav, @"n:\av\s.nav");
-        var caret = IndexOfToken(nav, "\"Sub.nav\"", "\"S"); // innerhalb der Zeichenkette
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\s.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -614,17 +774,22 @@ public class NavCompletionServiceTests {
     [Test]
     public void InCodeBlock_OffersNothing() {
 
-        const string nav = "[using Foo]\n" +
-                           "\n"            +
-                           "task A\n"      +
-                           "{\n"           +
-                           "    init i;\n" +
-                           "    exit e;\n" +
-                           "    i --> e;\n" +
-                           "}\n";
+        // Caret (|) im C#-Inhalt des Code-Blocks.
+        var m = NavMarkup.Parse(
+            """
+            [using F|oo]
 
-        var unit  = ParseModel(nav, @"n:\av\b.nav");
-        var caret = IndexOfToken(nav, "[using Foo]", "[using F"); // im C#-Inhalt des Code-Blocks
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\b.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -636,16 +801,21 @@ public class NavCompletionServiceTests {
         // FRÜHEREN Zeile als der Cursor. Der zeilenbegrenzte Klammer-Scan sieht es dort nicht und streute
         // Fallback-Vorschläge ein; die baumbasierte Erkennung (Kontext-Anker im geparsten CodeSyntax-Knoten)
         // unterdrückt korrekt über die Zeilengrenze hinweg.
-        const string nav = "task A\n"            +
-                           "{\n"                  +
-                           "    init i [params\n" +
-                           "        Foo];\n"       +
-                           "    exit e;\n"        +
-                           "    i --> e;\n"       +
-                           "}\n";
+        // Caret (|) im C#-Inhalt, eine Zeile unter dem öffnenden `[`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i [params
+                    Fo|o];
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\ml.nav");
-        var caret = IndexOfToken(nav, "        Foo];", "        Fo"); // im C#-Inhalt, eine Zeile unter dem `[`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ml.nav");
+        var caret = m.Caret;
 
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
     }
@@ -653,17 +823,22 @@ public class NavCompletionServiceTests {
     [Test]
     public void InCodeBlockKeywordSlot_AtFileLevel_OffersOnlyUsingAndNamespacePrefix() {
 
-        const string nav = "[using Foo]\n" +
-                           "\n"            +
-                           "task A\n"      +
-                           "{\n"           +
-                           "    init i;\n" +
-                           "    exit e;\n" +
-                           "    i --> e;\n" +
-                           "}\n";
+        // Caret (|) im Schlüsselwort-Slot direkt hinter `[`.
+        var m = NavMarkup.Parse(
+            """
+            [u|sing Foo]
 
-        var unit  = ParseModel(nav, @"n:\av\b.nav");
-        var caret = IndexOfToken(nav, "[using Foo]", "[u"); // Schlüsselwort-Slot direkt hinter `[`
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\b.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -686,16 +861,21 @@ public class NavCompletionServiceTests {
     public void InCodeBlockKeywordSlot_InTaskHeader_OffersTaskHeaderCodeKeywords() {
 
         // Code-Block im task-Definitions-Kopf (nach `task A`, vor dem Body-`{`).
-        const string nav = "task A\n"      +
-                           "[]\n"           + // frisch getippter, leerer Code-Block — Cursor hinter `[`
-                           "{\n"            +
-                           "    init i;\n"  +
-                           "    exit e;\n"  +
-                           "    i --> e;\n" +
-                           "}\n";
+        // Frisch getippter, leerer Code-Block — Caret (|) hinter `[`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            [|]
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\hdr.nav");
-        var caret = IndexOfToken(nav, "[]\n", "[");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\hdr.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -714,15 +894,20 @@ public class NavCompletionServiceTests {
     public void InCodeBlockKeywordSlot_OnInitNode_OffersAbstractMethodAndParams() {
 
         // Code-Block an einem init-Knoten (`init i [ … ];`).
-        const string nav = "task A\n"        +
-                           "{\n"              +
-                           "    init i [];\n" + // Cursor hinter `[`
-                           "    exit e;\n"    +
-                           "    i --> e;\n"   +
-                           "}\n";
+        // Caret (|) hinter dem `[` des Code-Blocks am init-Knoten.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i [|];
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\init.nav");
-        var caret = IndexOfToken(nav, "init i [];", "init i [");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\init.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -736,16 +921,21 @@ public class NavCompletionServiceTests {
     public void InCodeBlockKeywordSlot_OnTaskNode_OffersDoNotInjectAndAbstractMethod() {
 
         // Code-Block an einem task-Knoten (`task Sub [ … ];`).
-        const string nav = "task A\n"           +
-                           "{\n"                 +
-                           "    init i;\n"       +
-                           "    exit e;\n"       +
-                           "    task Sub [];\n"  + // Cursor hinter `[`
-                           "    i --> e;\n"      +
-                           "}\n";
+        // Caret (|) hinter dem `[` des Code-Blocks am task-Knoten.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                task Sub [|];
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\tasknode.nav");
-        var caret = IndexOfToken(nav, "task Sub [];", "task Sub [");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\tasknode.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -758,15 +948,20 @@ public class NavCompletionServiceTests {
     public void InCodeBlockKeywordSlot_InTaskRef_OffersTaskRefCodeKeywords() {
 
         // Code-Block in einer taskref-Deklaration (nach `taskref Sub`, vor dem Body-`{`).
-        const string nav = "taskref Sub\n" +
-                           "[]\n"           + // Cursor hinter `[`
-                           "{\n"            +
-                           "    init si;\n" +
-                           "    exit se;\n" +
-                           "}\n";
+        // Caret (|) hinter dem `[` des Code-Blocks in der taskref-Deklaration.
+        var m = NavMarkup.Parse(
+            """
+            taskref Sub
+            [|]
+            {
+                init si;
+                exit se;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\ref.nav");
-        var caret = IndexOfToken(nav, "[]\n", "[");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\ref.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -782,17 +977,22 @@ public class NavCompletionServiceTests {
 
         // Der task-Kopf trägt bereits ein `[code …]`; ein zweiter Code-Block darf `code` (Singleton) nicht
         // erneut anbieten — die übrigen Kopf-Keywords bleiben.
-        const string nav = "task A\n"          +
-                           "[code \"Foo\"]\n"  +
-                           "[]\n"               + // frisch getippter Block — Cursor hinter `[`
-                           "{\n"                +
-                           "    init i;\n"      +
-                           "    exit e;\n"      +
-                           "    i --> e;\n"     +
-                           "}\n";
+        // Frisch getippter zweiter Block — Caret (|) hinter `[`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            [code "Foo"]
+            [|]
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\dup.nav");
-        var caret = IndexOfToken(nav, "[]\n", "[");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\dup.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -809,18 +1009,23 @@ public class NavCompletionServiceTests {
 
         // Datei-Kopf mit bereits vorhandenem `[namespaceprefix …]` (Singleton) — dieses fällt weg, `using`
         // bleibt aber, weil die Grammatik es wiederholt erlaubt (`codeUsingDeclaration*`).
-        const string nav = "[namespaceprefix Foo]\n" +
-                           "[]\n"                     + // Cursor hinter `[`
-                           "\n"                       +
-                           "task A\n"                 +
-                           "{\n"                      +
-                           "    init i;\n"            +
-                           "    exit e;\n"            +
-                           "    i --> e;\n"           +
-                           "}\n";
+        // Caret (|) hinter `[` des zweiten Blocks.
+        var m = NavMarkup.Parse(
+            """
+            [namespaceprefix Foo]
+            [|]
 
-        var unit  = ParseModel(nav, @"n:\av\prefix.nav");
-        var caret = IndexOfToken(nav, "[]\n", "[");
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\prefix.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -833,15 +1038,20 @@ public class NavCompletionServiceTests {
 
         // Ein init-Knoten mit bereits vorhandenem `[params …]`; ein zweiter Block bietet nur noch
         // `abstractmethod` an.
-        const string nav = "task A\n"                 +
-                           "{\n"                       +
-                           "    init i [params] [];\n" + // zweiter Block — Cursor hinter dem letzten `[`
-                           "    exit e;\n"             +
-                           "    i --> e;\n"            +
-                           "}\n";
+        // Zweiter Block am init-Knoten — Caret (|) hinter dem letzten `[`.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i [params] [|];
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\initdup.nav");
-        var caret = IndexOfToken(nav, "[params] [];", "[params] [");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\initdup.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -852,16 +1062,21 @@ public class NavCompletionServiceTests {
     [Test]
     public void AfterHash_OffersOnlyVersionKeyword() {
 
-        const string nav = "#\n"       +
-                           "task A\n"  +
-                           "{\n"       +
-                           "    init i;\n" +
-                           "    exit e;\n" +
-                           "    i --> e;\n" +
-                           "}\n";
+        // Caret (|) direkt hinter dem `#`.
+        var m = NavMarkup.Parse(
+            """
+            #|
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\d.nav");
-        var caret = IndexOfToken(nav, "#\n", "#"); // direkt hinter dem `#`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\d.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -880,14 +1095,19 @@ public class NavCompletionServiceTests {
     [Test]
     public void WhileTypingDirectiveKeyword_StillOffersVersion() {
 
-        const string nav = "#v\n"      +
-                           "task A\n"  +
-                           "{\n"       +
-                           "    init i;\n" +
-                           "}\n";
+        // Caret (|) am Ende des gerade getippten Wort-Präfixes `v`.
+        var m = NavMarkup.Parse(
+            """
+            #v|
+            task A
+            {
+                init i;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\d.nav");
-        var caret = IndexOfToken(nav, "#v\n", "#v"); // am Ende des gerade getippten Wort-Präfixes `v`
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\d.nav");
+        var caret = m.Caret;
 
         var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
 
@@ -900,14 +1120,19 @@ public class NavCompletionServiceTests {
 
         // Trailing Space, kein Wert: der Caret steht am Trivia-Ende (`#version ` frisch getippt) — genau der
         // FindTrivia-[Start,End)-Fallstrick, den DirectiveAt über die inklusive Endgrenze abfängt.
-        const string nav = "#version \n" +
-                           "task A\n"     +
-                           "{\n"          +
-                           "    init i;\n" +
-                           "}\n";
+        // Caret (|) hinter `#version ` (Trailing Space) im Werte-Slot.
+        var m = NavMarkup.Parse(
+            """
+            #version |
+            task A
+            {
+                init i;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\d.nav");
-        var caret = IndexOfToken(nav, "#version \n", "#version "); // hinter `#version ` im Werte-Slot
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\d.nav");
+        var caret = m.Caret;
 
         var items  = NavCompletionService.GetCompletions(unit, caret);
         var labels = Labels(items);
@@ -922,14 +1147,19 @@ public class NavCompletionServiceTests {
     [Test]
     public void InsideUnknownPragmaSubject_OffersNothing() {
 
-        const string nav = "#pragma foo\n" +
-                           "task A\n"       +
-                           "{\n"            +
-                           "    init i;\n"  +
-                           "}\n";
+        // Caret (|) hinter dem `pragma`-Wort, im Subjekt-Slot.
+        var m = NavMarkup.Parse(
+            """
+            #pragma |foo
+            task A
+            {
+                init i;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\d.nav");
-        var caret = IndexOfToken(nav, "#pragma foo", "#pragma "); // hinter dem `pragma`-Wort, im Subjekt-Slot
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\d.nav");
+        var caret = m.Caret;
 
         // Tiefer in einer nicht erkannten Direktive gibt es nichts anzubieten — auch kein Fallback.
         Assert.That(NavCompletionService.GetCompletions(unit, caret), Is.Empty);
@@ -975,12 +1205,6 @@ public class NavCompletionServiceTests {
 
     static string[] Labels(System.Collections.Generic.IReadOnlyList<NavCompletionItem> items) {
         return items.Select(i => i.Label).ToArray();
-    }
-
-    static int IndexOfToken(string source, string anchor, string leading) {
-        var anchorIndex = source.IndexOf(anchor, StringComparison.Ordinal);
-        Assert.That(anchorIndex, Is.GreaterThanOrEqualTo(0), $"Anker '{anchor}' nicht gefunden.");
-        return anchorIndex + leading.Length;
     }
 
     static CodeGenerationUnit ParseModel(string source, string filePath) {
