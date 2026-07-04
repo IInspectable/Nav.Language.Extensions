@@ -1,5 +1,6 @@
 ﻿#region Using Directives
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
@@ -63,5 +64,23 @@ static class CodeBlockFacts {
     /// </summary>
     public static ImmutableArray<string> VisibleDeclarationKeywords(CodeBlockHost host) =>
         DeclarationKeywords(host).Where(keyword => !SyntaxFacts.IsHiddenKeyword(keyword)).ToImmutableArray();
+
+    /// <summary>
+    /// Ob eine Code-Deklaration im selben Wirt <b>mehrfach</b> zulässig ist. Die Grammatik erlaubt jede
+    /// <c>code*</c>-Deklaration genau einmal (<c>?</c>) — einzige Ausnahme ist <c>using</c> im Datei-Kopf
+    /// (<c>codeUsingDeclaration*</c>, wiederholbar). Alle übrigen sind Singletons.
+    /// </summary>
+    public static bool IsRepeatable(string keyword) => keyword == SyntaxFacts.UsingKeyword;
+
+    /// <summary>
+    /// Die im Wirt noch <b>anbietbaren</b>, sichtbaren Code-Deklarations-Schlüsselwörter:
+    /// <see cref="VisibleDeclarationKeywords"/> ohne die am selben Wirt bereits vorhandenen Singletons.
+    /// Wiederholbare Deklarationen (<c>using</c>, siehe <see cref="IsRepeatable"/>) bleiben stets erhalten.
+    /// <paramref name="presentKeywords"/> sind die am Wirt schon deklarierten Code-Schlüsselwörter.
+    /// </summary>
+    public static ImmutableArray<string> AvailableDeclarationKeywords(CodeBlockHost host, ISet<string> presentKeywords) =>
+        VisibleDeclarationKeywords(host)
+            .Where(keyword => IsRepeatable(keyword) || !presentKeywords.Contains(keyword))
+            .ToImmutableArray();
 
 }

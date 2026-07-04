@@ -55,9 +55,13 @@ Quelle: `doc/nav-completion-status.md`.
   (Workstream C, C4).
 - [ ] **Node-Deklarations-„Schwanz"** fällt aufs pauschale `Fallback` (Rauschen), obwohl grammatisch nur
   noch `;` (bzw. `do` beim init-Knoten) folgt → im Node-Tail `Suppress`.
-- [ ] **Singleton-Code-Deklarationen** (`code`, `base`, `generateto`, `params`, `result`,
-  `namespaceprefix`) werden erneut angeboten, obwohl am Wirt schon vorhanden → herausfiltern (braucht
-  Wirt-Zustand).
+- [x] **Singleton-Code-Deklarationen** (`code`, `base`, `generateto`, `params`, `result`,
+  `namespaceprefix`) werden erneut angeboten, obwohl am Wirt schon vorhanden → **umgesetzt**: Die
+  Completion filtert am Wirt bereits deklarierte Singletons heraus (alle Code-Deklarationen sind `?`,
+  einzig `using` ist `*`/wiederholbar). `CodeBlockFacts.AvailableDeclarationKeywords(host, present)` als
+  Grammatik-Autorität; der Wirt-Zustand kommt aus den direkten `CodeSyntax`-Kindern des Wirt-Knotens (den
+  gerade bearbeiteten Block ausgenommen), getragen über `NavCompletionContext.PresentCodeKeywords`. Detail:
+  `doc/nav-completion-status.md`.
 
 ## 3. LSP-Restpunkte
 

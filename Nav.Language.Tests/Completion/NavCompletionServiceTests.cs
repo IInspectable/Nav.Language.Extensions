@@ -778,6 +778,78 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void InCodeBlockKeywordSlot_InTaskHeader_WithExistingCode_OmitsCode() {
+
+        // Der task-Kopf trägt bereits ein `[code …]`; ein zweiter Code-Block darf `code` (Singleton) nicht
+        // erneut anbieten — die übrigen Kopf-Keywords bleiben.
+        const string nav = "task A\n"          +
+                           "[code \"Foo\"]\n"  +
+                           "[]\n"               + // frisch getippter Block — Cursor hinter `[`
+                           "{\n"                +
+                           "    init i;\n"      +
+                           "    exit e;\n"      +
+                           "    i --> e;\n"     +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\dup.nav");
+        var caret = IndexOfToken(nav, "[]\n", "[");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // `code` ist bereits deklariert → weg; base/generateto/params/result bleiben.
+        Assert.That(labels, Is.EquivalentTo(new[] {
+            SyntaxFacts.BaseKeyword, SyntaxFacts.GeneratetoKeyword,
+            SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword
+        }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_AtFileLevel_WithNamespacePrefix_OmitsPrefixButKeepsUsing() {
+
+        // Datei-Kopf mit bereits vorhandenem `[namespaceprefix …]` (Singleton) — dieses fällt weg, `using`
+        // bleibt aber, weil die Grammatik es wiederholt erlaubt (`codeUsingDeclaration*`).
+        const string nav = "[namespaceprefix Foo]\n" +
+                           "[]\n"                     + // Cursor hinter `[`
+                           "\n"                       +
+                           "task A\n"                 +
+                           "{\n"                      +
+                           "    init i;\n"            +
+                           "    exit e;\n"            +
+                           "    i --> e;\n"           +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\prefix.nav");
+        var caret = IndexOfToken(nav, "[]\n", "[");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.UsingKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NamespaceprefixKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OnInitNode_WithExistingParams_OmitsParams() {
+
+        // Ein init-Knoten mit bereits vorhandenem `[params …]`; ein zweiter Block bietet nur noch
+        // `abstractmethod` an.
+        const string nav = "task A\n"                 +
+                           "{\n"                       +
+                           "    init i [params] [];\n" + // zweiter Block — Cursor hinter dem letzten `[`
+                           "    exit e;\n"             +
+                           "    i --> e;\n"            +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\initdup.nav");
+        var caret = IndexOfToken(nav, "[params] [];", "[params] [");
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.AbstractmethodKeyword }));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ParamsKeyword));
+    }
+
+    [Test]
     public void AfterHash_OffersOnlyVersionKeyword() {
 
         const string nav = "#\n"       +

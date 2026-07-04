@@ -154,11 +154,17 @@ Zwei „kontextuell besser filtern"-Chancen aus dem jüngsten Grammatik-Abgleich
    möglich: im Node-Tail `Suppress` (bzw. nur `do` beim init-Knoten). Aligned mit dem „nie weniger als
    grammatisch gültig"-Prinzip (entfernt nur Ungültiges). Subtil beim `init`-`do` und beim optionalen
    task-Knoten-Alias.
-2. **Singleton-Code-Deklarationen werden erneut angeboten.** Im Code-Block-Wirt bietet
+2. **Singleton-Code-Deklarationen werden erneut angeboten.** ~~Im Code-Block-Wirt bietet
    `CodeBlockKeywordItems` immer alle erlaubten Keywords an, auch wenn eine nur einmal zulässige Deklaration
-   (`code`, `base`, `generateto`, `params`, `result`, `namespaceprefix`) am selben Wirt bereits existiert.
-   Präzisierung: bereits vorhandene Singletons herausfiltern. Riskanter/komplexer — braucht den Wirt-Zustand
-   (vorhandene `code*`-Deklarationen), nicht nur seinen Typ.
+   am selben Wirt bereits existiert.~~ **Umgesetzt.** Grammatisch ist jede `code*`-Deklaration `?` (Singleton) —
+   einzige Ausnahme ist `using` im Datei-Kopf (`codeUsingDeclaration*`, wiederholbar). `CodeBlockFacts`
+   trägt diese Wahrheit (`IsRepeatable` + `AvailableDeclarationKeywords(host, present)`) und filtert am Wirt
+   bereits deklarierte Singletons aus der Vorschlagsliste; `using` bleibt stets erhalten. Der Wirt-Zustand
+   kommt aus den **direkten** `CodeSyntax`-Kindern des Wirt-Knotens (bewusst nur direkte: ein verschachtelter
+   `init`-Knoten mit eigenem `[params]` ist ein eigener Wirt und darf die Task-Def-Ebene nicht verunreinigen);
+   der gerade bearbeitete Block selbst zählt nicht als „vorhanden" (Abgleich über sein öffnendes `[`).
+   Getragen über `NavCompletionContext.PresentCodeKeywords`. Tests: `InCodeBlockKeywordSlot_*_WithExisting*`
+   (task-Kopf-`code`, init-Knoten-`params`, Datei-`namespaceprefix` mit erhaltenem `using`).
 
 ## Arbeitsliste (session-übergreifend)
 

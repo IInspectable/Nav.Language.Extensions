@@ -115,7 +115,7 @@ public static class NavCompletionService {
 
             // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die im jeweiligen Wirt zulässigen Code-Keywords.
             case NavCompletionContextKind.CodeBlock:
-                return CodeBlockKeywordItems(context.Host);
+                return CodeBlockKeywordItems(context);
 
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
@@ -270,14 +270,15 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Die im jeweiligen Wirt zulässigen, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
+    // Die im jeweiligen Wirt noch anbietbaren, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
     // gemeinsame Autorität mit der Parser-Recovery, hier alphabetisch für die Anzeige sortiert. Der Wirt
     // entscheidet, WELCHE Deklarationen die Grammatik dort erlaubt: Datei-Kopf nur `using`/`namespaceprefix`,
     // ein task-Kopf `code`/`base`/…, ein init-Knoten `abstractmethod`/`params` usw. — statt pauschal aller
-    // Code-Keywords.
-    static List<NavCompletionItem> CodeBlockKeywordItems(CodeBlockHost host) {
+    // Code-Keywords. Am Wirt bereits vorhandene Singletons (alle Deklarationen außer dem wiederholbaren
+    // `using`) werden zusätzlich herausgefiltert (context.PresentCodeKeywords).
+    static List<NavCompletionItem> CodeBlockKeywordItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
-        foreach (var keyword in CodeBlockFacts.VisibleDeclarationKeywords(host)
+        foreach (var keyword in CodeBlockFacts.AvailableDeclarationKeywords(context.Host, context.PresentCodeKeywords)
                                               .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }

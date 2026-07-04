@@ -1,5 +1,7 @@
 ﻿#region Using Directives
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Pharmatechnik.Nav.Language.Text;
@@ -101,12 +103,16 @@ enum NavCompletionContextKind {
 /// </summary>
 sealed class NavCompletionContext {
 
-    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol? task, string? exitNodeName, CodeBlockHost host) {
-        Kind         = kind;
-        Task         = task;
-        ExitNodeName = exitNodeName;
-        Host         = host;
+    NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol? task, string? exitNodeName,
+                         CodeBlockHost host, ISet<string>? presentCodeKeywords) {
+        Kind               = kind;
+        Task               = task;
+        ExitNodeName       = exitNodeName;
+        Host               = host;
+        PresentCodeKeywords = presentCodeKeywords ?? EmptyKeywords;
     }
+
+    static readonly ISet<string> EmptyKeywords = new HashSet<string>(StringComparer.Ordinal);
 
     public NavCompletionContextKind Kind { get; }
 
@@ -117,9 +123,17 @@ sealed class NavCompletionContext {
     /// <summary>Der Wirt eines Code-Blocks — nur für <see cref="NavCompletionContextKind.CodeBlock"/> aussagekräftig.</summary>
     public CodeBlockHost Host { get; }
 
+    /// <summary>
+    /// Die am Wirt bereits vorhandenen Code-Deklarations-Schlüsselwörter (den gerade bearbeiteten Block
+    /// ausgenommen) — nur für <see cref="NavCompletionContextKind.CodeBlock"/> gefüllt. Damit filtert die
+    /// Completion bereits deklarierte Singletons heraus (siehe <see cref="CodeBlockFacts.AvailableDeclarationKeywords"/>).
+    /// </summary>
+    public ISet<string> PresentCodeKeywords { get; }
+
     static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol? task = null,
-                                   string? exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit)
-        => new(kind, task, exitNodeName, host);
+                                   string? exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit,
+                                   ISet<string>? presentCodeKeywords = null)
+        => new(kind, task, exitNodeName, host, presentCodeKeywords);
 
     public static NavCompletionContext Classify(CodeGenerationUnit unit, int position) {
 
@@ -162,7 +176,9 @@ sealed class NavCompletionContext {
         // getippten `[`/`[]`, dessen `[` als übersprungenes Token noch ohne CodeSyntax-Knoten dasteht, ist der
         // Kontext-Anker das `[` selbst.
         if (contextToken.Type == SyntaxTokenType.OpenBracket) {
-            return Of(NavCompletionContextKind.CodeBlock, host: CodeBlockHostAt(tree, contextToken));
+            var (host, hostNode) = CodeBlockHostAt(tree, contextToken);
+            var present          = CollectPresentCodeKeywords(hostNode ?? unit.Syntax, contextToken);
+            return Of(NavCompletionContextKind.CodeBlock, host: host, presentCodeKeywords: present);
         }
 
         // Im C#-Inhalt eines Code-Blocks nichts. Zwei einander ergänzende Erkennungen, weil ein Code-Block je
@@ -352,7 +368,7 @@ sealed class NavCompletionContext {
     /// Über dessen Ancestor-Kette wird der <em>innerste</em> Wirt-Knoten bestimmt (Knoten-Deklarationen liegen
     /// in der Task-Definition geschachtelt); ohne tragenden Knoten (Datei-Kopf) ist es die Datei-Ebene.
     /// </summary>
-    static CodeBlockHost CodeBlockHostAt(SyntaxTree tree, SyntaxToken openBracket) {
+    static (CodeBlockHost Host, SyntaxNode? HostNode) CodeBlockHostAt(SyntaxTree tree, SyntaxToken openBracket) {
 
         var tokens = tree.Tokens;
         var index  = LastIndexStartingBefore(tokens, openBracket.Start);
@@ -361,15 +377,43 @@ sealed class NavCompletionContext {
         if (anchor != null) {
             foreach (var node in anchor.AncestorsAndSelf()) {
                 switch (node) {
-                    case InitNodeDeclarationSyntax: return CodeBlockHost.InitNode;
-                    case TaskNodeDeclarationSyntax: return CodeBlockHost.TaskNode;
-                    case TaskDefinitionSyntax:      return CodeBlockHost.TaskDefinition;
-                    case TaskDeclarationSyntax:     return CodeBlockHost.TaskRef;
+                    case InitNodeDeclarationSyntax: return (CodeBlockHost.InitNode,       node);
+                    case TaskNodeDeclarationSyntax: return (CodeBlockHost.TaskNode,       node);
+                    case TaskDefinitionSyntax:      return (CodeBlockHost.TaskDefinition, node);
+                    case TaskDeclarationSyntax:     return (CodeBlockHost.TaskRef,        node);
                 }
             }
         }
 
-        return CodeBlockHost.CompilationUnit;
+        // Kein tragender Wirt-Knoten → Datei-Ebene; der Wirt ist dann die CodeGenerationUnit (Root), deren
+        // Aufrufer über den Fallback beisteuert.
+        return (CodeBlockHost.CompilationUnit, null);
+    }
+
+    /// <summary>
+    /// Die am Wirt bereits vorhandenen Code-Deklarations-Schlüsselwörter — die <c>Keyword</c>-Token seiner
+    /// <em>direkten</em> <see cref="CodeSyntax"/>-Kinder. Bewusst nur direkte Kinder: verschachtelte Knoten
+    /// (etwa die <c>[params]</c> eines <c>init</c>-Knotens innerhalb einer Task-Definition) sind eigene Wirte
+    /// und dürfen die äußere Ebene nicht verunreinigen. Der gerade bearbeitete Block selbst (<paramref
+    /// name="currentOpenBracket"/> als sein öffnendes <c>[</c>) zählt NICHT als „schon vorhanden" — sonst
+    /// filterte man das Schlüsselwort weg, das der Nutzer an genau dieser Stelle tippt.
+    /// </summary>
+    static ISet<string> CollectPresentCodeKeywords(SyntaxNode host, SyntaxToken currentOpenBracket) {
+
+        var present = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var code in host.ChildNodes().OfType<CodeSyntax>()) {
+            if (code.OpenBracket.Start == currentOpenBracket.Start) {
+                continue;
+            }
+
+            var keyword = code.Keyword;
+            if (!keyword.IsMissing) {
+                present.Add(keyword.ToString());
+            }
+        }
+
+        return present;
     }
 
     /// <summary>
