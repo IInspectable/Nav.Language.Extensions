@@ -1,6 +1,4 @@
-#region Using Directives
-
-using System;
+﻿#region Using Directives
 
 using NUnit.Framework;
 
@@ -17,19 +15,23 @@ public class NavGoToServiceTests {
     [Test]
     public void NodeReference_ResolvesToDeclaration_SameFile() {
 
-        const string src = "task A\n"         +
-                           "{\n"              +
-                           "    init I1;\n"   +
-                           "    exit e1;\n"   +
-                           "    I1 --> e1;\n" +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init I1;
+                exit |decl:e1|;
+                I1 --> |ref:e1|;
+            }
 
-        var unit  = ParseModel(src, @"n:\av\a.nav");
-        var caret = IndexOfToken(src, "--> e1", "--> "); // 'e1' Referenz in der Transition
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Position("ref"); // 'e1' Referenz in der Transition
 
         var targets = NavGoToService.GetGoToLocations(unit, caret);
 
-        var expected = IndexOfToken(src, "exit e1", "exit "); // 'e1' Deklaration
+        var expected = m.Position("decl"); // 'e1' Deklaration
         Assert.That(targets.Count,    Is.EqualTo(1));
         Assert.That(targets[0].Start, Is.EqualTo(expected));
     }
@@ -37,15 +39,19 @@ public class NavGoToServiceTests {
     [Test]
     public void Caret_OnKeyword_ReturnsNoTargets() {
 
-        const string src = "task A\n"         +
-                           "{\n"              +
-                           "    init I1;\n"   +
-                           "    exit e1;\n"   +
-                           "    I1 --> e1;\n" +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                |init I1;
+                exit e1;
+                I1 --> e1;
+            }
 
-        var unit  = ParseModel(src, @"n:\av\a.nav");
-        var caret = src.IndexOf("init", StringComparison.Ordinal); // Schlüsselwort, kein GoTo-Symbol
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret; // Schlüsselwort, kein GoTo-Symbol
 
         var targets = NavGoToService.GetGoToLocations(unit, caret);
 
@@ -55,31 +61,41 @@ public class NavGoToServiceTests {
     [Test]
     public void IncludeDirective_ResolvesToIncludedFile() {
 
+        // Caret (|) sitzt im String-Literal "lib.nav".
+        var mainMarkup = NavMarkup.Parse(
+            """
+            taskref "|lib.nav";
+            task M
+            {
+                init I;
+                task Sub s;
+                exit e;
+                I    --> s;
+                s:x  --> e;
+            }
+
+            """);
+
         var main = new TestCaseFile {
             FilePath = @"n:\av\main.nav",
-            Content = "taskref \"lib.nav\";\n" +
-                      "task M\n"               +
-                      "{\n"                    +
-                      "    init I;\n"          +
-                      "    task Sub s;\n"      +
-                      "    exit e;\n"          +
-                      "    I    --> s;\n"      +
-                      "    s:x  --> e;\n"      +
-                      "}\n"
+            Content  = mainMarkup.Source
         };
 
         var lib = new TestCaseFile {
             FilePath = @"n:\av\lib.nav",
-            Content = "task Sub\n"     +
-                      "{\n"            +
-                      "    init I;\n"  +
-                      "    exit x;\n"  +
-                      "    I --> x;\n" +
-                      "}\n"
+            Content  = """
+                       task Sub
+                       {
+                           init I;
+                           exit x;
+                           I --> x;
+                       }
+
+                       """
         };
 
         var unit  = ParseModelWithIncludes(main, lib);
-        var caret = main.Content.IndexOf("lib.nav", StringComparison.Ordinal); // im String-Literal
+        var caret = mainMarkup.Caret; // im String-Literal
 
         var targets = NavGoToService.GetGoToLocations(unit, caret);
 
@@ -90,47 +106,54 @@ public class NavGoToServiceTests {
     [Test]
     public void TaskNode_ResolvesToTaskDeclaration_CrossFile() {
 
+        // |node:Sub| markiert den Task-Typ am Knoten in main.nav, |decl:Sub| die Deklaration in lib.nav.
+        var mainMarkup = NavMarkup.Parse(
+            """
+            taskref "lib.nav";
+            task M
+            {
+                init I;
+                task |node:Sub| s;
+                exit e;
+                I    --> s;
+                s:x  --> e;
+            }
+
+            """);
+
+        var libMarkup = NavMarkup.Parse(
+            """
+            task |decl:Sub|
+            {
+                init I;
+                exit x;
+                I --> x;
+            }
+
+            """);
+
         var main = new TestCaseFile {
             FilePath = @"n:\av\main.nav",
-            Content = "taskref \"lib.nav\";\n" +
-                      "task M\n"               +
-                      "{\n"                    +
-                      "    init I;\n"          +
-                      "    task Sub s;\n"      +
-                      "    exit e;\n"          +
-                      "    I    --> s;\n"      +
-                      "    s:x  --> e;\n"      +
-                      "}\n"
+            Content  = mainMarkup.Source
         };
 
         var lib = new TestCaseFile {
             FilePath = @"n:\av\lib.nav",
-            Content = "task Sub\n"     +
-                      "{\n"            +
-                      "    init I;\n"  +
-                      "    exit x;\n"  +
-                      "    I --> x;\n" +
-                      "}\n"
+            Content  = libMarkup.Source
         };
 
         var unit  = ParseModelWithIncludes(main, lib);
-        var caret = IndexOfToken(main.Content, "task Sub s", "task "); // Task-Typ 'Sub' am Knoten
+        var caret = mainMarkup.Position("node"); // Task-Typ 'Sub' am Knoten
 
         var targets = NavGoToService.GetGoToLocations(unit, caret);
 
-        var expected = IndexOfToken(lib.Content, "task Sub", "task "); // Deklaration 'Sub' in lib.nav
+        var expected = libMarkup.Position("decl"); // Deklaration 'Sub' in lib.nav
         Assert.That(targets.Count,       Is.EqualTo(1));
         Assert.That(targets[0].FilePath, Is.EqualTo(lib.FilePath));
         Assert.That(targets[0].Start,    Is.EqualTo(expected));
     }
 
     #region Helpers
-
-    static int IndexOfToken(string source, string anchor, string leading) {
-        var anchorIndex = source.IndexOf(anchor, StringComparison.Ordinal);
-        Assert.That(anchorIndex, Is.GreaterThanOrEqualTo(0), $"Anker '{anchor}' nicht gefunden.");
-        return anchorIndex + leading.Length;
-    }
 
     static CodeGenerationUnit ParseModel(string source, string filePath) {
         var syntax = Syntax.ParseCodeGenerationUnit(text: source, filePath: filePath);

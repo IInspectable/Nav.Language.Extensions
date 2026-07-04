@@ -1,6 +1,5 @@
-#region Using Directives
+﻿#region Using Directives
 
-using System;
 using System.Linq;
 
 using NUnit.Framework;
@@ -15,19 +14,27 @@ namespace Nav.Language.Tests.QuickInfo;
 [TestFixture]
 public class NavHoverServiceTests {
 
-    const string Nav = "task A\n"         +
-                       "{\n"              +
-                       "    init I1;\n"   +
-                       "    exit e1;\n"   +
-                       "\n"               + // Leerzeile — garantiert symbolfreie Position
-                       "    I1 --> e1;\n" +
-                       "}\n";
+    //   |taskA:A|  Task-Name 'A'
+    //   |decl:e1|  exit-Deklaration 'e1'
+    //   |ws:|      Leerzeile — garantiert symbolfreie Position
+    //   |ref:e1|   Referenz auf 'e1'
+    static readonly NavMarkup M = NavMarkup.Parse(
+        """
+        task |taskA:A|
+        {
+            init I1;
+            exit |decl:e1|;
+        |ws:|
+            I1 --> |ref:e1|;
+        }
+
+        """);
 
     [Test]
     public void Hover_OnTaskDefinition_ShowsTaskSignature() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "task A", "task "); // auf dem Task-Namen 'A'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("taskA"); // auf dem Task-Namen 'A'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -38,8 +45,8 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_OnExitDeclaration_ShowsExitSignature() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "exit e1", "exit "); // auf der Deklaration 'e1'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("decl"); // auf der Deklaration 'e1'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -50,8 +57,8 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_OnNodeReference_ResolvesToDeclaration() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "--> e1", "--> "); // auf der Referenz 'e1'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("ref"); // auf der Referenz 'e1'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -63,48 +70,54 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_CarriesSymbolLocation() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "task A", "task ");
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("taskA");
 
         var info = NavHoverService.GetHover(unit, caret);
 
         Assert.That(info, Is.Not.Null);
         Assert.That(info.Location, Is.Not.Null);
-        Assert.That(info.Location.Start, Is.EqualTo(IndexOfToken(Nav, "task A", "task ")));
+        Assert.That(info.Location.Start, Is.EqualTo(M.Position("taskA")));
     }
 
-    const string ChoiceNav = "task A\n"           +
-                             "{\n"                 +
-                             "    init I1;\n"      +
-                             "    exit e1;\n"      +
-                             "    I1 --> e1;\n"    +
-                             "}\n"                 +
-                             "task B\n"            +
-                             "{\n"                 +
-                             "    init I1;\n"      +
-                             "    exit e1;\n"      +
-                             "    I1 --> e1;\n"    +
-                             "}\n"                 +
-                             "task C\n"            +
-                             "{\n"                 +
-                             "    init I1;\n"      +
-                             "    task A;\n"        +
-                             "    task B;\n"        +
-                             "    exit e1;\n"       +
-                             "    choice C1;\n"     +
-                             "\n"                   +
-                             "    I1   --> C1;\n"   +
-                             "    C1   --> A;\n"    +
-                             "    C1   --> B;\n"    +
-                             "    A:e1 --> e1;\n"   +
-                             "    B:e1 --> e1;\n"   +
-                             "}\n";
+    //   |choice:C1|  Choice-Name 'C1'
+    //   |edge:|      Pfeil-Token '-->' der Kante zur Choice
+    static readonly NavMarkup ChoiceM = NavMarkup.Parse(
+        """
+        task A
+        {
+            init I1;
+            exit e1;
+            I1 --> e1;
+        }
+        task B
+        {
+            init I1;
+            exit e1;
+            I1 --> e1;
+        }
+        task C
+        {
+            init I1;
+            task A;
+            task B;
+            exit e1;
+            choice |choice:C1|;
+
+            I1   |edge:|--> C1;
+            C1   --> A;
+            C1   --> B;
+            A:e1 --> e1;
+            B:e1 --> e1;
+        }
+
+        """);
 
     [Test]
     public void Hover_OnChoiceNode_ListsAllReachableNodes() {
 
-        var unit  = ParseModel(ChoiceNav, @"n:\av\c.nav");
-        var caret = IndexOfToken(ChoiceNav, "choice C1", "choice "); // auf dem Choice-Namen 'C1'
+        var unit  = ParseModel(ChoiceM.Source, @"n:\av\c.nav");
+        var caret = ChoiceM.Position("choice"); // auf dem Choice-Namen 'C1'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -120,8 +133,8 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_OnEdgeToChoice_ResolvesReachableNodes() {
 
-        var unit  = ParseModel(ChoiceNav, @"n:\av\c.nav");
-        var caret = ChoiceNav.IndexOf("--> C1", StringComparison.Ordinal); // auf dem Pfeil zur Choice
+        var unit  = ParseModel(ChoiceM.Source, @"n:\av\c.nav");
+        var caret = ChoiceM.Position("edge"); // auf dem Pfeil zur Choice
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -134,8 +147,8 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_OnWhitespace_ReturnsNull() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = Nav.IndexOf("e1;\n\n", StringComparison.Ordinal) + "e1;\n".Length; // Leerzeile
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("ws"); // Leerzeile
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -145,16 +158,20 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_WithCommentAboveTask_CapturesDocumentation() {
 
-        const string nav = "// Beschreibt die Aufgabe A\n" +
-                           "task A\n"                        +
-                           "{\n"                             +
-                           "    init I1;\n"                  +
-                           "    exit e1;\n"                  +
-                           "    I1 --> e1;\n"                +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            // Beschreibt die Aufgabe A
+            task |A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "task A", "task ");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -165,16 +182,20 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_WithIndentedCommentAboveNode_CapturesDocumentation() {
 
-        const string nav = "task A\n"               +
-                           "{\n"                     +
-                           "    init I1;\n"          +
-                           "    // Der Ausgang\n"    +
-                           "    exit e1;\n"          +
-                           "    I1 --> e1;\n"        +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init I1;
+                // Der Ausgang
+                exit |e1;
+                I1 --> e1;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "exit e1", "exit ");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -185,16 +206,20 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_OnNodeReference_CapturesDeclarationDocumentation() {
 
-        const string nav = "task A\n"               +
-                           "{\n"                     +
-                           "    init I1;\n"          +
-                           "    // Der Ausgang\n"    +
-                           "    exit e1;\n"          +
-                           "    I1 --> e1;\n"        +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init I1;
+                // Der Ausgang
+                exit e1;
+                I1 --> |e1;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "--> e1", "--> "); // auf der Referenz 'e1'
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret; // auf der Referenz 'e1'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -206,17 +231,22 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_WithBlankLineBetweenCommentAndNode_HasNoDocumentation() {
 
-        const string nav = "// Fernkommentar\n" +
-                           "\n"                  + // Leerzeile trennt ab
-                           "task A\n"            +
-                           "{\n"                 +
-                           "    init I1;\n"      +
-                           "    exit e1;\n"      +
-                           "    I1 --> e1;\n"    +
-                           "}\n";
+        // Leerzeile trennt den Fernkommentar von 'task A' ab.
+        var m = NavMarkup.Parse(
+            """
+            // Fernkommentar
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "task A", "task ");
+            task |A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -227,17 +257,21 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_WithMultiLineCommentAboveTask_CapturesEachLine() {
 
-        const string nav = "/* Zeile 1\n"   +
-                           "   Zeile 2 */\n" +
-                           "task A\n"        +
-                           "{\n"             +
-                           "    init I1;\n"  +
-                           "    exit e1;\n"  +
-                           "    I1 --> e1;\n" +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            /* Zeile 1
+               Zeile 2 */
+            task |A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "task A", "task ");
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -248,18 +282,22 @@ public class NavHoverServiceTests {
     [Test]
     public void Hover_WithOnlyAdjacentCommentBlock_IgnoresEarlierBlock() {
 
-        const string nav = "// weit oben\n"        +
-                           "\n"                     +
-                           "// direkt darüber\n"    +
-                           "task A\n"               +
-                           "{\n"                    +
-                           "    init I1;\n"         +
-                           "    exit e1;\n"         +
-                           "    I1 --> e1;\n"       +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            // weit oben
 
-        var unit  = ParseModel(nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(nav, "task A", "task ");
+            // direkt darüber
+            task |A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -268,28 +306,33 @@ public class NavHoverServiceTests {
     }
 
     // Task A trägt eine Doku; Task C verwendet A als Task-Knoten.
-    const string TaskNodeDocNav = "// Doku der Task A\n" +
-                                  "task A\n"             +
-                                  "{\n"                  +
-                                  "    init I1;\n"       +
-                                  "    exit e1;\n"       +
-                                  "    I1 --> e1;\n"     +
-                                  "}\n"                  +
-                                  "task C\n"             +
-                                  "{\n"                  +
-                                  "    init I1;\n"       +
-                                  "    task A;\n"        +
-                                  "    exit e1;\n"       +
-                                  "\n"                   +
-                                  "    I1   --> A;\n"    +
-                                  "    A:e1 --> e1;\n"   +
-                                  "}\n";
+    //   |node:A|  Task-Knoten 'A' in C
+    static readonly NavMarkup TaskNodeDocM = NavMarkup.Parse(
+        """
+        // Doku der Task A
+        task A
+        {
+            init I1;
+            exit e1;
+            I1 --> e1;
+        }
+        task C
+        {
+            init I1;
+            task |node:A|;
+            exit e1;
+
+            I1   --> A;
+            A:e1 --> e1;
+        }
+
+        """);
 
     [Test]
     public void Hover_OnTaskNode_ShowsTaskDefinitionDocumentation() {
 
-        var unit  = ParseModel(TaskNodeDocNav, @"n:\av\c.nav");
-        var caret = IndexOfToken(TaskNodeDocNav, "task A;", "task "); // auf dem Task-Knoten 'A' in C
+        var unit  = ParseModel(TaskNodeDocM.Source, @"n:\av\c.nav");
+        var caret = TaskNodeDocM.Position("node"); // auf dem Task-Knoten 'A' in C
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -303,25 +346,29 @@ public class NavHoverServiceTests {
     public void Hover_OnTaskNode_IgnoresCallSiteComment() {
 
         // Kommentar nur über der Verwendung 'task A;', nicht über der Definition.
-        const string nav = "task A\n"                       +
-                           "{\n"                             +
-                           "    init I1;\n"                  +
-                           "    exit e1;\n"                  +
-                           "    I1 --> e1;\n"                +
-                           "}\n"                             +
-                           "task C\n"                        +
-                           "{\n"                             +
-                           "    init I1;\n"                  +
-                           "    // Aufrufstellen-Notiz\n"    +
-                           "    task A;\n"                   +
-                           "    exit e1;\n"                  +
-                           "\n"                              +
-                           "    I1   --> A;\n"               +
-                           "    A:e1 --> e1;\n"              +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
+            task C
+            {
+                init I1;
+                // Aufrufstellen-Notiz
+                task |A;
+                exit e1;
 
-        var unit  = ParseModel(nav, @"n:\av\c.nav");
-        var caret = IndexOfToken(nav, "task A;", "task ");
+                I1   --> A;
+                A:e1 --> e1;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\c.nav");
+        var caret = m.Caret;
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -334,25 +381,29 @@ public class NavHoverServiceTests {
     public void Hover_OnTaskNodeAlias_ShowsTaskDefinitionDocumentation() {
 
         // Alias-Syntax ist 'task Identifier Alias;' (ohne 'as').
-        const string nav = "// Doku der Task A\n"  +
-                           "task A\n"              +
-                           "{\n"                   +
-                           "    init I1;\n"        +
-                           "    exit e1;\n"        +
-                           "    I1 --> e1;\n"      +
-                           "}\n"                   +
-                           "task C\n"              +
-                           "{\n"                   +
-                           "    init I1;\n"        +
-                           "    task A Foo;\n"     +
-                           "    exit e1;\n"        +
-                           "\n"                    +
-                           "    I1     --> Foo;\n" +
-                           "    Foo:e1 --> e1;\n"  +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            // Doku der Task A
+            task A
+            {
+                init I1;
+                exit e1;
+                I1 --> e1;
+            }
+            task C
+            {
+                init I1;
+                task A |Foo;
+                exit e1;
 
-        var unit  = ParseModel(nav, @"n:\av\c.nav");
-        var caret = IndexOfToken(nav, "task A Foo", "task A "); // auf dem Alias 'Foo'
+                I1     --> Foo;
+                Foo:e1 --> e1;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\c.nav");
+        var caret = m.Caret; // auf dem Alias 'Foo'
 
         var info = NavHoverService.GetHover(unit, caret);
 
@@ -364,12 +415,6 @@ public class NavHoverServiceTests {
 
     static string Signature(NavHoverInfo info) {
         return string.Concat(info.DisplayParts.Select(p => p.Text));
-    }
-
-    static int IndexOfToken(string source, string anchor, string leading) {
-        var anchorIndex = source.IndexOf(anchor, StringComparison.Ordinal);
-        Assert.That(anchorIndex, Is.GreaterThanOrEqualTo(0), $"Anker '{anchor}' nicht gefunden.");
-        return anchorIndex + leading.Length;
     }
 
     static CodeGenerationUnit ParseModel(string source, string filePath) {

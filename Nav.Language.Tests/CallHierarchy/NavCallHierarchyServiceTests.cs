@@ -19,30 +19,34 @@ namespace Nav.Language.Tests.CallHierarchy;
 public class NavCallHierarchyServiceTests {
 
     // task A ruft task B auf (Knoten 'b' vom Typ B); B ist in derselben Datei definiert.
-    // Name „AB" steht bewusst für die beiden Tasks A und B in diesem Fixture.
-    // ReSharper disable once InconsistentNaming
-    const string AB = "task A\n"            +
-                      "{\n"                 +
-                      "    init i;\n"       +
-                      "    task B b;\n"     +
-                      "    exit e;\n"       +
-                      "    i    --> b;\n"   +
-                      "    b:x  --> e;\n"   +
-                      "}\n"                 +
-                      "task B\n"            +
-                      "{\n"                 +
-                      "    init i;\n"       +
-                      "    exit x;\n"       +
-                      "    i --> x;\n"      +
-                      "}\n";
+    //   |a:A|      Bezeichner der Task-Definition 'A'
+    //   |bNode:B|  TaskNode 'B b' im Rumpf von A (aufgerufener Typ)
+    static readonly NavMarkup M = NavMarkup.Parse(
+        """
+        task |a:A|
+        {
+            init i;
+            task |bNode:B| b;
+            exit e;
+            i    --> b;
+            b:x  --> e;
+        }
+        task B
+        {
+            init i;
+            exit x;
+            i --> x;
+        }
+
+        """);
 
     #region Prepare
 
     [Test]
     public void Prepare_OnTaskDefinitionName_ReturnsThatTask() {
 
-        var unit  = ParseModel(AB, @"n:\av\a.nav");
-        var caret = IndexOfToken(AB, "task A", "task "); // Bezeichner 'A'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("a"); // Bezeichner 'A'
 
         var task = NavCallHierarchyService.PrepareCallHierarchy(unit, caret);
 
@@ -53,8 +57,8 @@ public class NavCallHierarchyServiceTests {
     [Test]
     public void Prepare_InsideTaskBody_ReturnsContainingTask() {
 
-        var unit  = ParseModel(AB, @"n:\av\a.nav");
-        var caret = IndexOfToken(AB, "task B b", "task "); // TaskNode 'B b' im Rumpf von A
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("bNode"); // TaskNode 'B b' im Rumpf von A
 
         var task = NavCallHierarchyService.PrepareCallHierarchy(unit, caret);
 
@@ -65,17 +69,21 @@ public class NavCallHierarchyServiceTests {
     [Test]
     public void Prepare_OutsideAnyTask_ReturnsNull() {
 
-        const string src = "taskref \"lib.nav\";\n" +
-                           "\n"                      +
-                           "task A\n"                +
-                           "{\n"                     +
-                           "    init i;\n"           +
-                           "    exit e;\n"           +
-                           "    i --> e;\n"          +
-                           "}\n";
+        var m = NavMarkup.Parse(
+            """
+            |taskref "lib.nav";
 
-        var unit  = ParseModel(src, @"n:\av\a.nav");
-        var caret = src.IndexOf("taskref", StringComparison.Ordinal); // ausserhalb jeder Task-Definition
+            task A
+            {
+                init i;
+                exit e;
+                i --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
+        var caret = m.Caret; // ausserhalb jeder Task-Definition
 
         var task = NavCallHierarchyService.PrepareCallHierarchy(unit, caret);
 
@@ -89,7 +97,7 @@ public class NavCallHierarchyServiceTests {
     [Test]
     public void Outgoing_ReturnsCalledTask() {
 
-        var unit = ParseModel(AB, @"n:\av\a.nav");
+        var unit = ParseModel(M.Source, @"n:\av\a.nav");
         var a    = unit.TaskDefinitions.Single(t => t.Name == "A");
 
         var calls = NavCallHierarchyService.GetOutgoingCalls(a);
@@ -156,7 +164,7 @@ public class NavCallHierarchyServiceTests {
     public async Task Incoming_SameFile_ReturnsCaller() {
 
         using var tmp = new TempSolution();
-        tmp.Write("a.nav", AB);
+        tmp.Write("a.nav", M.Source);
 
         var (solution, unit) = await tmp.LoadAsync("a.nav");
         var b = unit.TaskDefinitions.Single(t => t.Name == "B");
@@ -231,7 +239,7 @@ public class NavCallHierarchyServiceTests {
     public async Task Incoming_NoCallers_ReturnsEmpty() {
 
         using var tmp = new TempSolution();
-        tmp.Write("a.nav", AB);
+        tmp.Write("a.nav", M.Source);
 
         var (solution, unit) = await tmp.LoadAsync("a.nav");
         var a = unit.TaskDefinitions.Single(t => t.Name == "A"); // A wird von niemandem aufgerufen
@@ -244,12 +252,6 @@ public class NavCallHierarchyServiceTests {
     #endregion
 
     #region Helpers
-
-    static int IndexOfToken(string source, string anchor, string leading) {
-        var anchorIndex = source.IndexOf(anchor, StringComparison.Ordinal);
-        Assert.That(anchorIndex, Is.GreaterThanOrEqualTo(0), $"Anker '{anchor}' nicht gefunden.");
-        return anchorIndex + leading.Length;
-    }
 
     static CodeGenerationUnit ParseModel(string source, string filePath) {
         var syntax = Syntax.ParseCodeGenerationUnit(text: source, filePath: filePath);
