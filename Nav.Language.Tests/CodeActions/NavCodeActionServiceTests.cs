@@ -227,6 +227,77 @@ public class NavCodeActionServiceTests {
     }
 
     [Test]
+    public void SetValidLanguageVersion_OfferedOnMissingValue_InsertsLatest() {
+
+        const string nav = "#version\n"       + // fehlender Versionswert (Nav3002)
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver");
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var expectedTitle = $"Change language version to {NavLanguageVersion.Latest}";
+        var fix           = actions.SingleOrDefault(a => a.Title == expectedTitle);
+        Assert.That(fix, Is.Not.Null, $"Erwartete Aktion '{expectedTitle}' fehlt.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.StartWith($"#version {NavLanguageVersion.Latest}\n"));
+    }
+
+    [Test]
+    public void SetValidLanguageVersion_OfferedOnNonNumericValue_ReplacesWithLatest() {
+
+        const string nav = "#version abc\n"   + // ungültiger Versionswert (Nav3002)
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#version a"); // Caret auf dem ungültigen Wert
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var expectedTitle = $"Change language version to {NavLanguageVersion.Latest}";
+        var fix           = actions.SingleOrDefault(a => a.Title == expectedTitle);
+        Assert.That(fix, Is.Not.Null, $"Erwartete Aktion '{expectedTitle}' fehlt.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.StartWith($"#version {NavLanguageVersion.Latest}\n"));
+        Assert.That(actual, Does.Not.Contain("abc"));
+    }
+
+    [Test]
+    public void SetValidLanguageVersion_NotOfferedForSurplusAfterValidNumber() {
+
+        // '#version 1 xy' hat einen wirksamen (gültigen) Wert; das überzählige 'xy' ist ein anderer Befund —
+        // der "gültige Version einsetzen"-Fix darf hier nicht greifen.
+        const string nav = "#version 1 xy\n"  +
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver");
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title.StartsWith("Change language version")), Is.False,
+                    "Bei gültigem Wert mit Überschuss darf kein Versions-Fix angeboten werden.");
+    }
+
+    [Test]
     public void Caret_InLeadingWhitespace_OffersActionOnFollowingNode() {
 
         // Owning-Semantik (Roslyn): Der Caret in der Einrückung vor 'view v;' löst auf das 'view'-Token auf —

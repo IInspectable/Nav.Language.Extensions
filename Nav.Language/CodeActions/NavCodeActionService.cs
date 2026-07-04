@@ -51,6 +51,11 @@ public static class NavCodeActionService {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
         }
 
+        // ErrorFix — fehlenden/ungültigen #version-Wert (Nav3002) durch eine gültige Version ersetzen.
+        foreach (var fix in SetValidLanguageVersionCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
+            actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
+        }
+
         // StyleFix — Aufräum-Aktionen.
         foreach (var fix in RemoveUnusedNodesCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
