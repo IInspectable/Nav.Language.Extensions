@@ -131,7 +131,7 @@ public static class NavCompletionService {
                 return ExitConnectionPointItems(context);
 
             case NavCompletionContextKind.EdgeSlot:
-                return VisibleEdgeKeywordItems(EdgeReplacementExtent(source, position));
+                return VisibleEdgeKeywordItems(EdgeReplacementExtent(unit.Syntax.SyntaxTree, position));
 
             case NavCompletionContextKind.TargetSlot:
                 return TargetItems(context);
@@ -152,7 +152,7 @@ public static class NavCompletionService {
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
             default:
-                return FallbackItems(context, source, position);
+                return FallbackItems(context, unit.Syntax.SyntaxTree, position);
         }
     }
 
@@ -204,10 +204,13 @@ public static class NavCompletionService {
     }
 
     // Hinter einer Edge: die Knoten, die als ZIEL taugen (ITargetNodeSymbol — also NICHT `init`), unreferenzierte
-    // zuerst — plus das Ziel-Keyword `end`.
+    // zuerst — plus das Ziel-Keyword `end`. End-Knoten werden bewusst NICHT als benannte Referenz mit angeboten:
+    // ihr Name IST `end` (aus dem `end`-Schlüsselwort gebildet), und ein End-Ziel schreibt man ausschließlich über
+    // dieses Schlüsselwort. Ohne den Ausschluss stünde `end` doppelt in der Liste (End-Knoten-Symbol + Keyword) —
+    // bei mehreren `end`-Deklarationen sogar mehrfach.
     static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
-        AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol);
+        AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol and not IEndNodeSymbol);
         items.Add(new NavCompletionItem(SyntaxFacts.EndKeyword, NavCompletionItemKind.Keyword));
         return items;
     }
@@ -253,7 +256,7 @@ public static class NavCompletionService {
 
     // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
     // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
-    static List<NavCompletionItem> FallbackItems(NavCompletionContext context, SourceText source, int position) {
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context, SyntaxTree tree, int position) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task);
 
@@ -263,7 +266,7 @@ public static class NavCompletionService {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
-        items.AddRange(VisibleEdgeKeywordItems(EdgeReplacementExtent(source, position)));
+        items.AddRange(VisibleEdgeKeywordItems(EdgeReplacementExtent(tree, position)));
         return items;
     }
 
@@ -297,23 +300,36 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Der Ersetzungsbereich einer (angefangenen) Edge: der Rückwärtslauf über die Edge-Zeichen bis zum
-    // Zeilenanfang (Port des VS-`GetStartOfEdge`). Ist nichts Edge-artiges vorgetippt, ist der Bereich leer
-    // (Start == position) → ein reines Einfügen an der Cursor-Position.
+    // Der Ersetzungsbereich einer Edge um die Cursor-Position — er umfasst zwei Anteile:
     //
-    // Bewusst KEIN Vorwärtslauf über Zeichen hinter dem Cursor (anders als beim Bezeichner-Span in
-    // `NavCompletionSource.ShouldProvideCompletions`): Edges werden von links nach rechts getippt, und die
-    // Engine bietet die Edge-Keywords nur in genau diesem Vorwärts-Kontext an — hinter dem Cursor stehen
-    // daher keine zur Edge gehörenden Zeichen. Ein Vorwärtslauf würde dagegen an der Grenze `i |-->`
-    // (Whitespace vor dem Cursor) die bereits vorhandene Edge fälschlich mit-ersetzen.
-    static TextExtent EdgeReplacementExtent(SourceText source, int position) {
-        var line  = source.GetTextLineAtPosition(position);
+    //  • Rückwärts: der Lauf über die bereits getippten Edge-Zeichen bis zum Zeilenanfang (Port des
+    //    VS-`GetStartOfEdge`) — deckt die gerade von links getippte (Teil-)Edge ab, damit ihr Commit die
+    //    Zeichen ersetzt statt zu verdoppeln (`i o|` → `o->` statt `oo->`).
+    //
+    //  • Vorwärts: NUR eine bereits VOLLSTÄNDIGE Edge (Lexer-Token, `IsEdgeKeyword`), die der Cursor berührt.
+    //    Das behebt den Fall, dass der Cursor VOR einer vorhandenen Edge steht (`i |--> Sub`): ohne diesen
+    //    Anteil fügte der Commit eine zweite Edge ein (`i -->--> Sub`); mit ihm wird die vorhandene ersetzt.
+    //    Bewusst KEIN roher Zeichen-Vorlauf wie beim Rückwärtslauf: `o`/`*`/`=`/`-` können auch einen
+    //    Zielknoten beginnen (`-->order`), ein Zeichen-Vorlauf fräse ins Ziel. Die Token-Grenze des Lexers
+    //    (`-->` ist ein Token, `order` das nächste) ist hier die einzige verlässliche Autorität.
+    //
+    // Berührt der Cursor keine Edge, ist der Bereich leer (Start == End == position) → reines Einfügen.
+    static TextExtent EdgeReplacementExtent(SyntaxTree tree, int position) {
+        var source = tree.SourceText;
+        var line   = source.GetTextLineAtPosition(position);
+
         var start = position;
         while (start > line.Start && SyntaxFacts.IsEdgeCharacter(source[start - 1])) {
             start--;
         }
 
-        return TextExtent.FromBounds(start, position);
+        var end   = position;
+        var token = tree.Tokens.FindAtPosition(position);
+        if (SyntaxFacts.IsEdgeKeyword(token.Type)) {
+            end = token.End;
+        }
+
+        return TextExtent.FromBounds(start, end);
     }
 
     // Die gültigen Sprach-Versionsnummern (heute nur `1`) — Label ist der numerische Wert. Single Source of

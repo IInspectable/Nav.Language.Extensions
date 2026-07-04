@@ -82,6 +82,30 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void TargetSlot_WithEndNode_OffersEndExactlyOnce() {
+
+        // Regression zu den zwei `end`-Einträgen: existiert ein End-Knoten (dessen Name IST `end`), darf `end`
+        // im Ziel-Slot trotzdem nur EINMAL erscheinen — als Ziel-Keyword, nicht zusätzlich als benannte
+        // Knoten-Referenz. Ein End-Ziel schreibt man ausschließlich über das `end`-Schlüsselwort.
+        const string nav = "task A\n"          +
+                           "{\n"               +
+                           "    init i;\n"     +
+                           "    end;\n"        + // End-Knoten (Name = `end`)
+                           "    i --> end;\n"  +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\end-target.nav");
+        var caret = IndexOfToken(nav, "    i --> end;\n", "    i --> "); // Ziel-Slot hinter der Edge
+
+        var items = NavCompletionService.GetCompletions(unit, caret);
+
+        // Genau ein `end` — und zwar als Keyword.
+        var endItems = items.Where(i => i.Label == SyntaxFacts.EndKeyword).ToArray();
+        Assert.That(endItems.Length, Is.EqualTo(1), "`end` darf nicht doppelt (End-Knoten + Keyword) erscheinen.");
+        Assert.That(endItems[0].Kind, Is.EqualTo(NavCompletionItemKind.Keyword));
+    }
+
+    [Test]
     public void EdgeSlot_OffersOnlyVisibleEdgeKeywords() {
 
         var unit  = ParseModel(Nav, @"n:\av\a.nav");
@@ -107,17 +131,66 @@ public class NavCompletionServiceTests {
     public void EdgeSlot_EdgeItemsCarryReplacementExtent() {
 
         var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, vor der Edge
+        var caret = IndexOfToken(Nav, "i      --> Sub;", "i      "); // hinter dem Quellknoten `i`, VOR der Edge `-->`
 
         var edgeItem = NavCompletionService.GetCompletions(unit, caret)
                                            .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
 
         // Jedes Edge-Item trägt seinen eigenen Ersetzungsbereich (Edge-Keywords bestehen aus Nicht-Bezeichner-
-        // Zeichen; der Host ersetzt darüber die angefangene Edge). Hier ist vor dem Caret nichts Edge-artiges
-        // getippt (davor steht Whitespace) → leerer Bereich, der am Caret endet.
+        // Zeichen; der Host ersetzt darüber die angefangene bzw. vorhandene Edge). Hier steht der Caret VOR der
+        // bereits vorhandenen `-->` → der Bereich MUSS diese Edge umfassen, damit der Commit sie ersetzt statt
+        // sie zu einer zweiten `-->` zu verdoppeln.
         Assert.That(edgeItem.ReplacementExtent, Is.Not.Null);
-        Assert.That(edgeItem.ReplacementExtent!.Value.IsEmpty, Is.True);
-        Assert.That(edgeItem.ReplacementExtent!.Value.End,     Is.EqualTo(caret));
+        Assert.That(edgeItem.ReplacementExtent!.Value.Start, Is.EqualTo(caret));
+        Assert.That(edgeItem.ReplacementExtent!.Value.End,   Is.EqualTo(caret + SyntaxFacts.GoToEdgeKeyword.Length));
+    }
+
+    [Test]
+    public void EdgeSlot_ReplacementExtentReplacesExistingEdge_NoDuplicate() {
+
+        // Regression zu „i -->--> Sub": Caret VOR einer vorhandenen modalen Edge `o->`. Der Ersetzungsbereich
+        // deckt die vorhandene Edge komplett ab (auch die Zeichen HINTER dem Caret), damit der Commit eines
+        // Edge-Keywords sie ersetzt statt eine zweite Edge einzufügen.
+        const string nav = "task A\n"           +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    exit e;\n"       +
+                           "    i o-> e;\n"      + // vollständige modale Edge
+                           "}\n";
+
+        var unit     = ParseModel(nav, @"n:\av\before-edge.nav");
+        var edgeStart = IndexOfToken(nav, "    i o-> e;\n", "    i "); // direkt vor dem `o->`
+
+        var edge = NavCompletionService.GetCompletions(unit, edgeStart)
+                                       .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
+
+        var extent = edge.ReplacementExtent!.Value;
+        Assert.That(extent.Start, Is.EqualTo(edgeStart));                                     // vor der Edge
+        Assert.That(extent.End,   Is.EqualTo(edgeStart + SyntaxFacts.ModalEdgeKeyword.Length)); // deckt `o->` ab
+    }
+
+    [Test]
+    public void EdgeSlot_ReplacementExtentStopsAtTargetToken() {
+
+        // Sicherheitsnetz gegen einen rohen Zeichen-Vorlauf: die Edge grenzt OHNE Leerzeichen an einen
+        // Zielknoten, der mit einem Edge-Zeichen beginnt (`o1`). Der Ersetzungsbereich darf NUR die Edge (das
+        // Lexer-Token `-->`) umfassen, nicht in das Ziel `o1` hineinfressen.
+        const string nav = "task A\n"           +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    view o1;\n"      +
+                           "    i -->o1;\n"      + // Edge direkt am Ziel, Ziel beginnt mit `o`
+                           "}\n";
+
+        var unit      = ParseModel(nav, @"n:\av\adjacent-target.nav");
+        var edgeStart = IndexOfToken(nav, "    i -->o1;\n", "    i "); // hinter der Quelle `i `, vor `-->`
+
+        var edge = NavCompletionService.GetCompletions(unit, edgeStart)
+                                       .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
+
+        var extent = edge.ReplacementExtent!.Value;
+        Assert.That(extent.Start, Is.EqualTo(edgeStart));                                    // vor `-->`
+        Assert.That(extent.End,   Is.EqualTo(edgeStart + SyntaxFacts.GoToEdgeKeyword.Length)); // deckt `-->`, NICHT `o1` ab
     }
 
     [Test]
