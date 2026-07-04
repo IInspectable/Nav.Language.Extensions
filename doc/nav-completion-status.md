@@ -224,6 +224,19 @@ Fortschritt über die Checkboxen führen.
   zerreißen), ebenso das frühere `'` (kein Nav-Konstrukt). VS bezieht daraus
   `PotentialCommitCharacters`, der LSP-Server `CompletionOptions.AllCommitCharacters` (vorher gar keine)
   → beide Hosts konsistent. Test: `CommitCharacters_AreTheDeliberateSet` (net10 17/17, net472 1170/0).
+- [x] **B1/B2-Nachtrag (2026-07-04) — Pfadtrenner `/` und `\` aus BEIDEN Mengen entfernt.** Als Trigger-
+  *und* Commit-Char waren sie global (LSP kennt keine kontext-lokalen Trigger/Commit-Chars), obwohl nur
+  in `taskref "…"` sinnvoll. Effekt außerhalb einer Zeichenkette: Das erste `/` eröffnete am Member-Level
+  die `task`/`taskref`-Liste, das zweite `/` (Commit-Char) übernahm den vorselektierten `task` — aus `//`
+  wurde `/task/` (analog `\\` → `\task\`). Der Commit-Char brachte auch **innerhalb** von `taskref "…"`
+  nichts: die Pfad-Liste ist flach (alle `.nav` der Solution, gefiltert über den Dateinamen) und ersetzt
+  über den `ReplacementExtent` den **gesamten** String-Inhalt — kein Segment-Commit, ein `/`-Commit hängte
+  den Trenner nur an den fertigen Pfad. Das **Öffnen** der Pfad-Liste tragen weiterhin `"` (Trigger) und die
+  Buchstaben; Committen Enter/Tab. Einzige (selbstheilende) Einbuße: ein `/` öffnet eine *geschlossene*
+  Pfad-Liste nicht mehr von selbst wieder — der nächste Buchstabe tut es. Beide Pin-Tests nachgezogen
+  (`TriggerCharacters_ContainAllContextDelimiters`, `CommitCharacters_AreTheDeliberateSet`), Pfad-Suite
+  (`NavCompletionPathTests`) unverändert grün (der Engine-`GetCompletions` liest die Trigger-/Commit-Mengen
+  nicht — sie sind reine Host-Metadaten).
 
 ### Workstream C — VS-Quellen-Konsolidierung (engine-getrieben)
 

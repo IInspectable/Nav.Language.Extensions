@@ -1359,9 +1359,12 @@ public class NavCompletionServiceTests {
     [Test]
     public void TriggerCharacters_ContainAllContextDelimiters() {
         // Die eine Autorität deckt alle Situationen ab, in denen ein Sonderzeichen die Completion eröffnet:
-        // '#' Direktiven, ':' Exit-Connection-Points, '-' Edge-Beginn, '[' Code-Block, '"' + Pfadtrenner.
+        // '#' Direktiven, ':' Exit-Connection-Points, '-' Edge-Beginn, '[' Code-Block, '"' Zeichenkette.
+        // Die Pfadtrenner '/' und '\' lösen bewusst NICHT aus (die Pfad-Liste eröffnen '"' + Buchstaben).
         Assert.That(NavCompletionService.TriggerCharacters,
-                    Is.EquivalentTo(new[] { '#', ':', '-', '[', '"', '/', '\\' }));
+                    Is.EquivalentTo(new[] { '#', ':', '-', '[', '"' }));
+        Assert.That(NavCompletionService.TriggerCharacters, Has.None.EqualTo('/'));
+        Assert.That(NavCompletionService.TriggerCharacters, Has.None.EqualTo('\\'));
     }
 
     [Test]
@@ -1381,11 +1384,15 @@ public class NavCompletionServiceTests {
 
     [Test]
     public void CommitCharacters_AreTheDeliberateSet() {
-        // Bewusst festgelegte Menge: Trenner, Connection-Point-Doppelpunkt, Zeichenketten-/Code-Block-
-        // Begrenzer und Pfadtrenner. Der Punkt ist bewusst NICHT dabei (gültiges Bezeichner-Zeichen).
+        // Bewusst festgelegte Menge: Trenner, Connection-Point-Doppelpunkt und die Zeichenketten-/Code-Block-
+        // Begrenzer. Der Punkt ist bewusst NICHT dabei (gültiges Bezeichner-Zeichen); die Pfadtrenner '/' und
+        // '\' ebenso wenig (die Pfad-Vervollständigung ersetzt den ganzen String-Inhalt, und außerhalb einer
+        // Zeichenkette zerlegte ein Commit auf '/' einen gerade getippten '//'-Kommentar).
         Assert.That(NavCompletionService.CommitCharacters,
-                    Is.EquivalentTo(new[] { ' ', ',', ';', ':', '"', '[', ']', '/', '\\' }));
+                    Is.EquivalentTo(new[] { ' ', ',', ';', ':', '"', '[', ']' }));
         Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('.'));
+        Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('/'));
+        Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('\\'));
     }
 
     #endregion

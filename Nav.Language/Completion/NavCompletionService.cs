@@ -33,16 +33,17 @@ public static class NavCompletionService {
     /// Vervollständigung eröffnen soll. Einzige Autorität für beide Hosts: der LSP-Server speist damit
     /// <c>CompletionOptions.TriggerCharacters</c>, die VS-Quellen leiten daraus ihr Auslöse-Verhalten ab.
     /// Buchstaben lösen zusätzlich immer aus (Client- bzw. <c>char.IsLetter</c>-seitig) und sind hier daher
-    /// bewusst NICHT enthalten.
+    /// bewusst NICHT enthalten. Die Pfadtrenner <c>/</c> und <c>\</c> sind bewusst KEINE Auslöser: das
+    /// Öffnen der Pfad-Liste in <c>taskref "…"</c> tragen bereits <c>"</c> und die Buchstaben, während ein
+    /// auslösendes <c>/</c> außerhalb einer Zeichenkette (etwa am Beginn eines <c>//</c>-Kommentars) eine
+    /// unangebrachte Vorschlagsliste eröffnete.
     /// </summary>
     public static readonly IReadOnlyList<char> TriggerCharacters = new[] {
         SyntaxFacts.Hash,          // '#'  — Direktiven (#version)
         SyntaxFacts.Colon,         // ':'  — Exit-Connection-Points hinter `knoten:`
         '-',                       // '-'  — Beginn einer Edge (-->)
         SyntaxFacts.OpenBracket,   // '['  — Code-Block-Keywords (do [ … ])
-        '"',                       // '"'  — Beginn einer Zeichenkette (Pfad in taskref "…")
-        '/',                       // '/'  — Pfadtrenner (Liste aktualisieren + Replace-Range)
-        '\\'                       // '\\' — Pfadtrenner (Windows)
+        '"'                        // '"'  — Beginn einer Zeichenkette (Pfad in taskref "…")
     };
 
     /// <summary>Ob <paramref name="c"/> ein kanonisches Auslöser-Zeichen der Completion ist (siehe <see cref="TriggerCharacters"/>).</summary>
@@ -61,10 +62,14 @@ public static class NavCompletionService {
     /// Die kanonische Menge der Abschluss-Zeichen (Commit-Chars): Zeichen, deren Eingabe bei offener
     /// Vorschlagsliste den markierten Vorschlag übernimmt und dann selbst eingefügt wird. Bewusst nur die
     /// Zeichen, die in der Nav-Grammatik ein Bezeichner-/Keyword-Token beenden oder trennen — Trenner
-    /// (<c>, ;</c>), der Connection-Point-Doppelpunkt (<c>knoten:exit</c>), Zeichenketten-/Code-Block-
-    /// Begrenzer (<c>" [ ]</c>) und die Pfadtrenner (<c>/ \</c>). Der Punkt ist bewusst NICHT dabei — er ist
-    /// in Nav ein gültiges Bezeichner-Zeichen (siehe <see cref="SyntaxFacts.IsIdentifierCharacter"/>), ein
-    /// Commit darauf würde qualifizierte Namen zerreißen. Einzige Autorität für beide Hosts: VS speist damit
+    /// (<c>, ;</c>), der Connection-Point-Doppelpunkt (<c>knoten:exit</c>) und die Zeichenketten-/Code-Block-
+    /// Begrenzer (<c>" [ ]</c>). Der Punkt ist bewusst NICHT dabei — er ist in Nav ein gültiges
+    /// Bezeichner-Zeichen (siehe <see cref="SyntaxFacts.IsIdentifierCharacter"/>), ein Commit darauf würde
+    /// qualifizierte Namen zerreißen. Auch die Pfadtrenner <c>/</c> und <c>\</c> gehören bewusst NICHT dazu:
+    /// Die Pfad-Vervollständigung ersetzt ohnehin den gesamten String-Inhalt (kein Segment-für-Segment-Commit),
+    /// ein Commit auf <c>/</c> hängte den Trenner nur an den bereits eingefügten Pfad an — und außerhalb einer
+    /// Zeichenkette zerlegte er einen gerade getippten <c>//</c>-Kommentar (das zweite <c>/</c> übernähme den
+    /// vorselektierten Vorschlag). Einzige Autorität für beide Hosts: VS speist damit
     /// <c>IAsyncCompletionCommitManager.PotentialCommitCharacters</c>, der LSP-Server
     /// <c>CompletionOptions.AllCommitCharacters</c>.
     /// </summary>
@@ -75,9 +80,7 @@ public static class NavCompletionService {
         SyntaxFacts.Colon,          // ':'  — Connection-Point-Trenner (knoten:exit)
         '"',                        // '"'  — Zeichenketten-Begrenzer (taskref "…")
         SyntaxFacts.OpenBracket,    // '['  — Code-Block-Beginn
-        SyntaxFacts.CloseBracket,   // ']'  — Code-Block-Ende
-        '/',                        // '/'  — Pfadtrenner
-        '\\'                        // '\\' — Pfadtrenner (Windows)
+        SyntaxFacts.CloseBracket    // ']'  — Code-Block-Ende
     };
 
     /// <summary>
