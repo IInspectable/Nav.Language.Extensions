@@ -19,6 +19,14 @@ static class TextSnaphotLineExtensions {
         return start;
     }
 
+    public static SnapshotPoint GetEndOfIdentifier(this ITextSnapshotLine line, SnapshotPoint end) {
+        while (end < line.End && SyntaxFacts.IsIdentifierCharacter(end.GetChar())) {
+            end += 1;
+        }
+
+        return end;
+    }
+
     public static SnapshotPoint? GetPreviousNonWhitespace(this ITextSnapshotLine line, SnapshotPoint start) {
 
         if (start == line.Start) {

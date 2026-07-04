@@ -300,6 +300,12 @@ public static class NavCompletionService {
     // Der Ersetzungsbereich einer (angefangenen) Edge: der Rückwärtslauf über die Edge-Zeichen bis zum
     // Zeilenanfang (Port des VS-`GetStartOfEdge`). Ist nichts Edge-artiges vorgetippt, ist der Bereich leer
     // (Start == position) → ein reines Einfügen an der Cursor-Position.
+    //
+    // Bewusst KEIN Vorwärtslauf über Zeichen hinter dem Cursor (anders als beim Bezeichner-Span in
+    // `NavCompletionSource.ShouldProvideCompletions`): Edges werden von links nach rechts getippt, und die
+    // Engine bietet die Edge-Keywords nur in genau diesem Vorwärts-Kontext an — hinter dem Cursor stehen
+    // daher keine zur Edge gehörenden Zeichen. Ein Vorwärtslauf würde dagegen an der Grenze `i |-->`
+    // (Whitespace vor dem Cursor) die bereits vorhandene Edge fälschlich mit-ersetzen.
     static TextExtent EdgeReplacementExtent(SourceText source, int position) {
         var line  = source.GetTextLineAtPosition(position);
         var start = position;

@@ -103,9 +103,14 @@ class NavCompletionSource: AsyncCompletionSource {
         // ob im Schlüsselwort-Slot direkt hinter `[` die Code-Block-Keywords angeboten werden (sonst liefert
         // sie eine leere Liste). Damit entfällt die frühere, separate CodeCompletionSource.
 
+        // Der Ersetzungsbereich umfasst den GESAMTEN Bezeichner unter dem Cursor (Anfang bis Ende), nicht nur bis
+        // zum Cursor — sonst bleibt beim Commit der Rest hinter dem Cursor stehen (aus `dia|log` würde `dialoglog`).
+        // Gefiltert wird von VS ohnehin nur mit dem Text von Bereichsanfang bis Cursor, das Erweitern nach hinten
+        // ist also unschädlich.
         var start = line.GetStartOfIdentifier(triggerLocation);
+        var end   = line.GetEndOfIdentifier(triggerLocation);
 
-        applicableToSpan = new SnapshotSpan(start, triggerLocation);
+        applicableToSpan = new SnapshotSpan(start, end);
 
         return true;
     }
