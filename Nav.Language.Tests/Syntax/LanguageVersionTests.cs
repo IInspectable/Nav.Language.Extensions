@@ -45,6 +45,21 @@ public class LanguageVersionTests {
     }
 
     [Test]
+    public void LfTerminatedDirective_TerminatesAtNewline_TaskStaysCode() {
+
+        // Früherer LF-Fallstrick: im Textmodus (hinter dem Keyword) beendete nur '\r\n' die Direktive; ein
+        // einzelnes '\n' blieb Rumpf und verschluckte den Rest der Datei. Jetzt terminiert auch das LF
+        // zeilengenau — die '#version 2'-Zeile bleibt die Direktive, die folgende Task echter Code.
+        var unit = Parse("#version 2\ntask A { init I1; exit e1; I1 --> e1; }");
+
+        Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
+        Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
+        Assert.That(unit.SyntaxTree.Diagnostics,   Is.Empty);
+        Assert.That(unit.TaskDefinitions.Count,    Is.EqualTo(1));
+        Assert.That(unit.TaskDefinitions[0].Identifier.ToString(), Is.EqualTo("A"));
+    }
+
+    [Test]
     public void LeadingTriviaBeforeDirective_IsAllowed() {
 
         var unit = Parse("// header\n\n#version 3\r\ntask A { init I1; exit e1; I1 --> e1; }");

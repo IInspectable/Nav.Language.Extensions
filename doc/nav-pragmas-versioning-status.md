@@ -168,10 +168,12 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   oben").
 - **QuickInfo/Hover** auf der Direktive; **Code-Fix** zu `Nav3002`/`Nav3003`/`Nav5001` (gültige/`Latest`-Version
   einsetzen bzw. Direktive an den Dateikopf verschieben).
-- **Lexer-LF-Fallstrick:** Direktiven terminieren im Textmodus **nur bei `\r\n`** (Alt-Grammatik; einzelnes
-  `\n` bleibt `PreprocessorText` und verschluckt den Rest bis `\r\n`/EOF). Gilt für **alle** `#`-Direktiven.
-  `.nav` sind CRLF, daher praktisch maskiert. Option: Lexer so ändern, dass auch einzelnes `\n` terminiert
-  (macht LF-Dateien robust, ist aber eine bewusste Abkehr vom Alt-Verhalten → Golden prüfen).
+- **Lexer-LF-Fallstrick — erledigt:** Früher terminierten Direktiven im Textmodus (hinter dem Keyword) **nur
+  bei `\r\n`**; ein einzelnes `\n` blieb Rumpf und verschluckte den Rest bis `\r\n`/EOF. `ScanPreprocessor`
+  beendet jetzt bei **jedem** Zeilenende (Längstmatch `\r\n`, sonst Einzelzeichen: LF, lone CR, NEL, LS, PS) —
+  reine LF-Dateien terminieren zeilengenau, für **alle** `#`-Direktiven. Die frühere `inTextMode`-Sonderfall-
+  Unterscheidung entfiel dabei (Vereinfachung). `.nav` sind CRLF, waren also nie real betroffen; die Änderung
+  ist verhaltensneutral für CRLF (Golden unverändert). Tests: `LanguageVersionTests.LfTerminatedDirective_*`.
 - **Generische Direktiven** (`#region`, `#if`): das Weg-B-Fundament (strukturierte Trivia via
   `SyntaxTrivia.GetStructure()`, positions-basierte `SyntaxTokenList`-Konsumenten reconnectet) **steht**.
   Offen ist nur noch, die Placement-Regel zu lockern (Direktiven **überall** zulassen) und je Direktive einen
@@ -181,7 +183,9 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
 
 ## Fallstricke (bereits gelernt)
 
-- **CRLF-Pflicht** für `#`-Direktiv-Zeilen in Fixtures/Tests (s.o. LF-Fallstrick). Test-Strings mit `\r\n`.
+- **CRLF/LF für `#`-Direktiv-Zeilen:** seit dem LF-Fix (s.o.) terminiert auch einzelnes `\n` die Direktive —
+  Test-Strings dürfen LF verwenden. Bestandsfixtures bleiben CRLF; neue Tests können bewusst LF setzen, um die
+  Terminierung zu prüfen.
 - **Encoding:** `.nav`-Bestand ist teils **Windows-1252** (Einzelbyte-Umlaute); niemals blind über
   UTF-8-`ReadAllText`/`WriteAllText` umschreiben (macht Umlaute zu permanentem U+FFFD). Immer UTF-8 **mit
   BOM**. Siehe [[nav-utf8-bom-discipline]].

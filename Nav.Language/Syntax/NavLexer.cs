@@ -279,9 +279,7 @@ sealed class NavLexer {
         Add(SyntaxTokenType.HashToken, _pos, _pos + 1);
         _pos++;
 
-        // Direktiven-Schlüsselwort: ein Lauf reiner Buchstaben (ohne Ziffern/'.'/'_'). Solange es noch
-        // nicht gelext wurde, gilt der PreprocessorMode, in dem jedes Zeilenende die Direktive beendet.
-        var inTextMode = false;
+        // Direktiven-Schlüsselwort: ein Lauf reiner Buchstaben (ohne Ziffern/'.'/'_').
         if (_pos < _length && IsLetterCharacter(_text[_pos])) {
             var kwStart = _pos;
             while (_pos < _length && IsLetterCharacter(_text[_pos])) {
@@ -289,25 +287,20 @@ sealed class NavLexer {
             }
 
             Add(PreprocessorWordType(kwStart, _pos), kwStart, _pos);
-            inTextMode = true;
         }
 
         // Direktiven-Rumpf in ganzen Läufen (wie der Directive-Mode eines echten Lexers): Wort-Läufe als
         // PreprocessorKeyword, reine Ziffern-Läufe als PreprocessorNumber, alles Übrige (Zwischenraum,
         // Satzzeichen) als PreprocessorText. So fallen die korrekt typisierten Token direkt hier an und die
         // Klassifikation folgt allein aus dem Token-Typ — es braucht keine Sonderbehandlung im Parser.
-        // Ein '\r\n' beendet die Direktive immer als PreprocessorNewLine (Längstmatch); ein Einzelzeichen-
-        // Zeilenende beendet sie nur VOR dem Keyword — im Textmodus bleibt es Rumpf (Alt-Grammatik).
+        // Jedes Zeilenende beendet die Direktive als PreprocessorNewLine — Längstmatch '\r\n', sonst ein
+        // Einzelzeichen (LF, lone CR, NEL, LS, PS). So terminieren auch reine LF-Dateien zeilengenau; die
+        // Direktive verschluckt nicht länger den Rest bis zum nächsten '\r\n'/EOF.
         while (_pos < _length) {
             var nlLength = NewLineLength(_pos);
 
-            if (nlLength == 2) {
-                AddAndAdvance(SyntaxTokenType.PreprocessorNewLine, 2);
-                return;
-            }
-
-            if (nlLength == 1 && !inTextMode) {
-                AddAndAdvance(SyntaxTokenType.PreprocessorNewLine, 1);
+            if (nlLength > 0) {
+                AddAndAdvance(SyntaxTokenType.PreprocessorNewLine, nlLength);
                 return;
             }
 

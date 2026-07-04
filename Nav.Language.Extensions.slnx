@@ -66,6 +66,7 @@
   <Folder Name="/doc/">
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
+    <File Path="doc/nav-backlog.md" />
     <File Path="doc/nav-completion-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
     <File Path="doc/nav-grammar-status.md" />
