@@ -27,7 +27,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 |---|---|---|
 | `nav_validate` | `DiagnosticsComputer` | Datei validieren → Diagnostics (inkl. Cross-File). |
 | `nav_diagnostics` | `DiagnosticsComputer` (Fan-out) | **Workspace-weit:** alle (bzw. gefilterten) `.nav` validieren → aggregierte Diagnostics + Severity-Summary, gefiltert/gepaged. |
-| `nav_outline` | `unit.TaskDefinitions` | Struktur: Tasks + Knoten (Art, Position). |
+| `nav_outline` | `unit.TaskDefinitions` | Struktur: Tasks + Knoten (Art, Position) + effektive Sprachversion (`languageVersion` + `hasVersionDirective`). |
 | `nav_workspace` | `NavSolution` | Alle `.nav`-Dateien der Solution (relativ + absolut), gefiltert/gepaged. |
 | `nav_find_symbol` | `NavSymbolSearch.FindDefinitionsByPrefix` | Solution-weite Präfix-Suche nach Task-/Knoten-**Definitionen** (ohne Datei vorab). |
 | `nav_goto` | `NavGoToService` | Definition(en) eines Namens (Nav→Nav, cross-file). |

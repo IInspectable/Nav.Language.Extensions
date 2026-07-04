@@ -178,8 +178,9 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
   `SyntaxTrivia.GetStructure()`, positions-basierte `SyntaxTokenList`-Konsumenten reconnectet) **steht**.
   Offen ist nur noch, die Placement-Regel zu lockern (Direktiven **überall** zulassen) und je Direktive einen
   eigenen Sub-Parser-Zweig samt Knotentyp zu ergänzen.
-- **LSP/MCP:** `nav_diagnostics`/Push liefern `Nav3002`/`Nav5000`/(`Nav5001`) automatisch. Optional
-  `LanguageVersion` in `nav_outline`/`nav_workspace` ausweisen.
+- **LSP/MCP:** `nav_diagnostics`/Push liefern `Nav3002`/`Nav5000`/(`Nav5001`) automatisch. `nav_outline`
+  weist die effektive Sprachversion aus (`languageVersion` + `hasVersionDirective`); dasselbe für
+  `nav_workspace` bleibt optional offen (Parse-Kosten je Datei vs. Paging-/Token-Budget).
 
 ## Fallstricke (bereits gelernt)
 

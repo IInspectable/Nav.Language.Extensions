@@ -35,7 +35,12 @@ Quelle: `doc/nav-pragmas-versioning-status.md` (Roadmap), `doc/nav-directive-sub
 - [x] **Lexer-LF-Fallstrick** — `ScanPreprocessor` terminiert jetzt bei jedem Zeilenende (LF/CR/NEL/LS/PS),
   nicht mehr nur `\r\n`; `inTextMode`-Sonderfall entfernt. Verhaltensneutral für CRLF. Tests:
   `LanguageVersionTests.LfTerminatedDirective_*`. Detail: `doc/nav-pragmas-versioning-status.md`.
-- [ ] **Optional:** `LanguageVersion` in `nav_outline` / `nav_workspace` ausweisen.
+- [x] **Optional:** `LanguageVersion` in `nav_outline` ausweisen — `NavOutlineResult` trägt jetzt
+  `languageVersion` (numerisch) + `hasVersionDirective` (explizit vs. Default), gemappt aus
+  `unit.LanguageVersion` / `unit.Syntax.LanguageVersionDirective`.
+- [ ] **Optional:** dasselbe für `nav_workspace` — bewusst offen: das Tool listet Pfade **ohne** Parse; die
+  Version je Datei zu ermitteln erforderte ein Parse/`#version`-Lesen pro Eintrag und steht im
+  Spannungsverhältnis zum Paging-/Token-Budget.
 
 ## 2. Completion-Verfeinerungen (optional)
 

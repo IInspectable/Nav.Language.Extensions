@@ -18,7 +18,9 @@ public static class NavOutlineTool {
     [Description("Returns the structure of a Nav (.nav) file: every task definition with its declared nodes "     +
                  "(name, kind such as init/exit/end/choice/gui, and 1-based line/column). Use this to grasp a "   +
                  "file's layout and to learn the exact task and node names to pass to nav_goto, nav_references, " +
-                 "nav_rename or nav_code_actions — without reading the whole file.")]
+                 "nav_rename or nav_code_actions — without reading the whole file. Also reports the file's "      +
+                 "effective Nav language version ('languageVersion', numeric) and whether it comes from an "      +
+                 "explicit #version directive ('hasVersionDirective').")]
     public static NavOutlineResult Outline(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file.")]
