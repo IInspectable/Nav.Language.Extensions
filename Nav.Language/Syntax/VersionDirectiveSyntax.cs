@@ -23,6 +23,13 @@ public sealed partial class VersionDirectiveSyntax: DirectiveTriviaSyntax {
     public SyntaxToken VersionKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.VersionKeyword);
 
     /// <summary>
+    /// Das numerische Versionswert-Token (<see cref="SyntaxTokenType.PreprocessorNumber"/>) hinter
+    /// <c>version</c>, oder ein fehlendes Token, wenn der Wert fehlt oder nicht-numerisch ist (in diesem Fall
+    /// liegt bereits <c>Nav3002</c> vor und <see cref="Version"/> ist <see cref="NavLanguageVersion.Default"/>).
+    /// </summary>
+    public SyntaxToken VersionNumber => ChildTokens().FirstOrMissing(SyntaxTokenType.PreprocessorNumber);
+
+    /// <summary>
     /// Die von dieser Direktive festgelegte Sprach-Version. Bei fehlerhaftem Versionswert (bereits per
     /// <c>Nav3002</c> gemeldet) ist dies <see cref="NavLanguageVersion.Default"/>.
     /// </summary>

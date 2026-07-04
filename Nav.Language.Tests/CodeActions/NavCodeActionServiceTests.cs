@@ -162,6 +162,71 @@ public class NavCodeActionServiceTests {
     }
 
     [Test]
+    public void SetSupportedLanguageVersion_OfferedOnUnsupportedVersion_SetsToLatest() {
+
+        const string nav = "#version 99\n"    +
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver"); // Caret in der '#version'-Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        var expectedTitle = $"Change language version to {NavLanguageVersion.Latest}";
+        var fix           = actions.SingleOrDefault(a => a.Title == expectedTitle);
+        Assert.That(fix, Is.Not.Null, $"Erwartete Aktion '{expectedTitle}' fehlt.");
+
+        var actual = Apply(nav, fix);
+        Assert.That(actual, Does.Contain($"#version {NavLanguageVersion.Latest}"));
+        Assert.That(actual, Does.Not.Contain("#version 99"));
+    }
+
+    [Test]
+    public void SetSupportedLanguageVersion_NotOfferedForSupportedVersion() {
+
+        const string nav = "#version 1\n"     +
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "#ver");
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title.StartsWith("Change language version")), Is.False,
+                    "Für eine unterstützte Version darf kein Versions-Fix angeboten werden.");
+    }
+
+    [Test]
+    public void SetSupportedLanguageVersion_NotOfferedWhenCaretNotOnDirective() {
+
+        const string nav = "#version 99\n"    +
+                           "task A\n"         +
+                           "{\n"              +
+                           "    init I1;\n"   +
+                           "    exit e1;\n"   +
+                           "    I1 --> e1;\n" +
+                           "}\n";
+
+        var unit  = ParseModel(nav, @"n:\av\a.nav");
+        var caret = CaretAfter(nav, "init "); // im Task-Rumpf, nicht auf der Direktive
+
+        var actions = NavCodeActionService.GetCodeActions(unit, Caret(caret), Settings);
+
+        Assert.That(actions.Any(a => a.Title.StartsWith("Change language version")), Is.False,
+                    "Der Versions-Fix darf nur greifen, wenn der Bereich die '#version'-Direktive trifft.");
+    }
+
+    [Test]
     public void Caret_InLeadingWhitespace_OffersActionOnFollowingNode() {
 
         // Owning-Semantik (Roslyn): Der Caret in der Einrückung vor 'view v;' löst auf das 'view'-Token auf —

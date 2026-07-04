@@ -46,6 +46,11 @@ public static class NavCodeActionService {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
         }
 
+        // ErrorFix — nicht unterstützte Sprach-Version (#version, Nav5001) auf die höchste unterstützte setzen.
+        foreach (var fix in SetSupportedLanguageVersionCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
+            actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
+        }
+
         // StyleFix — Aufräum-Aktionen.
         foreach (var fix in RemoveUnusedNodesCodeFixProvider.SuggestCodeFixes(context, cancellationToken)) {
             actions.Add(new NavCodeAction(fix.Name, fix.Category, fix.GetTextChanges().ToList()));
@@ -89,6 +94,14 @@ public static class NavCodeActionService {
     static TextExtent ExpandCaret(CodeGenerationUnit unit, TextExtent range) {
         if (range.Start != range.End) {
             return range;
+        }
+
+        // Caret in einer strukturierten Direktive (z.B. '#version …'): auf deren Extent ausdehnen. Direktiven
+        // liegen als Trivia NICHT im signifikanten Token-Strom; das Owning-FindToken lieferte sonst das
+        // signifikante Token, an dem die Direktive als Leading-Trivia hängt (etwa das erste 'task'), dessen
+        // Extent die Direktive nicht überdeckt — die direktiven-bezogenen Provider könnten dann nicht greifen.
+        if (unit.Syntax.SyntaxTree.FindTrivia(range.Start).GetStructure() is DirectiveTriviaSyntax directive) {
+            return directive.Extent;
         }
 
         var token = unit.Syntax.FindToken(range.Start);
