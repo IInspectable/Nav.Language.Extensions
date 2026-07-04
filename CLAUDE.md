@@ -95,9 +95,18 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 
 ### Tests im Detail
 
-- **net472:** `nav test` (NUnit-Console-Runner unter `Build\nunit.consolerunner\`).
+- **In einer frischen/nicht-interaktiven Shell ist `nav` nicht geladen** (das `$PROFILE` läuft dort
+  nicht). Einmal pro Sitzung `. .\Tools\Commands\Import-NavCommands.ps1` dot-sourcen, danach steht `nav`
+  zur Verfügung.
+- **net472:** ausschließlich `nav test` (gebündelter NUnit-Console-Runner unter
+  `Build\nunit.consolerunner\`). **`dotnet test -f net472` läuft ins Leere (0 Tests)** — der
+  VSTest-Adapter (`Microsoft.NET.Test.Sdk`/`NUnit3TestAdapter`) ist in der Test-`.csproj` bewusst nur
+  für net10.0 referenziert. Ein Hand-Aufruf des Runners bräuchte den **flachen** Pfad
+  `Nav.Language.Tests\bin\Debug\Nav.Language.Tests.dll` (net472 hat `AppendTargetFrameworkToOutputPath=false`,
+  also keinen TFM-Unterordner) — aber `nav test` macht genau das richtig, daher immer `nav test`.
 - **.NET 10:** `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` (baut bei Bedarf
-  selbst; `--no-build` nur als Beschleunigung, wenn vorher schon gebaut wurde).
+  selbst; `--no-build` nur als Beschleunigung, wenn vorher schon gebaut wurde). `--filter` funktioniert
+  hier (VSTest-Adapter vorhanden), z.B. `--filter "FullyQualifiedName~Completion"`.
 - `Nav.Language.Tests` ist multi-target (`net472;net10.0`) — neue Engine-Tests müssen auf **beiden**
   TFMs grün sein. Test-Framework ist **NUnit**.
 - LSP-Features zusätzlich gern per stdio-Smoke gegen die laufende `nav.lsp` verifizieren.
