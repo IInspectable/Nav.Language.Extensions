@@ -25,9 +25,11 @@ Quelle: `doc/nav-pragmas-versioning-status.md` (Roadmap), `doc/nav-directive-sub
   `VersionDirectiveSyntax`) + Diagnose-Filterschicht als Cross-Run-Pass + Ebene-2-Lexing-Entscheidung
   (Komma/Zweitwörter als eigene Token vs. Text-Matching).
 - [ ] **QuickInfo/Hover auf Direktiven.**
-- [~] **Code-Fix** zu `Nav3002` / `Nav3003` / `Nav5001`. **Nav5001 + Nav3002 erledigt** (Steps 2/3,
-  `Set*LanguageVersionCodeFix`). **Offen: Nav3003** (Direktive an den Dateikopf verschieben, Step 4) **+
-  VS-Lightbulb-Export** (Step 5). Handoff/Status: `doc/nav-version-codefixes-status.md`.
+- [x] **Code-Fix** zu `Nav3002` / `Nav3003` / `Nav5001` — **komplett** (Steps 2–5). `Nav5001` →
+  `SetSupportedLanguageVersionCodeFix`, `Nav3002` → `SetValidLanguageVersionCodeFix`, `Nav3003` →
+  `MoveVersionDirectiveToTopCodeFix` (Direktive an den Dateikopf verschieben bzw. entfernen). Alle drei
+  laufen über den LSP (`NavCodeActionService`) **und** als VS-Lightbulb (SuggestedActionProvider in
+  `Nav.Language.ExtensionShared/CodeFixes/`). Status: `doc/nav-version-codefixes-status.md`.
 - [ ] **Generische Direktiven** (`#region`, `#if`) — Weg-B-Fundament steht; offen: Placement-Regel lockern
   (Direktiven überall zulassen) + je Direktive ein Sub-Parser-Zweig samt Knotentyp.
 - [x] **Lexer-LF-Fallstrick** — `ScanPreprocessor` terminiert jetzt bei jedem Zeilenende (LF/CR/NEL/LS/PS),
