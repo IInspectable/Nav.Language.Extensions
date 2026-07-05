@@ -30,7 +30,8 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 ///     Einrückung noch Trailing-Whitespace.
 ///   </description></item>
 ///   <item><description>
-///     <b>Zeilenenden werden auf <see cref="NewLine"/> vereinheitlicht</b> (Standard CRLF).
+///     <b>Zeilenenden werden auf den konfigurierten Zeilenumbruch vereinheitlicht</b>
+///     (Standard <see cref="DefaultNewLine"/>, CRLF).
 ///     Eingebettete <c>\r\n</c>, <c>\n</c> werden als Zeilenumbruch interpretiert.
 ///   </description></item>
 /// </list>
