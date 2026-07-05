@@ -126,6 +126,61 @@ die das Bild oben präzisieren:
   **Algorithmus**, nicht nur ein Name — versionierte Facts allein reparieren das nicht.
   Die C#→Nav-Richtung ist davon unberührt (läuft über die invarianten Annotations, Grundsatz 4).
 
+### Befunde der Step-3-Voranalyse (2026-07-05) — Ergebnis-Form generalisieren
+
+Erhoben für den nächsten Schritt (`CodeGenerationResult` → Spec-Liste mit `OverwritePolicy`-Metadatum).
+Die Ist-Gestalt und der **präzise** Blast-Radius (kleiner als die Step-3-Planzeile vermuten lässt):
+
+- **Ist-Gestalt der Typen:**
+  - `CodeGenerationSpec` (record, `CodeGen/CodeGenerationSpec.cs`): heute nur `{ Content, FilePath }` +
+    Sentinel `Empty`/`IsEmpty` — **noch ohne** `OverwritePolicy`.
+  - `CodeGenerationResult` (sealed class): `TaskDefinition` + **feste 5 Slots** (`IBeginWfsCodeSpec`,
+    `IWfsCodeSpec`, `WfsBaseCodeSpec`, `WfsCodeSpec`, `ToCodeSpecs`).
+  - `OverwritePolicy`: **privates nested enum in `FileGenerator`** (`{ Never, WhenChanged }`).
+  - `CodeModelResult` (internal sealed): analoge 5 Model-Slots; nur von `CodeGenerator.GenerateCode`
+    konsumiert.
+- **Wer baut das Result:** `CodeGenerator.GenerateCode` (+ die fünf `Generate*CodeSpec`-Methoden,
+  je Slot ein `CodeGenerationSpec` bzw. `CodeGenerationSpec.Empty` bei ausgeschaltetem Options-Flag).
+- **Wer konsumiert die Slots:** nur **zwei** Stellen — `FileGenerator.Generate` (liest die Slots,
+  vergibt **hart je Slot** die Policy: `WhenChanged` für IWfs/IBeginWfs/WfsBase, `Never` für Wfs
+  **und** TOs; skippt `IsEmpty`) und **`CodeGenTests`** (prüft Option-Gating: welches Artefakt bei
+  welchem Flag `IsEmpty` ist, plus `#nullable`-Inhalt je Slot).
+- **NICHT betroffen — anders als die Planzeile suggeriert:** `LoggerAdapter` konsumiert
+  `FileGeneratorResult` (schon Liste, hängt nicht an den Slots); `RegressionTests` läuft über
+  Pipeline **+ Dateisystem** (`.expected.cs`-Vergleich) und ist von der Result-Gestalt entkoppelt;
+  `NavCodeGeneratorPipeline.Run` reicht das Result nur an `fileGenerator.Generate(result)` weiter;
+  `Statistic` zählt `FileGeneratorResult`. Keine weiteren Hosts (BuildTasks ruft `nav.exe` als
+  Prozess). ⇒ **Der reale Umbau berührt vier Produktionsdateien:** `CodeGenerationSpec`,
+  `CodeGenerationResult`, `CodeGenerator`, `FileGenerator` — plus die **Test**-Umstellung in
+  `CodeGenTests`.
+
+- **Empfohlener Umbau:**
+  1. `OverwritePolicy` in ein **public top-level** enum ziehen (eigene Datei), Werte unverändert.
+  2. `CodeGenerationSpec` bekommt `OverwritePolicy` (Ctor-Param + Property); `Empty` mit belanglosem
+     Default (wird ohnehin gefiltert).
+  3. `CodeGenerationResult` → `{ TaskDefinition, ImmutableArray<CodeGenerationSpec> Specs }`. Die
+     `Generate*CodeSpec`-Methoden vergeben die Policy (Wissen wandert vom `FileGenerator` in den
+     Generator) und werden in `GenerateCode` zu **einer** Liste zusammengeführt, **leere Specs beim
+     Bau gefiltert** (Liste = echte Artefakte).
+  4. `FileGenerator.Generate` iteriert nur noch `result.Specs` und ruft
+     `WriteFile(taskDef, spec, spec.OverwritePolicy)`; `ShouldWrite`/`WriteFile`/`Resilience` bleiben.
+  5. `CodeGenTests` auf Spec-Identität per **FilePath-Suffix** umstellen; Option-Gating als
+     An-/Abwesenheit in der Liste prüfen (statt `IsEmpty` je Slot).
+
+- **Offene Entscheidungen (zu Step-3-Beginn mit dem Nutzer klären):**
+  - **A. Spec-Identität in den Tests:** FilePath-Suffix-Matching (empfohlen — hält `CodeGenerationSpec`
+    minimal wie in Baustein 3) **vs.** ein neues `Kind`-Label am Spec (für `FileGenerator` redundant
+    zur Policy, aber explizit für Tests/Diagnostik/Logging).
+  - **B. Leere Specs beim Bau filtern** (empfohlen: ja — Liste enthält nur zu schreibende Artefakte;
+    vereinfacht `FileGenerator` und die Gating-Tests) **vs.** leere Specs mitführen und weiter skippen.
+  - **C. `CodeModelResult` bleibt** unverändert (emitter-internes V1-Konstrukt, nur `GenerateCode`
+    liest es) — in Step 3 **nicht** flachklopfen. Bestätigen.
+  - **D. Schreibreihenfolge:** wirkt nur auf Log/Statistik, nicht auf Dateiinhalt (RegressionTests
+    vergleicht Inhalte auf Platte) — bestehende Reihenfolge beibehalten, um Log-Diffs zu vermeiden.
+
+- **Byte-Identitäts-Gate:** Policy-Mapping 1:1 erhalten, keine Inhalts-/Pfadänderung. Verifikation
+  wie gehabt: `nav test` (net472) + `dotnet test … -f net10.0`, Regression byte-identisch.
+
 ## Warum die statischen `CodeGenFacts` ein Show-Stopper sind
 
 Die Facts existieren heute in **drei Erscheinungsformen desselben Datensatzes**:
