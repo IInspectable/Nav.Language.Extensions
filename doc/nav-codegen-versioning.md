@@ -92,6 +92,40 @@ Kernbeobachtung: **Namensbildung und Navigation teilen sich denselben Code** (`*
 ein Glücksfall — wird die Namens-Algebra versionsbewusst, zieht die Navigation weitgehend
 automatisch nach.
 
+### Befunde der property-genauen CodeInfo-Analyse (2026-07-05)
+
+Die Voranalyse zu Step 2 hat die Konsumenten jeder einzelnen `*CodeInfo`-Property erhoben
+(Generator-CodeModels, ST-Templates inkl. reflektivem Zugriff, Navigation, Anzeige). Ergebnisse,
+die das Bild oben präzisieren:
+
+- **Die CodeInfos sind heute primär Navigations-/Anzeige-SSOT, nicht Generator-SSOT.** Die
+  Methoden-Namen (`BeginLogicMethodName`, `AfterLogicMethodName`, `TriggerLogicMethodName`)
+  konsumiert der Generator **gar nicht** — die Templates bauen dieselben Namen selbst aus den
+  Facts zusammen (`<ExitMethodPrefix()><…NodeNamePascalcase><LogicMethodSuffix()>` in
+  `WFSBase.stg`). Die „SSOT" existiert also **doppelt** (CodeInfo für Navigation, Templates für
+  Generierung); konsistent nur, weil beide dieselben Facts-Konstanten verbauen. **Vorgabe für
+  Step 4:** die CodeBuilder-Emitter konsumieren die CodeInfos direkt — erst dann ist die SSOT echt.
+  Echt dual-use ist nur `TaskCodeInfo` (CodeModels delegieren ihre Typnamen daran) sowie
+  `SignalTriggerCodeInfo.TriggerName`/`TOClassName` (füttern `TriggerTransitionCodeModel`).
+- **Drei tote Properties:** `TaskExitCodeInfo.AfterMethodName`, `TaskInitCodeInfo.BeginMethodName`,
+  `SignalTriggerCodeInfo.TriggerMethodName` haben keinen einzigen Konsumenten (Code und Templates
+  geprüft) — in Step 2 streichen.
+- **Namensquelle am CodeInfo vorbei:** `LocationFinder.cs` baut sich `BeginLogic` lokal aus
+  `BeginMethodPrefix + LogicMethodSuffix` zusammen (Konstante `BeginLogicMethodName`, Zeile 44) —
+  in Step 2 auf `TaskInitCodeInfo` umstellen, sonst versioniert diese Quelle nicht mit.
+- **`WflNamespaceSuffix` ist doppelt belegt** (analog `WfsClassSuffix`): `IBegin{Task}WFS` liegt in
+  `{ns}.WFL` (`TaskDeclarationCodeInfo.WflNamespace`) — der WFL-Suffix ist also **invariant als
+  IBegin-Interface-Ablage** (Grundsatz 3) *und* versionierbar als Implementierungs-Namespace
+  (`{ns}.WFL.{Task}WFS`). `CodeGenInvariants` fehlt dieser Baustein noch; in Step 2 entflechten.
+- **Die Nav→C#-Navigation hat zwei Versions-Achsen:** (a) die **Namen** — löst Step 2 über
+  versionierte Facts vollständig; (b) die **Struktur-Annahmen des Suchverfahrens** im
+  `LocationFinder`: „es gibt eine generierte Basisklasse mit berechenbarem FQN"
+  (`GetTypeByMetadataName(FullyQualifiedWfsBaseName)`), „User-Code liegt in abgeleiteten Klassen"
+  (`FindDerivedClassesAsync`, `.generated.cs` wird übersprungen), „Logik-Member sind
+  namensadressierbar". Erzeugt eine Generation keine separate Basisklasse mehr, bricht der
+  **Algorithmus**, nicht nur ein Name — versionierte Facts allein reparieren das nicht.
+  Die C#→Nav-Richtung ist davon unberührt (läuft über die invarianten Annotations, Grundsatz 4).
+
 ## Warum die statischen `CodeGenFacts` ein Show-Stopper sind
 
 Die Facts existieren heute in **drei Erscheinungsformen desselben Datensatzes**:
@@ -255,6 +289,27 @@ Beide implementieren `ICodeGenerator`; der Dispatcher wählt je Unit. Neue Sprac
 freischalten heißt dann: Konstante in `NavLanguageVersion.SupportedVersions` + Facts-Instanz +
 Generator-Zweig im Dispatcher.
 
+**(6) Navigation: versionierte Such-Strategie als Zielbild (entschieden 2026-07-05 — „Option B").**
+Die Nav→C#-Navigation wird perspektivisch hinter eine kleine, pro Generation implementierte
+Schnittstelle gestellt (sinngemäß `INavToCSharpLocationStrategy`: „finde Task-Implementierung /
+Trigger / Init / Exit"); die Weiche liest wie beim Codegen die Symbol-Version. Begründung:
+saubere Separation of Concerns — die `*CodeInfo`-Klassen sind **Mittel zum Zweck** und damit
+privates Vokabular ihrer Generation; sie dürfen vollständig versionsspezifisch werden, statt als
+generationsübergreifender Property-Vertrag erstarren zu müssen. Konsequenzen:
+
+- **Jetzt nicht bauen.** Die Schnittstelle entsteht erst in Step 6/7, wenn der V2-Schnitt
+  feststeht — vorher ist unbekannt, welche Operationen sie braucht. Behält V2 das Muster
+  „generierte abstrakte Basis + User-Derived" (die V2-Richtungs-Notiz unten ist damit verträglich),
+  degeneriert die Strategie zur geteilten V1-Implementierung mit versionierten Namen und kostet
+  nichts.
+- **Step 2 markiert die Sollbruchstelle:** `FullyQualifiedWfsBaseName`/`WfsBaseTypeName` sind
+  semantisch „der Navigations-Anker-Typ dieser Generation", nicht „die WfsBase" — das wird in der
+  Doku der Properties explizit gemacht. Der Trichter ist schmal: `GoToSymbolBuilder` + die
+  GoTo-Provider reichen CodeInfos nur an die vier `LocationFinder`-Suchen durch.
+- Die (invariante) Annotations-Suche bleibt als **Fallback-Baustein innerhalb einer V2-Strategie**
+  in der Hinterhand (gestalt-unabhängig, aber teurer als die Symboltabellen-Suche — als
+  Voll-Ersatz für die Nav→C#-Richtung verworfen).
+
 ### Was ausdrücklich **nicht** umgebaut werden muss
 
 - **Pipeline-Gerüst** (`NavCodeGeneratorPipeline`, Provider-Fabriken): die Weiche liegt hinter
@@ -312,12 +367,12 @@ Reihenfolge so gewählt, dass jeder Schritt für sich baubar/testbar ist und V1-
 | Step | Inhalt | Fertig, wenn |
 |---|---|---|
 | 1 | Facts-Zweiteilung: `CodeGenInvariants` (statisch) + `ICodeGenFacts` mit `NavCodeGenFacts.For(version)`; V1-Instanz; Statik wird V1-Fassade | Engine baut; `CodeGenFactsTests` pinnen V1-Werte (Invarianten + V1-Instanz); kein Verhaltens-Diff |
-| 2 | `*CodeInfo` versionsbewusst (Facts aus Symbol-Version; Interface-Ableitungen bleiben per Grundsatz 3 invariant, `TaskDeclarationCodeInfo` unverändert) | Navigation/QuickInfo-Tests grün; V1-Snapshots byte-identisch |
+| 2 | `*CodeInfo` versionsbewusst (Facts aus Symbol-Version; Interface-Ableitungen bleiben per Grundsatz 3 invariant, `TaskDeclarationCodeInfo` unverändert). Dazu aus der Voranalyse: `ICodeGenFacts` + `NavCodeGenFacts.For(version)` entstehen hier aus den echten Konsumenten; invariante Ableitungen (`IWfsTypeName`, `IwflNamespace`, `TaskDeclarationCodeInfo`) auf `CodeGenInvariants` umhängen; `WflNamespaceSuffix`-Doppelgebrauch entflechten (invariante IBegin-Ablage vs. versionierbarer Implementierungs-Namespace); tote Properties streichen (`AfterMethodName`, `BeginMethodName`, `TriggerMethodName`); `LocationFinder`-Konstante `BeginLogicMethodName` auf `TaskInitCodeInfo` umstellen; Anker-Rolle von `FullyQualifiedWfsBaseName` dokumentieren (Baustein 6) | Navigation/QuickInfo-Tests grün; V1-Snapshots byte-identisch |
 | 3 | `CodeGenerationResult` → Spec-Liste mit `OverwritePolicy`-Metadatum; `FileGenerator`/Logger/RegressionTests umgestellt | `nav test` beide TFMs grün; Regression byte-identisch |
 | 4 | **ST-Migration (Variante B), isolierter Schritt — Artefakt für Artefakt:** CodeBuilder-Grundgerüst (`CodeGen/CodeBuilder/`), dann je Template-Familie ein Sub-Step (IBeginWFS, IWFS, WFSBase, WFSOneShot, TO — ST und CodeBuilder koexistieren solange); zum Schluss ST-Sonderweg entfernen (`.stg`, `Resources.cs`, Facts-Export, `Antlr4.StringTemplate`) | **Byte-Identität je Sub-Step bewiesen** (Snapshots **und** Bestandskorpus-Diff leer, nach jedem Sub-Step); Perf vorher/nachher gemessen |
 | 5 | Dispatcher `VersionDispatchingCodeGenerator` als `CodeGeneratorProvider.Default`; bisheriger Generator wird `CodeGeneratorV1` | Pipeline-Verhalten für V1 unverändert (Korpus-Diff leer) |
 | 6 | V2-Inhalte: Facts V2, CodeModel-/Emitter-Schnitt, `PathProvider`-V2, **keine TO-Stubs mehr** — **Interfaces `I{Task}WFS`/`IBegin{Task}WFS` identisch zu V1 emittiert** (geteilte Emitter-Bausteine); **Version 2 in `SupportedVersions` freischalten** | neue Snapshot-Fixtures `Regression/Tests-V2/`; `nav snapshot` beherrscht beide; Interface-Identitäts-Test V1↔V2 |
-| 7 | Navigation end-to-end für V2 verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung |
+| 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung |
 
 Nach jedem Step: Code-Review + `nav test` (net472 **und** net10.0), Commit-Message liefern —
 Commit macht der Nutzer (Arbeitsweise siehe `CLAUDE.md`).
@@ -359,6 +414,14 @@ Commit macht der Nutzer (Arbeitsweise siehe `CLAUDE.md`).
 10. **Korpus-Logistik:** der Bestandskorpus (~1912 Dateien) liegt lokal; den Pfad nennt der
     Nutzer, sobald Step 4 ansteht. Beweis-Lauf (Kopie → nav.exe → Diff) und Perf-Messung werden
     geskriptet und können von Claude selbst gefahren werden.
+11. **Navigations-Zielbild ist „Option B" — versionierte Such-Strategie** (⇒ Baustein 6): die
+    `*CodeInfo`-Klassen sind Mittel zum Zweck und dürfen vollständig versionsspezifisch werden;
+    ein genereller „Anker-Vertrag" für alle Generationen (Option A: jede Generation garantiert
+    Basisklasse + Derived-Descent) wird **nicht** zum Grundsatz erhoben, damit V2 z.B. auf eine
+    separate Basisklasse verzichten darf. Die Strategie-Schnittstelle entsteht erst in Step 6/7;
+    Step 2 markiert nur die Sollbruchstelle (Anker-Rolle dokumentieren). Eine annotations-basierte
+    Nav→C#-Suche (Option C) ist als Voll-Ersatz verworfen, bleibt aber Fallback-Baustein einer
+    V2-Strategie.
 
 ## V2-Richtungs-Notiz (unverbindlich, Stand 2026-07-05)
 
