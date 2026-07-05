@@ -41,6 +41,15 @@ public static class CodeGenInvariants {
     public const string IwflNamespaceSuffix = "IWFL";
 
     /// <summary>
+    /// Namespace-Suffix, unter dem die <c>IBegin{Task}WFS</c>-Interfaces liegen (<c>WFL</c>).
+    /// Bewusst getrennt vom gleichlautenden, aber versionierbaren Implementierungs-Namespace-Suffix
+    /// (heute <c>CodeGenFacts.WflNamespaceSuffix</c> bzw. <see cref="ICodeGenFacts.WflNamespaceSuffix"/>):
+    /// die Ablage des Begin-Interfaces gehört zum invarianten Schnittstellen-Vertrag, der
+    /// Implementierungs-Namespace der <c>{Task}WFS</c>-Typen darf je Generation abweichen.
+    /// </summary>
+    public const string WflNamespaceSuffix = "WFL";
+
+    /// <summary>
     /// Suffix der TO-Typnamen (<c>{View}TO</c>). Invariant, weil die TO-Typen in den
     /// Interface-Signaturen (<c>{Trigger}(XyzTO to)</c>) sichtbar sind.
     /// </summary>

@@ -20,9 +20,8 @@ public sealed class SignalTriggerCodeInfo {
     public TaskCodeInfo ContainingTask         { get; }
     public string       ViewNodeName           { get; }
     public string       TriggerName            { get; }
-    public string       TriggerMethodName      => $"{TriggerName}";
-    public string       TriggerLogicMethodName => $"{TriggerName}{CodeGenFacts.LogicMethodSuffix}";
-    public string       TOClassName            => $"{ViewNodeName.ToPascalcase()}{CodeGenFacts.ToClassNameSuffix}";
+    public string       TriggerLogicMethodName => $"{TriggerName}{ContainingTask.Facts.LogicMethodSuffix}";
+    public string       TOClassName            => $"{ViewNodeName.ToPascalcase()}{CodeGenInvariants.ToClassNameSuffix}";
 
     public static SignalTriggerCodeInfo FromSignalTrigger(ISignalTriggerSymbol signalTriggerSymbol) {
         return FromSignalTrigger(signalTriggerSymbol, null);

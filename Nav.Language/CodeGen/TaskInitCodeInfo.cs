@@ -11,14 +11,12 @@ public sealed class TaskInitCodeInfo {
     TaskInitCodeInfo(TaskCodeInfo containingTask, string? initName) {
 
         ContainingTask       = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
-        BeginMethodName      = $"{CodeGenFacts.BeginMethodPrefix}";
-        BeginLogicMethodName = $"{CodeGenFacts.BeginMethodPrefix}{CodeGenFacts.LogicMethodSuffix}";
+        BeginLogicMethodName = $"{containingTask.Facts.BeginMethodPrefix}{containingTask.Facts.LogicMethodSuffix}";
         InitName             = initName ?? String.Empty;
     }
 
     public TaskCodeInfo ContainingTask       { get; }
     public string       BeginLogicMethodName { get; }
-    public string       BeginMethodName      { get; }
     public string       InitName             { get; }
 
     public static TaskInitCodeInfo FromInitNode(IInitNodeSymbol initNodeSymbol) {

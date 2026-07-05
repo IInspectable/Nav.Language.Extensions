@@ -14,12 +14,10 @@ public sealed class TaskExitCodeInfo {
         ContainingTask = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
         var nodeNamePascalcase = (taskNodeName ?? String.Empty).ToPascalcase();
 
-        AfterMethodName      = $"{CodeGenFacts.ExitMethodPrefix}{nodeNamePascalcase}";
-        AfterLogicMethodName = $"{CodeGenFacts.ExitMethodPrefix}{nodeNamePascalcase}{CodeGenFacts.LogicMethodSuffix}";
+        AfterLogicMethodName = $"{containingTask.Facts.ExitMethodPrefix}{nodeNamePascalcase}{containingTask.Facts.LogicMethodSuffix}";
     }
 
     public TaskCodeInfo ContainingTask       { get; }
-    public string       AfterMethodName      { get; }
     public string       AfterLogicMethodName { get; }
 
     public static TaskExitCodeInfo FromConnectionPointReference(IExitConnectionPointReferenceSymbol exitConnectionPointReferenceSymbol) {
