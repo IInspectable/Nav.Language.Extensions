@@ -41,7 +41,20 @@ public static class LocationFinder {
     const string MsgErrorWhileParsingNavFile0  = "Error while parsing nav file '{0}'";
     const string MsgMissingProjectForAssembly0 = "Missing project for assembly '{0}'.";
 
-    const string BeginLogicMethodName = CodeGenFacts.BeginMethodPrefix +CodeGenFacts.LogicMethodSuffix;
+    // Methodenname der abstrakten BeginLogic-Methode für die annotationsgetriebene C#→BeginLogic-
+    // Navigation (FindCallBeginLogicDeclarationLocationsAsync). Dieser Einstieg startet an einer
+    // <NavInitCall>-Annotation im generierten Code und hat kein Nav-Symbol zur Hand — also auch keine
+    // Sprach-Version, aus der sich die versionierbaren Namensbausteine ableiten ließen. Er läuft daher
+    // (wie die C#-seitigen Navigations-Regexes der VS-Extension) noch auf der Default-Generation;
+    // versionsbewusst wird dieser Pfad erst mit der versionierten Nav→C#-Such-Strategie ("Option B").
+    // Der genuine Nav→C#-Pfad (FindTaskBeginDeclarationLocationAsync) zieht seinen Namen dagegen
+    // versionsrichtig aus TaskInitCodeInfo.BeginLogicMethodName.
+    static readonly string DefaultBeginLogicMethodName = GetDefaultBeginLogicMethodName();
+
+    static string GetDefaultBeginLogicMethodName() {
+        var facts = NavCodeGenFacts.For(NavLanguageVersion.Default);
+        return $"{facts.BeginMethodPrefix}{facts.LogicMethodSuffix}";
+    }
 
     #region FindNavLocationsAsync
 
@@ -184,14 +197,14 @@ public static class LocationFinder {
 
             var beginLogicMethods = wfsClass.GetMembers()
                                             .OfType<IMethodSymbol>()
-                                            .Where(m => m.Name == BeginLogicMethodName);
+                                            .Where(m => m.Name == DefaultBeginLogicMethodName);
 
             // Der erste Parameter ist immer das IBegin---WFS interface.
             var beginParameter = initCallAnnotation.Parameter.Skip(1).ToList();
             var beginMethod    = FindBestBeginLogicOverload(beginParameter, beginLogicMethods);
 
             if (beginMethod == null) {
-                throw new LocationNotFoundException(String.Format(MsgUnableToFindMatchingOverloadForMethod0, BeginLogicMethodName));
+                throw new LocationNotFoundException(String.Format(MsgUnableToFindMatchingOverloadForMethod0, DefaultBeginLogicMethodName));
             }
 
             var syntaxReference = beginMethod.DeclaringSyntaxReferences.FirstOrDefault();
@@ -438,7 +451,7 @@ public static class LocationFinder {
                 return location;                    
             }
 
-            throw new LocationNotFoundException(String.Format(MsgUnableToFind0, BeginLogicMethodName));
+            throw new LocationNotFoundException(String.Format(MsgUnableToFind0, codegenInfo.BeginLogicMethodName));
 
         }, cancellationToken);
 
