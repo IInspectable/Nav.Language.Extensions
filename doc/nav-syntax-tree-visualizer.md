@@ -1,148 +1,159 @@
 ﻿# Nav Syntax Tree Visualizer — VS-Extension-Toolfenster
 
-Überblick über Aufwand und nötige Bausteine für ein kleines VS-Toolfenster, das den **Syntax Tree**
-der aktiven `.nav`-Datei als Baum darstellt — Vorbild ist Riders/Roslyns „Syntax Visualizer"
-(Knoten + Tokens, Icons, Selektions-Sync mit dem Editor). Stand: Konzept/Backlog, **noch nicht
-umgesetzt**.
+Kleines VS-Toolfenster, das den **Syntax Tree** der aktiven `.nav`-Datei als Baum darstellt — Vorbild
+Riders/Roslyns „Syntax Visualizer" (Knoten + Tokens + Trivia, Icons, Selektions-Sync mit dem Editor).
+Stand: Konzept/Handoff nach ausführlichem Design-Grilling, **noch nicht umgesetzt**. Dieses Dokument
+hält den Entscheidungsstand *und* die offenen Fragen fest, damit später nahtlos weitergearbeitet werden
+kann.
 
-## Kurzfazit
+## Zweck / Zielgruppe (entschieden)
 
-Der Datenteil ist praktisch geschenkt — die Engine liefert alles fertig. Der eigentliche Aufwand
-steckt im **VSIX-Toolfenster-Gerüst**, das es im Repo noch **gar nicht** gibt (kein `.vsct`, keine
-`ToolWindowPane`, kein `[ProvideToolWindow]`). Das ist Greenfield und der größte Risikoposten.
+**Parser-Entwickler-X-ray**, nicht Struktur-Browser für Nav-Autoren. Konsequenz: Der Tool lebt vom
+Sichtbarmachen der **Error-Recovery** — synthetisierte Missing-Tokens, übersprungene Läufe
+(`SkippedTokensTrivia`), fehlerhafte Direktiven (`BadDirectiveTrivia`). Ein „sauberer" Nodes-only-Baum
+wäre hier das *falsche* Werkzeug, weil er genau das Interessante verbirgt.
 
-| Umfang | Aufwand |
-|---|---|
-| **MVP** (Toolfenster + Baum, nur Knoten, Klick-auf-Knoten → Editor-Selektion, Refresh bei Edit) | ~4–5 PT |
-| **Vollausbau** (Tokens/Trivia, Zwei-Wege-Sync mit Caret, Properties-Panel, Icons/Polish) | ~8–10 PT |
+## Entscheidungslog (aus dem Grilling)
 
-## Was schon da ist (wird nur konsumiert)
+| # | Branch | Entscheidung |
+|---|---|---|
+| 1 | Zielgruppe | Parser-Dev-X-ray (nicht End-User-Browser). |
+| 2 | Datenquelle | **Syntax Tree** via `ParserService` (`SyntaxTreeAndSnapshot`), nicht der Semantic-Model. |
+| 3 | Faithfulness | **Voll**: alle Tokens, **alle Trivia inkl. strukturierter** (Direktiven, Skipped), **Missings**. Nicht optional. |
+| 4 | Missing-Tokens | Über neue **generierte Engine-API `ChildTokensIncludingMissing()`** (Variante B, s.u.) — **ausgegliederter, eigener Engine-Task**. Kein Runtime-Reflection im Visualizer, **kein** Einfädeln in den globalen Token-Strom. |
+| 5 | Sync-Tiefe | Caret→Baum trifft nur **signifikante** Knoten/Tokens (bestehende `FindToken`/`FindAtPosition`). Trivia/Missings sind nur **top-down** im Baum sichtbar, nicht per Cursor anspringbar. |
+| 6 | Invocation | Für auffindbare Invocation (Menü/Tastenkürzel) ist ein **`.vsct` Pflicht** — es gibt in diesem Repo keine C#-Abkürzung (kein eigenes Editor-Kontextmenü, kein Community-Toolkit). Minimieren auf **einen** Show-Command. |
+| 7 | Sequenzierung | Engine-API → Baum-VM (testgetrieben, ohne Fenster) → Fensterhülle/`.vsct` zuletzt. Die Fensterhülle liegt **nicht** auf dem kritischen Pfad zum Nutzen. |
 
-**Syntax-Modell (`Nav.Language`, netstandard2.0):** exakt passend für einen Baum-Renderer —
-- `SyntaxTree.ParseText(text, filePath, ct)` → `.Root` (`SyntaxNode`), `.Tokens`, `.SourceText`
-  (`Nav.Language\Syntax\SyntaxTree.cs`).
-- Rekursion generisch über `SyntaxNode.ChildNodes()` (+ `ChildTokens()` für Tokens). Kein
-  `Kind`-Enum — **Label = `node.GetType().Name`** (Suffix `Syntax` abschneiden, z.B.
-  `TaskDefinitionSyntax` → `TaskDefinition`). Für Tokens `token.Type`.
-- Editor-Highlight & Rück-Navigation: jeder Knoten/Token hat `Extent`/`FullExtent`,
-  `GetLocation()` (`Nav.Language\Common\Location.cs`, mit Start/EndLine/Character), und der
-  umgekehrte Weg Caret→Knoten via `Root.FindNode(pos)` / `Root.FindToken(pos)`.
-- Ein generierter Walker (`SyntaxNodeWalker` / `ISyntaxNodeVisitor`) existiert, für den Renderer ist
-  aber die simple `ChildNodes()`-Rekursion ausreichend.
+## Das Modell — warum der faithful Baum so aussehen muss
 
-**Datenanbindung in der Extension (fertig, nur nutzen):**
+Belege im Code (`Nav.Language\Syntax\`), damit später niemand erneut recherchieren muss:
+
+- **Kein `Kind`-Enum** — der CLR-Typ *ist* die Art. Label = `node.GetType().Name` (Suffix `Syntax`
+  strippen). Für Tokens `token.Type`. (`SyntaxNode.cs`)
+- **`ChildNodes()`** liefert nur Knoten; **`ChildTokens()`** = `SyntaxTree.Tokens[Extent].Where(t => t.Parent == this)`
+  liefert nur die **direkt vorhandenen** Tokens dieses Knotens (inkl. un-benannter Wiederhol-Tokens wie
+  Listen-Kommata). Ein Roslyn-artiges „nodes and tokens interleaved" gibt es **nicht** — muss im VM per
+  Merge nach `Extent.Start` selbst gebaut werden.
+- **Trivia hängt an Tokens** (`SyntaxToken.LeadingTrivia`/`TrailingTrivia`), nicht an Knoten. Im Baum sind
+  Trivia also Kinder *eines Tokens*. (`SyntaxToken.cs`)
+- **Strukturierte Trivia** (Direktiven, Skipped) ist Roslyn-faithful: `SyntaxTrivia.HasStructure` +
+  `GetStructure()` liefert einen `StructuredTriviaSyntax`-Knoten mit eigenen `ChildNodes()`/`ChildTokens()`.
+  Der faithful Baum ist damit **ein** rekursiver Walk: Knoten → Merge(ChildNodes, Tokens) nach Position;
+  Token → Leading/Trailing-Trivia; Trivia → falls `HasStructure`, in `GetStructure()` rekursieren.
+  (`SyntaxTrivia.cs`)
+- **Missings sind NICHT im Baum/Strom.** Der Parser hält den Token-Strom bewusst = **nur real gelexte
+  Tokens** (positive Breite, überlappungsfrei, `Start` als eindeutiger Identitätsschlüssel). Die Primitive
+  `Tok(parent, raw, …)` fügt nichts an, wenn `raw == null` — Missings entstehen erst *on demand* über
+  benannte Properties: `OpenBrace => ChildTokens().FirstOrMissing(OpenBrace)` →
+  `.DefaultIfEmpty(SyntaxToken.Missing).First()`. `SyntaxToken.Missing` hat `Parent == null`,
+  `Start == −1`, ist nie in `SyntaxTree.Tokens`/`ChildTokens()`. (`NavParser.cs`, `SyntaxTokenExtensions.cs`)
+- **Warum nicht einfach ins Strom-Modell einfädeln (echtes Roslyn)?** Verworfen: Ein nullbreiter Missing
+  (`Start == End`) bricht die dokumentierten Invarianten des frisch überarbeiteten Trivia-Systems —
+  `SyntaxTokenComparer` (nur nach `Start`), `FinalizeTrivia`s `HashSet<int>`-Identität über `Start`,
+  `FindAtPosition` (`[Start,End)`), Extent-Slicing. Plus Umbau der meistfrequentierten Parser-Primitive
+  und Test-/Snapshot-Lawine. Geschätzt Tage–Wochen an der empfindlichsten Engine-Stelle, hohes
+  Regressionsrisiko — für ein Debug-Fenster nicht vertretbar.
+
+## Ausgegliederter Engine-Task: `ChildTokensIncludingMissing()` (Variante B)
+
+Eigenständig commit-/planbar; nutzt auch **Diagnostics/LSP**, nicht nur den Visualizer.
+
+- **Vertrag (Variante B):** liefert die **vollständige, quell-geordnete Vereinigung aller *direkten*
+  Tokens** eines Knotens **inkl. Missings** — present Tokens (aus `ChildTokens()`, inkl. Kommata) nach
+  `Start`, Missings (aus den benannten Slots) nach **Deklarationsreihenfolge** zwischen ihre
+  present-Nachbarn einsortiert. Present-Tokens, die auch benannte Slots sind, per `SyntaxToken.Equals`
+  deduplizieren.
+- **Umsetzung:** über den **bestehenden Source-Generator** (`Nav.Visitor.SourceGenerator`, der bereits
+  Walker/Visitor über die Node-Typen erzeugt) eine geordnete Slot-Liste je Node-Typ emittieren →
+  compilezeit-geprüft, **kein** Runtime-Reflection, **kein** Eingriff in Strom/Parser (additiv).
+- **Abzusichernde Annahme:** „Deklarationsreihenfolge der `SyntaxToken`-Properties == Quellreihenfolge"
+  — per-Typ-Test über alle ~40 Node-Typen (net472 + net10.0).
+- Vorschlag Signatur: `IReadOnlyList<SyntaxToken> ChildTokensIncludingMissing()` auf `SyntaxNode`
+  (bzw. generiertes `partial`), analog zu `ChildNodes()`/`ChildTokens()`.
+
+## Sequenzierung (drei unabhängige Blöcke)
+
+1. **Engine-API** — `ChildTokensIncludingMissing()` (Variante B) per Generator + per-Typ-Tests.
+   *Blockiert den faithful Baum, sonst nichts.*
+2. **Baum-Aufbau + ViewModel** — `SyntaxNodeViewModel` (dreiartig: Knoten/Token/Trivia), faithful Walk
+   (Merge nodes+`ChildTokensIncludingMissing` nach Position; Trivia unter Tokens; `GetStructure()`-Rekursion;
+   Missings als rote Null-Breite-Slots). **Rein testgetrieben in `Nav.Language.Tests`** gegen
+   `SyntaxTree.ParseText(...)` — braucht **kein** VS-Fenster. Lazy/gecachte Children, gekürzte
+   Text-Previews (~100 Zeichen).
+3. **Fensterhülle** — `[ProvideToolWindow(typeof(SyntaxVisualizerToolWindow))]` auf `NavLanguagePackage`,
+   `ToolWindowPane` mit WPF-`TreeView` (`HierarchicalDataTemplate`, `CrispImage` + `EnvironmentColors`-Theming),
+   plus das **eine** `.vsct` für „Ansicht → Weitere Fenster → Nav Syntax Tree". Erst wenn (2) sich bewährt hat.
+
+## Fensterhülle / `.vsct` — Fakten & Fallen
+
+- Greenfield: **kein `.vsct`** im Repo, **kein** Community.VisualStudio.Toolkit — nur rohes
+  `Microsoft.VisualStudio.SDK` 17.14 + `Shell.15.0` + `VSSDK.BuildTools`.
+- **`[ProvideToolWindow]` + `ShowToolWindowAsync` brauchen KEIN `.vsct`** — das `.vsct` ist ausschließlich
+  für den einen Menü-/Tasten-Command, der das Fenster zeigt.
+- Projekt-Split: `.vsct` + `VSCTCompile` + `Menus.ctmenu`-Zeile in `VSPackage.resx` **müssen** ins
+  net472-VSIX-Projekt `Nav.Language.Extension2026` (nur dort ist `VSSDK.BuildTools`). `ToolWindowPane`,
+  WPF-Control, VMs, Command-Wiring in `Nav.Language.ExtensionShared` (.shproj → kompiliert in die
+  VSIX-Assembly). GUID/IDs doppelt pflegen (symbolisch im `.vsct`, C#-Konstanten in Shared).
+- Erst-`.vsct`-Falle: `VSCTCompile ResourceName` = `[ProvideMenuResource("Menus.ctmenu", 1)]`-Name =
+  `VSPackage.resx`-Zeile müssen exakt übereinstimmen, sonst fehlt der Command stumm. In der
+  Experimental-Hive verifizieren. (Das ist der Löwenanteil der 2–3 PT — Lernkurve, nicht Komplexität.)
+- Präzedenz für Toolfenster-Öffnen ohne eigenes `.vsct`: `Commands\ViewCallHierarchyCommandHandler.cs`
+  (MEF `ICommandHandler`, kapert die bestehende Ctrl+K,Ctrl+T-Geste). Für „Show Syntax Tree" gibt es
+  keine passende bestehende Geste → daher `.vsct` nötig.
+
+## Wiederverwendbare Bausteine (nur konsumieren, kein Umbau)
+
 - Aktive View: `NavLanguagePackage.GetActiveTextView()` → `IWpfTextView` → `view.TextBuffer`.
-- Pro-Buffer-Singleton `ParserService.GetOrCreateSingelton(buffer)` (`ParserService\ParserService.cs`)
-  → `SyntaxTreeAndSnapshot` (enthält den `SyntaxTree`), Event `ParseResultChanged` (bereits ~200 ms
-  debounced, Parse im Hintergrund). Abo-Muster: von `ParserServiceDependent` ableiten und
-  `OnParseResultChanged` überschreiben.
-- Navigation/Selektion: `NavLanguagePackage.NavigateToLocation(view, pos)`,
-  `TextViewExtensions.SetSelection(view, span)`, `Location.ToSnapshotSpan(snapshot)`.
-- Threading: `NavLanguagePackage.Jtf` (`SwitchToMainThreadAsync`), `ThreadHelper.ThrowIfNotOnUIThread`.
+- Datenquelle/Refresh: `ParserService.GetOrCreateSingelton(buffer)` → `SyntaxTreeAndSnapshot`; Event
+  `ParseResultChanged` (bereits ~200 ms debounced, Parse im Hintergrund); Abo-Muster via Ableitung von
+  `ParserServiceDependent` (`OnParseResultChanged`). Dokumentwechsel: `IVsSelectionEvents`
+  (`SEID_DocumentFrame`). UI-Thread via `NavLanguagePackage.Jtf`.
+- Selektion/Navigation (Baum→Editor): `NavLanguagePackage.NavigateToLocation(view, pos)`,
+  `TextViewExtensions.SetSelection(view, span)`, `Location.ToSnapshotSpan(snapshot)`. (Missings mit
+  Breite 0 / `Start == −1` highlighten schlicht nicht — akzeptiert, sie sind top-down-only.)
+- Caret→Baum (nur signifikant): `SyntaxTree.Root.FindNode(pos)` / `FindToken(pos)` → VM-Knoten
+  expandieren/selektieren. Rückkopplung mit `_suppressSync`-Flag brechen; **nie** bei Caret-Bewegung
+  neu parsen.
+- Theming/Icons: `EnvironmentColors.*BrushKey`, `imaging:CrispImage` + `KnownMonikers`, `VsFont`
+  (Muster `Margin\NavMarginControl.xaml`).
 
-## Projekt-Split (die tragende Randbedingung)
+## Offene Fragen (vor Umsetzung klären)
 
-- **`.vsct` + `VSCTCompile` MÜSSEN in `Nav.Language.Extension2026` (net472 VSIX)** liegen — nur dort
-  ist `Microsoft.VSSDK.BuildTools` referenziert. Ebenso die `Menus.ctmenu`-Zeile in `VSPackage.resx`
-  (`MergeWithCTO=true` ist dort schon gesetzt).
-- **Alles reine C#/XAML** (`ToolWindowPane`, `UserControl`, ViewModels, Command-Wiring) kommt in
-  **`Nav.Language.ExtensionShared` (.shproj)** — kompiliert in die VSIX-Assembly; XAML-`<Page>`-Einträge
-  laufen dort schon (z.B. `NavMarginControl.xaml`).
-- **GUIDs/IDs doppelt pflegen** (symbolisch im `.vsct`, als C#-Konstanten in Shared) — dieselben
-  Literale, sonst fehlt der Menübefehl kommentarlos.
+1. **Invocation-Timing für v1:** einmaligen `.vsct`-Aufwand sofort (Standard „Ansicht → Weitere
+   Fenster") — *oder* Hülle für v1 ganz zurückstellen (Baum nur im Test-Harness/Dev-Trigger sichtbar),
+   `.vsct` als Block 3 später? (Grilling offen gelassen.)
+2. **Sequenz-Bestätigung:** Reihenfolge Engine-API → VM → Fenster ok? Insbesondere: Ist der Engine-Task
+   (Block 1) *ohnehin* für Diagnostics/LSP gewünscht? Dann fällt er aus dem Visualizer-Budget heraus und
+   der Visualizer schrumpft auf „VM + Fensterhülle".
+3. **Whitespace/NewLine-Trivia:** im X-ray per Default **ausblenden** (Rauschen) mit Toggle, oder immer
+   zeigen? (Tendenz: ausblenden + „Show trivia"-Toggle.)
+4. **Properties-Panel** (Rider-Stil: Kind/Span/FullSpan/Text des selektierten Knotens) — Teil von v1
+   oder später?
+5. **Node-Label-Detail:** nur Typname, oder zusätzlich Extent `[start..end)` + gekürzter Text-Slice
+   inline? (Tendenz: Typname + gedimmter Extent; Text im Properties-Panel.)
+6. **Icons:** Unterscheidung Knoten/Token/Trivia/Missing über `KnownMonikers` — konkrete Moniker-Wahl
+   offen.
 
-## Phasen
+## Aufwand (grob, revidiert)
 
-### Phase 1 — Toolfenster-Gerüst (MVP, riskantester Teil)
+| Block | Aufwand | Risiko |
+|---|---|---|
+| 1 — Engine-API `ChildTokensIncludingMissing()` (Generator + Tests) | wenige PT | gering, additiv; profitiert Diagnostics/LSP |
+| 2 — Baum-VM + faithful Walk (testgetrieben) | ~2 PT | gering, VS-frei testbar |
+| 3 — Fensterhülle + erstes `.vsct` | 2–3 PT | mittel (Erst-`.vsct`-Lernkurve) |
+| Polish — Theming/Icons/Sync/Toggles/Properties-Panel | ~1–2 PT | gering |
 
-Neue Dateien:
-- `Nav.Language.Extension2026\NavSyntaxVisualizer.vsct` — Command-Table: `<Group>` unter
-  `guidSHLMainMenu:IDG_VS_WNDO_OTRWNDWS0` (**Ansicht → Weitere Fenster**), ein `<Button>` „Nav Syntax
-  Tree". `<Symbols>`: `guidNavPackage` = bestehende `PackageGuidString`, neuer CmdSet-GUID +
-  `IDSymbol`s (Group `0x1020`, Command `0x0100`).
-- `Nav.Language.ExtensionShared\SyntaxVisualizer\SyntaxVisualizerCommands.cs` — C#-Spiegel der IDs.
-- `Nav.Language.ExtensionShared\SyntaxVisualizer\SyntaxVisualizerToolWindow.cs` —
-  `[Guid(...)] sealed class SyntaxVisualizerToolWindow : ToolWindowPane`, `Caption`,
-  `Content = new SyntaxVisualizerControl(...)`.
-
-Änderungen:
-- `NavLanguagePackage.cs` — Attribute
-  `[ProvideToolWindow(typeof(SyntaxVisualizerToolWindow), Style=VsDockStyle.Tabbed, Orientation=ToolWindowOrientation.Right)]`
-  + `[ProvideMenuResource("Menus.ctmenu", 1)]`; in `InitializeAsync` den `MenuCommand` an
-  `OleMenuCommandService` hängen, Handler ruft
-  `ShowToolWindowAsync(typeof(SyntaxVisualizerToolWindow), 0, true, DisposalToken)` via `Jtf.RunAsync`.
-- `Nav.Language.Extension2026.csproj` —
-  `<VSCTCompile Include="NavSyntaxVisualizer.vsct"><ResourceName>Menus.ctmenu</ResourceName></VSCTCompile>`.
-- `VSPackage.resx` — `Menus.ctmenu`-MergeWithCTO-Zeile.
-- `NavLanguagePackage.Guids.cs` — neue CmdSet-/ToolWindow-GUID-Konstanten dazu.
-
-APIs: `ToolWindowPane`, `[ProvideToolWindow]`/`[ProvideMenuResource]`,
-`AsyncPackage.ShowToolWindowAsync`/`FindToolWindow`, `OleMenuCommandService`/`MenuCommand`/`CommandID`.
-
-### Phase 2 — Baum-Control + ViewModel (MVP)
-
-Neue Dateien (Shared, unter `SyntaxVisualizer\`):
-- `SyntaxNodeViewModel.cs` — `INotifyPropertyChanged`, Wrapper über `SyntaxNode`/`SyntaxToken`.
-  `Label` (Typname ohne `Syntax`-Suffix bzw. `token.Type`), `ExtentText` (`[start..end)`),
-  `TextPreview` (`ToString()`, **auf ~100 Zeichen/1 Zeile gekürzt**), `Icon` (`KnownMonikers`,
-  Knoten vs. Token vs. Trivia), **lazy** gecachte `Children` aus `ChildNodes()`, bindbare
-  `IsExpanded`/`IsSelected`, Rückverweis auf `TextExtent` für Selektion.
-- `SyntaxVisualizerControl.xaml`/`.xaml.cs` — `UserControl` (Muster `NavMarginControl.xaml`):
-  `TreeView` mit `HierarchicalDataTemplate` (`CrispImage` + Label + gedimmter Extent),
-  `ItemContainerStyle` bindet `IsExpanded`/`IsSelected` bidirektional. Theming über
-  `EnvironmentColors.*BrushKey`, `VsFont`. Toolbar: „Sync mit Caret"-`ToggleButton`
-  (+ optional „Tokens anzeigen"/„Trivia anzeigen"). Enhancement: unteres Properties-Panel
-  (Kind/Span/FullSpan/Text) per `GridSplitter`, Rider-Stil.
-- `.projitems` — neue `<Page>`/`<Compile>`-Einträge registrieren.
-
-### Phase 3 — Datenquelle + Refresh (MVP)
-
-- `SyntaxVisualizerViewModel.cs` — aktive View auflösen (`GetActiveTextView` → `ParserService`),
-  Root-VM aus `SyntaxTreeAndSnapshot`. Abo `ParseResultChanged` (bzw. `ParserServiceDependent`) →
-  Root neu bauen, UI-Thread via `Jtf`. Dokumentwechsel: `IVsSelectionEvents.OnElementValueChanged`
-  (`SEID_DocumentFrame`) → neu binden, altes Abo lösen. Kein aktives Nav-Doc / falscher Content-Type
-  → Leerzustand („Kein Nav-Dokument aktiv"). Beim Schließen des Fensters Abos/Advise sauber lösen.
-
-### Phase 4 — Zwei-Wege-Selektions-Sync (Enhancement)
-
-- **Baum → Editor:** `SelectedItemChanged` → `Extent`/`GetLocation()` → `Location.ToSnapshotSpan` +
-  `NavigateToLocation` + `SetSelection`.
-- **Editor → Baum** (per Toggle): `view.Caret.PositionChanged` → `Root.FindNode(pos)` → Pfad von der
-  Wurzel expandieren, Ziel `IsSelected` + in Sicht bringen.
-- Rückkopplung mit `_suppressSync`-Flag brechen. **Nie** bei Caret-Bewegung neu parsen — Baum nur bei
-  `ParseResultChanged` neu bauen.
-
-## Risiken
-
-1. **`.vsct`-Gerüst ist neu im Repo** (größtes Zeitrisiko): `VSCTCompile ResourceName` =
-   `[ProvideMenuResource]`-Name = `VSPackage.resx`-Zeile müssen exakt übereinstimmen, sonst fehlt der
-   Menübefehl stumm. In der Experimental-Hive verifizieren.
-2. **`.shproj`+net472-Split:** `.vsct`/`VSCTCompile` können nicht in Shared (kein VSSDK.BuildTools dort).
-3. **Thread-Affinität:** VS-Interop/WPF nur auf dem Main-Thread; Events kommen ggf. off-thread → immer
-   über `Jtf` hoppen.
-4. **Performance bei großen Dateien:** nur bei Parse-Änderungen neu bauen (upstream schon debounced),
-   Children lazy + gecacht, Previews gekürzt, `FindNode` O(Tiefe).
-5. **Leaks:** `ParseResultChanged`-Abo und Selection-Advise beim Fenster-Dispose lösen.
-
-## Aufwandsschätzung (grob, Personentage)
-
-| Phase | Aufwand |
-|---|---|
-| Phase 1 — Gerüst (erstes `.vsct` im Repo) | 2–3 PT |
-| Phase 2 — Control + VM | 2 PT |
-| Phase 3 — Datenquelle + Refresh | 1–1,5 PT |
-| Phase 4 — Zwei-Wege-Sync | 2 PT |
-| Theming/Icons/Leerzustände/Properties-Panel-Polish | 1 PT |
-
-MVP (Phasen 1–3, nur Knoten, Baum→Editor-Selektion): ~4–5 PT. Vollausbau: ~8–10 PT.
+Der Visualizer *ohne* Block 1 (falls die Engine-API separat als Diagnostics/LSP-Feature läuft):
+im Kern Block 2 + 3 + Polish ≈ 5–7 PT.
 
 ## Verifikation
 
-- **Bauen:** Ganze Solution via `nav build` (VSIX braucht Full-Framework-MSBuild).
-- **Installieren/Ausprobieren:** `nav install` → VS starten, `.nav`-Datei öffnen, **Ansicht → Weitere
-  Fenster → Nav Syntax Tree**. Prüfen: Baum spiegelt Struktur; Tippen aktualisiert (debounced);
-  Knoten anklicken selektiert den Bereich im Editor; (Vollausbau) Caret-Bewegung selektiert den Knoten.
-- Kein Nav-Doc aktiv → Leerzustand statt Absturz. Dokumentwechsel bindet um.
-- Reines Datenmapping (`SyntaxNode.ChildNodes()`/Label/Extent) ggf. als kleiner NUnit-Test in
-  `Nav.Language.Tests` (net472 via `nav test`, net10.0 via `dotnet test … -f net10.0`) — das
-  Toolfenster selbst ist manuell in VS zu verifizieren.
+- **Block 1/2:** NUnit-Tests in `Nav.Language.Tests` (net472 via `nav test`, net10.0 via
+  `dotnet test … -f net10.0 --filter …`) — reiner Datenmapping-/Walk-Test gegen `SyntaxTree.ParseText`,
+  inkl. Fixtures mit Missings, Skipped-Runs, Direktiven.
+- **Block 3:** ganze Solution `nav build` (VSIX braucht Full-Framework-MSBuild), dann `nav install` →
+  VS, `.nav` öffnen, Fenster über „Ansicht → Weitere Fenster" öffnen. Prüfen: Baum spiegelt Struktur
+  inkl. Missings/Skipped/Direktiven; Tippen aktualisiert (debounced); Knoten-Klick selektiert im Editor;
+  Caret-Bewegung selektiert signifikanten Knoten. Kein Nav-Doc aktiv → Leerzustand statt Absturz;
+  Dokumentwechsel bindet um.
