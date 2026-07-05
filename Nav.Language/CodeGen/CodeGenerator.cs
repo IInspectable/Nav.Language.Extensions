@@ -37,6 +37,11 @@ public sealed class CodeGeneratorProvider: ICodeGeneratorProvider {
 
 public interface ICodeGenerator: IDisposable {
 
+    /// <summary>
+    /// Generiert für jede Task-Definition der <paramref name="codeGenerationUnit"/> deren
+    /// Artefakte als <see cref="CodeGenerationResult"/> (je eine Spec-Liste). Die Weiche zwischen
+    /// den Sprach-Generationen liegt hinter dieser Schnittstelle.
+    /// </summary>
     ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit);
 
 }
@@ -91,12 +96,12 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var pathProvider = PathProviderFactory.CreatePathProvider(taskDefinition, Options);
 
         var codeModelResult = new CodeModelResult(
-            taskDefinition   : taskDefinition,
+            taskDefinition: taskDefinition,
             beginWfsCodeModel: Options.GenerateWflClasses ? IBeginWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
-            iwfsCodeModel    : Options.GenerateIwflClasses ? IWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)     : null,
-            wfsBaseCodeModel : Options.GenerateWflClasses ? WfsBaseCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)   : null,
-            wfsCodeModel     : Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)       : null,
-            toCodeModels     : Options.GenerateToClasses ? TOCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)         : null
+            iwfsCodeModel: Options.GenerateIwflClasses ? IWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
+            wfsBaseCodeModel: Options.GenerateWflClasses ? WfsBaseCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
+            wfsCodeModel: Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
+            toCodeModels: Options.GenerateToClasses ? TOCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null
         );
 
         return codeModelResult;
@@ -108,15 +113,20 @@ public class CodeGenerator: Generator, ICodeGenerator {
         // ist nach FinalConstruct gesetzt und hier stets vorhanden.
         var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
 
-        var codeGenerationResult = new CodeGenerationResult(
-            taskDefinition   : codeModelResult.TaskDefinition,
-            iBeginWfsCodeSpec: GenerateIBeginWfsCodeSpec(codeModelResult.IBeginWfsCodeModel, context),
-            iWfsCodeSpec     : GenerateIWfsCodeSpec(codeModelResult.IWfsCodeModel, context),
-            wfsBaseCodeSpec  : GenerateWfsBaseCodeSpec(codeModelResult.WfsBaseCodeModel, context),
-            wfsCodeSpec      : GenerateWfsCodeSpec(codeModelResult.WfsCodeModel, context),
-            toCodeSpecs      : GenerateToCodeSpecs(codeModelResult.TOCodeModels, context));
+        // Reihenfolge wie beim bisherigen FileGenerator (nur log-/statistikrelevant, nicht
+        // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs, TOs. Leere Specs (ausgeschaltete
+        // Options-Flags) werden schon beim Bau herausgefiltert — die Liste enthält nur die
+        // tatsächlich zu schreibenden Artefakte.
+        var specs = new[] {
+                GenerateIWfsCodeSpec(codeModelResult.IWfsCodeModel, context),
+                GenerateIBeginWfsCodeSpec(codeModelResult.IBeginWfsCodeModel, context),
+                GenerateWfsBaseCodeSpec(codeModelResult.WfsBaseCodeModel, context),
+                GenerateWfsCodeSpec(codeModelResult.WfsCodeModel, context)
+            }.Concat(GenerateToCodeSpecs(codeModelResult.TOCodeModels, context))
+             .Where(spec => !spec.IsEmpty)
+             .ToImmutableArray();
 
-        return codeGenerationResult;
+        return new CodeGenerationResult(codeModelResult.TaskDefinition, specs);
     }
 
     static readonly ThreadLocal<TemplateGroup> IBeginWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IBeginWfsTemplate));
@@ -130,7 +140,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var template = GetTemplate(IBeginWfsTemplateGroup.Value, model, context);
         var content  = template.Render();
 
-        return new CodeGenerationSpec(content, model.FilePath);
+        return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
     static readonly ThreadLocal<TemplateGroup> IWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IWfsTemplate));
@@ -144,7 +154,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var template = GetTemplate(IWfsTemplateGroup.Value, model, context);
         var content  = template.Render();
 
-        return new CodeGenerationSpec(content, model.FilePath);
+        return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
     static readonly ThreadLocal<TemplateGroup> WfsBaseTemplateGroup = new(() => LoadTemplateGroup(Resources.WfsBaseTemplate));
@@ -158,7 +168,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var template = GetTemplate(WfsBaseTemplateGroup.Value, model, context);
         var content  = template.Render();
 
-        return new CodeGenerationSpec(content, model.FilePath);
+        return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
     static readonly ThreadLocal<TemplateGroup> WfsTemplateGroup = new(() => LoadTemplateGroup(Resources.WFSOneShotTemplate));
@@ -172,7 +182,8 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var template = GetTemplate(WfsTemplateGroup.Value, model, context);
         var content  = template.Render();
 
-        return new CodeGenerationSpec(content, model.FilePath);
+        // Benutzer-Datei: nur einmalig anlegen, danach nie überschreiben.
+        return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
     }
 
     static readonly ThreadLocal<TemplateGroup> ToTemplateGroup = new(() => LoadTemplateGroup(Resources.TOTemplate));
@@ -185,7 +196,8 @@ public class CodeGenerator: Generator, ICodeGenerator {
             var template = GetTemplate(ToTemplateGroup.Value, model, context);
             var content  = template.Render();
 
-            return new CodeGenerationSpec(content, model.FilePath);
+            // TO-Stub: nur einmalig anlegen; den Inhalt pflegt der externe GUI-Generator.
+            return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
         }
     }
 

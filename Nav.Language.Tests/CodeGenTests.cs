@@ -1,5 +1,6 @@
 ﻿#region Using Directives
 
+using System;
 using System.IO;
 using System.Text;
 using System.Linq;
@@ -45,15 +46,13 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Not.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Not.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Not.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Not.Empty);
+        // Default-Optionen erzeugen für TaskA die vier WFL-/IWFL-Artefakte (plus TO-Stub[s]).
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.True);
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.False);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.False);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.False);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.False);
+        Assert.That(codeGenResult.Specs.All(spec => !String.IsNullOrEmpty(spec.Content)), Is.True);
     }
 
     [Test]
@@ -64,9 +63,9 @@ public class CodeGenTests {
         // Default: aus → keine '#nullable'-Direktive in der generierten Datei. Dadurch erbt sie
         // den Nullable-Kontext des Consumer-Projekts (in der Praxis aus), statt non-nullable
         // Referenztyp-Annotationen in Consumer-Builds zu propagieren (CS8604/CS8625).
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable"));
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Not.Contain("#nullable"));
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsIBeginWfs).Content, Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsIWfs).Content,      Does.Not.Contain("#nullable"));
     }
 
     [Test]
@@ -74,10 +73,10 @@ public class CodeGenTests {
 
         var codeGenResult = GenerateTaskA(GenerationOptions.Default with { NullableContext = true });
 
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Contain("#nullable enable"));
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable disable"));
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Contain("#nullable enable"));
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Not.Contain("#nullable disable"));
+        Assert.That(codeGenResult.Specs.Single(IsIBeginWfs).Content, Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsIWfs).Content,      Does.Contain("#nullable enable"));
     }
 
     static CodeGenerationResult GenerateTaskA(GenerationOptions options) {
@@ -108,15 +107,11 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Not.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Empty);
-
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.True);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.False);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.True);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.True);
+        // Ohne WFL-Klassen bleibt nur das IWFS-Interface übrig.
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.False);
     }
 
     [Test]
@@ -134,15 +129,11 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Not.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Not.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Not.Empty);
-
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.False);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.True);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.False);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.False);
+        // Ohne IWFL-Klassen fehlt nur das IWFS-Interface; IBeginWFS/WFSBase/WFS bleiben.
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.True);
     }
 
     public static TestCaseData[] CompileTestCases = {
@@ -299,12 +290,8 @@ public class CodeGenTests {
             foreach (var codeGenerationResult in codeGenerationResults) {
 
                 // 4. C#-Syntaxbäume des generierten Codes mittels Roslyn erstellen
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.IBeginWfsCodeSpec.Content, path: codeGenerationResult.IBeginWfsCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.IWfsCodeSpec.Content,      path: codeGenerationResult.IWfsCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.WfsBaseCodeSpec.Content,   path: codeGenerationResult.WfsBaseCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.WfsCodeSpec.Content,       path: codeGenerationResult.WfsCodeSpec.FilePath));
-                foreach (var toCodeSpec in codeGenerationResult.ToCodeSpecs) {
-                    syntaxTrees.Add(CSharpSyntaxTree.ParseText(toCodeSpec.Content, path: toCodeSpec.FilePath));
+                foreach (var spec in codeGenerationResult.Specs) {
+                    syntaxTrees.Add(CSharpSyntaxTree.ParseText(spec.Content, path: spec.FilePath));
                 }
             }
         }
@@ -375,6 +362,17 @@ public class CodeGenTests {
     static string MkFilename(string fileName) {
         return Path.Combine(@"n:\av", fileName);
     }
+
+    // Die Produktions-Specs sind bewusst namenlos (nur Content/FilePath/OverwritePolicy) — die
+    // Artefakt-Menge ist eine Sache des Generators, nicht des Konvergenzpunkts. Die Tests sind die
+    // einzige Stelle, die ein bestimmtes Artefakt adressieren muss; sie tun das über den Dateinamen.
+    static string FileNameOf(CodeGenerationSpec spec) => Path.GetFileName(spec.FilePath);
+
+    static bool IsIBeginWfs(CodeGenerationSpec spec) => FileNameOf(spec).StartsWith("IBegin", StringComparison.Ordinal);
+    static bool IsIWfs(CodeGenerationSpec spec)      => FileNameOf(spec).StartsWith("I",      StringComparison.Ordinal) && !IsIBeginWfs(spec);
+    static bool IsWfsBase(CodeGenerationSpec spec)   => FileNameOf(spec).EndsWith("WFSBase.generated.cs", StringComparison.Ordinal);
+    static bool IsWfs(CodeGenerationSpec spec)       => FileNameOf(spec).EndsWith("WFS.cs", StringComparison.Ordinal) &&
+                                                        !FileNameOf(spec).EndsWith(".generated.cs", StringComparison.Ordinal);
 
     public class TestCase {
 

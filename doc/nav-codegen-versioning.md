@@ -181,6 +181,25 @@ Die Ist-Gestalt und der **präzise** Blast-Radius (kleiner als die Step-3-Planze
 - **Byte-Identitäts-Gate:** Policy-Mapping 1:1 erhalten, keine Inhalts-/Pfadänderung. Verifikation
   wie gehabt: `nav test` (net472) + `dotnet test … -f net10.0`, Regression byte-identisch.
 
+**STEP 3 FERTIG (2026-07-05):** `CodeGenerationResult` ist von den festen 5 Slots auf
+`ImmutableArray<CodeGenerationSpec> Specs` umgestellt; `OverwritePolicy` ist ein **public top-level
+enum** (`CodeGen/OverwritePolicy.cs`), `CodeGenerationSpec` trägt es als Metadatum (Spec bleibt
+minimal `{ Content, FilePath, OverwritePolicy }` — **kein `Kind`-Label**: nur die Tests müssen ein
+Artefakt adressieren, produktiv schreibt der `FileGenerator` jeden Spec blind gemäß seiner Policy).
+Die Policy-Vergabe wandert in den Generator (`Generate*CodeSpec`: `WhenChanged` für
+IBeginWfs/IWfs/WfsBase, `Never` für Wfs/TO); `GenerateCode` führt zu **einer** Liste zusammen und
+filtert leere Specs **beim Bau** (Entscheidung B). Schreibreihenfolge unverändert
+(IWfs, IBeginWfs, WfsBase, Wfs, TOs — Entscheidung D). `FileGenerator.Generate` iteriert nur noch
+`result.Specs`, das nested `OverwritePolicy`-enum ist weg; `CodeModelResult` bleibt unverändert
+(Entscheidung C). `CodeGenTests` identifizieren Artefakte über den **Dateinamen** (Test-lokale
+Prädikate `IsIBeginWfs`/`IsIWfs`/`IsWfsBase`/`IsWfs`, Entscheidung A) statt über benannte Slots;
+Option-Gating als An-/Abwesenheit in der Liste; `CompileTest` iteriert `Specs`. Realer Blast-Radius
+exakt wie vorhergesagt (4 Prod-Dateien + `CodeGenTests`, plus die neue `OverwritePolicy.cs`).
+net10.0 1320 grün, net472 1308/1308, **Regression byte-identisch** (der nicht-Explicit
+`RegressionTests.TestCase` fährt die volle Pipeline über die neue Spec-Liste und byte-vergleicht den
+Korpus). Nächster: **Step 4** (ST→CodeBuilder-Migration, Variante B — braucht den Bestandskorpus-Pfad
+vom Nutzer).
+
 ## Warum die statischen `CodeGenFacts` ein Show-Stopper sind
 
 Die Facts existieren heute in **drei Erscheinungsformen desselben Datensatzes**:

@@ -17,6 +17,11 @@ public interface IFileGeneratorProvider {
 
 public interface IFileGenerator: IDisposable {
 
+    /// <summary>
+    /// Schreibt die Artefakte eines <see cref="CodeGenerationResult"/> gemäß der jeweiligen
+    /// <see cref="CodeGenerationSpec.OverwritePolicy"/> auf die Platte und liefert je Datei ein
+    /// <see cref="FileGeneratorResult"/>.
+    /// </summary>
     ImmutableArray<FileGeneratorResult> Generate(CodeGenerationResult codeGenerationResult);
 
 }
@@ -46,22 +51,19 @@ public class FileGenerator: Generator, IFileGenerator {
             throw new ArgumentNullException(nameof(codeGenerationResult));
         }
 
-        var results = new List<FileGeneratorResult?> {
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IWfsCodeSpec,      OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IBeginWfsCodeSpec, OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.WfsBaseCodeSpec,   OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.WfsCodeSpec,       OverwritePolicy.Never)
-        };
+        // Die Weiche über die Artefakt-Menge liegt vollständig im Generator: hier wird jeder Spec
+        // schlicht gemäß seiner eigenen OverwritePolicy geschrieben — versionsfrei.
+        var results = new List<FileGeneratorResult?>();
 
-        foreach (var toCodeSpec in codeGenerationResult.ToCodeSpecs) {
-            results.Add(WriteFile(codeGenerationResult.TaskDefinition, toCodeSpec, OverwritePolicy.Never));
+        foreach (var spec in codeGenerationResult.Specs) {
+            results.Add(WriteFile(codeGenerationResult.TaskDefinition, spec));
         }
 
         return results.WhereNotNull()
                       .ToImmutableArray();
     }
 
-    FileGeneratorResult? WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
+    FileGeneratorResult? WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec) {
 
         return Resilience.Execute(WriteFileImpl,
                                  maxAttempts: 3,
@@ -69,15 +71,11 @@ public class FileGenerator: Generator, IFileGenerator {
 
         FileGeneratorResult? WriteFileImpl() {
 
-            if (codeGenerationSpec.IsEmpty) {
-                return null;
-            }
-
             EnsureDirectory(codeGenerationSpec.FilePath);
 
             var action = FileGeneratorAction.Skiped;
 
-            if (ShouldWrite(codeGenerationSpec, overwritePolicy)) {
+            if (ShouldWrite(codeGenerationSpec)) {
                 File.WriteAllText(codeGenerationSpec.FilePath, codeGenerationSpec.Content, Options.Encoding);
                 action = FileGeneratorAction.Updated;
             }
@@ -92,15 +90,15 @@ public class FileGenerator: Generator, IFileGenerator {
         Directory.CreateDirectory(dir);
     }
 
-    bool ShouldWrite(CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
+    bool ShouldWrite(CodeGenerationSpec codeGenerationSpec) {
 
         // Wenn die Datei nicht existiert, wird sie neu geschrieben
         if (!File.Exists(codeGenerationSpec.FilePath)) {
             return true;
         }
 
-        // Eine Datei mit der Größe 0 gilt als nicht existent, und wird neu geschrieben 
-        if (overwritePolicy == OverwritePolicy.Never) {
+        // Eine Datei mit der Größe 0 gilt als nicht existent, und wird neu geschrieben
+        if (codeGenerationSpec.OverwritePolicy == OverwritePolicy.Never) {
 
             var fileInfo = new FileInfo(codeGenerationSpec.FilePath);
             // Wenn z.B. in Visual Studio der Inhalt einer Datei gelöscht wird, dann hat die Datei auf Grund der 
@@ -122,13 +120,6 @@ public class FileGenerator: Generator, IFileGenerator {
         var fileContent = File.ReadAllText(codeGenerationSpec.FilePath);
 
         return !String.Equals(fileContent, codeGenerationSpec.Content, StringComparison.Ordinal);
-    }
-
-    enum OverwritePolicy {
-
-        Never,
-        WhenChanged
-
     }
 
 }
