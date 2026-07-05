@@ -44,12 +44,12 @@ sealed partial class NavParser {
         return builder.ToExtent();
     }
 
-    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5) {
-        var builder = new ExtentBuilder();
-        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
-        builder.Add(p5.Extent);
-        return builder.ToExtent();
-    }
+    // static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5) {
+    //     var builder = new ExtentBuilder();
+    //     builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+    //     builder.Add(p5.Extent);
+    //     return builder.ToExtent();
+    // }
 
     static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5, ExtentPart p6) {
         var builder = new ExtentBuilder();
@@ -65,17 +65,8 @@ sealed partial class NavParser {
         return builder.ToExtent();
     }
 
-    static TextExtent Span(params ExtentPart[] parts) {
-        var builder = new ExtentBuilder();
-        foreach (var part in parts) {
-            builder.Add(part.Extent);
-        }
-
-        return builder.ToExtent();
-    }
-
     /// <summary>
-    /// Ein Bestandteil eines <see cref="Span(ExtentPart[])"/>-Aufrufs: trägt nur den <see cref="TextExtent"/>
+    /// Ein Bestandteil eines <see cref="Span(ExtentPart)"/>-Aufrufs: trägt nur den <see cref="TextExtent"/>
     /// eines (optionalen) Tokens oder Kindknotens. Die impliziten Konvertierungen halten die Aufrufstellen
     /// unverändert lesbar (<c>Span(keyword, name, …)</c>), vermeiden aber das Boxing, das ein
     /// <c>params object[]</c> für jedes <see cref="RawToken"/>? (Nullable-Struct) erzeugen würde. Fehlende
