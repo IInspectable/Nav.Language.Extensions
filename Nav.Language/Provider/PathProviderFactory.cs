@@ -33,7 +33,12 @@ public class PathProviderFactory: IPathProviderFactory {
             generateToInfo = generateToToken.ToString().Trim('"');
         }
 
-        return new PathProvider(syntaxFileName, taskName, generateToInfo, options);
+        // Die Ablage-Namen richten sich nach der Sprach-Version der Datei; eine (noch) nicht
+        // unterstützte Version fällt — wie bei den *CodeInfo — bewusst auf die Default-Generation zurück.
+        var version = taskDefinition.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default;
+        var facts   = NavCodeGenFacts.For(version.IsSupported ? version : NavLanguageVersion.Default);
+
+        return new PathProvider(syntaxFileName, taskName, generateToInfo, options, facts);
     }
 
 }
