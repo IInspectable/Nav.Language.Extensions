@@ -1,6 +1,10 @@
 ﻿#region Using Directives
 
+using System;
+
 using NUnit.Framework;
+
+using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable InconsistentNaming
 
@@ -129,6 +133,49 @@ public class CodeGenFactsTests {
     [Test]
     public void InvariantAnnotationTagNavInitCall() {
         Assert.That(CodeGenInvariants.AnnotationTagNavInitCall, Is.EqualTo("NavInitCall"), "Wrong AnnotationTagNavInitCall");
+    }
+
+    // -- Versionierbare Facts (ICodeGenFacts) — V1-Instanz pinnen -------------------------------------
+    // NavCodeGenFacts.For(Version1) muss exakt die historischen Werte der geteilten Namensfläche
+    // liefern; sonst wandert der Bestand aus der Byte-Identität. Gepinnt wird die Instanz (nicht die
+    // CodeGenFacts-Konstanten), damit ein späteres Umhängen der Delegation hier auffällt.
+
+    [Test]
+    public void V1_BeginMethodPrefix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).BeginMethodPrefix, Is.EqualTo("Begin"));
+    }
+    [Test]
+    public void V1_ExitMethodPrefix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).ExitMethodPrefix, Is.EqualTo("After"));
+    }
+    [Test]
+    public void V1_LogicMethodSuffix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).LogicMethodSuffix, Is.EqualTo("Logic"));
+    }
+    [Test]
+    public void V1_WfsClassSuffix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).WfsClassSuffix, Is.EqualTo("WFS"));
+    }
+    [Test]
+    public void V1_WfsBaseClassSuffix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).WfsBaseClassSuffix, Is.EqualTo("WFSBase"));
+    }
+    [Test]
+    public void V1_WflNamespaceSuffix() {
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Version1).WflNamespaceSuffix, Is.EqualTo("WFL"));
+    }
+
+    [Test]
+    public void For_Default_YieldsVersion1Facts() {
+        // Ohne #version gilt Version 1 — For(Default) muss dieselbe Instanz wie For(Version1) sein.
+        Assert.That(NavCodeGenFacts.For(NavLanguageVersion.Default),
+                    Is.SameAs(NavCodeGenFacts.For(NavLanguageVersion.Version1)));
+    }
+
+    [Test]
+    public void For_UnsupportedVersion_Throws() {
+        Assert.That(() => NavCodeGenFacts.For(new NavLanguageVersion(99)),
+                    Throws.TypeOf<NotSupportedException>());
     }
 
     [Test]
