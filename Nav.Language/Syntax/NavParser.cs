@@ -2370,9 +2370,19 @@ sealed partial class NavParser {
                 eofLeadingLength   = remainingLength;
                 lastSignificantKey = -1;
             } else if (IsHidden(token.Type)) {
-                // Verbliebener versteckter Trenner (theoretisch: ein Präprozessor-Token außerhalb eines
-                // Direktiv-Laufs): nimmt selbst keine Trailing-Trivia auf, trägt die restliche Trivia aber
-                // als Leading — sonst ginge der Text zwischen dem vorigen Token und dem Trenner verloren.
+                // Dritter Arm der vollständigen Trenner-Klassifikation (EOF / versteckt / signifikant):
+                // ein versteckter Trenner — per IsHidden ein Token-Typ, der nie im flachen _tokens-Strom
+                // landet (Autorität "für den Cursor unsichtbar"). Da es zu ihm keinen SyntaxToken gibt, der
+                // seine Trivia je nachschlüge, darf er KEIN Trailing-Anker sein: lastSignificantKey bleibt
+                // -1, damit die nachfolgende Trivia dem nächsten echten Token als Leading zufällt statt auf
+                // einem Phantom-Schlüssel verloren zu gehen. Seine eigene restliche Leading-Trivia trägt er
+                // dennoch, sonst ginge der Text zwischen vorigem Token und Trenner verloren.
+                //
+                // Praktisch bleibt dieser Arm unter der Lexer-Invariante leer: Präprozessor-Token entstehen
+                // nur innerhalb eines #-Laufs, den der Direktiven-Vorlauf stets vollständig zu DirectiveTrivia
+                // faltet (siehe runByStart oben) — ein verwaister Präprozessor-Token als Trenner kann daher
+                // nicht auftreten. Der Arm bleibt bewusst als korrekte Behandlung erhalten, falls sich diese
+                // Invariante je ändert; er ist keine Laufzeit-Absicherung (kein Pfad hier wirft ohnehin).
                 if (remainingLength > 0) {
                     tokenTrivia[token.Start] = new TriviaRange(remainingStart, remainingLength, 0, 0);
                 }
