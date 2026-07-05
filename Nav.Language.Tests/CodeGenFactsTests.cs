@@ -80,6 +80,57 @@ public class CodeGenFactsTests {
         Assert.That(CodeGenFacts.DefaultWfsBaseClass, Is.EqualTo("BaseWFService"), "Wrong DefaultWfsBaseClass");
     }
 
+    // -- Invarianten (CodeGenInvariants) — dürfen über keine Generation abweichen ----------------------
+
+    [Test]
+    public void InvariantInterfacePrefix() {
+        Assert.That(CodeGenInvariants.InterfacePrefix, Is.EqualTo("I"), "Wrong InterfacePrefix");
+    }
+    [Test]
+    public void InvariantBeginInterfacePrefix() {
+        Assert.That(CodeGenInvariants.BeginInterfacePrefix, Is.EqualTo("IBegin"), "Wrong BeginInterfacePrefix");
+    }
+    [Test]
+    public void InvariantInterfaceSuffix() {
+        Assert.That(CodeGenInvariants.InterfaceSuffix, Is.EqualTo("WFS"), "Wrong InterfaceSuffix");
+    }
+    [Test]
+    public void InvariantIwflNamespaceSuffix() {
+        Assert.That(CodeGenInvariants.IwflNamespaceSuffix, Is.EqualTo("IWFL"), "Wrong IwflNamespaceSuffix");
+    }
+    [Test]
+    public void InvariantToClassNameSuffix() {
+        Assert.That(CodeGenInvariants.ToClassNameSuffix, Is.EqualTo("TO"), "Wrong ToClassNameSuffix");
+    }
+    [Test]
+    public void InvariantAnnotationTagPrefix() {
+        Assert.That(CodeGenInvariants.AnnotationTagPrefix, Is.EqualTo("Nav"), "Wrong AnnotationTagPrefix");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavFile() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavFile, Is.EqualTo("NavFile"), "Wrong AnnotationTagNavFile");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavTask() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavTask, Is.EqualTo("NavTask"), "Wrong AnnotationTagNavTask");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavTrigger() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavTrigger, Is.EqualTo("NavTrigger"), "Wrong AnnotationTagNavTrigger");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavInit() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavInit, Is.EqualTo("NavInit"), "Wrong AnnotationTagNavInit");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavExit() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavExit, Is.EqualTo("NavExit"), "Wrong AnnotationTagNavExit");
+    }
+    [Test]
+    public void InvariantAnnotationTagNavInitCall() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavInitCall, Is.EqualTo("NavInitCall"), "Wrong AnnotationTagNavInitCall");
+    }
+
     [Test]
     public void CombineQualifiedNameeA() {
         var actual = CodeGenFacts.BuildQualifiedName("", "A");
