@@ -1,15 +1,15 @@
-<#
+﻿<#
 .SYNOPSIS
-    Publiziert das Repo (nav publish) und kopiert die Build Tools in das XTplus-Zielverzeichnis.
+    Publiziert das Repo (nav publish) und kopiert die Build Tools in ein anzugebendes Zielverzeichnis.
 
 .DESCRIPTION
     Ruft zuerst Invoke-Publish (voller Publish-Lauf: Solution bauen + alle Deliverables unter
     `deploy\` bereitstellen) und kopiert anschließend den Inhalt von `deploy\Build Tools` in das
-    Zielverzeichnis (Default: das bisherige XTplus-Nav-Skript-Verzeichnis). Der Repo-Root wird zur
-    Aufruf-Zeit aufgelöst (Resolve-Root).
+    per -Target angegebene Zielverzeichnis. Der Repo-Root wird zur Aufruf-Zeit aufgelöst
+    (Resolve-Root).
 
 .PARAMETER Target
-    Zielverzeichnis für die Build Tools. Default: C:\ws\XTplus\z_Nav3\build\Script\Nav.
+    Zielverzeichnis für die Build Tools. Pflichtangabe (kein Default).
 
 .PARAMETER Configuration
     Build-Konfiguration. Default: Debug.
@@ -20,7 +20,8 @@
 function Invoke-Deploy {
     [CmdletBinding()]
     param(
-        [string] $Target = 'C:\ws\XTplus\z_Nav3\build\Script\Nav',
+        [Parameter(Mandatory = $true)]
+        [string] $Target,
         [string] $Configuration = 'Debug'
     )
 
