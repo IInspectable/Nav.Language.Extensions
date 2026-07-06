@@ -7,24 +7,35 @@
 > CodeBuilder einzuordnen ist. Baut auf `doc/nav-pragmas-versioning-status.md` auf (dort: `#version`,
 > `NavLanguageVersion`, Feature-Gate `Nav5000`) — Pflichtlektüre, bevor hier gebaut wird.
 
-## Physische Ablage: `CodeGen/{Shared,V1}/` (Stand 2026-07-06)
+## Physische Ablage: `CodeGen/` — Wurzel + `{Shared,V1}/` (Stand 2026-07-06)
 
 Nachdem der Dispatcher steht (Step 5) und nur eine Generation implementiert ist, ist der
-`CodeGen/`-Baum physisch in **generationsübergreifende Infrastruktur** und **konkrete
-Generation-1-Logik** getrennt — damit sich ein künftiges `CodeGen/V2/` sauber daneben legen lässt.
+`CodeGen/`-Baum physisch in **drei Ebenen** getrennt — damit sich ein künftiges `CodeGen/V2/` sauber
+daneben legen lässt:
+
+- **Wurzel** (`CodeGen/` selbst) — die **Codegen-API**: Vordertür (Provider/Interfaces) + Versions-Weiche
+  **plus die DTOs, die über diese API fließen** (Ein-/Ausgabe-Vertrag). Sitzt *über* den Generationen.
+- **`Shared/`** — die **interne Maschinerie**, die beide Generationen zum Implementieren wiederverwenden
+  (kein API-Typ mehr): `Generator`-Basis, `CodeBuilder`, `CSharp`, `Resilience`, plus die Namensfläche
+  `Facts/` + `CodeInfo/` (letztere ist ein *eigener* öffentlicher Vertrag zu den Editor-Hosts).
+- **`V1/`** — die konkrete Generation-1-Logik.
+
 Der Namespace bleibt bewusst **flach** `Pharmatechnik.Nav.Language.CodeGen` (die Unterordner bilden
 keine eigenen Namespaces; eine `CodeGen/.editorconfig` schaltet die „Namespace = Ordner"-Konvention
-IDE0130 für den ganzen Teilbaum ab). Folge: keine `using`-Kopplung der ~75 externen Konsumenten an
-die Ordnergestalt.
+IDE0130 für den ganzen Teilbaum — inkl. Wurzel — ab). Folge: keine `using`-Kopplung der ~75 externen
+Konsumenten an die Ordnergestalt.
 
 ```
-Nav.Language/CodeGen/
-├── Shared/                       generationsübergreifende Verträge + Infrastruktur
-│   ├── ICodeGenerator/CodeGeneratorProvider   (CodeGenerator.cs)
-│   ├── VersionDispatchingCodeGenerator        (Versions-Weiche)
-│   ├── Generator (abstrakte Basis), FileGenerator (+Provider), Resilience, CSharp
-│   ├── CodeGenerationSpec/CodeGenerationResult, GenerationOptions, OverwritePolicy,
-│   │   FileGeneratorResult/FileGeneratorAction
+Nav.Language/CodeGen/                 Codegen-API: Vordertür + Weiche + Vertrags-DTOs
+├── CodeGenerator.cs              Vordertür: ICodeGenerator, ICodeGeneratorProvider/CodeGeneratorProvider (.Default)
+├── VersionDispatchingCodeGenerator   Versions-Weiche hinter der Vordertür
+├── FileGenerator.cs             zweite Vordertür (IFileGeneratorProvider/.Default) + versionsfreier Schreiber
+├── GenerationOptions.cs         Eingabe-Vertrag (der Aufrufer reicht ihn herein)
+├── CodeGenerationResult.cs / CodeGenerationSpec.cs / OverwritePolicy.cs   Codegen-Ausgabe-Vertrag
+├── FileGeneratorResult.cs / FileGeneratorAction.cs                        Filegen-Ausgabe-Vertrag
+├── Shared/                       interne Maschinerie, von V1/V2 wiederverwendet (kein API-Typ)
+│   ├── Generator.cs             abstrakte Basis von CodeGeneratorV1 + FileGenerator
+│   ├── Resilience.cs, CSharp.cs interne Utilities
 │   ├── CodeBuilder.cs            reines Text-/Einrückungs-Utility (kein Nav-Wissen)
 │   ├── Facts/                    ICodeGenFacts, NavCodeGenFacts (For(version)), CodeGenInvariants
 │   └── CodeInfo/                 TaskCodeInfo & Co. — Nav→C#-Namensbrücke (produktweit genutzt)
@@ -34,7 +45,7 @@ Nav.Language/CodeGen/
     └── CodeModel/                die V1-CodeModels + Builder
 ```
 
-Die zwei bewussten `Shared → V1`-Verweise sind das Dispatcher-Muster, kein Fehler:
+Die zwei bewussten `Wurzel/Shared → V1`-Verweise sind das Dispatcher-Muster, kein Fehler:
 `VersionDispatchingCodeGenerator.CreateGenerator` erzeugt `CodeGeneratorV1`, und
 `NavCodeGenFacts` (nested `CodeGenFactsV1`) delegiert an die V1-Werte in `CodeGenFacts`. Beim
 Freischalten von V2 kommt je ein weiterer Zweig hinzu; die V2-Logik zieht in ein `CodeGen/V2/`.

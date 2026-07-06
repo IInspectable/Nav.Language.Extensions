@@ -1,6 +1,7 @@
 ﻿# Der gesamte CodeGen-Teilbaum bleibt bewusst im flachen Namespace
-# „Pharmatechnik.Nav.Language.CodeGen" — die physische Gliederung in „Shared/" und „V1/" (samt
-# „Facts/", „CodeInfo/", „Emitters/", „CodeModel/") trennt generationsübergreifende Verträge von der
+# „Pharmatechnik.Nav.Language.CodeGen" — die physische Gliederung in drei Ebenen (die Wurzel selbst
+# als Einsprung/Weiche, „Shared/" und „V1/" samt „Facts/", „CodeInfo/", „Emitters/", „CodeModel/")
+# trennt Vordertür/Versions-Weiche von den generationsübergreifend geteilten Bausteinen und der
 # konkreten Generation-1-Logik, OHNE die Typen in versions-benannte Namespaces zu zwängen. Ein
 # ordner-gematchter Namespace würde zudem im Fall des Typs „CodeBuilder" das Namespace-Segment über
 # den Typ legen und jeden unqualifizierten „CodeBuilder."-Zugriff mehrdeutig/kaputt machen
