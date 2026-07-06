@@ -25,6 +25,7 @@
     <File Path="Tools/Commands/Functions/Install-Extension.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Build.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Clean.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-CodeGenParity.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Deploy.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-GenerateErrors.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-IncreaseMajor.ps1" />
@@ -67,6 +68,7 @@
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
     <File Path="doc/nav-backlog.md" />
+    <File Path="doc/nav-codegen-step4-handoff.md" />
     <File Path="doc/nav-codegen-versioning.md" />
     <File Path="doc/nav-completion-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
