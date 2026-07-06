@@ -129,16 +129,14 @@ public class CodeGenerator: Generator, ICodeGenerator {
         return new CodeGenerationResult(codeModelResult.TaskDefinition, specs);
     }
 
-    static readonly ThreadLocal<TemplateGroup> IBeginWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IBeginWfsTemplate));
-
     static CodeGenerationSpec GenerateIBeginWfsCodeSpec(IBeginWfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;
         }
 
-        var template = GetTemplate(IBeginWfsTemplateGroup.Value, model, context);
-        var content  = template.Render();
+        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
+        var content = IBeginWfsEmitter.Emit(model, context);
 
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
