@@ -1,0 +1,13 @@
+﻿# Der gesamte CodeGen-Teilbaum bleibt bewusst im flachen Namespace
+# „Pharmatechnik.Nav.Language.CodeGen" — die physische Gliederung in „Shared/" und „V1/" (samt
+# „Facts/", „CodeInfo/", „Emitters/", „CodeModel/") trennt generationsübergreifende Verträge von der
+# konkreten Generation-1-Logik, OHNE die Typen in versions-benannte Namespaces zu zwängen. Ein
+# ordner-gematchter Namespace würde zudem im Fall des Typs „CodeBuilder" das Namespace-Segment über
+# den Typ legen und jeden unqualifizierten „CodeBuilder."-Zugriff mehrdeutig/kaputt machen
+# (CS0118/CS0234). Deshalb ist die IDE0130-Konvention (Namespace = Ordnerstruktur) in diesem Teilbaum
+# nicht anwendbar und wird gezielt abgeschaltet.
+[*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+# ReSharpers eigene Entsprechung zu IDE0130 greift denselben — hier bewusst gebrochenen — Ordner=Namespace-
+# Fall; ebenfalls gezielt abschalten.
+resharper_check_namespace_highlighting = none

@@ -7,6 +7,39 @@
 > CodeBuilder einzuordnen ist. Baut auf `doc/nav-pragmas-versioning-status.md` auf (dort: `#version`,
 > `NavLanguageVersion`, Feature-Gate `Nav5000`) — Pflichtlektüre, bevor hier gebaut wird.
 
+## Physische Ablage: `CodeGen/{Shared,V1}/` (Stand 2026-07-06)
+
+Nachdem der Dispatcher steht (Step 5) und nur eine Generation implementiert ist, ist der
+`CodeGen/`-Baum physisch in **generationsübergreifende Infrastruktur** und **konkrete
+Generation-1-Logik** getrennt — damit sich ein künftiges `CodeGen/V2/` sauber daneben legen lässt.
+Der Namespace bleibt bewusst **flach** `Pharmatechnik.Nav.Language.CodeGen` (die Unterordner bilden
+keine eigenen Namespaces; eine `CodeGen/.editorconfig` schaltet die „Namespace = Ordner"-Konvention
+IDE0130 für den ganzen Teilbaum ab). Folge: keine `using`-Kopplung der ~75 externen Konsumenten an
+die Ordnergestalt.
+
+```
+Nav.Language/CodeGen/
+├── Shared/                       generationsübergreifende Verträge + Infrastruktur
+│   ├── ICodeGenerator/CodeGeneratorProvider   (CodeGenerator.cs)
+│   ├── VersionDispatchingCodeGenerator        (Versions-Weiche)
+│   ├── Generator (abstrakte Basis), FileGenerator (+Provider), Resilience, CSharp
+│   ├── CodeGenerationSpec/CodeGenerationResult, GenerationOptions, OverwritePolicy,
+│   │   FileGeneratorResult/FileGeneratorAction
+│   ├── CodeBuilder.cs            reines Text-/Einrückungs-Utility (kein Nav-Wissen)
+│   ├── Facts/                    ICodeGenFacts, NavCodeGenFacts (For(version)), CodeGenInvariants
+│   └── CodeInfo/                 TaskCodeInfo & Co. — Nav→C#-Namensbrücke (produktweit genutzt)
+└── V1/                           konkrete Generation-1-Logik
+    ├── CodeGeneratorV1, CodeGeneratorContext, CodeModelResult, CodeGenFacts (V1-Werte)
+    ├── Emitters/                 EmitterCommon + I(Begin)WfsEmitter/WfsBase/WfsOneShot
+    └── CodeModel/                die V1-CodeModels + Builder
+```
+
+Die zwei bewussten `Shared → V1`-Verweise sind das Dispatcher-Muster, kein Fehler:
+`VersionDispatchingCodeGenerator.CreateGenerator` erzeugt `CodeGeneratorV1`, und
+`NavCodeGenFacts` (nested `CodeGenFactsV1`) delegiert an die V1-Werte in `CodeGenFacts`. Beim
+Freischalten von V2 kommt je ein weiterer Zweig hinzu; die V2-Logik zieht in ein `CodeGen/V2/`.
+Die Pipeline (`Nav.Language/Generator/`) bleibt versions-agnostisch und außerhalb dieser Aufteilung.
+
 ## Ausgangslage
 
 Die `#version`-Infrastruktur steht: jede `.nav`-Datei trägt eine wirksame `NavLanguageVersion`
