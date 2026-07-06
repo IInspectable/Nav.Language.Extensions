@@ -84,4 +84,22 @@ static class EmitterCommon {
                       """);
     }
 
+    /// <summary>Schreibt die Exit-Annotation (<c>NavExit</c>) einer Exit-Methode.</summary>
+    public static void WriteNavExitAnnotation(CodeBuilder cb, string nodeName) {
+        cb.WriteLine($"""
+                      #region {AnnotationRegionName}
+                      /// <{CodeGenInvariants.AnnotationTagNavExit}>{nodeName}</{CodeGenInvariants.AnnotationTagNavExit}>
+                      #endregion
+                      """);
+    }
+
+    /// <summary>Schreibt die Init-Call-Annotation (<c>NavInitCall</c>) einer Begin-Wrapper-Methode.</summary>
+    public static void WriteInitCallAnnotation(CodeBuilder cb, string beginInterfaceFullyQualifiedName) {
+        cb.WriteLine($"""
+                      #region {AnnotationRegionName}
+                      /// <{CodeGenInvariants.AnnotationTagNavInitCall}>{beginInterfaceFullyQualifiedName}</{CodeGenInvariants.AnnotationTagNavInitCall}>
+                      #endregion
+                      """);
+    }
+
 }

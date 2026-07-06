@@ -23,11 +23,15 @@
     (die die vom GUI-Generator gefüllten TOs trägt) noch das Mitkopieren des ganzen Enlistments.
 
     **Zwei Vergleichsebenen:** Der CodeBuilder ist clean-by-default und reproduziert kosmetische
-    StringTemplate-Whitespace-Artefakte (Trailing-Whitespace, eingerückte Leerzeilen) bewusst nicht.
+    StringTemplate-Whitespace-Artefakte (Trailing-Whitespace, eingerückte Leerzeilen) bewusst nicht;
+    zudem reindentiert er mehrzeilige eingebettete Werte (z.B. über mehrere Zeilen deklarierte
+    Typen aus der `.nav`) nach eigener Struktur-Einrückung statt nach StringTemplates
+    Interpolations-Stack — beides ist reiner Whitespace ohne C#-Bedeutung.
 
-      * **Normalisiert** (je Zeile rechts getrimmt, Zeilenenden auf `\n` vereinheitlicht) ist das
-        maßgebliche Urteil: 0 = der erzeugte Code ist sichtbar/semantisch identisch. Zusätzlich dürfen
-        keine `.cs` hinzukommen oder verschwinden.
+      * **Normalisiert** (je Zeile beidseitig getrimmt, Zeilenenden auf `\n` vereinheitlicht) ist das
+        maßgebliche Urteil: 0 = der erzeugte Code ist Zeile für Zeile inhaltsgleich (Token, Reihenfolge,
+        Leerzeilen), nur die Einrückung darf abweichen. Zusätzlich dürfen keine `.cs` hinzukommen oder
+        verschwinden.
       * **Roh** (Byte-für-Byte) ist die Audit-Ebene: nach der Migration einer Familie darf roh > 0
         sein — aber ausschließlich durch Whitespace. `CosmeticOnly` ist genau diese zu sichtende Menge.
 
@@ -230,9 +234,10 @@ function Invoke-NavGen {
 }
 
 # Erfasst alle *.cs unter $Base als Map (relativer Pfad → { Raw; Norm }). Raw = SHA256 der Rohbytes;
-# Norm = SHA256 des whitespace-normalisierten Texts (je Zeile rechts getrimmt, Zeilenenden auf \n
+# Norm = SHA256 des whitespace-normalisierten Texts (je Zeile BEIDSEITIG getrimmt, Zeilenenden auf \n
 # vereinheitlicht) — neutralisiert genau die kosmetischen Unterschiede, die der CodeBuilder
-# clean-by-default gegenüber StringTemplate hat. Interner Helfer.
+# clean-by-default gegenüber StringTemplate hat: Trailing-Whitespace, eingerückte Leerzeilen UND die
+# abweichende Einrückung von Fortsetzungszeilen mehrzeiliger eingebetteter Werte. Interner Helfer.
 function Get-CsHashMap {
     param([Parameter(Mandatory)][string] $Base)
 
@@ -251,7 +256,7 @@ function Get-CsHashMap {
 
             $text  = [IO.File]::ReadAllText($item.FullName)
             $parts = $text -split "\r\n|\n|\r"
-            for ($i = 0; $i -lt $parts.Length; $i++) { $parts[$i] = $parts[$i].TrimEnd() }
+            for ($i = 0; $i -lt $parts.Length; $i++) { $parts[$i] = $parts[$i].Trim() }
             $norm  = [string]::Join("`n", $parts)
             $normH = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($norm)))
 
