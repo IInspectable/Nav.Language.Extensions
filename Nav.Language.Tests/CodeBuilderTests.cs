@@ -318,6 +318,40 @@ public class CodeBuilderTests {
     }
 
     [Test]
+    public void WriteAlignedJoin_MatchesManualAlignScope() {
+        // Die Kurzform muss byte-gleich zum manuellen using (Align()) { WriteJoin(…) } sein: sie öffnet
+        // den Anker an der aktuellen Spalte und joint darin. Erwartung wie im Align-Test berechnet.
+        var b = NewBuilder();
+        using (b.Indent())
+        using (b.Indent()) {
+            b.Write("public virtual IINIT_TASK Begin(");
+            b.WriteAlignedJoin(
+                ["TestInitParams p1", "int? nullableParam"],
+                (bb, p) => bb.Write(p),
+                separator: $",{b.NewLine}");
+            b.WriteLine(") {");
+        }
+
+        var padding = new string(' ', 8 + "public virtual IINIT_TASK Begin(".Length);
+        Assert.That(b.ToString(), Is.EqualTo(
+                        "        public virtual IINIT_TASK Begin(TestInitParams p1,\r\n" +
+                        padding + "int? nullableParam) {\r\n"));
+    }
+
+    [Test]
+    public void WriteAlignedJoin_ReturnsSameBuilder_AndRestoresAnchor() {
+        var b = NewBuilder();
+        b.Write("x(");
+        var result = b.WriteAlignedJoin(["a", "b"], (bb, p) => bb.Write(p), separator: $",{b.NewLine}");
+        Assert.That(result, Is.SameAs(b));
+
+        // Nach dem Aufruf ist der Anker wieder zu: eine Folgezeile richtet sich an der Einrückung
+        // (Stufe 0) aus, nicht mehr an der Spalte des ersten Elements.
+        b.Write($"{b.NewLine}y");
+        Assert.That(b.ToString(), Is.EqualTo("x(a,\r\n  b\r\ny"));
+    }
+
+    [Test]
     public void FluentApi_ReturnsSameBuilder() {
         var b = NewBuilder();
         Assert.That(b.Write("x"),     Is.SameAs(b));

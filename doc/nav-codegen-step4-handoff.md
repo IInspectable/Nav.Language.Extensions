@@ -61,10 +61,17 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
   über `using (cb.Block()) { … }`: den Kopf mit `cb.Write($"namespace {ns} ")` schreiben, `Block()` setzt
   die öffnende Klammer, rückt ein und schließt beim `Dispose` mit `}` auf eigener Zeile. **Kein
   `{{`-Escape** und keine manuellen `cb.WriteLine("}")`/`cb.Write("}")`-Schließer mehr. `Indent()`/
-  `Align()` bleiben für dynamischen Inhalt (umbrochene Parameterlisten via `Align()`).
-- **Kein literales `"\r\n"` im Emitter-Code.** Newline-haltige `WriteJoin`-Separatoren nutzen `cb.NewLine`
-  (bzw. `$",{cb.NewLine}"`) — nie ein hartes `"\r\n"`. (Die `.stg`-Templates behalten ihr
-  `separator="\r\n"`, sie fallen mit dem ST-Sonderweg.)
+  `Align()` bleiben für dynamischen Inhalt.
+- **Umbrochene, ausgerichtete Listen über `cb.WriteAlignedJoin(...)`.** Der häufige Fall „Kopf schreiben,
+  dann eine an der öffnenden Klammer ausgerichtete Parameterliste joinen" läuft über die Kurzform
+  `cb.WriteAlignedJoin(items, (b, x) => …, separator: $",{cb.NewLine}")` — sie kapselt den
+  `using (cb.Align()) { cb.WriteJoin(…) }`-Rahmen. Der **`Action<CodeBuilder, T>`-Delegat** ist zu
+  bevorzugen (der per-Element-Parameter `b` schreibt kollisionsfrei, statt einen äußeren Builder in den
+  Closure zu ziehen). Nur wo mehr als ein reiner Join in den Anker soll, den `using (cb.Align()) { … }`-
+  Scope explizit öffnen.
+- **Kein literales `"\r\n"` im Emitter-Code.** Newline-haltige `WriteJoin`-/`WriteAlignedJoin`-Separatoren
+  nutzen `cb.NewLine` (bzw. `$",{cb.NewLine}"`) — nie ein hartes `"\r\n"`. (Die `.stg`-Templates behalten
+  ihr `separator="\r\n"`, sie fallen mit dem ST-Sonderweg.)
 - **Mehrzeiliger Text + Einrückung.** Der `CodeBuilder` zerlegt jeden geschriebenen Text an
   Zeilenumbrüchen und stellt jeder Zeile die **aktuelle** Einrückung voran; relative Innen-Einrückung
   eines Raw-Strings bleibt additiv erhalten. Ein Raw-String-Block darf deshalb bedenkenlos innerhalb
@@ -73,6 +80,19 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
 - **`WriteLine` terminiert die Schlusszeile.** Ein mehrzeiliger `cb.WriteLine("""…""")` schreibt alle
   Zeilen **und** schließt die letzte mit Zeilenumbruch ab; ein separates `cb.WriteLine()` am Ende
   entfällt (eine gewünschte Leerzeile wird als letzte leere Zeile in den Raw-String gezogen).
+- **Angrenzende Leerzeilen gehören in den Raw-String, nicht daneben.** Das gilt für **beide** Enden:
+  eine gewünschte Leerzeile **vor** einem Raw-String-Block wird als erste leere Zeile in den Raw-String
+  gezogen, eine **danach** als letzte — kein separates `cb.WriteLine()` davor oder dahinter. Der
+  Builder verwirft Trailing-Whitespace und rückt leere Zeilen nicht ein, daher ist das Ergebnis
+  byte-identisch, aber die Formatierung steht sichtbar an einer Stelle statt verteilt über
+  Aufruf-Zeilen. (Ein Raw-String darf mit einer Leerzeile *beginnen*: die erste Zeile nach dem
+  öffnenden `"""` bleibt leer.) Das gilt auch für einen **dynamischen, einzeiligen Kopf** wie
+  `namespace {ns}`: statt `cb.WriteLine(); cb.Write($"namespace {ns} ")` wird die Leerzeile in einen
+  interpolierten Raw-String gezogen (`cb.Write($"""` · Leerzeile · `namespace {ns} ` · `""")`). Der
+  Builder normalisiert die Zeilenenden ohnehin auf sein CRLF, das Quell-Zeilenende ist also egal. Das
+  eine Leerzeichen **vor** dem `{` (das `Block()` setzt) steht dann als bewusster Trailing-Space auf der
+  Inhaltszeile — abgesichert durch die Regression-Snapshots: würde es je (z.B. durch Format-on-Save)
+  wegfallen, schlägt `nav snapshot` sofort an.
 - **Geteilte Bausteine in `EmitterCommon`.** Dateikopf, Using-Direktiven und Nav-Annotations liegen in
   `EmitterCommon` (C#-Pendant zu `Common.stg`) und werden von jeder Familie wiederverwendet.
 

@@ -22,14 +22,15 @@ static class IBeginWfsEmitter {
 
         EmitterCommon.WriteFileHeader(cb, context);
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
-        cb.WriteLine();
 
-        cb.Write($"namespace {model.Namespace} ");
+        cb.Write($"""
+
+                  namespace {model.Namespace} 
+                  """);
         using (cb.Block()) {
 
-            cb.WriteLine();
-
             cb.WriteLine("""
+
                          // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
                          #pragma warning disable 0108
 
@@ -42,8 +43,8 @@ static class IBeginWfsEmitter {
             }
 
             EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
-
             cb.Write($"public interface {CodeGenInvariants.BeginInterfacePrefix}{model.Task.TaskNamePascalcase}{CodeGenInvariants.InterfaceSuffix}: {model.BaseInterfaceName} ");
+
             using (cb.Block()) {
                 WriteBeginMethodDeclarations(cb, model.InitTransitions, model.Task.Facts);
             }
@@ -71,12 +72,10 @@ static class IBeginWfsEmitter {
         EmitterCommon.WriteNavInitAnnotation(cb, initTransition.NodeName);
 
         cb.Write($"IINIT_TASK {facts.BeginMethodPrefix}(");
-        using (cb.Align()) {
-            cb.WriteJoin(
-                initTransition.Parameter,
-                (b, parameter) => b.Write($"{parameter.ParameterType} {parameter.ParameterName}"),
-                separator: $",{cb.NewLine}");
-        }
+        cb.WriteAlignedJoin(
+            initTransition.Parameter,
+            (b, parameter) => b.Write($"{parameter.ParameterType} {parameter.ParameterName}"),
+            separator: $",{cb.NewLine}");
 
         cb.Write(");");
     }

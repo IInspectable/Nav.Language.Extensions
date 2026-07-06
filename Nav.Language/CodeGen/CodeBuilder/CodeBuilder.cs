@@ -179,6 +179,20 @@ public sealed class CodeBuilder {
     /// sich etwa umbrochene Parameterlisten am ersten Parameter aus. Anker sind schachtelbar; der
     /// innerste gilt.
     /// </summary>
+    /// <example>
+    /// Eine umbrochene Parameterliste, ausgerichtet an der öffnenden Klammer:
+    /// <code>
+    /// cb.Write("void Do(");
+    /// using (cb.Align()) {
+    ///     cb.WriteJoin(["int first", "string second"], (b, p) => b.Write(p), separator: $",{cb.NewLine}");
+    /// }
+    /// cb.Write(");");
+    /// // void Do(int first,
+    /// //         string second);
+    /// </code>
+    /// Für genau diesen Ablauf (Anker öffnen, joinen, schließen) gibt es die Kurzform
+    /// <see cref="WriteAlignedJoin{T}(IEnumerable{T}, Action{CodeBuilder, T}, string)"/>.
+    /// </example>
     public IDisposable Align() {
         return Align(Column);
     }
@@ -200,13 +214,24 @@ public sealed class CodeBuilder {
     /// ein. Enthält der Separator Zeilenumbrüche, greift für die Folgezeilen die aktuelle Einrückung
     /// bzw. der aktive <see cref="Align()"/>-Anker.
     /// </summary>
+    /// <example>
+    /// Eine komma-getrennte Liste in einer Zeile:
+    /// <code>
+    /// cb.WriteJoin(["a", "b", "c"], (b, x) => b.Write(x), separator: ", ");
+    /// // a, b, c
+    /// </code>
+    /// Ein zeilenumbruch-haltiger Separator (<c>$",{cb.NewLine}"</c>) beginnt je Element eine neue Zeile;
+    /// zusammen mit <see cref="Align()"/> richten sich die Folgezeilen aus — dafür gibt es die Kurzform
+    /// <see cref="WriteAlignedJoin{T}(IEnumerable{T}, Action{CodeBuilder, T}, string)"/>.
+    /// </example>
     public CodeBuilder WriteJoin<T>(IEnumerable<T> items, Action<T> writeItem, string separator) {
         return WriteJoin(items, (_, item) => writeItem(item), separator);
     }
 
     /// <summary>
     /// Wie <see cref="WriteJoin{T}(IEnumerable{T}, Action{T}, string)"/>, jedoch erhält
-    /// <paramref name="writeItem"/> zusätzlich den Builder.
+    /// <paramref name="writeItem"/> zusätzlich den Builder — praktisch, um in Emittern ohne Namens-
+    /// Kollision mit einem äußeren Builder zu schreiben.
     /// </summary>
     public CodeBuilder WriteJoin<T>(IEnumerable<T> items, Action<CodeBuilder, T> writeItem, string separator) {
 
@@ -224,6 +249,37 @@ public sealed class CodeBuilder {
         }
 
         return this;
+    }
+
+    /// <summary>
+    /// Kurzform für den häufigen Fall „umbrochene, ausgerichtete Liste": öffnet an der aktuellen
+    /// <see cref="Column"/> einen <see cref="Align()"/>-Anker und schreibt darin <paramref name="items"/>
+    /// per <see cref="WriteJoin{T}(IEnumerable{T}, Action{T}, string)"/>. Enthält
+    /// <paramref name="separator"/> einen Zeilenumbruch (typisch <c>$",{cb.NewLine}"</c>), richten sich
+    /// die Folgezeilen an der Spalte des ersten Elements aus — der Aufrufer spart den expliziten
+    /// <c>using (cb.Align()) { … }</c>-Rahmen.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// cb.Write("void Do(");
+    /// cb.WriteAlignedJoin(["int first", "string second"], (b, p) => b.Write(p), separator: $",{cb.NewLine}");
+    /// cb.Write(");");
+    /// // void Do(int first,
+    /// //         string second);
+    /// </code>
+    /// </example>
+    public CodeBuilder WriteAlignedJoin<T>(IEnumerable<T> items, Action<T> writeItem, string separator) {
+        return WriteAlignedJoin(items, (_, item) => writeItem(item), separator);
+    }
+
+    /// <summary>
+    /// Wie <see cref="WriteAlignedJoin{T}(IEnumerable{T}, Action{T}, string)"/>, jedoch erhält
+    /// <paramref name="writeItem"/> zusätzlich den Builder.
+    /// </summary>
+    public CodeBuilder WriteAlignedJoin<T>(IEnumerable<T> items, Action<CodeBuilder, T> writeItem, string separator) {
+        using (Align()) {
+            return WriteJoin(items, writeItem, separator);
+        }
     }
 
     /// <summary>Liefert den erzeugten Code. Ausstehender Trailing-Whitespace/Einzug ist nicht enthalten.</summary>
