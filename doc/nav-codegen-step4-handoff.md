@@ -64,11 +64,13 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
   `Align()` bleiben für dynamischen Inhalt.
 - **Umbrochene, ausgerichtete Listen über `cb.WriteAlignedJoin(...)`.** Der häufige Fall „Kopf schreiben,
   dann eine an der öffnenden Klammer ausgerichtete Parameterliste joinen" läuft über die Kurzform
-  `cb.WriteAlignedJoin(items, (b, x) => …, separator: $",{cb.NewLine}")` — sie kapselt den
-  `using (cb.Align()) { cb.WriteJoin(…) }`-Rahmen. Der **`Action<CodeBuilder, T>`-Delegat** ist zu
-  bevorzugen (der per-Element-Parameter `b` schreibt kollisionsfrei, statt einen äußeren Builder in den
-  Closure zu ziehen). Nur wo mehr als ein reiner Join in den Anker soll, den `using (cb.Align()) { … }`-
-  Scope explizit öffnen.
+  `cb.WriteAlignedJoin(items, x => cb.Write(x), separator: $",{cb.NewLine}")` — sie kapselt den
+  `using (cb.Align()) { cb.WriteJoin(…) }`-Rahmen. Der per-Element-Writer ist ein **`Action<T>`**
+  (`p => cb.Write(p)`): er schreibt über den bereits im Scope liegenden Builder. Der Builder wird
+  **bewusst nicht** zusätzlich als Delegat-Parameter durchgereicht — eine solche
+  `Action<CodeBuilder, T>`-Variante erzwänge am Aufrufort einen **zweiten Namen** für den Builder
+  (z.B. `bb`, weil `b`/`cb` schon belegt ist), ohne Mehrwert. Nur wo mehr als ein reiner Join in den
+  Anker soll, den `using (cb.Align()) { … }`-Scope explizit öffnen.
 - **Kein literales `"\r\n"` im Emitter-Code.** Newline-haltige `WriteJoin`-/`WriteAlignedJoin`-Separatoren
   nutzen `cb.NewLine` (bzw. `$",{cb.NewLine}"`) — nie ein hartes `"\r\n"`. (Die `.stg`-Templates behalten
   ihr `separator="\r\n"`, sie fallen mit dem ST-Sonderweg.)

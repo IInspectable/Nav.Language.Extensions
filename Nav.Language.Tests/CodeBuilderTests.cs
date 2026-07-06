@@ -326,8 +326,7 @@ public class CodeBuilderTests {
         using (b.Indent()) {
             b.Write("public virtual IINIT_TASK Begin(");
             b.WriteAlignedJoin(
-                ["TestInitParams p1", "int? nullableParam"],
-                (bb, p) => bb.Write(p),
+                ["TestInitParams p1", "int? nullableParam"], p => b.Write(p),
                 separator: $",{b.NewLine}");
             b.WriteLine(") {");
         }
@@ -342,7 +341,7 @@ public class CodeBuilderTests {
     public void WriteAlignedJoin_ReturnsSameBuilder_AndRestoresAnchor() {
         var b = NewBuilder();
         b.Write("x(");
-        var result = b.WriteAlignedJoin(["a", "b"], (bb, p) => bb.Write(p), separator: $",{b.NewLine}");
+        var result = b.WriteAlignedJoin(["a", "b"], p => b.Write(p), separator: $",{b.NewLine}");
         Assert.That(result, Is.SameAs(b));
 
         // Nach dem Aufruf ist der Anker wieder zu: eine Folgezeile richtet sich an der Einrückung

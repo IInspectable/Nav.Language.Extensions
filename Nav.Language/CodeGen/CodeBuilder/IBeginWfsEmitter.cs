@@ -37,7 +37,7 @@ static class IBeginWfsEmitter {
                          """);
 
             if (model.CodeDeclarations.Count > 0) {
-                cb.WriteJoin(model.CodeDeclarations, (b, decl) => b.Write(decl), separator: cb.NewLine);
+                cb.WriteJoin(model.CodeDeclarations, decl => cb.Write(decl), separator: cb.NewLine);
                 cb.WriteLine();
                 cb.WriteLine();
             }
@@ -59,7 +59,7 @@ static class IBeginWfsEmitter {
         // stets mindestens einen init-Knoten). Der Vollständigkeit halber bleibt der Rumpf dann leer.
         cb.WriteJoin(
             initTransitions,
-            (b, initTransition) => WriteBeginMethodDeclaration(b, initTransition, facts),
+            initTransition => WriteBeginMethodDeclaration(cb, initTransition, facts),
             separator: cb.NewLine);
 
         if (initTransitions.Count > 0) {
@@ -74,7 +74,7 @@ static class IBeginWfsEmitter {
         cb.Write($"IINIT_TASK {facts.BeginMethodPrefix}(");
         cb.WriteAlignedJoin(
             initTransition.Parameter,
-            (b, parameter) => b.Write($"{parameter.ParameterType} {parameter.ParameterName}"),
+            parameter => cb.Write($"{parameter.ParameterType} {parameter.ParameterName}"),
             separator: $",{cb.NewLine}");
 
         cb.Write(");");
