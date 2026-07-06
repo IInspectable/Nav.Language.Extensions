@@ -112,7 +112,23 @@
     bewusst nicht mehr byte-identisch**: `NormChanged=0`, `Added=0`, `Removed=1431` — **ausschließlich**
     `*TO.generated.cs` (programmatisch verifiziert), 3355 kosmetische Whitespace-Diffs wie bei den
     WFS-Familien; Kandidat 30,2 s vs. Ref 36,3 s. `ParityOk=False` ist hier der **erwartete** Zustand.
-  - **Nächster: Step 5** (Dispatcher `VersionDispatchingCodeGenerator`, s. Schritt-Plan).
+  - **Step 5 ABGESCHLOSSEN (2026-07-06): Dispatcher `VersionDispatchingCodeGenerator`.** Der bisherige
+    `CodeGenerator` heißt jetzt `CodeGeneratorV1` (eigene Datei `CodeGen/CodeGeneratorV1.cs`, `public`);
+    `CodeGen/CodeGenerator.cs` hält nur noch den Seam (`ICodeGenerator`, `ICodeGeneratorProvider`,
+    `CodeGeneratorProvider`). `CodeGeneratorProvider.Default.Create` liefert jetzt den neuen
+    `VersionDispatchingCodeGenerator` (internal sealed, `CodeGen/VersionDispatchingCodeGenerator.cs`):
+    er liest `codeGenerationUnit.LanguageVersion`, erzeugt/cached je Version einen `ICodeGenerator`
+    (heute nur `Version1` → `CodeGeneratorV1`) und delegiert; `Dispose` gibt die Kinder frei. Guard wie
+    `NavCodeGenFacts.For` (nicht unterstützte Version → Fallback `Default`), `CreateGenerator` wirft für
+    fehlende Mappings (Wächter beim Freischalten einer neuen Generation). `CodeGeneratorContext` hält
+    jetzt `CodeGeneratorV1` (V1-eigener Kontext). Neuer Test `DispatcherRoutesVersion1ToCodeGeneratorV1`
+    (Weiche ≡ direkter V1), die übrigen `CodeGenTests` auf `new CodeGeneratorV1(options)` umgestellt.
+    - **Verifiziert:** `dotnet build` Engine grün; net472 1354/0, net10 1347/0; kein Snapshot-Drift;
+      `nav parity` `NormChanged=0`, `Added=0`, `Removed=1431` (nur `*TO.generated.cs`), 3355 kosmetisch —
+      **identisch zur Step-4-Baseline** (`ParityOk=False` erwartet, Pass-through ändert nichts). Kandidat
+      28,4 s vs. Ref 32,4 s.
+  - **Nächster: Step 6** (V2-Inhalte: Facts V2, CodeModel-/Emitter-Schnitt, `PathProvider`-V2,
+    Version 2 in `SupportedVersions` freischalten — s. Schritt-Plan).
 
 Ehemalige Template-Landschaft (Historie): unter `Nav.Language/CodeGen/Templates/` lagen `IBeginWFS.stg`,
 `IWFS.stg`, `WFSBase.stg`, `WFSOneShot.stg`, `Common.stg`, `TO.stg`, `CodeGenFacts.stg` (+ `.generated.cs`)

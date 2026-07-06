@@ -2,12 +2,12 @@
 
 sealed class CodeGeneratorContext {
 
-    public CodeGeneratorContext(CodeGenerator generator, NavLanguageVersion languageVersion) {
+    public CodeGeneratorContext(CodeGeneratorV1 generator, NavLanguageVersion languageVersion) {
         Generator       = generator;
         LanguageVersion = languageVersion;
     }
 
-    public CodeGenerator Generator       { get; }
+    public CodeGeneratorV1 Generator       { get; }
     public string        ProductVersion  => MyAssembly.ProductVersion;
     public bool          NullableContext => Generator.Options.NullableContext;
 

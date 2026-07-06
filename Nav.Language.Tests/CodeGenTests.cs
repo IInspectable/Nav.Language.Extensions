@@ -38,7 +38,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default;
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -84,7 +84,7 @@ public class CodeGenTests {
         var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
         var results       = codeGenerator.Generate(codeGenerationUnit);
 
         Assert.That(results.Length, Is.EqualTo(1));
@@ -99,7 +99,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default with { GenerateWflClasses = false };
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -121,7 +121,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default with { GenerateIwflClasses = false };
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -134,6 +134,29 @@ public class CodeGenTests {
         Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.False);
         Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
         Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.True);
+    }
+
+    [Test]
+    public void DispatcherRoutesVersion1ToCodeGeneratorV1() {
+
+        var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));
+        var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
+
+        // TaskA trägt kein #version ⇒ Version 1. Die Weiche (CodeGeneratorProvider.Default) muss für
+        // sie exakt dasselbe erzeugen wie der direkt instanziierte V1-Generator.
+        Assert.That(codeGenerationUnit.LanguageVersion, Is.EqualTo(NavLanguageVersion.Version1));
+
+        var options = GenerationOptions.Default;
+
+        using var dispatcher = CodeGeneratorProvider.Default.Create(options, PathProviderFactory.Default);
+        var       viaSwitch  = dispatcher.Generate(codeGenerationUnit);
+
+        var viaV1 = new CodeGeneratorV1(options).Generate(codeGenerationUnit);
+
+        var switchContents = viaSwitch.SelectMany(r => r.Specs).Select(s => s.Content).ToList();
+        var v1Contents     = viaV1.SelectMany(r => r.Specs).Select(s => s.Content).ToList();
+
+        Assert.That(switchContents, Is.EqualTo(v1Contents));
     }
 
     public static TestCaseData[] CompileTestCases = {
@@ -282,7 +305,7 @@ public class CodeGenTests {
             AssertNoDiagnosticErrors(codeGenerationUnit.Diagnostics, codeGenerationUnitSyntax.SyntaxTree.SourceText);
 
             var options       = GenerationOptions.Default;
-            var codeGenerator = new CodeGenerator(options);
+            var codeGenerator = new CodeGeneratorV1(options);
 
             // 3. Code aus Semantic Model erstellen
             var codeGenerationResults = codeGenerator.Generate(codeGenerationUnit);
