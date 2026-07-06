@@ -10,7 +10,6 @@
   <PropertyGroup>
     <NavForce                Condition="'$(NavForce)'                == ''">false</NavForce>
     <NavStrict               Condition="'$(NavStrict)'               == ''">false</NavStrict>
-    <NavGenerateToClasses    Condition="'$(NavGenerateToClasses)'    == ''">true</NavGenerateToClasses>
     <NavGenerateWflClasses   Condition="'$(NavGenerateWflClasses)'   == ''">true</NavGenerateWflClasses>
     <NavGenerateIwflClasses  Condition="'$(NavGenerateIwflClasses)'  == ''">true</NavGenerateIwflClasses>
     <NavUseSyntaxCache       Condition="'$(NavUseSyntaxCache)'       == ''">false</NavUseSyntaxCache>
@@ -51,7 +50,7 @@
   -->
   <PropertyGroup>
     <!-- Nur content-relevante Parameter: Force/Verbose/FullPaths/UseSyntaxCache fließen NICHT ein. -->
-    <NavParamsContent>Strict=$(NavStrict);To=$(NavGenerateToClasses);Wfl=$(NavGenerateWflClasses);Iwfl=$(NavGenerateIwflClasses);Nullable=$(NavNullableContext);ProjRoot=$(NavProjectRootDirectory);IwflRoot=$(NavIwflRootDirectory);WflRoot=$(NavWflRootDirectory)</NavParamsContent>
+    <NavParamsContent>Strict=$(NavStrict);Wfl=$(NavGenerateWflClasses);Iwfl=$(NavGenerateIwflClasses);Nullable=$(NavNullableContext);ProjRoot=$(NavProjectRootDirectory);IwflRoot=$(NavIwflRootDirectory);WflRoot=$(NavWflRootDirectory)</NavParamsContent>
   </PropertyGroup>
 
   <Target Name="_NavPrepareIncremental" Condition="'$(NavIncremental)' == 'true'">
@@ -139,7 +138,6 @@
     <Nav Sources                = "@(NavFilesToProcess)"
          Force                  = "$(NavForce)"
          Strict                 = "$(NavStrict)"
-         GenerateToClasses      = "$(NavGenerateToClasses)"
          GenerateWflClasses     = "$(NavGenerateWflClasses)"
          GenerateIwflClasses    = "$(NavGenerateIwflClasses)"
          ProjectRootDirectory   = "$(NavProjectRootDirectory)"

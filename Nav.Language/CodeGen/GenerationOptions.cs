@@ -14,13 +14,12 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 public record GenerationOptions {
 
     /// <summary>
-    /// Die Standardkonfiguration: erzeugt TO-, WFL- und IWFL-Klassen, überschreibt unveränderte
+    /// Die Standardkonfiguration: erzeugt WFL- und IWFL-Klassen, überschreibt unveränderte
     /// Ausgabedateien nicht (<see cref="Force"/> = <c>false</c>) und lässt den
     /// Nullable-Referenztyp-Kontext aus.
     /// </summary>
     public static GenerationOptions Default => new() {
         Force               = false,
-        GenerateToClasses   = true,
         GenerateWflClasses  = true,
         GenerateIwflClasses = true,
     };
@@ -36,11 +35,6 @@ public record GenerationOptions {
     /// IWFL generiert. Default: <c>false</c>.
     /// </summary>
     public bool Strict { get; init; }
-
-    /// <summary>
-    /// Erzeugt die TO-Klassen (Task-Objekte). Default: <c>true</c>.
-    /// </summary>
-    public bool GenerateToClasses { get; init; }
 
     /// <summary>
     /// Erzeugt die WFL-Klassen (Workflow-Logik: Basis- und abgeleitete Klasse). Default: <c>true</c>.

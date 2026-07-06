@@ -97,10 +97,26 @@
   `IBeginWFS`/`IWFS` war er zufällig trotzdem 0 — diese Familien haben keine ST-Whitespace-Artefakte, ab
   `WFSBase` fällt er erwartbar auf > 0). Maßstab ist `NormChanged = 0` (plus nichts neu/entfernt).
 
-Aktuelle Template-Landschaft (unter `Nav.Language/CodeGen/Templates/`): `IBeginWFS.stg`, `IWFS.stg`,
-`WFSBase.stg` und `WFSOneShot.stg` sind durch Emitter abgelöst (die `.stg`-Dateien samt ihrer
-`Resources`-Einträge bleiben bis zum letzten Sub-Step als toter Ballast liegen und fallen mit dem
-ST-Sonderweg); noch ST: `Common.stg`, `TO.stg` (+ `CodeGenFacts.stg`/`.generated.cs`, `Resources.cs`).
+- **Step 4 ABGESCHLOSSEN (2026-07-06): TO-Familie entfernt (nicht migriert) + ST-Sonderweg gefallen.**
+  Statt eines `ToEmitter` wurde die **TO-Erzeugung ganz ausgebaut** (Entscheidung des Nutzers, s.
+  Design-Frage 7 in [`nav-codegen-versioning.md`](nav-codegen-versioning.md)): `TOCodeModel`, `TO.stg`,
+  der `GenerateToCodeSpecs`-Pfad und der Schalter `NavGenerateToClasses`/`ToClasses`/`GenerateToClasses`
+  (MSBuild-Target, BuildTasks, CLI, `GenerationOptions`, `IPathProvider.GetToFileName`) sind entfernt.
+  Da damit **alle** Familien von ST weg sind, fiel der komplette ST-Sonderweg: alle `.stg`, `Resources.cs`,
+  `CodeGenFacts.generated.cs` + der Facts-Export (`CustomBuild.targets`, `GenerateCodeGenFacts.cs`) und
+  die `StringTemplate4`-Referenz. Die Facts sind jetzt handgeschriebenes C# (`CodeGen/CodeGenFacts.cs`);
+  `CodeGenerator` ist ST-frei (kein `LoadTemplateGroup`/`GetTemplate`). Die `CompileTest` stubbt die
+  TO-Typen jetzt selbst (der GUI-Generator liefert sie in Produktion).
+  - **Verifiziert:** `dotnet build` (Engine ST-frei) + `nav build` (Full-Solution, `Antlr4.StringTemplate.dll`
+    fällt aus dem Output), net10 1346/0, net472 1354/0, `nav snapshot` ohne Drift. Korpus-**Parity ist
+    bewusst nicht mehr byte-identisch**: `NormChanged=0`, `Added=0`, `Removed=1431` — **ausschließlich**
+    `*TO.generated.cs` (programmatisch verifiziert), 3355 kosmetische Whitespace-Diffs wie bei den
+    WFS-Familien; Kandidat 30,2 s vs. Ref 36,3 s. `ParityOk=False` ist hier der **erwartete** Zustand.
+  - **Nächster: Step 5** (Dispatcher `VersionDispatchingCodeGenerator`, s. Schritt-Plan).
+
+Ehemalige Template-Landschaft (Historie): unter `Nav.Language/CodeGen/Templates/` lagen `IBeginWFS.stg`,
+`IWFS.stg`, `WFSBase.stg`, `WFSOneShot.stg`, `Common.stg`, `TO.stg`, `CodeGenFacts.stg` (+ `.generated.cs`)
+und `Resources.cs` — alle mit dem ST-Sonderweg entfernt.
 
 ## 2. Emitter-/CodeBuilder-Stil (verbindlich für die Folge-Familien)
 
@@ -157,23 +173,14 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
 - **Geteilte Bausteine in `EmitterCommon`.** Dateikopf, Using-Direktiven und Nav-Annotations liegen in
   `EmitterCommon` (C#-Pendant zu `Common.stg`) und werden von jeder Familie wiederverwendet.
 
-## 3. Der nächste Sub-Step
+## 3. Der nächste Sub-Step — erledigt (Step 4 abgeschlossen)
 
-Laut Plan (Grundsatz 9 in [`nav-codegen-versioning.md`](nav-codegen-versioning.md)): **eine
-Template-Familie pro Sub-Step**, ST und CodeBuilder koexistieren während der Migration, der ST-Sonderweg
-fällt erst mit dem letzten Sub-Step. Reihenfolge: **IBeginWFS ✓ → IWFS ✓ → WFSBase ✓ → WFSOneShot ✓ → TO**.
-
-**Als Nächstes: die `TO`-Familie** (`TO.stg` → Emitter) — der **letzte** Familien-Sub-Step. Das ist die
-zweite Benutzer-Datei (TO-Stub je View, `OverwritePolicy.Never`; den vollen Inhalt pflegt der externe
-GUI-Generator): `TOCodeModel` → `TOTemplate`, gerendert über die letzte verbliebene per-Familie-`.stg`.
-`ToEmitter` neben die anderen legen, `EmitterCommon` wiederverwenden, `CodeGenerator.GenerateToCodeSpecs`
-umhängen, `ToTemplateGroup` entfernen. Anders als die WFS-Familien wird die TO **pro View** erzeugt
-(`GenerateToCodeSpecs` iteriert `TOCodeModel.FromTaskDefinition` → mehrere Specs). **Achtung Parity:** der
-Roh-Diff ist erwartbar groß (Whitespace), das Urteil hängt allein an `NormChanged = 0` (Normalisierung
-trimmt beidseitig, s. §5). Danach fällt der **komplette ST-Sonderweg**: `Common.stg` + alle `.stg`,
-`Resources.cs`, der Facts-Export (`CustomBuild.targets`-Target, `GenerateCodeGenFacts.cs`,
-`CodeGenFacts.generated.cs`) und die `Antlr4.StringTemplate`-Abhängigkeit der Engine (Step 4 Abschluss,
-danach Step 5 = Dispatcher). Nach der Umstellung: Snapshots **und** Korpus-Parity müssen grün sein.
+Alle Familien-Sub-Steps sind durch: **IBeginWFS ✓ → IWFS ✓ → WFSBase ✓ → WFSOneShot ✓** (byte-identisch
+migriert) und **TO ✓ entfernt** (nicht migriert — Details in §1 und Design-Frage 7 der
+[`nav-codegen-versioning.md`](nav-codegen-versioning.md)). Der ST-Sonderweg ist gefallen. **Als Nächstes:
+Step 5 — Dispatcher `VersionDispatchingCodeGenerator`** (bisheriger `CodeGenerator` wird `CodeGeneratorV1`);
+V1-Verhalten muss unverändert bleiben (Korpus-Parity wie in §5, jetzt mit dem TO-freien Kandidaten als
+Ausgangspunkt).
 
 ## 4. Voraussetzung auf der Zielmaschine: Korpus + Referenz-Generator
 

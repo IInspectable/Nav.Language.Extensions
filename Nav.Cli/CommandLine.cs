@@ -14,10 +14,9 @@ namespace Pharmatechnik.Nav.Language;
 public enum CodeGenerationOptions {
 
     None        = 0x00,
-    ToClasses   = 0x01,
     WflClasses  = 0x02,
     IwflClasses = 0x04,
-    All         = ToClasses | WflClasses | IwflClasses,
+    All         = WflClasses | IwflClasses,
 
 }
 

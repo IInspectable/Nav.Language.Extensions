@@ -46,7 +46,7 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        // Default-Optionen erzeugen für TaskA die vier WFL-/IWFL-Artefakte (plus TO-Stub[s]).
+        // Default-Optionen erzeugen für TaskA die vier WFL-/IWFL-Artefakte.
         Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.True);
         Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.True);
         Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
@@ -294,6 +294,11 @@ public class CodeGenTests {
                     syntaxTrees.Add(CSharpSyntaxTree.ParseText(spec.Content, path: spec.FilePath));
                 }
             }
+
+            // Die TO-Typen sind kein Generator-Artefakt mehr — in Produktion liefert sie der externe
+            // GUI-Generator. Für die In-Memory-Kompilierung des generierten Codes werden sie hier als
+            // Stubs bereitgestellt (analog zum Framework-Stub).
+            syntaxTrees.Add(GetToStubCode(codeGenerationUnit));
         }
 
         // Pseudo Framework Code hinzufügen
@@ -331,6 +336,41 @@ public class CodeGenTests {
 
     RoslynSyntaxTree GetFrameworkStubCode() {
         return CSharpSyntaxTree.ParseText(Resources.FrameworkStubsCode, path: MkFilename("FrameworkStubCode.cs"));
+    }
+
+    // Erzeugt je View-Knoten eine 'partial class {View}TO : TO' im IWFL-Namespace des Tasks — die
+    // Typen, die die generierten I{Task}WFS-/WFSBase-Signaturen referenzieren. nav.exe legt diese
+    // Stubs nicht mehr an (der GUI-Generator besitzt den TO-Inhalt); für die Kompilierung des
+    // generierten Codes werden sie hier bereitgestellt (dieselbe Knoten-Auswahl wie einst TOCodeModel).
+    static RoslynSyntaxTree GetToStubCode(CodeGenerationUnit codeGenerationUnit) {
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"using {CodeGenFacts.NavigationEngineIwflNamespace};");
+
+        foreach (var task in codeGenerationUnit.TaskDefinitions) {
+
+            var iwflNamespace = TaskCodeInfo.FromTaskDefinition(task).IwflNamespace;
+
+            var toClassNames = task.NodeDeclarations
+                                   .OfType<IGuiNodeSymbol>()
+                                   .Where(guiNode => guiNode.References.Any())
+                                   .Select(guiNode => $"{guiNode.Name.ToPascalcase()}{CodeGenInvariants.ToClassNameSuffix}")
+                                   .Distinct()
+                                   .ToList();
+
+            if (toClassNames.Count == 0) {
+                continue;
+            }
+
+            sb.AppendLine($"namespace {iwflNamespace} {{");
+            foreach (var toClassName in toClassNames) {
+                sb.AppendLine($"    public partial class {toClassName} : TO {{ }}");
+            }
+
+            sb.AppendLine("}");
+        }
+
+        return CSharpSyntaxTree.ParseText(sb.ToString(), path: MkFilename("ToStubCode.cs"));
     }
 
     void AssertNoDiagnosticErrors(IEnumerable<RoslynDiagnostic> diagnostics) {

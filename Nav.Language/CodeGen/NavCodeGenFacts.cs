@@ -34,9 +34,9 @@ public static class NavCodeGenFacts {
     }
 
     /// <summary>
-    /// Version 1 — die historischen Werte. Sie delegiert an die (noch aus der StringTemplate-Quelle
-    /// exportierten) <see cref="CodeGenFacts"/>-Konstanten, damit V1 und die <c>.stg</c>-Templates
-    /// dieselbe einzige Wertequelle teilen und der Bestand byte-identisch bleibt.
+    /// Version 1 — die historischen Werte. Sie delegiert an die handgeschriebenen
+    /// <see cref="CodeGenFacts"/>-Konstanten (bis zur Ablösung von StringTemplate aus <c>.stg</c>
+    /// exportiert), unter denen der Bestand byte-identisch übersetzt.
     /// </summary>
     sealed class CodeGenFactsV1: ICodeGenFacts {
 

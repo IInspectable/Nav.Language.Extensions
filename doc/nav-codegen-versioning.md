@@ -443,7 +443,7 @@ Reihenfolge so gewählt, dass jeder Schritt für sich baubar/testbar ist und V1-
 | 1 | Facts-Zweiteilung: `CodeGenInvariants` (statisch) + `ICodeGenFacts` mit `NavCodeGenFacts.For(version)`; V1-Instanz; Statik wird V1-Fassade | Engine baut; `CodeGenFactsTests` pinnen V1-Werte (Invarianten + V1-Instanz); kein Verhaltens-Diff |
 | 2 | `*CodeInfo` versionsbewusst (Facts aus Symbol-Version; Interface-Ableitungen bleiben per Grundsatz 3 invariant, `TaskDeclarationCodeInfo` unverändert). Dazu aus der Voranalyse: `ICodeGenFacts` + `NavCodeGenFacts.For(version)` entstehen hier aus den echten Konsumenten; invariante Ableitungen (`IWfsTypeName`, `IwflNamespace`, `TaskDeclarationCodeInfo`) auf `CodeGenInvariants` umhängen; `WflNamespaceSuffix`-Doppelgebrauch entflechten (invariante IBegin-Ablage vs. versionierbarer Implementierungs-Namespace); tote Properties streichen (`AfterMethodName`, `BeginMethodName`, `TriggerMethodName`); `LocationFinder`-Konstante `BeginLogicMethodName` auf `TaskInitCodeInfo` umstellen; Anker-Rolle von `FullyQualifiedWfsBaseName` dokumentieren (Baustein 6) | Navigation/QuickInfo-Tests grün; V1-Snapshots byte-identisch |
 | 3 | `CodeGenerationResult` → Spec-Liste mit `OverwritePolicy`-Metadatum; `FileGenerator`/Logger/RegressionTests umgestellt | `nav test` beide TFMs grün; Regression byte-identisch |
-| 4 | **ST-Migration (Variante B), isolierter Schritt — Artefakt für Artefakt:** CodeBuilder-Grundgerüst (`CodeGen/CodeBuilder/`), dann je Template-Familie ein Sub-Step (IBeginWFS, IWFS, WFSBase, WFSOneShot, TO — ST und CodeBuilder koexistieren solange); zum Schluss ST-Sonderweg entfernen (`.stg`, `Resources.cs`, Facts-Export, `Antlr4.StringTemplate`) | **Byte-Identität je Sub-Step bewiesen** (Snapshots **und** Bestandskorpus-Diff leer, nach jedem Sub-Step); Perf vorher/nachher gemessen |
+| 4 | **ST-Migration (Variante B), isolierter Schritt — Artefakt für Artefakt:** CodeBuilder-Grundgerüst (`CodeGen/CodeBuilder/`), dann je Template-Familie ein Sub-Step (IBeginWFS ✓, IWFS ✓, WFSBase ✓, WFSOneShot ✓ — byte-identisch migriert; **TO ✗ nicht migriert, sondern ganz entfernt**, s.u.); zum Schluss ST-Sonderweg entfernt (`.stg`, `Resources.cs`, Facts-Export inkl. `CustomBuild.targets`/`GenerateCodeGenFacts.cs`/`CodeGenFacts.generated.cs`, `StringTemplate4`) — `CodeGenFacts` ist jetzt handgeschriebenes C#. **ABGESCHLOSSEN.** | Byte-Identität je WFS-Sub-Step bewiesen; **TO-Entfernung bewusst nicht byte-identisch** (Korpus-Parity `NormChanged=0`, `Added=0`, `Removed=1431` = ausschließlich `*TO.generated.cs`); Perf Kandidat 30,2 s vs. Ref 36,3 s; net10 1346/0, net472 1354/0 |
 | 5 | Dispatcher `VersionDispatchingCodeGenerator` als `CodeGeneratorProvider.Default`; bisheriger Generator wird `CodeGeneratorV1` | Pipeline-Verhalten für V1 unverändert (Korpus-Diff leer) |
 | 6 | V2-Inhalte: Facts V2, CodeModel-/Emitter-Schnitt, `PathProvider`-V2, **keine TO-Stubs mehr** — **Interfaces `I{Task}WFS`/`IBegin{Task}WFS` identisch zu V1 emittiert** (geteilte Emitter-Bausteine); **Version 2 in `SupportedVersions` freischalten** | neue Snapshot-Fixtures `Regression/Tests-V2/`; `nav snapshot` beherrscht beide; Interface-Identitäts-Test V1↔V2 |
 | 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung |
@@ -472,15 +472,19 @@ Commit macht der Nutzer (Arbeitsweise siehe `CLAUDE.md`).
    `ICodeGenFacts`; der `WfsClassSuffix`-Doppelgebrauch (Interface- vs. Klassen-Suffix) wird
    entflochten (⇒ Baustein 1). Grundsätze 3+4 sind damit strukturell erzwungen, nicht bloß
    Test-Konvention.
-7. **TO-Stub ist ein Relikt:** nav.exe schreibt TOs nur als einmalige Stubs
-   (`OverwritePolicy.Never`); den Inhalt besitzt der GUI-Generator. V1 behält das Verhalten
-   (eingefroren), **V2 schreibt keine TO-Dateien mehr** — `GenerateToClasses` läuft für
-   V2-Dateien sinngemäß ins Leere. Die TO-Typen in den (invarianten) Interface-Signaturen
-   liefert weiterhin der GUI-Generator.
+7. **TO-Stub ist ein Relikt — inzwischen ganz entfernt (Step 4, 2026-07-06):** nav.exe schrieb
+   TOs nur als einmalige Stubs (`OverwritePolicy.Never`); den Inhalt besitzt der GUI-Generator.
+   Ursprünglich sollte V1 das Verhalten behalten; im Step-4-Abschluss wurde die **TO-Erzeugung
+   jedoch für alle Generationen entfernt** (statt migriert) — `TOCodeModel`, `TO.stg`, der
+   `GenerateToCodeSpecs`-Pfad und der Schalter `NavGenerateToClasses`/`GenerateToClasses` sind weg.
+   Das ist eine bewusste Verhaltensänderung (V1 nicht mehr byte-identisch: der Bestand verliert die
+   TO-Stub-Dateien), da der GUI-Generator den TO-Inhalt ohnehin überschreibt. Die TO-Typen in den
+   (invarianten) Interface-Signaturen liefert weiterhin der GUI-Generator; sie hängen **nicht** an
+   der Stub-Erzeugung.
 8. **Options-Flags gelten generationsübergreifend, sinngemäß:** die MSBuild-/CLI-Flags
-   (`NavGenerateToClasses`/`WflClasses`/`IwflClasses`, `Strict`) bleiben der öffentliche
-   Vertrag; jede Generation interpretiert sie auf ihre Artefakt-Menge — kein neues
-   Options-Schema für V2.
+   (`WflClasses`/`IwflClasses`, `Strict`) bleiben der öffentliche Vertrag; jede Generation
+   interpretiert sie auf ihre Artefakt-Menge — kein neues Options-Schema für V2. (Das frühere
+   `NavGenerateToClasses`/`ToClasses`-Flag ist mit der TO-Entfernung entfallen, s. Punkt 7.)
 9. **Step-4-Vorgehen — Artefakt für Artefakt:** je Template-Familie ein Sub-Step (IBeginWFS,
    IWFS, WFSBase, WFSOneShot, TO); ST und CodeBuilder koexistieren während der Migration, der
    ST-Sonderweg fällt erst mit dem letzten Sub-Step. **Nach jedem Sub-Step** laufen Snapshots

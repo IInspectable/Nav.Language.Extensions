@@ -1,9 +1,6 @@
 ﻿#region Using Directives
 
 using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 // ReSharper disable InconsistentNaming
 
@@ -18,15 +15,13 @@ sealed class CodeModelResult {
         IBeginWfsCodeModel? beginWfsCodeModel,
         IWfsCodeModel? iwfsCodeModel,
         WfsBaseCodeModel? wfsBaseCodeModel,
-        WfsCodeModel? wfsCodeModel,
-        IEnumerable<TOCodeModel>? toCodeModels) {
+        WfsCodeModel? wfsCodeModel) {
 
         TaskDefinition     = taskDefinition ?? throw new ArgumentNullException(nameof(taskDefinition));
         IBeginWfsCodeModel = beginWfsCodeModel;
         IWfsCodeModel      = iwfsCodeModel;
         WfsBaseCodeModel   = wfsBaseCodeModel;
         WfsCodeModel       = wfsCodeModel;
-        TOCodeModels       = (toCodeModels ?? Enumerable.Empty<TOCodeModel>()).ToImmutableList();
     }
 
     public ITaskDefinitionSymbol TaskDefinition { get; }
@@ -38,7 +33,5 @@ sealed class CodeModelResult {
     public WfsBaseCodeModel? WfsBaseCodeModel { get; }
 
     public WfsCodeModel? WfsCodeModel { get; }
-
-    public ImmutableList<TOCodeModel> TOCodeModels { get; }
 
 }

@@ -2,14 +2,9 @@
 
 using System;
 using System.Linq;
-using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
-
-using Antlr4.StringTemplate;
-
-using Pharmatechnik.Nav.Language.CodeGen.Templates;
 
 #endregion
 
@@ -48,10 +43,6 @@ public interface ICodeGenerator: IDisposable {
 
 // ReSharper disable InconsistentNaming
 public class CodeGenerator: Generator, ICodeGenerator {
-
-    const string TemplateBeginName    = "Begin";
-    const string ModelAttributeName   = "model";
-    const string ContextAttributeName = "context";
 
     public CodeGenerator(GenerationOptions? options = null, IPathProviderFactory? pathProviderFactory = null): base(options) {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
@@ -100,8 +91,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
             beginWfsCodeModel: Options.GenerateWflClasses ? IBeginWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
             iwfsCodeModel: Options.GenerateIwflClasses ? IWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
             wfsBaseCodeModel: Options.GenerateWflClasses ? WfsBaseCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
-            wfsCodeModel: Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
-            toCodeModels: Options.GenerateToClasses ? TOCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null
+            wfsCodeModel: Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null
         );
 
         return codeModelResult;
@@ -114,7 +104,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
         var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
 
         // Reihenfolge wie beim bisherigen FileGenerator (nur log-/statistikrelevant, nicht
-        // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs, TOs. Leere Specs (ausgeschaltete
+        // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs. Leere Specs (ausgeschaltete
         // Options-Flags) werden schon beim Bau herausgefiltert — die Liste enthält nur die
         // tatsächlich zu schreibenden Artefakte.
         var specs = new[] {
@@ -122,8 +112,7 @@ public class CodeGenerator: Generator, ICodeGenerator {
                 GenerateIBeginWfsCodeSpec(codeModelResult.IBeginWfsCodeModel, context),
                 GenerateWfsBaseCodeSpec(codeModelResult.WfsBaseCodeModel, context),
                 GenerateWfsCodeSpec(codeModelResult.WfsCodeModel, context)
-            }.Concat(GenerateToCodeSpecs(codeModelResult.TOCodeModels, context))
-             .Where(spec => !spec.IsEmpty)
+            }.Where(spec => !spec.IsEmpty)
              .ToImmutableArray();
 
         return new CodeGenerationResult(codeModelResult.TaskDefinition, specs);
@@ -135,7 +124,6 @@ public class CodeGenerator: Generator, ICodeGenerator {
             return CodeGenerationSpec.Empty;
         }
 
-        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
         var content = IBeginWfsEmitter.Emit(model, context);
 
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
@@ -147,7 +135,6 @@ public class CodeGenerator: Generator, ICodeGenerator {
             return CodeGenerationSpec.Empty;
         }
 
-        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
         var content = IWfsEmitter.Emit(model, context);
 
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
@@ -159,7 +146,6 @@ public class CodeGenerator: Generator, ICodeGenerator {
             return CodeGenerationSpec.Empty;
         }
 
-        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
         var content = WfsBaseEmitter.Emit(model, context);
 
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
@@ -171,48 +157,10 @@ public class CodeGenerator: Generator, ICodeGenerator {
             return CodeGenerationSpec.Empty;
         }
 
-        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
         var content = WfsOneShotEmitter.Emit(model, context);
 
         // Benutzer-Datei: nur einmalig anlegen, danach nie überschreiben.
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
-    }
-
-    static readonly ThreadLocal<TemplateGroup> ToTemplateGroup = new(() => LoadTemplateGroup(Resources.TOTemplate));
-
-    static IEnumerable<CodeGenerationSpec> GenerateToCodeSpecs(IEnumerable<TOCodeModel> models, CodeGeneratorContext context) {
-        return models.Select(model => GenerateToCodeSpec(model, context));
-
-        static CodeGenerationSpec GenerateToCodeSpec(TOCodeModel model, CodeGeneratorContext context) {
-
-            var template = GetTemplate(ToTemplateGroup.Value, model, context);
-            var content  = template.Render();
-
-            // TO-Stub: nur einmalig anlegen; den Inhalt pflegt der externe GUI-Generator.
-            return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
-        }
-    }
-
-    static TemplateGroup LoadTemplateGroup(string resourceName) {
-
-        var codeGenFacts   = new TemplateGroupString(Resources.CodeGenFacts);
-        var commonTemplate = new TemplateGroupString(Resources.CommonTemplate);
-        var templateGroup  = new TemplateGroupString(resourceName);
-
-        templateGroup.ImportTemplates(codeGenFacts);
-        templateGroup.ImportTemplates(commonTemplate);
-
-        return templateGroup;
-    }
-
-    static Template GetTemplate(TemplateGroup templateGroup, CodeModel model, CodeGeneratorContext context) {
-
-        var st = templateGroup.GetInstanceOf(TemplateBeginName);
-
-        st.Add(ModelAttributeName,   model);
-        st.Add(ContextAttributeName, context);
-
-        return st;
     }
 
 }

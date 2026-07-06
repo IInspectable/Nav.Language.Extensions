@@ -32,8 +32,6 @@
     <!-- Löst die uralten Rx-Linq/Rx-PlatformServices 2.2.5 ab; Namespace System.Reactive.Linq bleibt unverändert -->
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
 
-    <PackageVersion Include="StringTemplate4" Version="4.0.8" />
-
     <!-- ReSharper/Rider-Annotationen (NotNull, Pure, ContractAnnotation …). Die Attribute sind
          [Conditional("JETBRAINS_ANNOTATIONS")]; solange das Symbol nicht definiert ist, strippt der
          Compiler alle Verwendungen → rein design-time, keine JetBrains.Annotations.dll zur Laufzeit.

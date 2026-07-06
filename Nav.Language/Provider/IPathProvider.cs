@@ -10,7 +10,6 @@ public interface IPathProvider {
     string IBeginWfsFileName { get; }
     string WfsFileName       { get; }
 
-    string GetToFileName(string toClassName);
     string GetRelativePath(string fromPath, string toPath);
 
 }

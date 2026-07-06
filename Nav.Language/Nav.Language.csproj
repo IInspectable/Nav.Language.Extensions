@@ -24,27 +24,10 @@
 
   <ItemGroup>
     <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
-    
+
   </ItemGroup>
+
   <ItemGroup>
-    <EmbeddedResource Include="CodeGen\Templates\Common.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\IBeginWFS.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\IWFS.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\TO.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\WFSBase.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\WFSOneShot.stg" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <ExportStringTemplates Include="CodeGen\Templates\CodeGenFacts.stg">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.CodeGen</CustomToolNamespace>
-    </ExportStringTemplates>
-    <!--<Compile Remove="CodeGen\Templates\CodeGenFacts.generated.cs"/>
-    <Compile Include="CodeGen\Templates\CodeGenFacts.generated.cs"/>-->
-  </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="StringTemplate4" />
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.CodeDom" />
   </ItemGroup>
@@ -61,7 +44,5 @@
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
-
-  <Import Project="CustomBuild.targets" />
 
 </Project>
