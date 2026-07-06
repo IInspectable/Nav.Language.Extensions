@@ -165,5 +165,6 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   am Rand MUSS `NavUri.ToFilePath` nutzen, NIE `rootUri.LocalPath` direkt.
 - **`.nav`-Endung exakt prüfen** via `NavSolution.HasNavExtension` — Windows-`EnumerateFiles` matcht
   `*.nav` sonst auch `.navignore` (3-Zeichen-Endungs-Falle).
-- `LangVersion` ist projektweit **10.0** (`Directory.Build.props`). NuGet via Central Package
-  Management (`Directory.Packages.props`, transitives Pinning aktiv).
+- `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — u.a. für Raw-String-Literale in den
+  CodeBuilder-Codegen-Emittern (reines Compiler-Feature, trägt auf net472/netstandard2.0). NuGet via
+  Central Package Management (`Directory.Packages.props`, transitives Pinning aktiv).

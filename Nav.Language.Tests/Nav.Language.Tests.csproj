@@ -5,12 +5,12 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net472;net10.0</TargetFrameworks>
-    <!-- Bewusste Ausnahme von der projektweiten LangVersion 10.0 (Directory.Build.props): Der
-         Test-Code nutzt Raw String Literals (C# 11) für gut lesbare, mehrzeilige .nav-Quellen mit
-         eingebetteten Positions-Markern (siehe NavMarkup). Reines Compiler-Feature, ohne
-         BCL-Abhängigkeit — trägt daher auch auf net472. `init`/`record` werden für net472 über den
-         lokalen IsExternalInit-Polyfill abgedeckt; runtime-abhängige Features (z.B. `required`)
-         werden bewusst gemieden. -->
+    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): Der
+         Test-Code nutzt neben Raw String Literals (C# 11, für gut lesbare, mehrzeilige .nav-Quellen
+         mit eingebetteten Positions-Markern; siehe NavMarkup) auch Collection Expressions (C# 12) in
+         den Fixtures — beides reine Compiler-Features ohne BCL-Abhängigkeit, tragen daher auch auf
+         net472. `init`/`record` werden für net472 über den lokalen IsExternalInit-Polyfill abgedeckt;
+         runtime-abhängige Features (z.B. `required`) werden bewusst gemieden. -->
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.Tests</RootNamespace>

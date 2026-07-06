@@ -28,8 +28,10 @@
   Using-Direktiven, Nav-Annotations) liegen in `Nav.Language/CodeGen/CodeBuilder/EmitterCommon.cs` — das
   C#-Pendant zu den wiederverwendbaren `Common.stg`-Templates und Fundament der folgenden Familien.
   `CodeGenerator.GenerateIBeginWfsCodeSpec` ruft den Emitter; `IBeginWfsTemplateGroup` entfernt. **Die
-  übrigen Familien laufen weiter über ST** (Koexistenz). Verifiziert: `nav snapshot` ohne Diff, Korpus
-  **roh** identisch (s.u.), Tests net472 1349/0 + net10 1341/0.
+  übrigen Familien laufen weiter über ST** (Koexistenz). Der Emitter ist anschließend in den
+  Raw-String-Stil überführt (LangVersion 11.0, `Block()`-Scopes, `cb.NewLine` statt literalem `"\r\n"`) —
+  byte-identisch; der verbindliche Stil steht in §2. Verifiziert: `nav snapshot` ohne Diff, Korpus
+  **roh** identisch (s.u.), Tests net472 1353/0 + net10 1345/0.
 - **Test-Strategie (wichtig für den Beweis):** Der CodeBuilder ist **clean-by-default** und reproduziert
   die kosmetischen StringTemplate-Whitespace-Artefakte **bewusst nicht** (Trailing-Whitespace,
   eingerückte Leerzeilen). Der Korpus-Beweis urteilt deshalb **nach Whitespace-Normalisierung**; ein
@@ -41,7 +43,40 @@ Emitter abgelöst (die `.stg`-Datei bleibt bis zum letzten Sub-Step als toter Ba
 mit dem ST-Sonderweg); noch ST: `Common.stg`, `IWFS.stg`, `WFSBase.stg`, `WFSOneShot.stg`, `TO.stg`
 (+ `CodeGenFacts.stg`/`.generated.cs`, `Resources.cs`).
 
-## 2. Der nächste Sub-Step
+## 2. Emitter-/CodeBuilder-Stil (verbindlich für die Folge-Familien)
+
+Die `IBeginWFS`-Familie definiert den Stil, in dem **alle** folgenden Emitter (IWFS, WFSBase,
+WFSOneShot, TO) geschrieben werden. Ziel ist Code, der sich liest wie das, was er erzeugt — bei
+weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Referenz-Implementierung:
+`IBeginWfsEmitter.cs` + `EmitterCommon.cs`.
+
+- **Sprachversion.** `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — nötig für
+  Raw-String-Literale. Reines Compiler-Feature ohne BCL-Abhängigkeit, trägt auf net472/netstandard2.0;
+  die Full-Solution inkl. VS-Extension `Nav.Language.Extension2026` baut damit.
+- **Zusammenhängende Ausgabe als Raw-String.** Aufeinanderfolgende `Write`/`WriteLine`-Ketten werden zu
+  **einem** (ggf. interpolierten) Raw-String-Literal zusammengezogen — Dateikopf, `#region`-Annotationen,
+  statische Präambeln. Einzeiler aus mehreren Teilen werden interpoliert
+  (`$"public interface {…}: {…} "`).
+- **Blöcke über `CodeBuilder.Block()`.** `{ … }`-Rümpfe (namespace, interface, class, Methoden) laufen
+  über `using (cb.Block()) { … }`: den Kopf mit `cb.Write($"namespace {ns} ")` schreiben, `Block()` setzt
+  die öffnende Klammer, rückt ein und schließt beim `Dispose` mit `}` auf eigener Zeile. **Kein
+  `{{`-Escape** und keine manuellen `cb.WriteLine("}")`/`cb.Write("}")`-Schließer mehr. `Indent()`/
+  `Align()` bleiben für dynamischen Inhalt (umbrochene Parameterlisten via `Align()`).
+- **Kein literales `"\r\n"` im Emitter-Code.** Newline-haltige `WriteJoin`-Separatoren nutzen `cb.NewLine`
+  (bzw. `$",{cb.NewLine}"`) — nie ein hartes `"\r\n"`. (Die `.stg`-Templates behalten ihr
+  `separator="\r\n"`, sie fallen mit dem ST-Sonderweg.)
+- **Mehrzeiliger Text + Einrückung.** Der `CodeBuilder` zerlegt jeden geschriebenen Text an
+  Zeilenumbrüchen und stellt jeder Zeile die **aktuelle** Einrückung voran; relative Innen-Einrückung
+  eines Raw-Strings bleibt additiv erhalten. Ein Raw-String-Block darf deshalb bedenkenlos innerhalb
+  eines `Block()`/`Indent()`-Scopes stehen. Das Verhalten ist in `CodeBuilderTests` fixiert
+  (`Write_MultiLineText_ReindentsEachLine`, `WriteLine_MultiLineRawString_*`).
+- **`WriteLine` terminiert die Schlusszeile.** Ein mehrzeiliger `cb.WriteLine("""…""")` schreibt alle
+  Zeilen **und** schließt die letzte mit Zeilenumbruch ab; ein separates `cb.WriteLine()` am Ende
+  entfällt (eine gewünschte Leerzeile wird als letzte leere Zeile in den Raw-String gezogen).
+- **Geteilte Bausteine in `EmitterCommon`.** Dateikopf, Using-Direktiven und Nav-Annotations liegen in
+  `EmitterCommon` (C#-Pendant zu `Common.stg`) und werden von jeder Familie wiederverwendet.
+
+## 3. Der nächste Sub-Step
 
 Laut Plan (Grundsatz 9 in [`nav-codegen-versioning.md`](nav-codegen-versioning.md)): **eine
 Template-Familie pro Sub-Step**, ST und CodeBuilder koexistieren während der Migration, der ST-Sonderweg
@@ -54,7 +89,7 @@ umhängen, `IWfsTemplateGroup` entfernen. `I{Task}WFS` ist wie `IBegin{Task}WFS`
 Schnittstelle (Grundsatz 3) → Namen aus `CodeGenInvariants`. Nach der Umstellung: Snapshots **und**
 Korpus-Parity (s.u.) müssen grün sein, bevor `WFSBase` drankommt.
 
-## 3. Voraussetzung auf der Zielmaschine: Korpus + Referenz-Generator
+## 4. Voraussetzung auf der Zielmaschine: Korpus + Referenz-Generator
 
 Der Korpus (~1900 `.nav`) ist ein **proprietäres TFS-Enlistment** und liegt **nicht im Repo**. Auf der
 Referenzmaschine reicht der Teilbaum **`D:\tfs\Main\XTplusApplication\src`** (1909 `.nav`; das ganze
@@ -65,7 +100,7 @@ Als **Referenz-Generator** dient die deployte `nav.exe` aus dem Enlistment:
 erzeugt. Weiter gebraucht: **.NET-SDK 10** (baut den Kandidaten) und die `nav`-Commands
 (`. .\Tools\Commands\Import-NavCommands.ps1`). Liegt etwas anderswo: `-CorpusPath` / `-ReferenceExe`.
 
-## 4. Der Parity-Beweis: `nav parity` (run-both-generators)
+## 5. Der Parity-Beweis: `nav parity` (run-both-generators)
 
 Der Command **`nav parity`** (`Tools/Commands/Functions/Invoke-CodeGenParity.ps1`) vergleicht **zwei
 Generatoren**, die **dieselben `.nav`** übersetzen — Referenz vs. Kandidat. Bewusst schlank (**wenige
@@ -105,7 +140,7 @@ Bestandskorpus konsistent `1` (einige `.nav` tragen Diagnostics); das ist **kein
 gleich sind und `Added`/`Removed` = 0. „**PARITY OK (normalisiert) — N Datei(en) nur kosmetisch**" ist
 der erwartete Zustand nach einer Migration mit Whitespace-Artefakten; bei `IBeginWFS` war sogar roh 0.
 
-## 5. Verifikations-Checkliste je Sub-Step
+## 6. Verifikations-Checkliste je Sub-Step
 
 1. **Snapshots:** `nav snapshot` erzeugt keine Diffs (Regression byte-identisch). — maschinen-unabhängig,
    im Repo.
@@ -118,7 +153,7 @@ der erwartete Zustand nach einer Migration mit Whitespace-Artefakten; bei `IBegi
    Regression; bei `IBeginWFS` war der Kandidat sogar schneller, 30,6 s vs. 37,3 s Referenz).
 5. Erst wenn 1–4 grün: fertige **Commit-Message** liefern (nicht selbst committen).
 
-## 6. Fallstricke
+## 7. Fallstricke
 
 - **Der Korpus/die Referenz fehlt oder liegt anders** → `nav parity` bricht mit klarer Meldung ab;
   `-CorpusPath` / `-ReferenceExe` setzen.

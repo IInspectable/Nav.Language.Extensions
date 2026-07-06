@@ -4,7 +4,12 @@
   <Import Project="$(MSBuildThisFileDirectory)Build\Version.targets"/>
 
   <PropertyGroup>
-    <LangVersion>10.0</LangVersion>
+    <!-- Projektweit C# 11: schaltet Raw-String-Literale frei (für die CodeBuilder-basierten
+         Codegen-Emitter, die zusammenhängende Ausgabe als mehrzeilige Raw Strings schreiben).
+         Reines Compiler-Feature ohne BCL-Abhängigkeit — trägt auch auf net472/netstandard2.0.
+         Bewusst 11.0 statt `latest`, um keine runtime-abhängigen neueren Features (C# 12/13)
+         versehentlich freizuschalten. -->
+    <LangVersion>11.0</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -78,6 +78,13 @@ public sealed class CodeBuilder {
     public int IndentDepth => _indentDepth;
 
     /// <summary>
+    /// Der Zeilenumbruch, mit dem der Builder Zeilen abschließt (Standard <see cref="DefaultNewLine"/>).
+    /// Gedacht als newline-haltiger Separator für <see cref="WriteJoin{T}(IEnumerable{T}, Action{T}, string)"/>,
+    /// damit im aufrufenden Emitter-Code kein literales <c>"\r\n"</c> mehr steht.
+    /// </summary>
+    public string NewLine => _newLine;
+
+    /// <summary>
     /// Die aktuelle, 0-basierte Cursor-Spalte auf der laufenden Zeile — inklusive der Einrückung,
     /// die für diese Zeile noch aussteht. Grundlage für <see cref="Align()"/>.
     /// </summary>

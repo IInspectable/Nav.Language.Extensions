@@ -24,39 +24,30 @@ static class IBeginWfsEmitter {
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
         cb.WriteLine();
 
-        cb.Write("namespace ").Write(model.Namespace).WriteLine(" {");
-        cb.WriteLine();
+        cb.Write($"namespace {model.Namespace} ");
+        using (cb.Block()) {
 
-        using (cb.Indent()) {
-
-            cb.WriteLine("// Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können");
-            cb.WriteLine("#pragma warning disable 0108");
             cb.WriteLine();
 
+            cb.WriteLine("""
+                         // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
+                         #pragma warning disable 0108
+
+                         """);
+
             if (model.CodeDeclarations.Count > 0) {
-                cb.WriteJoin(model.CodeDeclarations, (b, decl) => b.Write(decl), separator: "\r\n");
+                cb.WriteJoin(model.CodeDeclarations, (b, decl) => b.Write(decl), separator: cb.NewLine);
                 cb.WriteLine();
                 cb.WriteLine();
             }
 
             EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
 
-            cb.Write("public interface ")
-              .Write(CodeGenInvariants.BeginInterfacePrefix)
-              .Write(model.Task.TaskNamePascalcase)
-              .Write(CodeGenInvariants.InterfaceSuffix)
-              .Write(": ")
-              .Write(model.BaseInterfaceName)
-              .WriteLine(" {");
-
-            using (cb.Indent()) {
+            cb.Write($"public interface {CodeGenInvariants.BeginInterfacePrefix}{model.Task.TaskNamePascalcase}{CodeGenInvariants.InterfaceSuffix}: {model.BaseInterfaceName} ");
+            using (cb.Block()) {
                 WriteBeginMethodDeclarations(cb, model.InitTransitions, model.Task.Facts);
             }
-
-            cb.WriteLine("}");
         }
-
-        cb.Write("}");
 
         return cb.ToString();
     }
@@ -68,7 +59,7 @@ static class IBeginWfsEmitter {
         cb.WriteJoin(
             initTransitions,
             (b, initTransition) => WriteBeginMethodDeclaration(b, initTransition, facts),
-            separator: "\r\n");
+            separator: cb.NewLine);
 
         if (initTransitions.Count > 0) {
             cb.WriteLine();
@@ -79,12 +70,12 @@ static class IBeginWfsEmitter {
 
         EmitterCommon.WriteNavInitAnnotation(cb, initTransition.NodeName);
 
-        cb.Write("IINIT_TASK ").Write(facts.BeginMethodPrefix).Write("(");
+        cb.Write($"IINIT_TASK {facts.BeginMethodPrefix}(");
         using (cb.Align()) {
             cb.WriteJoin(
                 initTransition.Parameter,
-                (b, parameter) => b.Write(parameter.ParameterType).Write(" ").Write(parameter.ParameterName),
-                separator: ",\r\n");
+                (b, parameter) => b.Write($"{parameter.ParameterType} {parameter.ParameterName}"),
+                separator: $",{cb.NewLine}");
         }
 
         cb.Write(");");

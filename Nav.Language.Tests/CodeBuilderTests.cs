@@ -49,6 +49,16 @@ public class CodeBuilderTests {
     }
 
     [Test]
+    public void NewLine_DefaultsToCrLf() {
+        Assert.That(NewBuilder().NewLine, Is.EqualTo("\r\n"));
+    }
+
+    [Test]
+    public void NewLine_ReflectsConfiguredValue() {
+        Assert.That(new CodeBuilder(newLine: "\n").NewLine, Is.EqualTo("\n"));
+    }
+
+    [Test]
     public void WriteLine_Empty_ProducesBlankLine_WithoutIndent() {
         var b = NewBuilder();
         using (b.Indent()) {
@@ -179,6 +189,50 @@ public class CodeBuilderTests {
                    """);
     }
 
+    [Test]
+    public void WriteLine_MultiLineRawString_AtDepth_IndentsEachLine() {
+        // Der Emitter-Fall: ein dedenteter Raw-String-Block wird innerhalb eines Indent-Scopes
+        // geschrieben. Jede Zeile bekommt die aktuelle Einrückung; die Schlusszeile wird terminiert.
+        var b = NewBuilder();
+        using (b.Indent()) {
+            b.WriteLine("""
+                        #region Foo
+                        /// <bar>value</bar>
+                        #endregion
+                        """);
+        }
+
+        AssertCode(b,
+                   """
+                       #region Foo
+                       /// <bar>value</bar>
+                       #endregion
+
+                   """);
+    }
+
+    [Test]
+    public void WriteLine_MultiLineRawString_PreservesRelativeIndent_OnTopOfCurrentIndent() {
+        // Ein Block mit relativer Innen-Einrückung: die aktuelle Einrückung wird als Basis
+        // vorangestellt, die relative Einrückung im Text bleibt additiv erhalten.
+        var b = NewBuilder();
+        using (b.Indent()) {
+            b.WriteLine("""
+                        public interface IFoo {
+                            void Bar();
+                        }
+                        """);
+        }
+
+        AssertCode(b,
+                   """
+                       public interface IFoo {
+                           void Bar();
+                       }
+
+                   """);
+    }
+
     // -- Spaltenausrichtung (Align / der ST-anchor-Fall) ---------------------------------------------
 
     [Test]
@@ -214,7 +268,7 @@ public class CodeBuilderTests {
                 b.WriteJoin(
                     ["TestInitParams p1", "int? nullableParam"],
                     p => b.Write(p),
-                    separator: ",\r\n");
+                    separator: $",{b.NewLine}");
             }
 
             b.WriteLine(") {");
@@ -284,7 +338,7 @@ public class CodeBuilderTests {
                 b.WriteJoin(
                     ["int first", "string second"],
                     p => b.Write(p),
-                    separator: ",\r\n");
+                    separator: $",{b.NewLine}");
             }
 
             b.Write(") ");
