@@ -20,7 +20,7 @@
   21 Golden-Tests in `Nav.Language.Tests/CodeBuilderTests.cs`). Public-API: Props
   `IndentDepth`/`Column`/`Length`; `Write`/`WriteLine`; `Indent()`-, `Block()`-, `Align()`/`Align(int)`-
   Scopes (schachtelbar); `WriteJoin` mit newline-fähigem Separator.
-- **Step 4, Sub-Step 2 (dieser Stand): `IBeginWFS`-Familie auf CodeBuilder migriert.**
+- **Step 4, Sub-Step 2: `IBeginWFS`-Familie auf CodeBuilder migriert.**
   `Nav.Language/CodeGen/CodeBuilder/IBeginWfsEmitter.cs` emittiert die `IBegin{Task}WFS`-Interfaces;
   der Interface-Name kommt aus `CodeGenInvariants` (invariante Schnittstelle, Grundsatz 3), der
   Begin-Methodenname aus den versionierbaren `ICodeGenFacts` des Tasks; umbrochene Parameterlisten über
@@ -32,16 +32,28 @@
   Raw-String-Stil überführt (LangVersion 11.0, `Block()`-Scopes, `cb.NewLine` statt literalem `"\r\n"`) —
   byte-identisch; der verbindliche Stil steht in §2. Verifiziert: `nav snapshot` ohne Diff, Korpus
   **roh** identisch (s.u.), Tests net472 1353/0 + net10 1345/0.
+- **Step 4, Sub-Step 3 (dieser Stand): `IWFS`-Familie auf CodeBuilder migriert.**
+  `Nav.Language/CodeGen/CodeBuilder/IWfsEmitter.cs` emittiert die `I{Task}WFS`-Interfaces; je
+  Trigger-Transition entsteht eine `INavCommand {Trigger}({View}TO to)`-Methode. Der Interface-Name ist
+  wie beim Begin-Interface versions-invariant (Grundsatz 3) und stammt aus `CodeGenInvariants` — hier
+  über `model.InterfaceName` → `TaskCodeInfo.IWfsTypeName`, das Präfix/Suffix aus `CodeGenInvariants`
+  zieht (die `IWFS.stg` nutzte bereits die Modell-Property, anders als `IBeginWFS.stg`, das den Namen
+  inline baute). Die Trigger-Annotation (`NavTrigger`) ist neu in `EmitterCommon.WriteTriggerAnnotation`
+  (Pendant zu `WriteNavInitAnnotation`); Dateikopf/Using/Task-Annotation kommen unverändert aus
+  `EmitterCommon`. Der `ViewParameter` ist ein einzelner Parameter → inline geschrieben (kein
+  `Align()`/Join nötig). `CodeGenerator.GenerateIWfsCodeSpec` ruft den Emitter; `IWfsTemplateGroup`
+  entfernt. Stil wie in §2. Verifiziert: `nav snapshot` ohne Diff, Korpus **roh** identisch (9211/9211,
+  `ParityOk=True`), Tests net472 1355/0 + net10 1347/0; Kandidat 30,3 s vs. 33,8 s Referenz.
 - **Test-Strategie (wichtig für den Beweis):** Der CodeBuilder ist **clean-by-default** und reproduziert
   die kosmetischen StringTemplate-Whitespace-Artefakte **bewusst nicht** (Trailing-Whitespace,
   eingerückte Leerzeilen). Der Korpus-Beweis urteilt deshalb **nach Whitespace-Normalisierung**; ein
   leerer Roh-Byte-Diff ist ab einer migrierten Familie **nicht** mehr das Kriterium (bei `IBeginWFS`
   war er zufällig trotzdem 0 — diese Familie hat keine ST-Whitespace-Artefakte).
 
-Aktuelle Template-Landschaft (unter `Nav.Language/CodeGen/Templates/`): `IBeginWFS.stg` ist durch den
-Emitter abgelöst (die `.stg`-Datei bleibt bis zum letzten Sub-Step als toter Ballast liegen und fällt
-mit dem ST-Sonderweg); noch ST: `Common.stg`, `IWFS.stg`, `WFSBase.stg`, `WFSOneShot.stg`, `TO.stg`
-(+ `CodeGenFacts.stg`/`.generated.cs`, `Resources.cs`).
+Aktuelle Template-Landschaft (unter `Nav.Language/CodeGen/Templates/`): `IBeginWFS.stg` und `IWFS.stg`
+sind durch Emitter abgelöst (die `.stg`-Dateien samt ihrer `Resources`-Einträge bleiben bis zum letzten
+Sub-Step als toter Ballast liegen und fallen mit dem ST-Sonderweg); noch ST: `Common.stg`,
+`WFSBase.stg`, `WFSOneShot.stg`, `TO.stg` (+ `CodeGenFacts.stg`/`.generated.cs`, `Resources.cs`).
 
 ## 2. Emitter-/CodeBuilder-Stil (verbindlich für die Folge-Familien)
 
@@ -102,14 +114,19 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
 
 Laut Plan (Grundsatz 9 in [`nav-codegen-versioning.md`](nav-codegen-versioning.md)): **eine
 Template-Familie pro Sub-Step**, ST und CodeBuilder koexistieren während der Migration, der ST-Sonderweg
-fällt erst mit dem letzten Sub-Step. Reihenfolge: **IBeginWFS ✓ → IWFS → WFSBase → WFSOneShot → TO**.
+fällt erst mit dem letzten Sub-Step. Reihenfolge: **IBeginWFS ✓ → IWFS ✓ → WFSBase → WFSOneShot → TO**.
 
-**Als Nächstes: die `IWFS`-Familie** (`IWFS.stg` → Emitter) auf denselben Weg bringen wie `IBeginWFS`:
-`IWfsEmitter` neben `IBeginWfsEmitter` legen, die geteilten Bausteine aus `EmitterCommon` wiederverwenden
-(ggf. um `IWFS`-spezifische Annotations/Trigger-Methoden ergänzen), `CodeGenerator.GenerateIWfsCodeSpec`
-umhängen, `IWfsTemplateGroup` entfernen. `I{Task}WFS` ist wie `IBegin{Task}WFS` die versions-invariante
-Schnittstelle (Grundsatz 3) → Namen aus `CodeGenInvariants`. Nach der Umstellung: Snapshots **und**
-Korpus-Parity (s.u.) müssen grün sein, bevor `WFSBase` drankommt.
+**Als Nächstes: die `WFSBase`-Familie** (`WFSBase.stg` → Emitter) auf denselben Weg bringen:
+`WfsBaseEmitter` neben `IWfsEmitter`/`IBeginWfsEmitter` legen, die geteilten Bausteine aus `EmitterCommon`
+wiederverwenden (ggf. um WFSBase-spezifische Annotations/Bausteine ergänzen — hier tauchen erstmals
+Feld-Deklarationen, Konstruktoren und Init-Call-Annotationen auf, s. `Common.stg`-Helfer
+`writeFieldDeclaration*`/`writeFieldInit*`/`writeInitCallAnnotation`), `CodeGenerator.GenerateWfsBaseCodeSpec`
+umhängen, `WfsBaseTemplateGroup` entfernen. Anders als die Interfaces trägt `{Task}WFSBase` einen
+**versionierbaren** Klassennamen/Namespace (aus `ICodeGenFacts`, nicht `CodeGenInvariants`) — Grundsatz
+3 sauber trennen. **Achtung:** ab hier erzeugt ST kosmetische Whitespace-Artefakte (eingerückte
+Leerzeilen, Trailing-Whitespace), der CodeBuilder ist clean-by-default → der Roh-Diff wird ≠ 0, das
+Urteil hängt am **normalisierten** Parity (`NormChanged`, s. §1 Test-Strategie). Nach der Umstellung:
+Snapshots **und** Korpus-Parity (s.u.) müssen grün sein, bevor `WFSOneShot` drankommt.
 
 ## 4. Voraussetzung auf der Zielmaschine: Korpus + Referenz-Generator
 

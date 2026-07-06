@@ -75,4 +75,13 @@ static class EmitterCommon {
                       """);
     }
 
+    /// <summary>Schreibt die Trigger-Annotation (<c>NavTrigger</c>) einer Trigger-Methode.</summary>
+    public static void WriteTriggerAnnotation(CodeBuilder cb, string triggerName) {
+        cb.WriteLine($"""
+                      #region {AnnotationRegionName}
+                      /// <{CodeGenInvariants.AnnotationTagNavTrigger}>{triggerName}</{CodeGenInvariants.AnnotationTagNavTrigger}>
+                      #endregion
+                      """);
+    }
+
 }
