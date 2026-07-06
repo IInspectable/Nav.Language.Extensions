@@ -165,16 +165,14 @@ public class CodeGenerator: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
-    static readonly ThreadLocal<TemplateGroup> WfsTemplateGroup = new(() => LoadTemplateGroup(Resources.WFSOneShotTemplate));
-
     static CodeGenerationSpec GenerateWfsCodeSpec(WfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
             return CodeGenerationSpec.Empty;
         }
 
-        var template = GetTemplate(WfsTemplateGroup.Value, model, context);
-        var content  = template.Render();
+        // Auf den CodeBuilder-Emitter migriert; die übrigen Familien rendern weiterhin per StringTemplate.
+        var content = WfsOneShotEmitter.Emit(model, context);
 
         // Benutzer-Datei: nur einmalig anlegen, danach nie überschreiben.
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
