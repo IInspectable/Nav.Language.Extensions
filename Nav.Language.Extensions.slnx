@@ -69,6 +69,7 @@
     <File Path="doc/Features.md" />
     <File Path="doc/nav-backlog.md" />
     <File Path="doc/nav-codegen-step4-handoff.md" />
+    <File Path="doc/nav-codegen-v2-concat-design.md" />
     <File Path="doc/nav-codegen-versioning.md" />
     <File Path="doc/nav-completion-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
