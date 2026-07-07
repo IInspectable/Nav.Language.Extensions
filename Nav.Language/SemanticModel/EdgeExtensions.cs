@@ -20,6 +20,36 @@ public static class EdgeExtensions {
                      .WhereNotNull();
     }
 
+    /// <summary>
+    /// Liefert die von <paramref name="source"/> erreichbaren Continuations (<c>… o-^ Task</c> /
+    /// <c>… --^ Task</c>) — die <see cref="IContinuationTransition"/>-Anhänge der durchlaufenen Kanten,
+    /// Choice-Ketten rekursiv aufgelöst. Anders als <see cref="GetReachableContinuationCalls"/> (das den
+    /// Folge-Task-Call liefert) trägt die Continuation selbst ihren tragenden GUI-Knoten
+    /// (<see cref="IEdge.SourceReference"/>), den z.B. Nav0122 braucht.
+    /// </summary>
+    public static IEnumerable<IContinuationTransition> GetReachableContinuations(this IEdge source) {
+        return GetReachableContinuationsImpl(source, new HashSet<IEdge>());
+    }
+
+    static IEnumerable<IContinuationTransition> GetReachableContinuationsImpl(IEdge edge, ISet<IEdge> seenEdges) {
+
+        if (!seenEdges.Add(edge)) {
+            yield break;
+        }
+
+        // Trägt die aktuell betrachtete Kante selbst eine Continuation, so ist sie erreichbar.
+        if (edge is IContinuableEdge {ContinuationTransition: {} continuation}) {
+            yield return continuation;
+        }
+
+        // Choices auflösen: hinter einer Choice liegende Continuations sind ebenfalls erreichbar.
+        if (edge.TargetReference?.Declaration is IChoiceNodeSymbol choiceNode) {
+            foreach (var reachable in choiceNode.Outgoings.SelectMany(e => GetReachableContinuationsImpl(e, seenEdges))) {
+                yield return reachable;
+            }
+        }
+    }
+
     public static IEnumerable<Call> GetReachableCalls(this IEdge source) {
         return GetReachableCallsImpl(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
     }

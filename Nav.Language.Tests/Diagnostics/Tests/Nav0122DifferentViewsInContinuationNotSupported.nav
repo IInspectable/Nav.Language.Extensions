@@ -1,0 +1,25 @@
+﻿task B
+{
+    init;
+    exit e;
+    init --> e;
+}
+
+task A
+{
+    init I1;
+    exit e;
+    task B;
+    view V;
+    view W;
+    choice C;
+
+    I1  --> C;
+    C   --> V o-^ B;
+    C   --> W o-^ B;
+    V   --> e on OnV;
+    W   --> e on OnW;
+    B:e --> e;
+}
+//==>>[Semantic](18,13,18,14): error Nav0122: Different views are not supported in a continuation
+//==>>[Semantic](19,13,19,14): error Nav0122: Different views are not supported in a continuation

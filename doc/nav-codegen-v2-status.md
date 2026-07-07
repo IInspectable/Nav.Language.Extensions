@@ -35,8 +35,8 @@ Commit-Message — der Commit macht der Nutzer.
 | **S0** | Status-Doc (dieses) + Golden-**Input**-`.nav` festschreiben: CallContext-Grundform, Continuation, Choice-mit-3-Quellen | §6.1, §8.2 | `.nav` liegen unter `Regression/Tests/V2/`, alle `#version 2`, je distinkter Task-Name **und** `[namespaceprefix]` (sonst Dateinamens-Kollision, §7) | **erledigt** — `BasicFlow.nav`/`ContinuationFlow.nav`/`ChoiceFlow.nav`; Harness überspringt den `V2\`-Teilbaum vorläufig (s.u.) |
 | **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | **erledigt** — s.u. |
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | **erledigt** — s.u. |
-| **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + **Nav0124** (generische Member-Kollision) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | offen |
-| **S4** | **Versions-Gate + Completion:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`) | §6.3 (Teil C), §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000-Fixtures | offen |
+| **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | **erledigt** — s.u. (Nav0124 → S4 verschoben) |
+| **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | offen |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | offen |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | offen — **gated?** (§Gating) |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
@@ -119,6 +119,49 @@ den Analyzer breiter umgeschrieben (Exit-Transitionen pro Task-Knoten **gepoolt*
 
 Verifikation: `nav build` + beide TFMs grün (net10 1374/0, net472 1382/0 — je 3 explizite Skips);
 neue `ContinuationSemanticTests` (5 Fälle).
+
+### S3-Anmerkung: was die Struktur-Analyzer umfassen (und was nach S4 wandert)
+
+Umgesetzt (drei **versionsUNabhängige** Struktur-Analyzer, Severity **Error**, Auto-Discovery wie die
+übrigen `NavAnalyzer`, keine Builder-Diagnostik — die Typprüfung von Quelle/Ziel bleibt sauber im
+Analyzer, siehe S2-Anmerkung):
+
+- **Nav0120** (`Nav0120SourceNode0OfContinuationMustBeViewOrDialog`): der **tragende** Knoten einer
+  Continuation (Zielknoten der umgebenden Transition, `ContinuationTransition.SourceReference`) muss ein
+  GUI-Knoten (`IGuiNodeSymbol` = View *oder* Dialog) sein. Iteriert alle continuation-tragenden Kanten
+  (`taskDefinition.Edges().OfType<IContinuableEdge>()`), meldet den **aufgelösten** Falschtyp am
+  Quell-Referenz-Ort; unaufgelöste Knoten bleiben Nav0011 überlassen (Roslyn-Stil: eine treffende
+  Diagnose, keine Folgefehler).
+- **Nav0121** (`Nav0121TargetNode0OfContinuationMustBeTask`): das Continuation-**Ziel** (rechts von
+  `o-^`/`--^`, `TargetReference`) muss ein Task-Knoten (`ITaskNodeSymbol`) sein — nur ein Task hat die
+  `Begin`-Fabrik/`ITASK_BOUNDARY`, auf die `.Concat(…)` lowert. Gleiche Mechanik/Recovery wie Nav0120.
+- **Nav0122** (`Nav0122DifferentViewsInContinuationNotSupported`): aus **einer** Quelle erreichbare
+  Continuations dürfen nicht auf verschiedene tragende Views zeigen (eine mode-freie `Show{View}` je
+  Quelle kann nur **einen** GUI-Knoten tragen). Quelle ist — wie beim concat-Referenzbild —
+  unterschiedlich gepoolt: pro **Init-Knoten** alle Ausgänge, pro **Trigger-Transition** einzeln, pro
+  **Task-Knoten** alle Exit-Ausgänge. Nutzt die **neue** Reachability
+  `EdgeExtensions.GetReachableContinuations` (liefert die `IContinuationTransition`-Anhänge inkl.
+  tragendem GUI-Knoten, Choice-Ketten rekursiv aufgelöst — das Pendant zu
+  `GetReachableContinuationCalls`, das nur den Folge-Task-Call kennt und für Nav0122 nicht reicht). Bei
+  >1 distinktem tragenden Knoten eine Diagnose mit mehreren Locations.
+
+Die concat-Branch-Nummern **Nav1020/1021/1022** wurden nach **Nav0120/0121/0122** umnummeriert (Error
+gehört ins `01xx`-Strukturband, nicht ins `Nav1xxx`-DeadCode/Warning-Band, §4) und die Meldungen von
+„concatenation" auf **„continuation"** umbenannt (Feature-Name, §1). Anders als der concat-Branch (der
+Nav1020/1021 im `TaskDefinitionSymbolBuilder` während der Konstruktion warf) sitzen **alle drei** als
+Analyzer im `SemanticAnalyzer/`.
+
+**Nav0124 bewusst nach S4 verschoben.** Der Step-Plan führte Nav0124 (generische Member-Kollision)
+ursprünglich in S3. Nav0124 ist aber laut §4 **versions-gated** („nur wo V2-Contexte entstehen") und
+rechnet aus der **generierten V2-Member-Menge** einer Quelle (`Show{Node}`/`Begin{Node}`/`{Choice}`) —
+beides hängt an Infrastruktur, die erst **S4** (das `NavLanguageFeatures`-Gate) bzw. konzeptionell die
+V2-Namensregeln liefert. Ohne Gate feuerte Nav0124 fälschlich auf V1-Units. Nav0120/0121/0122 dagegen
+sind **versionsunabhängige reine Struktur** (der concat-Branch feuerte sie ungegated) und haben keine
+solche Abhängigkeit — deshalb sauber in S3, Nav0124 zusammen mit dem Gate in S4.
+
+Verifikation: `nav build` + beide TFMs grün (net10 1377/0, net472 1385/0 — je 3 explizite Skips);
+drei neue Diagnostics-Fixtures (`Nav0120…`/`Nav0121…`/`Nav0122….nav`) mit `//==>>`-Erwartungen, je
+kollateralfrei (nur die Zieldiagnose feuert).
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

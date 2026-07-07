@@ -268,6 +268,36 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
+        /// The source node '{0}' of the continuation must be a view or dialog
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0120SourceNode0OfContinuationMustBeViewOrDialog = new(
+            id             : DiagnosticId.Nav0120,
+            messageFormat  : "The source node '{0}' of the continuation must be a view or dialog",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
+        /// The target node '{0}' of the continuation must be a task
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0121TargetNode0OfContinuationMustBeTask = new(
+            id             : DiagnosticId.Nav0121,
+            messageFormat  : "The target node '{0}' of the continuation must be a task",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
+        /// Different views are not supported in a continuation
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0122DifferentViewsInContinuationNotSupported = new(
+            id             : DiagnosticId.Nav0122,
+            messageFormat  : "Different views are not supported in a continuation",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
         /// The choice node '{0}' has no incoming edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0111ChoiceNode0HasNoIncomingEdges = new(
