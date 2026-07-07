@@ -67,6 +67,7 @@
   <Folder Name="/doc/">
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
+    <File Path="doc/WFS-Spracherweiterung — Framework-Verifikation.md" />
     <File Path="doc/nav-backlog.md" />
     <File Path="doc/nav-codegen-step4-handoff.md" />
     <File Path="doc/nav-codegen-v2-concat-design.md" />

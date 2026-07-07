@@ -1,8 +1,9 @@
 ﻿# V2-Codegen-Design: CallContext, Concat & Choices in C#
 
-> **Status: lebendes Dokument, Runde 2.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
+> **Status: lebendes Dokument, Runde 5.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
 > Offene Punkte sind als solche markiert; die „Offenen Design-Fragen" sind der Arbeitsvorrat für die
-> nächsten Runden.
+> nächsten Runden. Framework-Verifikation der §4.7-Touchpoints: `doc/WFS-Spracherweiterung —
+> Framework-Verifikation.md`.
 
 ## 1. Motivation / Kontext
 
@@ -97,6 +98,36 @@ Vier weitere Gabelungen entschieden — Runde 4 schließt die zuvor offenen §7.
    **reserviert**. Ein Node, dessen generierter Membername damit kollidiert — insbesondere ein
    **Choice-Forward** `{Choice}(…)`, der den **bloßen** Node-Namen nutzt (z.B. Choice namens
    `Show`/`Cancel`) — erzeugt eine **Nav-Diagnose** (Autor benennt um). Kein stilles Namens-Mangling.
+
+### Leitentscheidungen (Runde 5): Framework-Verifikation eingearbeitet
+
+Die fünf `§4.7`-Unbekannten wurden am **realen** Framework (`Framework.NavigationEngine`, nicht Stubs)
+verifiziert — Details + Quellen: `doc/WFS-Spracherweiterung — Framework-Verifikation.md`. Ergebnis:
+drei Annahmen bestätigt, **zwei Design-Prämissen korrigiert**.
+
+1. **`.Concat` bestätigt** — öffentliche Instanzmethode auf `GOTO_GUI` (keine Extension), Parameter
+   sind die **Tagging-Interfaces** `INOT_A_TASK_BOUNDARY`/`ITASK_BOUNDARY`. `GotoGUI(to).Concat(
+   OpenModalTask(…))` liefert `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY : IINIT_TASK, INavCommand` →
+   für `Begin` **und** Trigger/Exit zuweisbar.
+2. **Exit ohne Cast** — `InternalTaskResult<T>` liefert real `TASK_RESULT<T>` (vereint Body- **und**
+   Kommando-Welt: `INavCommandBody, IINIT_TASK, ITASK_BOUNDARY`). Die `ctx.Exit`-Fabrik konkret als
+   `TASK_RESULT<T>` typisieren → **statischer Upcast, kein Cast**. Keine kommando-typisierte Schwester
+   nötig.
+3. **`ctx.Cancel()` = `_wfs.Cancel()`** — echte Factory-Methode (`new CANCEL()`); `CANCEL` ist
+   `IINIT_TASK` **und** `INavCommandBody`. Kein Singleton/Property. (Doc-Annahme war korrekt.)
+4. **Init-Legalität = Typsystem verbietet die Kante (Auflösung b).** `OPEN_MODAL_TASK`/`OPEN_MODAL_GUI`/
+   `START_NONMODAL_TASK`/`END` sind **bewusst nicht** `IINIT_TASK` (Framework-Regel: „a task can only
+   start with GOTO_TASK, GOTO_GUI or TASK_RESULT"). Der opake `Result.Body` ist damit **nicht** immer
+   `IINIT_TASK`-typisierbar → das **Semantic Model muss Init-Ausgangskanten auf die IINIT_TASK-Menge
+   beschränken** (`GotoGUI`/`GotoTask`/`TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`); Modal/Nonmodal/
+   Modal-GUI nur *innerhalb* eines Tasks. Analyzer-Anforderung → §5.
+5. **Eager-Bau ist NICHT seiteneffektfrei → `Result` trägt den Befehl deferred (Thunk).** Die
+   Konstruktoren von `GOTO_GUI`, `OPEN_MODAL_GUI` und `.Concat(ITASK_BOUNDARY)` feuern **Seiteneffekte**
+   (GUI-Navigation bzw. `ExecuteCallResult`) — die Round-3-Prämisse „reine Konstruktoren, eager bauen"
+   gilt nur für die feld-speichernden Commands. Auflösung: `Result` kapselt einen `Func<…>`; die
+   Konstruktion feuert erst beim `.Body`-Unwrap in der Maschinerie — **exakt V1-Timing** und robust
+   gegen „Fabrik aufrufen, aber nicht zurückgeben". Der Dispatch-Kollaps (kein `switch`) bleibt
+   unberührt. Details §4.2a/§4.7.
 
 ## 2. Referenz: der `concat`-Branch
 
@@ -199,15 +230,21 @@ Festlegungen:
   lässt sich nicht aus `BeginLogic` zurückgeben — falscher Typ, Compile-Fehler. *(Verworfene
   Variante: EIN gemeinsamer Result-Typ je WFS — weniger Typen, aber das Leck bliebe.)*
 - **`Result.Body` lebt in der Kommando-Welt, nicht in der Body-Welt (Runde 3).** In V1 gab die Logic
-  einen `INavCommandBody`-Marker zurück; in V2 trägt `Result` das **fertige Framework-Kommando**
-  (`IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit — die beiden getrennten
-  Kommando-Hierarchien aus den Framework-Stubs). Die Body→Kommando-Übersetzung, die früher der
-  `switch` machte, sitzt jetzt in den Context-Methoden (§4.2a).
+  einen `INavCommandBody`-Marker zurück; in V2 liefert `Result.Body` das **fertige Framework-Kommando**
+  (`IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit). Die Body→Kommando-Übersetzung,
+  die früher der `switch` machte, sitzt jetzt in den Context-Methoden (§4.2a).
+- **`Result` kapselt das Kommando *deferred* (`Func<…>`), gebaut erst beim `.Body`-Zugriff
+  (Runde 5).** Grund: die Konstruktoren von `GOTO_GUI`/`OPEN_MODAL_GUI`/`.Concat(ITASK_BOUNDARY)`
+  haben **Seiteneffekte** (Framework-verifiziert, §4.7). Würde die Fabrikmethode eager bauen, feuerte
+  der Effekt schon beim Aufruf — auch wenn das Ergebnis nie zurückgegeben wird. Der Thunk verschiebt
+  ihn auf den `.Body`-Unwrap in der Maschinerie (V1-Timing).
 
-### 4.2a Kollabierter Dispatch: Maschinerie = `.Body`-Unwrap (Runde 3)
+### 4.2a Kollabierter Dispatch: Maschinerie = `.Body`-Unwrap (Runde 3/5)
 
-Weil der `Result` bereits das fertige Kommando trägt, schrumpft **jede** Maschinerie-Methode auf
-einen Unwrap — der hundertfache `switch` entfällt:
+Weil der `Result` das Kommando (deferred) trägt, schrumpft **jede** Maschinerie-Methode auf einen
+Unwrap — der hundertfache `switch` entfällt. Der `.Body`-Zugriff wertet den Thunk aus und feuert damit
+die Kommando-Konstruktion (inkl. etwaiger Seiteneffekte) an genau der Stelle, an der V1 den `switch`
+lief — **nach** der Logic:
 
 ```csharp
 public virtual IINIT_TASK Begin(string message)
@@ -219,14 +256,21 @@ public virtual INavCommand OnFoo(ViewTO to) {
 }
 ```
 
-Die Context-Methoden sind expression-bodied Einzeiler, die das Framework-Kommando **eager** bauen
-(die Stubs bestätigen: `GotoGUI`/`OpenModalTask`/`GotoTask`/`InternalTaskResult` sind reine
-Kommando-Konstruktoren ohne Seiteneffekt; der Begin-Aufruf bleibt als `BeginTaskWrapper`-Thunk
-deferred):
+Die Context-Methoden sind expression-bodied Einzeiler, die den Kommando-Bau in einen `Func<…>`
+kapseln (Runde 5 — der Thunk verschiebt den Seiteneffekt der `GOTO_GUI`/`OPEN_MODAL_GUI`/`Concat`-
+Konstruktoren auf den `.Body`-Unwrap; der Begin-Aufruf des Sub-Tasks bleibt zusätzlich als
+`BeginTaskWrapper`-Thunk deferred):
 
 ```csharp
-public Result GotoView(ViewTO to)   => new(_wfs.GotoGUI(to));
-public Result BeginB(string b1)     => new(_wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
+public Result GotoView(ViewTO to)   => new(() => _wfs.GotoGUI(to));
+public Result BeginB(string b1)     => new(() => _wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
+
+// … mit dem geschachtelten Result-Typ:
+public sealed class Result {
+    readonly Func<IINIT_TASK> _command;
+    internal Result(Func<IINIT_TASK> command) => _command = command;
+    internal IINIT_TASK Body => _command();      // feuert die Konstruktion beim Unwrap
+}
 ```
 
 **Residual-Ausbruch:** Der Nutzer kann noch `return null;` schreiben (`Result` ist eine Klasse) →
@@ -245,20 +289,24 @@ return result is null
 Der Context ist die **vollständige, benannte Übergangs-Fläche** der Transition bzw. Choice — pro
 tatsächlich vorhandener Nav-Kante eine Methode:
 
-Die Spalte „baut (eager)" ist das fertige Framework-Kommando, das der `Result` trägt (Runde 3) —
-kein Zwischenmarker mehr:
+Die Spalte „baut (deferred)" ist das Framework-Kommando, das der `Result`-Thunk beim `.Body`-Unwrap
+konstruiert (Runde 5, §4.2a) — kein Zwischenmarker mehr:
 
-| Nav-Kante der Quelle | Context-Methode | baut (eager) |
+| Nav-Kante der Quelle | Context-Methode | baut (deferred im Thunk) |
 |---|---|---|
 | `--> View` | `GotoView(ViewTO)` | `GotoGUI(to)` |
-| `o-> View` | `OpenModalView(ViewTO)` | `OpenModalGUI(to)` |
-| `==> View` | `ShowNonModalView(ViewTO)` | `StartNonModalGUI(to)` |
+| `o-> View` | `OpenModalView(ViewTO)` | `OpenModalGUI(to)` (nur Task-Kontext — §4.7/④) |
+| `==> View` | `ShowNonModalView(ViewTO)` | `StartNonModalGUI(to)` (nur Task-Kontext — §4.7/④) |
 | `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `GotoTask`/`OpenModalTask`/`StartNonModalTask(() => _wfs._x.Begin(…), After{Task})` |
 | `o-^ Task` (Concat) | `Show(to).Begin{Task}(…)` | `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` |
 | `--> Choice` | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Body` (Forward, §4.4) |
-| `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` (Kommando-Cast, §4.7) |
-| `--> End` | `End()` | END |
-| immer | `Cancel()` | CANCEL |
+| `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` → `TASK_RESULT<T>`, castfrei (§4.7/②) |
+| `--> End` | `End()` | `EndNonModal()` → `END` |
+| immer | `Cancel()` | `Cancel()` → `CANCEL` |
+
+Die `Begin{Task}`-Überladung folgt dem Edge-Mode: `-->` → `GotoTask` (init-legal aus jedem Kontext),
+`o->`/`==>` → `OpenModalTask`/`StartNonModalTask` (**nur** im Task-Kontext, da nicht `IINIT_TASK`;
+§4.7/④). Aus einem Init sind nur `GotoTask`/`GotoView`/`Exit`/`Cancel`/`Show(…).Begin…` (Concat) zulässig.
 
 Da der View-/Task-Dispatch am **Edge-Mode** hängt, macht die Voll-Fabrik die Unterscheidung
 (Goto/Modal/NonModal) erstmals **im Methodennamen** sichtbar statt nur in der Maschinerie. Das
@@ -283,15 +331,17 @@ protected sealed class Choice_RetryCallContext {
     readonly SampleWFSBase _wfs;
     internal Choice_RetryCallContext(SampleWFSBase wfs) => _wfs = wfs;
 
-    /// Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen.
-    /// Body ist init-legal (IINIT_TASK), da Choice_Retry aus einem Init erreichbar ist (§4.7).
+    /// Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen; das Kommando wird deferred
+    /// gebaut (Thunk, §4.2a). Body ist init-legal (IINIT_TASK), da Choice_Retry aus einem Init
+    /// erreichbar ist und das Semantic Model init-legale Ausgänge erzwingt (§4.7/④).
     public sealed class Result {
-        internal Result(IINIT_TASK body) => Body = body;
-        internal IINIT_TASK Body { get; }
+        readonly Func<IINIT_TASK> _command;
+        internal Result(Func<IINIT_TASK> command) => _command = command;
+        internal IINIT_TASK Body => _command();
     }
 
     // Choice_Retry --> View
-    public Result GotoView(ViewTO to) => new(_wfs.GotoGUI(to));
+    public Result GotoView(ViewTO to) => new(() => _wfs.GotoGUI(to));
 
     // Choice_Retry --> View o-^ Msg   (Concat inline, §4.5 — kein ConcatCommand/ContinueWith)
     public Continuation Show(ViewTO to) => new(_wfs, to);
@@ -299,10 +349,10 @@ protected sealed class Choice_RetryCallContext {
         readonly SampleWFSBase _wfs; readonly ViewTO _to;
         internal Continuation(SampleWFSBase wfs, ViewTO to) { _wfs = wfs; _to = to; }
         public Result BeginMsg(string text) =>
-            new(_wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
+            new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
     }
 
-    public Result Cancel() => new(_wfs.Cancel());
+    public Result Cancel() => new(() => _wfs.Cancel());
 }
 
 // Baustein 2: die ENTSCHEIDUNG liegt einmal beim Nutzer:
@@ -320,15 +370,17 @@ protected sealed class Init1CallContext {
     internal Init1CallContext(SampleWFSBase wfs) => _wfs = wfs;
 
     public sealed class Result {
-        internal Result(IINIT_TASK body) => Body = body;
-        internal IINIT_TASK Body { get; }
+        readonly Func<IINIT_TASK> _command;
+        internal Result(Func<IINIT_TASK> command) => _command = command;
+        internal IINIT_TASK Body => _command();
     }
 
-    // Init1 --> Choice_Retry: Choice-Logic aufrufen und Kommando durchreichen
+    // Init1 --> Choice_Retry: Choice-Logic aufrufen und Kommando durchreichen (deferred:
+    // die Choice-Entscheidung UND der Kommando-Bau feuern erst beim .Body-Unwrap)
     public Result Choice_Retry(string reason) =>
-        new(_wfs.Choice_RetryLogic(reason, new(_wfs)).Body);
+        new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Body);
 
-    public Result Cancel() => new(_wfs.Cancel());
+    public Result Cancel() => new(() => _wfs.Cancel());
 }
 
 // Maschinerie: nur noch Unwrap (§4.2a)
@@ -347,10 +399,14 @@ Entscheidung trifft frei formulierter Nutzer-Code in der Choice-Logic, nicht der
 
 ### 4.5 Concat-Spezialform (Show → Continuation, inline)
 
-`Show(ViewTO)` liefert eine `Continuation`, deren `Begin{Task}(…)` das **fertige** Concat-Kommando
-baut: `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` (Runde 3 — kein `ConcatCommand`-Marker, kein
-`ContinueWith`-Sub-Switch mehr; die Mechanik aus dem concat-Branch ist in die Context-Methode
-gewandert). `.Concat(…)` ist die einzige neue Framework-API (§4.7).
+`Show(ViewTO)` liefert eine `Continuation`, deren `Begin{Task}(…)` das Concat-Kommando **deferred**
+im `Result`-Thunk baut: `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` (Runde 3/5 — kein
+`ConcatCommand`-Marker, kein `ContinueWith`-Sub-Switch mehr; die Mechanik aus dem concat-Branch ist in
+die Context-Methode gewandert). Wichtig: `GotoGUI` **und** `.Concat(ITASK_BOUNDARY)` haben
+Konstruktor-Seiteneffekte (§4.7/⑤) — daher zwingend im Thunk, nicht eager. `OpenModalTask` →
+`OPEN_MODAL_TASK : ITASK_BOUNDARY` wählt am Framework die Überladung `Concat(ITASK_BOUNDARY)` →
+`TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY : IINIT_TASK`. `.Concat(…)` ist die einzige neue Framework-API
+(§4.7).
 
 Zum Start wird **nur `o-^`** unterstützt (→ `OpenModalTask`); `--^` wird per Diagnostic abgelehnt
 (Leitentscheidung Runde 2, Nr. 4).
@@ -379,23 +435,29 @@ protected override AfterACallContext.Result AfterALogic(FooResult r1, AfterACall
 In V1 stünde die `reason`-Fallunterscheidung dreimal im Nutzer-Code (an jeder Quelle eingefaltet);
 in V2 einmal, und die Quellen liefern nur noch ihre jeweiligen Daten zu.
 
-### 4.7 Laufzeit-Bausteine & Rückgabetyp-Regel (Runde 3)
+### 4.7 Laufzeit-Bausteine & Rückgabetyp-Regel (Runde 3, verifiziert Runde 5)
 
 Durch den Dispatch-Kollaps schrumpft die neue Laufzeit-Fläche drastisch — **`ChoiceCall` und
-`ConcatCommand` entfallen ganz** (waren nur Marker für den entfernten Switch/`ContinueWith`):
+`ConcatCommand` entfallen ganz** (waren nur Marker für den entfernten Switch/`ContinueWith`). Alle
+fünf früheren Unbekannten sind am **realen** Framework verifiziert (`doc/WFS-Spracherweiterung —
+Framework-Verifikation.md`):
 
-- **`.Concat(…)`** — einzige neue Framework-API. Signatur aus dem concat-Branch-Zielbild:
-  `GOTO_GUI.Concat(<modal-task-command>)` liefert ein init-legales Kommando (im Branch aus
-  `Begin(...)` mit Rückgabetyp `IINIT_TASK` returnt). Am echten Framework zu verifizieren.
-- `GotoGUI`/`OpenModalTask`/`GotoTask`/`StartNonModalTask`/`OpenModalGUI`/`StartNonModalGUI` +
-  `BeginTaskWrapper`-Delegat: **existieren bereits** (Stubs `FrameworkStubs.cs`) und werden von den
-  Context-Methoden direkt gerufen.
-- **Body↔Kommando-Brücke (verifizieren):** `InternalTaskResult<T>` gibt heute `INavCommandBody`
-  zurück (Body-Welt), das V2-`Exit(…)` braucht aber ein `INavCommand`/`IINIT_TASK` (Kommando-Welt).
-  Der V1-`switch` überbrückte das per Pattern-Downcast auf `TASK_RESULT`. V2 braucht entweder
-  denselben Cast in der `Exit`-Context-Methode oder eine kommando-typisierte Framework-Schwester
-  (`TaskResult<T>(…) : TASK_RESULT`). Analog für `CANCEL` (`ctx.Cancel()`): prüfen, wie das
-  CANCEL-Kommando sauber erzeugt wird (Framework-Singleton/Factory).
+- **① `.Concat(…)`** — einzige neue Framework-API, öffentliche **Instanzmethode** auf `GOTO_GUI`
+  (keine Extension; überladen auch auf `OPEN_MODAL_GUI`/`TWO_STEP_IINIT_TASK`). Parameter sind die
+  **Tagging-Interfaces** `INOT_A_TASK_BOUNDARY`/`ITASK_BOUNDARY` (nicht `INavCommand` allgemein).
+  `GotoGUI(to).Concat(OpenModalTask(…))` → `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY : TWO_STEP, IINIT_TASK`
+  → `IINIT_TASK` **und** `INavCommand`.
+- **② Exit ohne Cast** — `InternalTaskResult<T>` liefert real `TASK_RESULT<T>` (ein Objekt vereint
+  `INavCommandBody` **und** `IINIT_TASK, ITASK_BOUNDARY, NavCommand`). Die `ctx.Exit`-Fabrik konkret
+  als `TASK_RESULT<T>` typisieren → **statischer Upcast, kein Cast, keine Schwester nötig**. (Nur an
+  einem `INavCommandBody`-typisierten Zwischenwert wäre `(TASK_RESULT)…` nötig — dann laufzeitsicher.)
+- **③ `ctx.Cancel()`** — `_wfs.Cancel()` ist eine echte **Factory-Methode** (`new CANCEL()`); `CANCEL`
+  ist `IINIT_TASK` **und** `INavCommandBody`. Kein Singleton/Property/`EscapeTask`.
+- **⑤ Seiteneffekte in Konstruktoren → Thunk zwingend:** `GOTO_GUI`, `OPEN_MODAL_GUI` und
+  `.Concat(ITASK_BOUNDARY)` feuern im **Konstruktor** Seiteneffekte (GUI-Navigation bzw.
+  `ExecuteCallResult`); nur die feld-speichernden Commands (`OPEN_MODAL_TASK`/`START_NONMODAL_TASK`/
+  `TASK_RESULT`/`CANCEL`/`END`/`GOTO_TASK`) sind rein. Deshalb kapselt `Result` den Bau **deferred**
+  (§4.2a) — der Effekt feuert erst beim `.Body`-Unwrap, wie in V1.
 
 **Rückgabetyp-Regel für `Result.Body`** (löst den früheren §4.8-Klärpunkt strukturell):
 
@@ -403,9 +465,15 @@ Durch den Dispatch-Kollaps schrumpft die neue Laufzeit-Fläche drastisch — **`
   entspricht exakt dem Maschinerie-Rückgabetyp, also `return …Logic(…).Body;` **ohne Cast**.
 - **Choice-Context:** `IINIT_TASK`, sobald die Choice aus **irgendeiner** Init-Quelle erreichbar ist,
   sonst `INavCommand`. Weil `IINIT_TASK : INavCommand`, ist ein init-typisierter Choice-`Result.Body`
-  auch von Trigger-/Exit-Quellen zuweisbar (Forward in §4.4). Dass die Choice-Ziele dann init-legal
-  sein **müssen**, garantieren bereits die Reachability-Analyzer (**Nav0110**/**Nav0222**) — es
-  braucht keine zusätzliche Prüfung im Codegen.
+  auch von Trigger-/Exit-Quellen zuweisbar (Forward in §4.4).
+- **④ Init-Legalität ist eine echte Einschränkung, keine Selbstverständlichkeit.** Das Framework macht
+  `IINIT_TASK` **gezielt selektiv**: `OPEN_MODAL_TASK`/`OPEN_MODAL_GUI`/`START_NONMODAL_TASK`/`END` sind
+  **nicht** `IINIT_TASK` (nur `GOTO_GUI`/`GOTO_TASK`/`TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`). Ein
+  init-typisierter `Result.Body` ist also nur baubar, wenn **alle** aus einem Init erreichbaren Ausgänge
+  in dieser Menge liegen. Das **muss das Semantic Model erzwingen** (§5) — die frühere Annahme
+  „Nav0110/Nav0222 garantieren das schon" ist **beim Port zu verifizieren**, nicht vorausgesetzt: es
+  ist unklar, ob die bestehende Reachability die Edge-Mode-/`IINIT_TASK`-Legalität an Init-Ausgängen
+  bereits abdeckt oder ob eine neue Regel nötig ist.
 
 ## 5. Syntax & Semantic Model (versionsunabhängig)
 
@@ -418,6 +486,14 @@ portiert — **nach** dem Design:
 - **Semantic Model:** `IConcatTransition`/`ConcatTransition`, `IConcatableEdge`, `ContinuationCall`
   in `Call`, Edge-Mode-Behandlung, Analyzer **Nav1020/1021/1022** + **Nav0222**-Fix. **Neu
   (Runde 2):** Parameter am `IChoiceNodeSymbol`.
+- **Init-Legalitäts-Analyzer (Runde 5, aus Framework-Verifikation ④).** Aus einem Init erreichbare
+  Ausgangskanten dürfen nur Kommandos der **`IINIT_TASK`-Menge** erzeugen (`GotoGUI`/`GotoTask`/
+  `TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`); `o->`/`==>` direkt aus einem Init (→ `OPEN_MODAL_GUI`/
+  `OPEN_MODAL_TASK`/`START_NONMODAL_TASK`, **nicht** `IINIT_TASK`) sowie `--> End` aus init-Reichweite
+  müssen abgelehnt werden — sonst ist der `IINIT_TASK`-typisierte `Result.Body` nicht baubar (§4.7).
+  **Beim Port zu klären:** ob die bestehende Reachability (**Nav0110**/**Nav0222**, edge-mode-bewusst
+  seit concat-Branch) das schon abdeckt oder eine neue Regel nötig ist. Modal/Nonmodal/Modal-GUI nur
+  *innerhalb* eines Tasks (erst `GotoGUI`, dann `.Concat(…)`).
 - **Diagnostics, versions-gated (Runde 2):** Concat-Kanten und Choice-`[params]` sind nur ab
   `#version 2` erlaubt (in V1-Units → Fehler-Diagnostic mit Verweis auf `#version`); `--^` wird
   vorerst generell abgelehnt („noch nicht unterstützt", Leitentscheidung Nr. 4).
@@ -470,17 +546,16 @@ Form~~ (§4.4), ~~Regression-Beweis~~ (neue Snapshots, §1). Erledigt in Runde 3
 Rückgabetyp des geteilten Dispatch~~ (Dispatch entfällt; Rückgabetyp-Regel §4.7). Erledigt in
 Runde 4: ~~Migrationsstrategie V1→V2~~ (Default = V1, V2 opt-in via `#version 2`, Leitentscheidung
 Runde 4 Nr. 2), ~~Namenskonventionen~~ (node-basiert `{Mode-Verb}{NodeName}` + reservierte Namen mit
-Diagnose, Leitentscheidung Runde 4 Nr. 3/4), ~~gemeinsame Base class~~ (nein, Nr. 1).
-Verbleibend/neu:
+Diagnose, Leitentscheidung Runde 4 Nr. 3/4), ~~gemeinsame Base class~~ (nein, Nr. 1). Erledigt in
+Runde 5 (Framework-Verifikation, `doc/WFS-Spracherweiterung — Framework-Verifikation.md`):
+~~Framework-Touchpoints (§4.7)~~ (`.Concat` = Instanzmethode auf `GOTO_GUI`; Exit castfrei via
+`TASK_RESULT<T>`; `ctx.Cancel()` = Factory `_wfs.Cancel()`), ~~Eager-Bau~~ (**nicht**
+seiteneffektfrei → `Result`-Thunk, §4.2a/⑤). Verbleibend/neu:
 
-1. **Framework-Touchpoints verifizieren (§4.7)** — `.Concat(…)`-Signatur/Rückgabetyp; Body↔Kommando-
-   Brücke für `Exit` (`InternalTaskResult` → `TASK_RESULT`, ggf. kommando-typisierte Schwester);
-   `ctx.Cancel()` → wie das `CANCEL`-Kommando sauber erzeugt wird (Singleton/Factory).
-2. **Eager-Bau bestätigen** — dass alle `Goto*/OpenModal*/StartNonModal*`-Konstruktoren wirklich
-   seiteneffektfrei sind (die Stubs legen es nahe; am echten Framework absichern), damit der Aufruf
-   in der Context-Methode statt in der Maschinerie unbedenklich ist.
-3. **Verb-Lexikon-Detail** — ob `Goto`/`OpenModal`/`ShowNonModal` die endgültigen Verben sind
+1. **Verb-Lexikon-Detail** — ob `Goto`/`OpenModal`/`ShowNonModal` die endgültigen Verben sind
    (Namensschema selbst steht, Runde 4 Nr. 3).
+2. **Init-Legalität im Semantic Model umsetzen (§5, aus ④)** — beim Port klären, ob Nav0110/Nav0222
+   die `IINIT_TASK`-Legalität an Init-Ausgängen bereits erzwingen oder eine neue Regel nötig ist.
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
@@ -535,3 +610,14 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   `{Mode-Verb}{NodeName}` (`GotoView`…), Verb-Lexikon vertagt; **(4)** reservierte Namen
   (`Cancel`/`Exit`/`End`/`Show`/`Result`/`Continuation`) + Kollisions-Diagnose statt stillem Mangling
   (§4.3/§5). Offene Fragen §7 auf drei geschrumpft (Framework-Touchpoints, Eager-Bau, Verb-Lexikon).
+- **Runde 5** — **Framework-Verifikation eingearbeitet** (am realen `Framework.NavigationEngine`,
+  `doc/WFS-Spracherweiterung — Framework-Verifikation.md`). Drei Annahmen bestätigt: **①** `.Concat`
+  = Instanzmethode auf `GOTO_GUI` (Tagging-Interface-Parameter, Ergebnis `IINIT_TASK`+`INavCommand`);
+  **②** Exit castfrei via `TASK_RESULT<T>` (keine Schwester); **③** `ctx.Cancel()` = Factory
+  `_wfs.Cancel()`. Zwei Prämissen korrigiert: **④** `IINIT_TASK` ist selektiv → Semantic Model muss
+  Init-Ausgänge auf die `IINIT_TASK`-Menge beschränken (neuer Analyzer-Bedarf §5; frühere
+  „Nav0110/0222 garantieren das"-Annahme in §4.7 auf „beim Port zu verifizieren" abgeschwächt); **⑤**
+  `GOTO_GUI`/`OPEN_MODAL_GUI`/`.Concat(ITASK_BOUNDARY)` haben **Konstruktor-Seiteneffekte** → die
+  Round-3-„eager"-Prämisse fällt: `Result` kapselt das Kommando **deferred** (`Func<…>`), Konstruktion
+  feuert erst beim `.Body`-Unwrap (V1-Timing; §4.2a/§4.7). Dispatch-Kollaps bleibt unberührt. §4.2–
+  §4.5-Beispiele auf Thunk-Form umgestellt; §5/§7 nachgezogen.
