@@ -69,6 +69,35 @@ Records mit public `wfs`, Choices weiterhin an jeder Quelle eingefaltet). Offene
 Runde 1 ist entschieden: es gibt **neue Golden-Snapshots**; die concat-Branch-`.expected.cs` bleiben
 nur konzeptionelle Referenz.
 
+### Leitentscheidungen (Runde 4): Base class, Migration, Namen
+
+Vier weitere Gabelungen entschieden — Runde 4 schließt die zuvor offenen §7.1/§7.4 ab:
+
+1. **Keine gemeinsame CallContext-Basisklasse.** Die generierten Contexte bleiben eigenständige
+   `sealed class`. Die Leak-Prevention (pro Context genesteter `Result` mit `internal` ctor;
+   Rückgabetyp **pro Context** verschieden — auch `Cancel()` liefert den kontext-eigenen `Result`)
+   macht **jedes bedeutungstragende Member context-lokal**. Eine Basis könnte nur `_wfs` + trivialen
+   ctor hochziehen (`_wfs` ist zwingend auf die konkrete `{Task}WFSBase` typisiert — die Methoden
+   greifen WFS-private Member wie `_b`, `After{Task}`, `{Choice}Logic`). Der scheinbar identische
+   Body `GotoView(to) => new(_wfs.GotoGUI(to))` ist **nicht** teilbar, weil `new(...)` je einen
+   anderen `Result` konstruiert. Vererbung brächte 2 Boilerplate-Zeilen Ersparnis gegen einen
+   zusätzlichen Typ + Indirektion, die die selbsterklärenden Contexte verschleiert → nicht wert.
+2. **Migration: Default = V1, V2 opt-in via `#version 2`.** Kein Auto-Upgrade, kein Default-Flip.
+   Passt bruchlos auf die vorhandene Infrastruktur (`VersionDispatchingCodeGenerator` schaltet je
+   `CodeGenerationUnit.LanguageVersion`; `NavCodeGenFacts.For(Default) == V1`). Ein späteres Umlegen
+   des Defaults auf V2 bleibt eine **separate Einzeiler-Entscheidung im Dispatcher** und ist **nicht**
+   Teil dieses Designs.
+3. **Namenskonvention: node-basiert, Mode-Verb sichtbar.** View-/Task-Context-Methoden heißen
+   `{Mode-Verb}{NodeName}` (Node-Name **im** Methodennamen → quellenstabil, mehrere Views
+   unterscheidbar): `GotoView`/`OpenModalView`/`ShowNonModalView`, analog `Begin{Task}`. Das
+   **Verb-Lexikon** (`Goto`/`OpenModal`/`ShowNonModal`) ist Arbeitsname; „Goto" konkret ist ein
+   **bewusst vertagtes** Lexikon-Detail (kein Blocker).
+4. **Namens-Kollision: reservierte Namen + Diagnostic.** Die fixen Context-Member
+   `Cancel`/`Exit`/`End`/`Show` und die genesteten Typnamen `Result`/`Continuation` sind
+   **reserviert**. Ein Node, dessen generierter Membername damit kollidiert — insbesondere ein
+   **Choice-Forward** `{Choice}(…)`, der den **bloßen** Node-Namen nutzt (z.B. Choice namens
+   `Show`/`Cancel`) — erzeugt eine **Nav-Diagnose** (Autor benennt um). Kein stilles Namens-Mangling.
+
 ## 2. Referenz: der `concat`-Branch
 
 Auf dem Remote-Branch **`concat`** wurde beides bereits angefangen — allerdings **alt**: Merge-Base
@@ -235,6 +264,12 @@ Da der View-/Task-Dispatch am **Edge-Mode** hängt, macht die Voll-Fabrik die Un
 (Goto/Modal/NonModal) erstmals **im Methodennamen** sichtbar statt nur in der Maschinerie. Das
 bisherige Idiom `return to;` entfällt in V2 zugunsten von `return ctx.GotoView(to);`.
 
+**Namenskonvention (Runde 4):** View-/Task-Methoden heißen `{Mode-Verb}{NodeName}` — der Node-Name
+steht **im** Methodennamen (quellenstabil, mehrere Views unterscheidbar). Das Verb-Lexikon
+(`Goto`/`OpenModal`/`ShowNonModal`) ist Arbeitsname; „Goto" konkret bleibt bewusst vertagt. Die
+Namen `Cancel`/`Exit`/`End`/`Show` (Member) und `Result`/`Continuation` (genestete Typen) sind
+**reserviert** — ein gleichnamiger Node erzeugt eine Nav-Diagnose (§5), kein stilles Mangling.
+
 ### 4.4 Choices in C#: Context + abstrakte Logic (Runde 3: ohne Dispatch)
 
 Eine Choice wird zu **zwei einmal generierten Bausteinen** — egal, wie viele Quellen auf sie zeigen.
@@ -386,6 +421,10 @@ portiert — **nach** dem Design:
 - **Diagnostics, versions-gated (Runde 2):** Concat-Kanten und Choice-`[params]` sind nur ab
   `#version 2` erlaubt (in V1-Units → Fehler-Diagnostic mit Verweis auf `#version`); `--^` wird
   vorerst generell abgelehnt („noch nicht unterstützt", Leitentscheidung Nr. 4).
+- **Namens-Kollisions-Diagnose (Runde 4):** ein Node, dessen generierter Membername mit einem
+  reservierten Context-Namen (`Cancel`/`Exit`/`End`/`Show`/`Result`/`Continuation`) kollidiert,
+  wird abgelehnt (Autor benennt um). ID beim Port vergeben, zu Nav1020/1021/1022 einreihen.
+  Ebenfalls versions-gated (nur relevant, wo V2-Contexte generiert werden).
 
 ## 6. Architektur-Einbettung (`feature/nav-parser`) & Anti-Bloat
 
@@ -428,18 +467,20 @@ Versionierungs-Infrastruktur steht bereits:
 
 Erledigt in Runde 2: ~~`o-^` vs `--^`~~ (nur `o-^`, Nr. 4 der Leitentscheidungen), ~~Choice-in-C#-
 Form~~ (§4.4), ~~Regression-Beweis~~ (neue Snapshots, §1). Erledigt in Runde 3: ~~Framework-
-Rückgabetyp des geteilten Dispatch~~ (Dispatch entfällt; Rückgabetyp-Regel §4.7). Verbleibend/neu:
+Rückgabetyp des geteilten Dispatch~~ (Dispatch entfällt; Rückgabetyp-Regel §4.7). Erledigt in
+Runde 4: ~~Migrationsstrategie V1→V2~~ (Default = V1, V2 opt-in via `#version 2`, Leitentscheidung
+Runde 4 Nr. 2), ~~Namenskonventionen~~ (node-basiert `{Mode-Verb}{NodeName}` + reservierte Namen mit
+Diagnose, Leitentscheidung Runde 4 Nr. 3/4), ~~gemeinsame Base class~~ (nein, Nr. 1).
+Verbleibend/neu:
 
-1. **Migrationsstrategie V1→V2** — V2 zunächst nur für neue/`#version`-markierte Units, V1 bleibt
-   Default? (Bindet an die vorhandene `#version`-/Dispatcher-Mechanik.)
-2. **Framework-Touchpoints verifizieren (§4.7)** — `.Concat(…)`-Signatur/Rückgabetyp; Body↔Kommando-
+1. **Framework-Touchpoints verifizieren (§4.7)** — `.Concat(…)`-Signatur/Rückgabetyp; Body↔Kommando-
    Brücke für `Exit` (`InternalTaskResult` → `TASK_RESULT`, ggf. kommando-typisierte Schwester);
    `ctx.Cancel()` → wie das `CANCEL`-Kommando sauber erzeugt wird (Singleton/Factory).
-3. **Eager-Bau bestätigen** — dass alle `Goto*/OpenModal*/StartNonModal*`-Konstruktoren wirklich
+2. **Eager-Bau bestätigen** — dass alle `Goto*/OpenModal*/StartNonModal*`-Konstruktoren wirklich
    seiteneffektfrei sind (die Stubs legen es nahe; am echten Framework absichern), damit der Aufruf
    in der Context-Methode statt in der Maschinerie unbedenklich ist.
-4. **Namenskonventionen im Detail** — `GotoView(…)` generisch vs. je View-Node benannt;
-   Kollisionsregeln Node-Name ↔ generierter Membername (z.B. Task namens `Show` oder `Cancel`).
+3. **Verb-Lexikon-Detail** — ob `Goto`/`OpenModal`/`ShowNonModal` die endgültigen Verben sind
+   (Namensschema selbst steht, Runde 4 Nr. 3).
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
@@ -487,3 +528,10 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   Marker `ChoiceCall`/`ConcatCommand` **entfallen ganz**; Concat/Choice inline (§4.4/§4.5); einzige
   neue Framework-API bleibt `.Concat(…)`; Rückgabetyp-Regel für `Result.Body` (§4.7) löst den
   früheren Dispatch-Rückgabetyp-Klärpunkt; §6/§7/§8 nachgezogen.
+- **Runde 4** — vier Gabelungen entschieden, §7.1/§7.4 abgeschlossen: **(1)** keine gemeinsame
+  CallContext-Basisklasse (Leak-Prevention macht jedes Member context-lokal; eine Basis hätte nur
+  `_wfs` + ctor); **(2)** Migration Default = V1, V2 opt-in via `#version 2` (kein Auto-Upgrade/
+  Default-Flip; passt auf `VersionDispatchingCodeGenerator`); **(3)** Namenskonvention node-basiert
+  `{Mode-Verb}{NodeName}` (`GotoView`…), Verb-Lexikon vertagt; **(4)** reservierte Namen
+  (`Cancel`/`Exit`/`End`/`Show`/`Result`/`Continuation`) + Kollisions-Diagnose statt stillem Mangling
+  (§4.3/§5). Offene Fragen §7 auf drei geschrumpft (Framework-Touchpoints, Eager-Bau, Verb-Lexikon).
