@@ -44,6 +44,25 @@ Die vier Kern-Gabelungen sind entschieden:
 4. **Concat zum Start nur `o-^`** (→ `OpenModalTask`). `--^` wird geparst, aber per Diagnostic
    abgelehnt, bis die Laufzeit-Semantik (Goto-Task nach `GotoGUI`?) mit dem Framework geklärt ist.
 
+### Leitentscheidung (Runde 3): Dispatch-`switch` eliminiert
+
+Der V1-`switch(body)` in **jeder** Maschinerie-Methode (hundertfach im Korpus) tat **zwei** Dinge:
+**(a) Validierung** (`default: throw`, dass die Logic nichts Undeklariertes liefert) und **(b)
+Mapping Body → Kommando** — die Logic gab einen *Body-Marker* aus der `INavCommandBody`-Welt zurück
+(`ViewTO`/`TaskCall`/…), der `switch` bildete ihn auf das echte Framework-Kommando aus der
+**getrennten** `INavCommand`-Welt ab (`GotoGUI(viewTO)`/`OpenModalTask(…)`). Beides fällt in V2 weg:
+
+- **(a)** ist durch den opaken `Result` bereits strukturell erledigt.
+- **(b)** wandert **in die Context-Methode**: statt einen `TaskCall`-Marker zu liefern, ruft
+  `ctx.BeginB(…)` `OpenModalTask` **selbst** und verpackt das **fertige Kommando** im `Result`.
+
+Damit kollabiert jede Maschinerie-Methode auf einen **`.Body`-Unwrap** (Details §4.2a). Es
+**verschwinden** — nicht nur schrumpfen — der geteilte `DispatchChoice_X`, das lokale `ContinueWith`
+und mit ihnen die Marker-Laufzeittypen `ChoiceCall` und `ConcatCommand`. Die einzige neue
+Framework-API, die übrig bleibt, ist `.Concat(…)` (die der concat-Branch ohnehin brauchte). Der
+Anti-Bloat-Gewinn der Choice bleibt voll erhalten: `Choice_XLogic` + `Choice_XCallContext` werden
+weiter **einmal** erzeugt, die Quellen **forwarden** nur.
+
 **Konsequenz für die Referenz-Snapshots:** Das V2-Zielbild weicht damit bewusst vom
 `concat`-Branch-Output ab (dort: CallContext nur als Concat-Vehikel, `INavCommandBody`-Rückgabe,
 Records mit public `wfs`, Choices weiterhin an jeder Quelle eingefaltet). Offene Frage §7.4 aus
@@ -107,7 +126,7 @@ Quelle: `Nav.Language/CodeGen/V1/Emitters/WfsBaseEmitter.cs`, `CodeGen/V1/CodeMo
 > V1 und dem Concat-Zielbild liegt vor allem darin, **wie** die Wrapper in die Logic gelangen
 > (Parameter vs. CallContext) — nicht in der Grundmechanik der Task-Aufrufe.
 
-## 4. V2-Zielbild (Runde 2: konkret)
+## 4. V2-Zielbild (Runde 2/3: konkret)
 
 ### 4.1 Durchgängiges Beispiel (Golden-Fall „Choice mit 3 Quellen + Concat")
 
@@ -146,28 +165,69 @@ Festlegungen:
 - **Contexte sind `sealed class` mit `internal` Konstruktor** (keine Records wie im concat-Branch):
   der Nutzer kann weder Context noch Result selbst konstruieren; das WFS-Feld (`_wfs`) ist nicht
   öffentlich sichtbar.
-- **Pro Context ein geschachtelter `Result`** (`internal` ctor, trägt intern das
-  `INavCommandBody`). Damit ist auch **Cross-Transition-Leckage** ausgeschlossen: ein aus dem
-  `OnRetry`-Context stammendes Ergebnis lässt sich nicht aus `BeginLogic` zurückgeben — falscher
-  Typ, Compile-Fehler. *(Verworfene Variante: EIN gemeinsamer Result-Typ je WFS — weniger Typen,
-  aber das Leck bliebe und würde erst zur Laufzeit im `default`-Zweig auffallen.)*
-- Die Maschinerie entpackt via `.Body` und dispatcht wie in V1 per `switch`; der `default`-Zweig
-  bleibt als Wächter bestehen (kann bei korrektem Generator praktisch nicht mehr auftreten).
+- **Pro Context ein geschachtelter `Result`** (`internal` ctor). Damit ist auch
+  **Cross-Transition-Leckage** ausgeschlossen: ein aus dem `OnRetry`-Context stammendes Ergebnis
+  lässt sich nicht aus `BeginLogic` zurückgeben — falscher Typ, Compile-Fehler. *(Verworfene
+  Variante: EIN gemeinsamer Result-Typ je WFS — weniger Typen, aber das Leck bliebe.)*
+- **`Result.Body` lebt in der Kommando-Welt, nicht in der Body-Welt (Runde 3).** In V1 gab die Logic
+  einen `INavCommandBody`-Marker zurück; in V2 trägt `Result` das **fertige Framework-Kommando**
+  (`IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit — die beiden getrennten
+  Kommando-Hierarchien aus den Framework-Stubs). Die Body→Kommando-Übersetzung, die früher der
+  `switch` machte, sitzt jetzt in den Context-Methoden (§4.2a).
+
+### 4.2a Kollabierter Dispatch: Maschinerie = `.Body`-Unwrap (Runde 3)
+
+Weil der `Result` bereits das fertige Kommando trägt, schrumpft **jede** Maschinerie-Methode auf
+einen Unwrap — der hundertfache `switch` entfällt:
+
+```csharp
+public virtual IINIT_TASK Begin(string message)
+    => BeginLogic(message, new Init1CallContext(this)).Body;
+
+public virtual INavCommand OnFoo(ViewTO to) {
+    to = BeforeTriggerLogic(to);                              // Trigger-Vorlauf bleibt
+    return OnFooLogic(to, new OnFooCallContext(this)).Body;   // kein switch mehr
+}
+```
+
+Die Context-Methoden sind expression-bodied Einzeiler, die das Framework-Kommando **eager** bauen
+(die Stubs bestätigen: `GotoGUI`/`OpenModalTask`/`GotoTask`/`InternalTaskResult` sind reine
+Kommando-Konstruktoren ohne Seiteneffekt; der Begin-Aufruf bleibt als `BeginTaskWrapper`-Thunk
+deferred):
+
+```csharp
+public Result GotoView(ViewTO to)   => new(_wfs.GotoGUI(to));
+public Result BeginB(string b1)     => new(_wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
+```
+
+**Residual-Ausbruch:** Der Nutzer kann noch `return null;` schreiben (`Result` ist eine Klasse) →
+`.Body` würfe NRE. Wo die freundliche V1-Diagnose erhalten bleiben soll, generiert die Maschinerie
+einen einzeiligen Null-Guard statt eines Switches:
+
+```csharp
+var result = BeginLogic(message, new Init1CallContext(this));
+return result is null
+    ? throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), null))
+    : result.Body;
+```
 
 ### 4.3 Die Context-Fläche je Kanten-Art
 
 Der Context ist die **vollständige, benannte Übergangs-Fläche** der Transition bzw. Choice — pro
 tatsächlich vorhandener Nav-Kante eine Methode:
 
-| Nav-Kante der Quelle | Context-Methode | erzeugt intern |
+Die Spalte „baut (eager)" ist das fertige Framework-Kommando, das der `Result` trägt (Runde 3) —
+kein Zwischenmarker mehr:
+
+| Nav-Kante der Quelle | Context-Methode | baut (eager) |
 |---|---|---|
-| `--> View` | `GotoView(ViewTO)` | `ViewTO` (→ `GotoGUI`) |
-| `o-> View` | `OpenModalView(ViewTO)` | `ViewTO` (→ `OpenModalGUI`) |
-| `==> View` | `ShowNonModalView(ViewTO)` | `ViewTO` (→ `StartNonModalGUI`) |
-| `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `TaskCall` (→ `GotoTask`/`OpenModalTask`/`StartNonModalTask`) |
-| `o-^ Task` (Concat) | `Show(to).Begin{Task}(…)` | `ConcatCommand` |
-| `--> Choice` | `{Choice}({params})` | `ChoiceCall` (Delegation, §4.4) |
-| `--> Exit` | `Exit({result})` | TASK_RESULT (heute `InternalTaskResult`) |
+| `--> View` | `GotoView(ViewTO)` | `GotoGUI(to)` |
+| `o-> View` | `OpenModalView(ViewTO)` | `OpenModalGUI(to)` |
+| `==> View` | `ShowNonModalView(ViewTO)` | `StartNonModalGUI(to)` |
+| `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `GotoTask`/`OpenModalTask`/`StartNonModalTask(() => _wfs._x.Begin(…), After{Task})` |
+| `o-^ Task` (Concat) | `Show(to).Begin{Task}(…)` | `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` |
+| `--> Choice` | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Body` (Forward, §4.4) |
+| `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` (Kommando-Cast, §4.7) |
 | `--> End` | `End()` | END |
 | immer | `Cancel()` | CANCEL |
 
@@ -175,110 +235,87 @@ Da der View-/Task-Dispatch am **Edge-Mode** hängt, macht die Voll-Fabrik die Un
 (Goto/Modal/NonModal) erstmals **im Methodennamen** sichtbar statt nur in der Maschinerie. Das
 bisherige Idiom `return to;` entfällt in V2 zugunsten von `return ctx.GotoView(to);`.
 
-### 4.4 Choices in C#: Context + abstrakte Logic + geteilter Dispatch
+### 4.4 Choices in C#: Context + abstrakte Logic (Runde 3: ohne Dispatch)
 
-Eine Choice wird zu **drei einmal generierten Bausteinen** — egal, wie viele Quellen auf sie zeigen:
+Eine Choice wird zu **zwei einmal generierten Bausteinen** — egal, wie viele Quellen auf sie zeigen.
+Der frühere dritte Baustein (`DispatchChoice_X`) ist mit dem Kollaps (§4.2a) **entfallen**: der
+Context baut die finalen Kommandos schon, die Logic gibt sie fertig zurück.
 
 ```csharp
+// Baustein 1: der Choice-Context — baut die finalen Kommandos der Choice-Ausgänge.
 protected sealed class Choice_RetryCallContext {
 
     readonly SampleWFSBase _wfs;
     internal Choice_RetryCallContext(SampleWFSBase wfs) => _wfs = wfs;
 
     /// Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen.
+    /// Body ist init-legal (IINIT_TASK), da Choice_Retry aus einem Init erreichbar ist (§4.7).
     public sealed class Result {
-        internal Result(INavCommandBody body) => Body = body;
-        internal INavCommandBody Body { get; }
+        internal Result(IINIT_TASK body) => Body = body;
+        internal IINIT_TASK Body { get; }
     }
 
     // Choice_Retry --> View
-    public Result GotoView(ViewTO to) => new(to);
+    public Result GotoView(ViewTO to) => new(_wfs.GotoGUI(to));
 
-    // Choice_Retry --> View o-^ Msg   (Concat, §4.5)
+    // Choice_Retry --> View o-^ Msg   (Concat inline, §4.5 — kein ConcatCommand/ContinueWith)
     public Continuation Show(ViewTO to) => new(_wfs, to);
     public sealed class Continuation {
         readonly SampleWFSBase _wfs; readonly ViewTO _to;
         internal Continuation(SampleWFSBase wfs, ViewTO to) { _wfs = wfs; _to = to; }
-        public Result BeginMsg(string text) => new(new ConcatCommand {
-            TO           = _to,
-            Continuation = new TaskCall(MsgNodeName, () => _wfs._msg.Begin(text)),
-        });
+        public Result BeginMsg(string text) =>
+            new(_wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
     }
 
-    public Result Cancel() => new(/* CANCEL wie bisher erzeugt */);
+    public Result Cancel() => new(_wfs.Cancel());
 }
 
-// 1. Die ENTSCHEIDUNG liegt einmal beim Nutzer:
+// Baustein 2: die ENTSCHEIDUNG liegt einmal beim Nutzer:
 protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(
     string reason, Choice_RetryCallContext callContext);
-
-// 2. Die AUSWERTUNG der Choice-Ausgänge liegt einmal in der Maschinerie
-//    (statt Switch-Union pro Quelle wie in V1):
-INavCommand DispatchChoice_Retry(INavCommandBody body) {
-    switch (body) {
-        case ViewTO viewTO:
-            return GotoGUI(viewTO);
-        case ConcatCommand concatCommand when concatCommand.TO is ViewTO to:
-            return GotoGUI(to).Concat(ContinueWith(concatCommand.Continuation));
-        case CANCEL cancel:
-            return cancel;
-        default:
-            throw new InvalidOperationException(…);
-    }
-    ITASK_BOUNDARY ContinueWith(INavCommandBody continuationBody) {
-        switch (continuationBody) {
-            case TaskCall taskCall when taskCall.NodeName == MsgNodeName:
-                return OpenModalTask<MsgResult>(taskCall.BeginWrapper, AfterMsg);
-            default:
-                throw new InvalidOperationException(…);
-        }
-    }
-}
 ```
 
 **Die Delegation** ist eine Methode im Context jeder Quelle und läuft **synchron**: sie ruft die
-abstrakte Choice-Logic direkt auf und verpackt deren Ergebnis in einen `ChoiceCall`-Marker, damit die
-Quell-Maschinerie an den geteilten Dispatch weiterreichen kann:
+abstrakte Choice-Logic direkt auf und **forwardet** deren fertiges Kommando (`.Body`) in den eigenen
+`Result` — kein Marker, kein geteilter Dispatch mehr:
 
 ```csharp
 protected sealed class Init1CallContext {
     readonly SampleWFSBase _wfs;
     internal Init1CallContext(SampleWFSBase wfs) => _wfs = wfs;
 
-    public sealed class Result { /* wie oben */ }
-
-    // Init1 --> Choice_Retry
-    public Result Choice_Retry(string reason) =>
-        new(new ChoiceCall(Choice_RetryNodeName,
-                           _wfs.Choice_RetryLogic(reason, new(_wfs)).Body));
-
-    public Result Cancel() => …;
-}
-
-public virtual IINIT_TASK Begin(string message) {
-    var body = BeginLogic(message, new Init1CallContext(this)).Body;
-    switch (body) {
-        case ChoiceCall choiceCall when choiceCall.NodeName == Choice_RetryNodeName:
-            return DispatchChoice_Retry(choiceCall.Body);
-        case CANCEL cancel:
-            return cancel;
-        default:
-            throw new InvalidOperationException(…);
+    public sealed class Result {
+        internal Result(IINIT_TASK body) => Body = body;
+        internal IINIT_TASK Body { get; }
     }
+
+    // Init1 --> Choice_Retry: Choice-Logic aufrufen und Kommando durchreichen
+    public Result Choice_Retry(string reason) =>
+        new(_wfs.Choice_RetryLogic(reason, new(_wfs)).Body);
+
+    public Result Cancel() => new(_wfs.Cancel());
 }
+
+// Maschinerie: nur noch Unwrap (§4.2a)
+public virtual IINIT_TASK Begin(string message)
+    => BeginLogic(message, new Init1CallContext(this)).Body;
 
 protected abstract Init1CallContext.Result BeginLogic(string message, Init1CallContext callContext);
 ```
 
+Der `Result`-Typ der Quelle ist bewusst ein **eigener** (nicht der Choice-`Result`): das Forwarden
+re-boxt und erhält so die Leck-Verhinderung (ein `Choice_RetryCallContext.Result` lässt sich **nicht**
+direkt aus `BeginLogic` zurückgeben — die Quelle *muss* durch `ctx.Choice_Retry(…)`).
+
 Die Guards (`if "Fehler"`/`else`) an Choice-Kanten behalten ihren heutigen **Doku-Charakter** — die
 Entscheidung trifft frei formulierter Nutzer-Code in der Choice-Logic, nicht der Generator.
 
-### 4.5 Concat-Spezialform (Show → Continuation → ConcatCommand)
+### 4.5 Concat-Spezialform (Show → Continuation, inline)
 
-Mechanik wie im concat-Branch, eingebettet in die Voll-Fabrik: `Show(ViewTO)` liefert eine
-`Continuation`, deren `Begin{Task}(…)` ein `ConcatCommand` (View + fortzusetzender `TaskCall`) in
-einen `Result` verpackt. Die Maschinerie behandelt `ConcatCommand` mit
-`GotoGUI(to).Concat(ContinueWith(…))` und lokaler `ContinueWith`-Funktion (§4.4).
+`Show(ViewTO)` liefert eine `Continuation`, deren `Begin{Task}(…)` das **fertige** Concat-Kommando
+baut: `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` (Runde 3 — kein `ConcatCommand`-Marker, kein
+`ContinueWith`-Sub-Switch mehr; die Mechanik aus dem concat-Branch ist in die Context-Methode
+gewandert). `.Concat(…)` ist die einzige neue Framework-API (§4.7).
 
 Zum Start wird **nur `o-^`** unterstützt (→ `OpenModalTask`); `--^` wird per Diagnostic abgelehnt
 (Leitentscheidung Runde 2, Nr. 4).
@@ -307,21 +344,33 @@ protected override AfterACallContext.Result AfterALogic(FooResult r1, AfterACall
 In V1 stünde die `reason`-Fallunterscheidung dreimal im Nutzer-Code (an jeder Quelle eingefaltet);
 in V2 einmal, und die Quellen liefern nur noch ihre jeweiligen Daten zu.
 
-### 4.7 Laufzeit-Bausteine (XTplus-Framework / Engine)
+### 4.7 Laufzeit-Bausteine & Rückgabetyp-Regel (Runde 3)
 
-- `ConcatCommand`, `TaskCall(NodeName, BeginWrapper)`, `.Concat(…)`, `ITASK_BOUNDARY ContinueWith` —
-  wie im concat-Branch bereits verwendet (Runde 1, unverändert).
-- **Neu: `ChoiceCall(NodeName, Body)`** — Marker für „Ergebnis kam durch Choice X", damit die
-  Quell-Maschinerie an den geteilten `DispatchChoice_X` weiterreichen kann.
+Durch den Dispatch-Kollaps schrumpft die neue Laufzeit-Fläche drastisch — **`ChoiceCall` und
+`ConcatCommand` entfallen ganz** (waren nur Marker für den entfernten Switch/`ContinueWith`):
 
-### 4.8 Klärpunkt: Framework-Rückgabetypen des geteilten Dispatch
+- **`.Concat(…)`** — einzige neue Framework-API. Signatur aus dem concat-Branch-Zielbild:
+  `GOTO_GUI.Concat(<modal-task-command>)` liefert ein init-legales Kommando (im Branch aus
+  `Begin(...)` mit Rückgabetyp `IINIT_TASK` returnt). Am echten Framework zu verifizieren.
+- `GotoGUI`/`OpenModalTask`/`GotoTask`/`StartNonModalTask`/`OpenModalGUI`/`StartNonModalGUI` +
+  `BeginTaskWrapper`-Delegat: **existieren bereits** (Stubs `FrameworkStubs.cs`) und werden von den
+  Context-Methoden direkt gerufen.
+- **Body↔Kommando-Brücke (verifizieren):** `InternalTaskResult<T>` gibt heute `INavCommandBody`
+  zurück (Body-Welt), das V2-`Exit(…)` braucht aber ein `INavCommand`/`IINIT_TASK` (Kommando-Welt).
+  Der V1-`switch` überbrückte das per Pattern-Downcast auf `TASK_RESULT`. V2 braucht entweder
+  denselben Cast in der `Exit`-Context-Methode oder eine kommando-typisierte Framework-Schwester
+  (`TaskResult<T>(…) : TASK_RESULT`). Analog für `CANCEL` (`ctx.Cancel()`): prüfen, wie das
+  CANCEL-Kommando sauber erzeugt wird (Framework-Singleton/Factory).
 
-`DispatchChoice_X` wird von Init-Maschinerie (Rückgabetyp `IINIT_TASK`) **und** Trigger-/Exit-
-Maschinerie (`INavCommand`) aufgerufen. Am echten Framework zu klären: gibt es einen gemeinsamen
-konkreten Rückgabetyp (`GotoGUI(…)` wird heute schon in beiden Kontexten returnt)? Fallbacks, falls
-nicht: (a) zwei Dispatch-Varianten je Rückgabetyp generieren (max. 2), oder (b) Switch-Union pro
-Quelle inlinen (V1-Stil — dann nur Maschinerie-, kein Nutzercode-Bloat). An der Nutzer-Fläche ändert
-sich in keinem Fall etwas.
+**Rückgabetyp-Regel für `Result.Body`** (löst den früheren §4.8-Klärpunkt strukturell):
+
+- **Transition-Context:** `IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit —
+  entspricht exakt dem Maschinerie-Rückgabetyp, also `return …Logic(…).Body;` **ohne Cast**.
+- **Choice-Context:** `IINIT_TASK`, sobald die Choice aus **irgendeiner** Init-Quelle erreichbar ist,
+  sonst `INavCommand`. Weil `IINIT_TASK : INavCommand`, ist ein init-typisierter Choice-`Result.Body`
+  auch von Trigger-/Exit-Quellen zuweisbar (Forward in §4.4). Dass die Choice-Ziele dann init-legal
+  sein **müssen**, garantieren bereits die Reachability-Analyzer (**Nav0110**/**Nav0222**) — es
+  braucht keine zusätzliche Prüfung im Codegen.
 
 ## 5. Syntax & Semantic Model (versionsunabhängig)
 
@@ -362,31 +411,35 @@ Versionierungs-Infrastruktur steht bereits:
 **Anti-Bloat auf Generator-Seite — ein Modell, zwei Verwender:**
 
 - **EIN `CallContextCodeModel`** (Name + Liste von Callable-Modellen: View/Begin/Show-Continuation/
-  Choice-Delegation/Exit/End/Cancel) beschreibt Transitions- **und** Choice-Kontexte — beide sind
+  Choice-Forward/Exit/End/Cancel) beschreibt Transitions- **und** Choice-Kontexte — beide sind
   „Aufruffläche einer Kanten-Quelle" und unterscheiden sich nur in Namensquelle und Parametern.
-- **EIN `CallContextEmitter`** (Context-Klasse + Result + Continuations) und **EIN
-  `DispatchSwitchEmitter`** (Maschinerie-`switch` aus derselben Callable-Liste). Der Switch-Code
-  steht heute schon fast identisch dreimal in `WfsBaseEmitter.WriteInit/Exit/TriggerTransition` —
-  V2 verallgemeinert ihn statt ihn zu vervielfachen.
+- **EIN `CallContextEmitter`** (Context-Klasse + `Result` + Continuations). Ein separater
+  Dispatch-/Switch-Emitter entfällt (Runde 3): die Maschinerie-Methode ist nur noch der `.Body`-
+  Unwrap (§4.2a), ein triviales Template-Fragment. Der früher dreifach fast identische Switch-Block
+  in `WfsBaseEmitter.WriteInit/Exit/TriggerTransition` **verschwindet ersatzlos**.
 - `EmitterCommon` (Header/Usings/Annotations) wird V1/V2-geteilt (nach `CodeGen/Shared/` heben; V1
   referenziert weiter, byte-identisches V1-Verhalten per Regression abgesichert).
-- **Anti-Bloat im generierten Code:** geteilter `DispatchChoice_X` statt Switch-Union pro Quelle;
-  die Choice-Logik des Nutzers existiert genau einmal. Der `{Task}WFS`-One-Shot-Stub
-  (`WfsOneShotEmitter`) generiert die neuen Override-Signaturen.
+- **Anti-Bloat im generierten Code (Runde 3):** kein Dispatch-Switch mehr (weder pro Quelle noch als
+  geteiltes `DispatchChoice_X`); die Choice-Logik des Nutzers existiert genau einmal, die Quellen
+  forwarden als Einzeiler. Der `{Task}WFS`-One-Shot-Stub (`WfsOneShotEmitter`) generiert die neuen
+  Override-Signaturen.
 
 ## 7. Offene Design-Fragen (Arbeitsvorrat)
 
 Erledigt in Runde 2: ~~`o-^` vs `--^`~~ (nur `o-^`, Nr. 4 der Leitentscheidungen), ~~Choice-in-C#-
-Form~~ (§4.4), ~~Regression-Beweis~~ (neue Snapshots, §1). Verbleibend/neu:
+Form~~ (§4.4), ~~Regression-Beweis~~ (neue Snapshots, §1). Erledigt in Runde 3: ~~Framework-
+Rückgabetyp des geteilten Dispatch~~ (Dispatch entfällt; Rückgabetyp-Regel §4.7). Verbleibend/neu:
 
 1. **Migrationsstrategie V1→V2** — V2 zunächst nur für neue/`#version`-markierte Units, V1 bleibt
    Default? (Bindet an die vorhandene `#version`-/Dispatcher-Mechanik.)
-2. **Framework-Rückgabetyp des geteilten Dispatch** (§4.8) — am echten XTplus-Framework klären.
-3. **CANCEL-Erzeugung im Context** — wie entsteht heute das `CANCEL`-Objekt im Nutzer-Code, und wie
-   liefert `ctx.Cancel()` es sauber (Framework-Singleton vs. Factory)?
+2. **Framework-Touchpoints verifizieren (§4.7)** — `.Concat(…)`-Signatur/Rückgabetyp; Body↔Kommando-
+   Brücke für `Exit` (`InternalTaskResult` → `TASK_RESULT`, ggf. kommando-typisierte Schwester);
+   `ctx.Cancel()` → wie das `CANCEL`-Kommando sauber erzeugt wird (Singleton/Factory).
+3. **Eager-Bau bestätigen** — dass alle `Goto*/OpenModal*/StartNonModal*`-Konstruktoren wirklich
+   seiteneffektfrei sind (die Stubs legen es nahe; am echten Framework absichern), damit der Aufruf
+   in der Context-Methode statt in der Maschinerie unbedenklich ist.
 4. **Namenskonventionen im Detail** — `GotoView(…)` generisch vs. je View-Node benannt;
-   Kollisionsregeln Node-Name ↔ generierter Membername (z.B. Task namens `Show` oder `Cancel`);
-   Node-Name-Konstanten für Choices (`Choice_RetryNodeName`).
+   Kollisionsregeln Node-Name ↔ generierter Membername (z.B. Task namens `Show` oder `Cancel`).
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
@@ -399,12 +452,12 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
 3. **Semantic Model vorwärts portieren** — `ConcatTransition`/`IConcatableEdge`/`ContinuationCall`,
    Choice-Parameter, Analyzer Nav1020/1021/1022 + Nav0222-Fix + Versions-Gates (§5);
    Diagnostics-Fixtures.
-4. **`CodeGen/V2/`-Gerüst** — Dispatch + CallContext-Grundform (Voll-Fabrik + opaker Result, alle
-   Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
-5. **V2 Concat** — `Show`/`Continuation`/`ConcatCommand`/`ContinueWith` (`o-^`-only); Golden gegen
-   den Concat-Fall.
-6. **V2 Choices in C#** — Choice-Context/-Logic/-Dispatch + `ChoiceCall` + Delegation; Golden gegen
-   den 3-Quellen-Fall aus §4.1.
+4. **`CodeGen/V2/`-Gerüst** — CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie =
+   `.Body`-Unwrap, alle Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
+5. **V2 Concat** — `Show`/`Continuation` mit inline `.Concat(…)` (`o-^`-only); Golden gegen den
+   Concat-Fall.
+6. **V2 Choices in C#** — Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch);
+   Golden gegen den 3-Quellen-Fall aus §4.1.
 
 ## 9. Verifikation
 
@@ -427,3 +480,10 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   Choice-Bausteine Context/Logic/Dispatch + `ChoiceCall`; Context-Flächen-Tabelle; Abkehr von den
   concat-Branch-Snapshots als Golden-Referenz; Anti-Bloat-Bausteine (§6); offene Fragen und
   Fahrplan aktualisiert.
+- **Runde 3** — **Dispatch-`switch` eliminiert.** Erkenntnis (Stubs `FrameworkStubs.cs`): der
+  hundertfache `switch` tat zweierlei — Validierung (jetzt strukturell via opakem `Result`) und
+  Body→Kommando-Mapping (jetzt in den Context-Methoden, die das Framework-Kommando eager bauen).
+  Maschinerie kollabiert auf `.Body`-Unwrap (§4.2a); `DispatchChoice_X`, `ContinueWith` und die
+  Marker `ChoiceCall`/`ConcatCommand` **entfallen ganz**; Concat/Choice inline (§4.4/§4.5); einzige
+  neue Framework-API bleibt `.Concat(…)`; Rückgabetyp-Regel für `Result.Body` (§4.7) löst den
+  früheren Dispatch-Rückgabetyp-Klärpunkt; §6/§7/§8 nachgezogen.
