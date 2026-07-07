@@ -56,7 +56,9 @@ public class RegressionTests {
 
         var directory = GetRegressiontestDirectory();
 
-        var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories).Where(f => !f.EndsWith("expected.cs"));
+        var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+                             .Where(f => !f.EndsWith("expected.cs"))
+                             .Where(f => !IsPendingVersion2Corpus(directory, f));
 
         return files.Select(f => new FileTestCase {
                 GeneratedFile = Path.GetFullPath(f),
@@ -67,10 +69,22 @@ public class RegressionTests {
 
     static IEnumerable<FileSpec> CollectNavFiles() {
         var directory    = GetRegressiontestDirectory();
-        var navFiles     = Directory.EnumerateFiles(directory, "*.nav", SearchOption.AllDirectories);
+        var navFiles     = Directory.EnumerateFiles(directory, "*.nav", SearchOption.AllDirectories)
+                                    .Where(file => !IsPendingVersion2Corpus(directory, file));
         var dirFileSpecs = navFiles.Select(file => new FileSpec(identity: PathHelper.GetRelativePath(directory, file), fileName: file));
 
         return dirFileSpecs;
+    }
+
+    // Der V2-Golden-Input-Korpus liegt bereits unter Regression\Tests\V2\, kann aber noch nicht
+    // durch die Pipeline laufen: Sprachversion 2 ist noch nicht freigeschaltet und die V2-Syntax
+    // (o-^ / --^ / choice-Parameter) sowie der V2-Codegenerator fehlen. Bis der V2-Generator steht,
+    // sind diese Dateien reine Referenz-Eingaben — hier übersprungen, damit die V1-Regression grün
+    // bleibt. Sobald V2 generiert, entfällt dieser Filter und der Teilbaum erhält seine .expected.cs.
+    static bool IsPendingVersion2Corpus(string rootDirectory, string filePath) {
+        var relative = PathHelper.GetRelativePath(rootDirectory, filePath);
+        return relative.StartsWith(@"V2\", System.StringComparison.OrdinalIgnoreCase) ||
+               relative.StartsWith("V2/",  System.StringComparison.OrdinalIgnoreCase);
     }
 
     static string GetRegressiontestDirectory() {

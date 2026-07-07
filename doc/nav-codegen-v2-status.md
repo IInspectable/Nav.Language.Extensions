@@ -32,7 +32,7 @@ Commit-Message — der Commit macht der Nutzer.
 
 | # | Inhalt | Design-Ref | Fertig, wenn | Status |
 |---|---|---|---|---|
-| **S0** | Status-Doc (dieses) + Golden-**Input**-`.nav` festschreiben: CallContext-Grundform, Continuation, Choice-mit-3-Quellen | §6.1, §8.2 | `.nav` liegen unter `Regression/Tests/V2/`, alle `#version 2`, je distinkter Task-Name **und** `[namespaceprefix]` (sonst Dateinamens-Kollision, §7) | offen |
+| **S0** | Status-Doc (dieses) + Golden-**Input**-`.nav` festschreiben: CallContext-Grundform, Continuation, Choice-mit-3-Quellen | §6.1, §8.2 | `.nav` liegen unter `Regression/Tests/V2/`, alle `#version 2`, je distinkter Task-Name **und** `[namespaceprefix]` (sonst Dateinamens-Kollision, §7) | **erledigt** — `BasicFlow.nav`/`ContinuationFlow.nav`/`ChoiceFlow.nav`; Harness überspringt den `V2\`-Teilbaum vorläufig (s.u.) |
 | **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | offen |
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | offen |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + **Nav0124** (generische Member-Kollision) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | offen |
@@ -41,6 +41,19 @@ Commit-Message — der Commit macht der Nutzer.
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | offen — **gated?** (§Gating) |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
 | **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | offen |
+
+### S0-Anmerkung: vorläufiger Harness-Skip des `V2\`-Teilbaums
+
+Die drei Golden-**Input**-`.nav` liegen bereits am Zielort (`Regression\Tests\V2\`), können aber noch
+nicht durch die `NavCodeGeneratorPipeline` laufen: Sprachversion 2 ist noch nicht in
+`NavLanguageVersion.SupportedVersions` freigeschaltet (jedes `#version 2` würde **Nav5001** werfen und
+`RunResult.Failed` erzwingen — die V1-Regression bräche), und die neue Syntax (`o-^`/`--^`,
+`choice [params]`) parst erst ab S1. Bis der V2-Codegenerator steht (S5 ff.), überspringt der
+`RegressionTests`-Harness den `V2\`-Teilbaum daher explizit (`IsPendingVersion2Corpus` in
+`Nav.Language.Tests\Regression\RegressionTests.cs`, greift in `CollectNavFiles` **und**
+`PlainGetFileTestCases`). Die Dateien sind bis dahin **reine Referenz-Eingaben** — kein `.expected.cs`.
+Sobald V2 generiert, entfällt der Filter und der Teilbaum bekommt seine `.expected.cs` (dann greift die
+Auto-Discovery aus §7 ohne Sonderfall).
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

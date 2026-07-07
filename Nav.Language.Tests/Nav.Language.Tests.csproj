@@ -160,6 +160,9 @@
     <Content Include="Diagnostics\Tests\ATaskWithoutErrors.nav" />
     <Content Include="Regression\Tests\Test.nav" />
     <Content Include="Regression\Tests\SimpleTask.nav" />
+    <Content Include="Regression\Tests\V2\BasicFlow.nav" />
+    <Content Include="Regression\Tests\V2\ContinuationFlow.nav" />
+    <Content Include="Regression\Tests\V2\ChoiceFlow.nav" />
   </ItemGroup>
 
   <ItemGroup>

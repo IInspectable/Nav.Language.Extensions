@@ -1,0 +1,56 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.Cont]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: Continuation (View zeigen UND direkt in einen Folge-Task fortsetzen).
+//
+// Deckt BEIDE Continuation-Modi ab:
+//   - o-^ : modale Fortsetzung  → GotoGUI(to).Concat(OpenModalTask(...))
+//   - --^ : Goto-Fortsetzung    → GotoGUI(to).Concat(GotoTask(...))
+//
+// Drei Positionen (§ Continuation): Quelle = Trigger-Transition ab Home; tragender Knoten = der
+// GUI-Knoten Home (bekommt die Continuation, Nav0120); Ziel = ein Task (nur Task, Nav0121).
+// Bewusst OHNE Choice und OHNE plain-Schwesterkante zum selben Ziel, damit der Continuation-Fall
+// isoliert bleibt (die Union plain+Continuation zeigt der Choice-Golden-Fall).
+
+taskref Msg [namespaceprefix NS.V2.Cont]
+            [result MsgResult r] {
+
+    init [params string text];
+    exit Ok;
+}
+
+taskref Detail [namespaceprefix NS.V2.Cont]
+               [result DetailResult r] {
+
+    init [params int id];
+    exit Closed;
+}
+
+task ContinuationFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1;
+    exit Exit;
+    task Msg Warn;
+    task Detail Drill;
+    view Home;
+
+    Init1 --> Home;
+
+    // o-^ : Home zeigen, dann modal Warn obendrauf; Rücksprung über AfterWarn.
+    Home --> Home o-^ Warn on OnShowWarn;
+
+    // --^ : Home zeigen, per Goto in Drill voll-navigieren; Rücksprung über AfterDrill.
+    Home --> Home --^ Drill on OnDrillDown;
+
+    Home --> Exit on OnClose;
+
+    Warn:Ok      --> Home;
+    Drill:Closed --> Home;
+}
