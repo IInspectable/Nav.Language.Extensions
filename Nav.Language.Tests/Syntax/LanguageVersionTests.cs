@@ -26,7 +26,11 @@ public class LanguageVersionTests {
     [Test]
     public void WellFormedDirective_SetsLanguageVersion() {
 
-        var unit = Parse("#version 2\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #version 2
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(2));
@@ -71,7 +75,11 @@ public class LanguageVersionTests {
     [Test]
     public void MissingVersionNumber_ReportsNav3002_AndDefaults() {
 
-        var unit = Parse("#version\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #version
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(unit.LanguageVersionDirective, Is.Not.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(1));
@@ -84,7 +92,11 @@ public class LanguageVersionTests {
     [Test]
     public void NonIntegerVersion_ReportsNav3002() {
 
-        var unit = Parse("#version abc\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #version abc
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(unit.LanguageVersionDirective,                          Is.Not.Null);
         Assert.That(unit.LanguageVersion.Value,                             Is.EqualTo(1));
@@ -96,7 +108,10 @@ public class LanguageVersionTests {
 
         // Die gültige Zahl gilt (Version 2); der überzählige Rest löst genau eine Nav3002 aus und wird
         // ausgegraut (Skiped) — er soll nicht wie ein gültiger Wert (Zahl) aussehen.
-        var source = "#version 2 xy\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var source = """
+            #version 2 xy
+            task A { init I1; exit e1; I1 --> e1; }
+            """;
         var tree   = SyntaxTree.ParseText(source);
         var unit   = (CodeGenerationUnitSyntax) tree.Root;
 
@@ -118,7 +133,11 @@ public class LanguageVersionTests {
 
         // '#pragma' bleibt als Direktiv-Form erkannt, aber es gibt keine bekannten Pragmas mehr: jedes
         // Subjekt hinter 'pragma' (auch 'version') meldet Nav3001 und ist keine Versions-Direktive.
-        var unit = Parse("#pragma warning disable Nav1234\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #pragma warning disable Nav1234
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(unit.LanguageVersionDirective, Is.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(1));
@@ -133,7 +152,11 @@ public class LanguageVersionTests {
 
         // 'version' ist kein Pragma-Subjekt mehr: '#pragma version 1' ist ein unbekanntes Pragma (Nav3001),
         // keine Versions-Direktive. Die Version bleibt Default.
-        var unit = Parse("#pragma version 1\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #pragma version 1
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(unit.LanguageVersionDirective, Is.Null);
         Assert.That(unit.LanguageVersion.Value,    Is.EqualTo(1));
@@ -147,7 +170,11 @@ public class LanguageVersionTests {
     public void PragmaWithoutSubject_ReportsNav3000() {
 
         // '#pragma' ohne Subjekt ist kein benennbares Pragma — es bleibt die generische unbekannte Direktive.
-        var unit = Parse("#pragma\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #pragma
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
         Assert.That(ids, Does.Contain("Nav3000"));
@@ -159,7 +186,11 @@ public class LanguageVersionTests {
 
         // Ein unbekanntes Direktiv-Schlüsselwort (weder 'version' noch 'pragma') ist die generische
         // unbekannte Direktive (Nav3000).
-        var unit = Parse("#foo\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #foo
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         var ids = unit.SyntaxTree.Diagnostics.Select(d => d.Descriptor.Id).ToList();
         Assert.That(ids, Does.Contain("Nav3000"));
@@ -169,7 +200,11 @@ public class LanguageVersionTests {
     [Test]
     public void MisplacedDirective_AfterMember_ReportsNav3003_AndDefaults() {
 
-        var unit = Parse("task A { init I1; exit e1; I1 --> e1; }\r\n#version 2");
+        var unit = Parse(
+            """
+            task A { init I1; exit e1; I1 --> e1; }
+            #version 2
+            """);
 
         // Nicht ganz oben ⇒ unwirksam (Default) und als Nav3003 gemeldet — nicht als Nav3000.
         Assert.That(unit.LanguageVersionDirective, Is.Null);
@@ -184,7 +219,12 @@ public class LanguageVersionTests {
     [Test]
     public void DirectiveAfterOtherDirective_ReportsNav3003() {
 
-        var unit = Parse("#pragma warning disable Nav1\r\n#version 2\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #pragma warning disable Nav1
+            #version 2
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         // Vor der Versions-Direktive steht eine andere Direktive (kein Trivia) ⇒ nicht ganz oben (Nav3003);
         // die vorangehende Direktive ist ein unbekanntes Pragma (Nav3001).
@@ -199,7 +239,12 @@ public class LanguageVersionTests {
     [Test]
     public void DuplicateDirective_ReportsNav3004_FirstWins() {
 
-        var unit = Parse("#version 2\r\n#version 3\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var unit = Parse(
+            """
+            #version 2
+            #version 3
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         // Die erste (wirksame) Versions-Direktive bestimmt die Version; die zweite ist ein Duplikat (Nav3004).
         // Beide sind eigenständige VersionDirectiveSyntax-Knoten — wirksam ist aber nur die erste.
@@ -216,7 +261,12 @@ public class LanguageVersionTests {
     [Test]
     public void DuplicateDirective_AfterMember_ReportsNav3003_NotNav3004() {
 
-        var unit = Parse("#version 2\r\ntask A { init I1; exit e1; I1 --> e1; }\r\n#version 3");
+        var unit = Parse(
+            """
+            #version 2
+            task A { init I1; exit e1; I1 --> e1; }
+            #version 3
+            """);
 
         // Die zweite Direktive steht hinter echtem Code: die Deplatzierung (Nav3003) ist das eigentliche
         // Problem und verdrängt die andernfalls nur lärmende Duplikat-Meldung (Nav3004). Beide sind
@@ -234,7 +284,10 @@ public class LanguageVersionTests {
     public void DirectiveDiagnostic_SpansWholeDirective_NotJustTheHash() {
 
         // Die Squiggle soll die ganze Direktive markieren (# … Versionswert), nicht nur das '#'.
-        var source = "task A { init I1; exit e1; I1 --> e1; }\r\n#version 2";
+        var source = """
+            task A { init I1; exit e1; I1 --> e1; }
+            #version 2
+            """;
         var unit   = Parse(source);
 
         var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3003");
@@ -257,7 +310,10 @@ public class LanguageVersionTests {
         // einzelnes unbekanntes Zeichen (Nav0000), der Zeilenrest lext gewöhnlich weiter. Es entsteht daher
         // keine zweite Versions-Direktive und kein Nav3003/Nav3004 — nur die erste, wohlplatzierte Direktive
         // bleibt wirksam.
-        var source = "#version 1\r\ntask A { init I1; exit e1; I1 --> e1; } #version 1";
+        var source = """
+            #version 1
+            task A { init I1; exit e1; I1 --> e1; } #version 1
+            """;
         var unit   = Parse(source);
 
         Assert.That(unit.LanguageVersion.Value, Is.EqualTo(1));
@@ -280,7 +336,11 @@ public class LanguageVersionTests {
         // Zwei Versions-Direktiven, beide am Kopf (jede am Zeilenanfang, nur Trivia dazwischen): die zweite
         // ist ein echtes Duplikat (Nav3004). Die Squiggle soll die ganze zweite Direktive markieren
         // (# … Versionswert), nicht nur das '#'.
-        var source = "#version 1\r\n#version 1\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var source = """
+            #version 1
+            #version 1
+            task A { init I1; exit e1; I1 --> e1; }
+            """;
         var unit   = Parse(source);
 
         var diagnostic = unit.SyntaxTree.Diagnostics.Single(d => d.Descriptor.Id == "Nav3004");
@@ -306,7 +366,11 @@ public class LanguageVersionTests {
 
         // Auch eine deplatzierte Versions-Direktive (Nav3003) behält die Färbung ihrer Rumpf-Token: der Wert
         // wird weiterhin als Zahl klassifiziert, obwohl die Direktive unwirksam ist.
-        var tree = SyntaxTree.ParseText("task A { init I1; exit e1; I1 --> e1; }\r\n#version 7");
+        var tree = SyntaxTree.ParseText(
+            """
+            task A { init I1; exit e1; I1 --> e1; }
+            #version 7
+            """);
 
         Assert.That(DirectiveTokens(tree).Any(t => t.Classification == TextClassification.NumberLiteral), Is.True);
     }
@@ -315,7 +379,11 @@ public class LanguageVersionTests {
     public void WellFormedDirective_ClassifiesVersionKeywordAndNumber() {
 
         // Positionen in "#version 12": '#'=0, 'version'=1..7, ' '=8, '12'=9..10.
-        var tree   = SyntaxTree.ParseText("#version 12\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var tree   = SyntaxTree.ParseText(
+            """
+            #version 12
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
         var tokens = DirectiveTokens(tree).ToList();
 
         TextClassification At(int position) {
@@ -333,7 +401,11 @@ public class LanguageVersionTests {
     public void InvalidVersion_DoesNotClassifyAsNumber() {
 
         // 'version' bleibt Präprozessor-Schlüsselwort, aber der ungültige Wert wird nicht als Zahl gefärbt.
-        var tree = SyntaxTree.ParseText("#version abc\r\ntask A { init I1; exit e1; I1 --> e1; }");
+        var tree = SyntaxTree.ParseText(
+            """
+            #version abc
+            task A { init I1; exit e1; I1 --> e1; }
+            """);
 
         Assert.That(DirectiveTokens(tree).Any(t => t.Classification == TextClassification.NumberLiteral), Is.False);
     }
@@ -341,7 +413,10 @@ public class LanguageVersionTests {
     [Test]
     public void WellFormedDirective_RoundTrips() {
 
-        var source = "#version 2\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var source = """
+            #version 2
+            task A { init I1; exit e1; I1 --> e1; }
+            """;
         var tree   = SyntaxTree.ParseText(source);
 
         var sb = new System.Text.StringBuilder();
@@ -421,7 +496,10 @@ public class LanguageVersionTests {
     [Test]
     public void UnsupportedVersion_Nav5001_SpansWholeDirective() {
 
-        var source = "#version 99\r\ntask A { init I1; exit e1; I1 --> e1; }";
+        var source = """
+            #version 99
+            task A { init I1; exit e1; I1 --> e1; }
+            """;
         var unit   = BuildUnit(source);
 
         var diagnostic = unit.Diagnostics.Single(d => d.Descriptor.Id == "Nav5001");

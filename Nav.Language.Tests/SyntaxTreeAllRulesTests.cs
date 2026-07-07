@@ -35,11 +35,31 @@ public class SyntaxTreeTests {
         // kommen aus eigenen Schnipseln, da AllRules bewusst fehlerfrei bleibt.
         var presentTypes = new HashSet<Type>(cgu.DescendantNodesAndSelf().Select(node => node.GetType()));
         presentTypes.UnionWith(cgu.SyntaxTree.Directives().Select(directive => directive.GetType()));
-        presentTypes.UnionWith(SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives().Select(directive => directive.GetType()));
-        presentTypes.UnionWith(SyntaxTree.ParseText("task A\r\n{\r\n    init [];\r\n}").SkippedTokens().Select(skipped => skipped.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   #unknown
+                                   task A{}
+                                   """).Directives().Select(directive => directive.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   task A
+                                   {
+                                       init [];
+                                   }
+                                   """).SkippedTokens().Select(skipped => skipped.GetType()));
         // Die Continuation-Konstrukte (ContinuationTransitionSyntax samt beider Continuation-Kanten) sind ab
         // Sprachversion 2 gültig; AllRules bleibt bewusst Version 1, daher aus einem eigenen Schnipsel.
-        presentTypes.UnionWith(SyntaxTree.ParseText("#version 2\r\ntask A\r\n{\r\n    view V;\r\n    task T;\r\n    V --> V o-^ T;\r\n    V --> V --^ T;\r\n}")
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   #version 2
+                                   task A
+                                   {
+                                       view V;
+                                       task T;
+                                       V --> V o-^ T;
+                                       V --> V --^ T;
+                                   }
+                                   """)
                                          .Root.DescendantNodesAndSelf().Select(node => node.GetType()));
 
         foreach (var nodeType in nodeTypes) {

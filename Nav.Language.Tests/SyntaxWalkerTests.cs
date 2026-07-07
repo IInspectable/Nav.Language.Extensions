@@ -40,17 +40,37 @@ public class SyntaxWalkerTests {
             walker.Walk(directive);
         }
 
-        foreach (var directive in SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives()) {
+        foreach (var directive in SyntaxTree.ParseText(
+                     """
+                     #unknown
+                     task A{}
+                     """).Directives()) {
             walker.Walk(directive);
         }
 
-        foreach (var skipped in SyntaxTree.ParseText("task A\r\n{\r\n    init [];\r\n}").SkippedTokens()) {
+        foreach (var skipped in SyntaxTree.ParseText(
+                     """
+                     task A
+                     {
+                         init [];
+                     }
+                     """).SkippedTokens()) {
             walker.Walk(skipped);
         }
 
         // Die Continuation-Konstrukte (ab Sprachversion 2) fehlen in AllRules (Version 1) — eigener Schnipsel,
         // damit auch ihre generierten WalkXxx-Methoden erreicht werden.
-        walker.Walk(SyntaxTree.ParseText("#version 2\r\ntask A\r\n{\r\n    view V;\r\n    task T;\r\n    V --> V o-^ T;\r\n    V --> V --^ T;\r\n}").Root);
+        walker.Walk(SyntaxTree.ParseText(
+                        """
+                        #version 2
+                        task A
+                        {
+                            view V;
+                            task T;
+                            V --> V o-^ T;
+                            V --> V --^ T;
+                        }
+                        """).Root);
 
         return walker.Walked;
     }
