@@ -248,6 +248,16 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
+        /// End node '{0}' not allowed here because it's reachable from init node '{1}'
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0118EndNode0NotAllowedBecauseReachableFromInit1 = new(
+            id             : DiagnosticId.Nav0118,
+            messageFormat  : "End node '{0}' not allowed here because it's reachable from init node '{1}'",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
         /// The choice node '{0}' has no incoming edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0111ChoiceNode0HasNoIncomingEdges = new(
