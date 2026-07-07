@@ -609,7 +609,13 @@ portiert — **nach** dem Design:
   `.nav`, 2804 task/taskref-Blöcke, 3487 Init-Knoten, 419 Blöcke mit >1 Init — kein einziger mit
   doppelter Signatur) → ein neuer Analyzer (Severity **Error**, Sibling von **Nav0118**) ist
   **korpussicher** und bricht keine bestehende `.nav`. Kann — wie Nav0118 — **sofort und unabhängig
-  von V2** implementiert werden. ID beim Port in der Init-Familie (neben Nav0103/0109/0110/0118).
+  von V2** implementiert werden. **Umgesetzt als Analyzer `Nav0119`
+  (`Nav0119InitNode0HasSameSignatureAsInitNode1`, Severity Error, versionsUNabhängig):** Signatur =
+  geordnete Parameter-Typen (Whitespace entfernt, `List<int>` ≡ `List< int >`; Namen irrelevant); pro
+  Task erste Signatur = Referenz, jede weitere Kollision wird am Identifier des Duplikats gemeldet.
+  Greift auch für **edge-lose** Inits (der V1-Generator emittiert `Begin()` für *jeden* Init-Knoten,
+  `CodeModelBuilder.GetInitTransitions`). Struktur = Klon von Nav0118, Auto-Discovery. Nav0118
+  unangetastet.
 - **Diagnostics, versions-gated (Runde 2):** Concat-Kanten und Choice-`[params]` sind nur ab
   `#version 2` erlaubt (in V1-Units → Fehler-Diagnostic mit Verweis auf `#version`); `--^` wird
   vorerst generell abgelehnt („noch nicht unterstützt", Leitentscheidung Nr. 4).
@@ -697,8 +703,9 @@ sind. Verbleibend/neu:
 
 1. **Kollisions-Diagnose-IDs** (Anzeige-Modus-Kollision für GUI-/Task-Ziele, Namens-Kollision) beim
    Semantic-Model-Port vergeben und einreihen (§5).
-2. **Analyzer Init-Signatur-Eindeutigkeit** (versionsUNabhängig, Error, Sibling von Nav0118) —
-   korpussicher (0/419), kann sofort implementiert werden (§5). Nur noch ID + Umsetzung.
+2. ~~**Analyzer Init-Signatur-Eindeutigkeit** (versionsUNabhängig, Error, Sibling von Nav0118) —
+   korpussicher (0/419), kann sofort implementiert werden (§5). Nur noch ID + Umsetzung.~~
+   **Erledigt: als `Nav0119` implementiert (§5).**
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
@@ -780,3 +787,10 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   selben Ziel, §5). **`Logic`-Suffix an Override-Methoden: behalten** (Rollentrennung call/implement
   bei Choices, keine Selbstrekursions-Lesart der Maschinerie, klarere Override-Fehler). §4.3/§4.4/§4.5/
   §4.6/§5/§7 + Header überarbeitet. Offen nur noch: Kollisions-Diagnose-IDs beim Port (§7).
+- **Nachtrag Runde 7** — **Analyzer `Nav0119` (Init-Signatur-Eindeutigkeit) implementiert.**
+  Versions­UNabhängig, Error, Klon-Struktur von Nav0118: zwei Init-Knoten desselben Tasks mit
+  identischer Parameter-Typ-Signatur → doppelte `Begin`-Überladung → CS0111. Signatur =
+  Parameter-Typen ohne Whitespace, Namen irrelevant; greift auch für edge-lose Inits. `DiagnosticId`
+  + Descriptor + Analyzer + 3 Fixtures + `Errors.md` (Zeile 34). net10.0 1352/0, net472 1360/0 grün.
+  §5/§7 erledigt-markiert. Damit ist die Init-Analyzer-Familie (Nav0110/0118/0119) komplett; offen
+  bleiben nur die V2-Kollisions-Diagnose-IDs beim Semantic-Model-Port.
