@@ -1,6 +1,6 @@
 ﻿# V2-Codegen-Design: CallContext, Concat & Choices in C#
 
-> **Status: lebendes Dokument, Runde 7.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
+> **Status: lebendes Dokument, Runde 8.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
 > Offene Punkte sind als solche markiert; die „Offenen Design-Fragen" sind der Arbeitsvorrat für die
 > nächsten Runden. Framework-Verifikation der §4.7-Touchpoints: `doc/WFS-Spracherweiterung —
 > Framework-Verifikation.md`.
@@ -175,6 +175,98 @@ schlichter `--> View`-Goto (§4.5). Daraus fünf Entscheidungen:
    über Rückgabetyp lösbar. Fachlich vermutlich ohnehin sinnlos/illegal → **eigene Diagnose** deckt es
    auf (§5), kein Codegen-Sonderfall.
 
+### Leitentscheidungen (Runde 8): Guard-Zentralisierung, notimplemented/donotinject, Diagnose-IDs, Choice-Ketten, Exit-Bestätigung
+
+Sieben Gabelungen im Grill-Durchgang entschieden — alle gegen Code/Korpus (`d:\tfs\Main`, ~1800 `.nav`)
+verifiziert. Damit sind die zuvor offenen §7-Punkte geschlossen.
+
+1. **Null-Guard immer — zentralisiert als `Guard<T>` je `{Task}WFSBase`.** Der V1-`switch`-`default:`
+   fing `null` **und** unerwartete Marker mit `NavCommandBody.ComposeUnexpectedTransitionMessage` ab; in
+   V2 ist der Marker-Fall strukturell unmöglich, übrig bleibt nur `return null;`. Statt pro Transition
+   (die eigentliche 1000-fach-Duplikation) einen Guard zu emittieren, generiert V2 **einmal je
+   `{Task}WFSBase`** einen rein null-werfenden Helfer und lässt die Maschinerie auf einen geschützten
+   Einzeiler kollabieren:
+   ```csharp
+   protected static T Guard<T>(T? result, string logicMethodName) where T : class
+       => result ?? throw new InvalidOperationException(
+              NavCommandBody.ComposeUnexpectedTransitionMessage(logicMethodName, null));
+
+   public virtual IINIT_TASK Begin(string message)
+       => Guard(BeginLogic(message, new Init1CallContext(this)), nameof(BeginLogic)).Body;
+   ```
+   Kein Interface, keine gemeinsame Basis (verträgt sich mit Runde-4-Nr.-1): `Guard<T>` fasst `.Body`
+   nicht an — der Zugriff erfolgt am Call-Site in der Basisklasse, die (als umschließender Typ) auch
+   `private` genestete Member ihrer `Result`-Typen erreicht. **`Result.Body` darf damit `private`
+   bleiben** → maximale Leck-Hygiene. Platzierung bewusst **pro Klasse (Nx identische 3-Zeiler)**, nicht
+   assembly-weit (1x): eine geteilte Generat-Datei wäre neue Infrastruktur mit Inkrement-Build-Risiko
+   (Manifest-Zeitstempel), ein Framework-Helfer verstieße gegen „minimale neue Framework-API". Die Nx
+   Kopien sind kosmetisch; die relevante Duplikation (pro Transition) ist eliminiert. §4.2a nachziehen.
+
+2. **`[notimplemented]` und `[donotinject]` werden in V2 unterstützt (korpus-real, kein opt-out).**
+   Beide kommen produktiv vor (`notimplemented`: 5, `donotinject`: 6 echte `.nav`), also **kein**
+   „in `#version 2` verboten" — sonst entstünde eine nie migrierbare V1-Insel.
+   - **`[notimplemented]`:** `ctx.Begin{Task}(…)` liefert einen `Result`, dessen **Thunk**
+     `NotImplementedException` wirft — V1-Timing exakt (Wurf beim `.Body`-Unwrap, wie V1s `switch`):
+     `public Result BeginFoo(/*args*/) => new(() => throw new NotImplementedException("Task Foo is specified as [notimplemented]"));`.
+   - **`[donotinject]`:** `ctx.Begin{Task}` nimmt den Wrapper als **expliziten Parameter** — der
+     **originalgetreue** V1-Port (`WfsBaseEmitter`/generiert: `BeginDoSomething(IBeginShowSomethingWFS wfs)`).
+     Fachlicher Grund: donotinject steht für eine **Familie konkreter Implementierungen, laufzeit-selektiert**
+     (belegt in `DublettenMischenWFS.cs`: `_valueEditorList.SingleOrDefault(c => editor.IsAssignableFrom(c.GetType()))`) —
+     es *gibt* nichts zu injizieren; der explizite Parameter ist die ehrliche Signatur. Die Laufzeit-Auswahl
+     bleibt unverändert im `…Logic(args, ctx)`-Override.
+   - Beide: eigener Abschnitt in §4.3-Tabelle + je ein Golden-Snapshot-Fall.
+
+3. **Union `plain + concat`: implizite Konvertierung bleibt, mit Doc-Politur.** Die
+   `static implicit operator Result(ShowViewContinuation)`-Lösung (§4.4) wird **nicht** umgebaut. Ihre
+   einzige Schwäche — der unsichtbare plain-Pfad und der generische `CS0029` im concat-only-Fall — wird
+   billig geheilt: sprechender Continuation-Typname + XML-Doc am Member („mit `.Begin{Task}(…)` fortsetzen"),
+   plus ein Ergonomie-/Golden-Test, der den concat-only-`CS0029` als erwartetes Verhalten festschreibt.
+   Der unsichtbare Pfad ist der harmlose (plain); `.Begin{Task}` ist auf dem Rückgabewert sichtbar.
+
+4. **Diagnose-IDs: Cluster Nav0120–Nav0124 im 01xx-Strukturband.** `Nav1xxx` ist in diesem Repo
+   **strikt DeadCode/Warning** — die concat-Branch-Nummern **Nav1020/1021/1022** (Error-Semantik) sind
+   dort ein Konventionsbruch. Da die Concat-Feature hier **nicht** ausgeliefert ist (concat-Branch = reines
+   Referenz-Zielbild), gibt es **keine** Kompatibilitätsbindung → frei umnummerieren:
+   - **Nav0120** Concat-Quelle muss GUI/View-Knoten sein (concat-Branch 1020) · **Nav0121** Concat-Ziel
+     muss Task-Knoten sein (1021) · **Nav0122** verschiedene Views in einer Concatenation nicht unterstützt
+     (1022) · **Nav0123** `--^` (Goto-Concat) noch nicht unterstützt.
+   - **Nav0124 = EINE generische Member-Kollisions-Diagnose** (Error), berechnet aus der generierten
+     Member-Menge, an der `.nav`-Deklaration/-Kante verankert. Sie **ersetzt** die zuvor getrennt geplanten
+     „Anzeige-Modus-Kollision" und „reservierte Namen" (**Nav0125 entfällt**) und deckt einheitlich ab:
+     reservierte Namen (`Cancel`/`Exit`/`End`/`Result` als Choice), Präfix-Klasch (`Show{X}`/`Begin{X}`-Choice
+     trifft gleichnamigen Knoten) **und** Modus-Kollision. Ihr Eigenwert: der **still kompilierende Overload**
+     (unterschiedliche Signaturen), den `csc` **nicht** meldet — genau dort liefert die Nav-Diagnose die frühe,
+     auf die `.nav`-Stelle zeigende Fehlermeldung (ein `csc`-Fehler im *generierten* Code ist kaum
+     rückführbar). Zukunftssicher (keine enumerierte Sonderfall-Liste). Nur bare-name Choice-Forwards sind
+     überhaupt Kollisions-Vektor; Views/Tasks sind `Show`/`Begin`-präfixt.
+   - Versions-Gate für Concat-Kanten + Choice-`[params]`: **kein** neuer Code — bestehendes **Nav5000**.
+   - **Korpus: 0 Kollisionen** (Choices namens `Cancel`/`Exit`/`End`/`Result`: 0/5637; `Show*`/`Begin*`-Choices
+     existieren zwar zahlreich, kollidieren aber mit keinem gleichnamigen Knoten). Die Diagnose ist also
+     frühwarnende Versicherung, kein häufiger Fall — der Wert liegt in der Rückführbarkeit, nicht der Frequenz.
+
+5. **Verschachtelte Choices (`Choice --> Choice`): rekursives Forwarding.** In Nav legal und von der
+   Reachability rekursiv aufgelöst (`EdgeExtensions.GetReachableCallsImpl`, mit Zyklenschutz). V2 faltet
+   **nicht** platt (das würde die von V2 gekillte Duplikation für Ketten wiedereinführen), sondern
+   forwarded: `Choice_A`s Context bekommt `ctx.Choice_B(params)` → `Choice_BLogic(…).Body` deferred —
+   dieselbe Mechanik wie Transition→Choice, eine Ebene tiefer. **Anti-Bloat bleibt transitiv** (jede
+   `Choice_XLogic` existiert einmal), Init-Legalitäts-Typisierung greift automatisch (Choice_B ist mit
+   Choice_A init-erreichbar). Choice→Choice explizit in §4.3-Tabelle. Ein Choice-**Zyklus** ergäbe sich
+   gegenseitig referenzierende Context-Methoden (kompiliert); ob er zur Laufzeit kreist, entscheidet die
+   Nutzer-Logik — kein Codegen-Problem.
+
+6. **Fixes `Exit(result)` bestätigt (kein `Exit{Node}`).** Herausforderung: Tasks *können* mehrere
+   Exit-Knoten deklarieren (`Wizard`: `exit Done; exit Esc;`). Aber der Task-Result ist **einwertig**
+   (`CodeTaskResult` pro Task), und das reale Framework `InternalTaskResult<TResult>(TResult result)`
+   (`BaseWFService.cs:236`) trägt **keine** Exit-Identität → mehrere Exit-Knoten kollabieren auf dasselbe
+   `TASK_RESULT<T>`; V1 unterscheidet sie am Child-Ende nicht. `--> Done`/`--> Esc` bilden beide auf das
+   fixe `Exit(result)` ab — V1-treu. Multi-Exit-Tasks: **0 Produktion / 1 Framework-Test** → kein
+   Ergonomie-Verlust. §4.3 hält.
+
+7. **`Logic`-Suffix, gemeinsame Basis, Deferred-Thunk** — allesamt in früheren Runden entschieden und im
+   Grill **bestätigt**, keine Änderung. Die Deferred-Thunk-Allokation (`Result` + `Func<>` je Transition)
+   ist unkritisch: Navigation läuft auf Interaktions-, nicht Schleifentempo; V1 allokierte Marker + Thunks
+   vergleichbar.
+
 ## 2. Referenz: der `concat`-Branch
 
 Auf dem Remote-Branch **`concat`** wurde beides bereits angefangen — allerdings **alt**: Merge-Base
@@ -294,13 +386,16 @@ lief — **nach** der Logic:
 
 ```csharp
 public virtual IINIT_TASK Begin(string message)
-    => BeginLogic(message, new Init1CallContext(this)).Body;
+    => Guard(BeginLogic(message, new Init1CallContext(this)), nameof(BeginLogic)).Body;
 
 public virtual INavCommand OnFoo(ViewTO to) {
-    to = BeforeTriggerLogic(to);                              // Trigger-Vorlauf bleibt
-    return OnFooLogic(to, new OnFooCallContext(this)).Body;   // kein switch mehr
+    to = BeforeTriggerLogic(to);                                                  // Trigger-Vorlauf bleibt
+    return Guard(OnFooLogic(to, new OnFooCallContext(this)), nameof(OnFooLogic)).Body;  // kein switch mehr
 }
 ```
+
+Der `Guard(…)`-Aufruf ist der **immer** emittierte Null-Guard (Runde 8, s.u.) — ein geschützter
+Einzeiler ersetzt den `switch` vollständig.
 
 Die Context-Methoden sind expression-bodied Einzeiler, die den Kommando-Bau in einen `Func<…>`
 kapseln (Runde 5 — der Thunk verschiebt den Seiteneffekt der `GOTO_GUI`/`OPEN_MODAL_GUI`/`Concat`-
@@ -311,24 +406,35 @@ Konstruktoren auf den `.Body`-Unwrap; der Begin-Aufruf des Sub-Tasks bleibt zus�
 public Result ShowView(ViewTO to)   => new(() => _wfs.GotoGUI(to));   // plain-only: direkt Result (Runde 7)
 public Result BeginB(string b1)     => new(() => _wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
 
-// … mit dem geschachtelten Result-Typ:
+// … mit dem geschachtelten Result-Typ (Body bleibt private, Runde 8 — nur die Basisklasse
+// erreicht ihn als umschließender Typ):
 public sealed class Result {
     readonly Func<IINIT_TASK> _command;
     internal Result(Func<IINIT_TASK> command) => _command = command;
-    internal IINIT_TASK Body => _command();      // feuert die Konstruktion beim Unwrap
+    IINIT_TASK Body => _command();               // feuert die Konstruktion beim Unwrap
 }
 ```
 
-**Residual-Ausbruch:** Der Nutzer kann noch `return null;` schreiben (`Result` ist eine Klasse) →
-`.Body` würfe NRE. Wo die freundliche V1-Diagnose erhalten bleiben soll, generiert die Maschinerie
-einen einzeiligen Null-Guard statt eines Switches:
+**Null-Guard immer, zentralisiert (Runde 8).** Der Nutzer kann noch `return null;` schreiben (`Result`
+ist eine Klasse) → nacktes `.Body` würfe eine kryptische NRE tief in der Maschinerie. Der V1-`switch`-
+`default:` fing `null` **und** unerwartete Marker mit `ComposeUnexpectedTransitionMessage` ab; in V2 ist
+der Marker-Fall strukturell unmöglich, übrig bleibt nur `null`. Statt den Guard **pro Transition** (die
+eigentliche 1000-fach-Duplikation) zu emittieren, generiert V2 **einmal je `{Task}WFSBase`** einen rein
+null-werfenden Helfer — die Maschinerie ruft ihn als geschützten Einzeiler (s.o.):
 
 ```csharp
-var result = BeginLogic(message, new Init1CallContext(this));
-return result is null
-    ? throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), null))
-    : result.Body;
+protected static T Guard<T>(T? result, string logicMethodName) where T : class
+    => result ?? throw new InvalidOperationException(
+           NavCommandBody.ComposeUnexpectedTransitionMessage(logicMethodName, null));
 ```
+
+`Guard<T>` fasst `.Body` **nicht** an — der Zugriff erfolgt am Call-Site in der Basisklasse, die (als
+umschließender Typ) auch `private` genestete Member ihrer `Result`-Typen erreicht. Deshalb **kein
+Interface / keine gemeinsame Basis** (verträgt sich mit Runde-4-Nr.-1), und `Result.Body` darf `private`
+bleiben (maximale Leck-Hygiene). Platzierung bewusst **pro Klasse (Nx identische 3-Zeiler)** statt
+assembly-weit (1x): eine geteilte Generat-Datei wäre neue Infrastruktur mit Inkrement-Build-Risiko
+(Manifest-Zeitstempel), ein Framework-Helfer verstieße gegen „minimale neue Framework-API". Die Nx
+Kopien sind kosmetisch; die relevante Duplikation (pro Transition) ist eliminiert.
 
 ### 4.3 Die Context-Fläche je Kanten-Art
 
@@ -343,10 +449,26 @@ konstruiert (Runde 5, §4.2a) — kein Zwischenmarker mehr:
 | `-->` / `o->` / `==>` **GUI-Knoten** (View **oder** Dialog) | `Show{Node}(ViewTO)` — **mode-frei** (Runde 7) | `GotoGUI` / `OpenModalGUI` / `StartNonModalGUI` je Edge-Mode; Modal/Nonmodal nur im Task-Kontext (§4.7/④) |
 | `--> View o-^ Task` (Concat) | `Show{View}(to).Begin{Task}(…)` — **selber Einstieg**, Rückgabetyp `Continuation` | `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` |
 | `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `GotoTask`/`OpenModalTask`/`StartNonModalTask(() => _wfs._x.Begin(…), After{Task})` |
-| `--> Choice` | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Body` (Forward, §4.4) |
+| `-->`/`o->`/`==>` `Task` **`[notimplemented]`** (Runde 8) | `Begin{Task}(…)` (existiert weiter) | `throw new NotImplementedException("Task {Task} is specified as [notimplemented]")` im Thunk — V1-Timing (s. Absatz unten) |
+| `-->`/`o->`/`==>` `Task` **`[donotinject]`** (Runde 8) | `Begin{Task}(IBegin{Task}WFS wrapper, …)` — **expliziter** Wrapper-Parameter | `…{mode}Task(() => wrapper.Begin(…), After{Task})` — Wrapper vom Nutzer laufzeit-selektiert (s. Absatz unten) |
+| `--> Choice` (auch **Choice→Choice**, Runde 8) | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Body` (Forward, §4.4; rekursiv bei Choice-Ketten) |
 | `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` → `TASK_RESULT<T>`, castfrei (§4.7/②) |
 | `--> End` | `End()` | `EndNonModal()` → `END` |
 | immer | `Cancel()` | `Cancel()` → `CANCEL` |
+
+**`[notimplemented]`/`[donotinject]` (Runde 8, beide korpus-real — 5 bzw. 6 echte `.nav`, kein opt-out).**
+`[notimplemented]`: der Ziel-Task bleibt begin-bar, scheitert aber beim `.Body`-Unwrap mit
+`NotImplementedException` — exakt V1s Laufzeitverhalten, nur ins Thunk-Modell überführt.
+`[donotinject]`: der Wrapper wird **nicht** injiziert (kein `_wfs._x`-Feld), also nimmt `ctx.Begin{Task}`
+ihn als **expliziten Parameter** — der originalgetreue V1-Port (`BeginDoSomething(IBeginShowSomethingWFS wfs)`).
+Fachlich steht `[donotinject]` für eine **Familie konkreter Implementierungen, laufzeit-selektiert**
+(`_valueEditorList.SingleOrDefault(c => editor.IsAssignableFrom(c.GetType()))`) — es *gibt* nichts zu
+injizieren; die Laufzeit-Auswahl bleibt unverändert im `…Logic(args, ctx)`-Override.
+
+**Mehrere Exit-Knoten (Runde 8):** `Exit({result})` ist **ein fixes** Member auch bei Tasks mit mehreren
+`exit`-Knoten. Der Task-Result ist einwertig, und das reale `InternalTaskResult<T>(result)` trägt **keine**
+Exit-Identität → `--> Done`/`--> Esc` kollabieren auf dasselbe `TASK_RESULT<T>` (V1 unterscheidet sie am
+Child-Ende ebenfalls nicht). Kein `Exit{Node}`; Korpus: 0 Produktion / 1 Framework-Test.
 
 Die `Begin{Task}`-Überladung folgt dem Edge-Mode: `-->` → `GotoTask` (init-legal aus jedem Kontext),
 `o->`/`==>` → `OpenModalTask`/`StartNonModalTask` (**nur** im Task-Kontext, da nicht `IINIT_TASK`;
@@ -391,10 +513,15 @@ Concat-Kante ein `.Begin{Task}`. So spiegelt der Typ exakt die Nav-Definition (�
 concat-only, keine plain-Schwesterkante). Die Guards (`if/else`) sind in V2 Doku-Charakter — die Union
 ist genau die Menge der vom Nav deklarierten legalen Ausgänge.
 
-**Reservierte Namen (Runde 7 revidiert):** fixe Member `Cancel`/`Exit`/`End` und der genestete Typ
-`Result` bleiben reserviert; `Show` ist nun **Verb-Präfix** (nie bloß) und fällt als fixes Member weg;
-die Continuation-Typen sind node-suffigiert (`Show{View}Continuation`). Ein gleichnamiger Node erzeugt
-weiter eine Nav-Diagnose (§5), kein stilles Mangling.
+**Reservierte Namen (Runde 7 revidiert, Runde 8 zusammengefasst):** fixe Member `Cancel`/`Exit`/`End`
+und der genestete Typ `Result` bleiben reserviert; `Show` ist nun **Verb-Präfix** (nie bloß) und fällt
+als fixes Member weg; die Continuation-Typen sind node-suffigiert (`Show{View}Continuation`). Weil nur
+der **bare-name Choice-Forward** `{Choice}(…)` überhaupt kollidieren kann (Views/Tasks sind
+`Show`/`Begin`-präfixt), fällt die Kollisionsprüfung in Runde 8 mit der Modus-Kollision zu **einer
+generischen Member-Kollisions-Diagnose (Nav0124, §5)** zusammen — kein eigener reservierte-Namen-Analyzer,
+kein stilles Mangling. Sie deckt reservierte Namen, Präfix-Klasch (`Show{X}`/`Begin{X}`-Choice trifft
+Knoten `X`) und Modus-Kollision einheitlich ab; ihr Eigenwert ist der **still kompilierende Overload**,
+den `csc` verschweigt. Korpus: 0 Kollisionen jeder Art.
 
 ### 4.4 Choices in C#: Context + abstrakte Logic (Runde 3: ohne Dispatch)
 
@@ -466,9 +593,9 @@ protected sealed class Init1CallContext {
     public Result Cancel() => new(() => _wfs.Cancel());
 }
 
-// Maschinerie: nur noch Unwrap (§4.2a)
+// Maschinerie: nur noch Unwrap mit Null-Guard (§4.2a, Runde 8)
 public virtual IINIT_TASK Begin(string message)
-    => BeginLogic(message, new Init1CallContext(this)).Body;
+    => Guard(BeginLogic(message, new Init1CallContext(this)), nameof(BeginLogic)).Body;
 
 protected abstract Init1CallContext.Result BeginLogic(string message, Init1CallContext callContext);
 ```
@@ -479,6 +606,16 @@ direkt aus `BeginLogic` zurückgeben — die Quelle *muss* durch `ctx.Choice_Ret
 
 Die Guards (`if "Fehler"`/`else`) an Choice-Kanten behalten ihren heutigen **Doku-Charakter** — die
 Entscheidung trifft frei formulierter Nutzer-Code in der Choice-Logic, nicht der Generator.
+
+**Verschachtelte Choices `Choice_A --> Choice_B` (Runde 8).** In Nav legal; die Reachability löst
+Choice-Ketten rekursiv auf (`EdgeExtensions.GetReachableCallsImpl`, mit Zyklenschutz). V2 faltet **nicht**
+platt (das brächte die von V2 gekillte Duplikation für Ketten zurück), sondern forwardet **eine Ebene
+tiefer**: `Choice_A`s Context bekommt `{Choice_B}({params})` → `_wfs.Choice_BLogic({params}, new(_wfs)).Body`
+(deferred) — dieselbe Mechanik wie Transition→Choice. **Anti-Bloat bleibt transitiv** (jede
+`Choice_XLogic` existiert einmal), und die Init-Legalitäts-Typisierung greift automatisch (ist `Choice_A`
+init-erreichbar, ist `Choice_B` es transitiv auch → beider `Result.Body` ist `IINIT_TASK`). Ein
+Choice-**Zyklus** ergäbe sich gegenseitig referenzierende Context-Methoden (kompiliert sauber); ob er zur
+Laufzeit kreist, entscheidet allein die Nutzer-Logik — kein Codegen-Problem.
 
 ### 4.5 Concat-Spezialform (Runde 7: derselbe `Show{View}`-Einstieg, Rückgabetyp `Continuation`)
 
@@ -586,7 +723,9 @@ portiert — **nach** dem Design:
   Visitor/Walker. **Neu (Runde 2):** `[params …]`-Klausel an der `choice`-Deklaration, analog
   `init` (Wiederverwendung `ParameterListSyntax`).
 - **Semantic Model:** `IConcatTransition`/`ConcatTransition`, `IConcatableEdge`, `ContinuationCall`
-  in `Call`, Edge-Mode-Behandlung, Analyzer **Nav1020/1021/1022** + **Nav0222**-Fix. **Neu
+  in `Call`, Edge-Mode-Behandlung, Analyzer **Nav0120/0121/0122** (Runde 8 umnummeriert aus den
+  concat-Branch-Nummern 1020/1021/1022 — `Nav1xxx` ist hier **strikt DeadCode/Warning**, Error-Semantik
+  gehört ins 01xx-Band; kein Kompatibilitätszwang, da nicht ausgeliefert) + **Nav0222**-Fix. **Neu
   (Runde 2):** Parameter am `IChoiceNodeSymbol`.
 - **Init-Legalitäts-Analyzer (Runde 5, aus Framework-Verifikation ④).** Aus einem Init erreichbare
   Ausgangskanten dürfen nur Kommandos der **`IINIT_TASK`-Menge** erzeugen (`GotoGUI`/`GotoTask`/
@@ -616,21 +755,29 @@ portiert — **nach** dem Design:
   Greift auch für **edge-lose** Inits (der V1-Generator emittiert `Begin()` für *jeden* Init-Knoten,
   `CodeModelBuilder.GetInitTransitions`). Struktur = Klon von Nav0118, Auto-Discovery. Nav0118
   unangetastet.
-- **Diagnostics, versions-gated (Runde 2):** Concat-Kanten und Choice-`[params]` sind nur ab
-  `#version 2` erlaubt (in V1-Units → Fehler-Diagnostic mit Verweis auf `#version`); `--^` wird
-  vorerst generell abgelehnt („noch nicht unterstützt", Leitentscheidung Nr. 4).
-- **Namens-Kollisions-Diagnose (Runde 4, Runde 7 revidiert):** ein Node, dessen generierter
-  Membername mit einem reservierten Context-Namen kollidiert, wird abgelehnt (Autor benennt um).
-  Reservierte Namen nach Runde 7: fixe Member `Cancel`/`Exit`/`End` und genesteter Typ `Result`;
-  `Show` ist nun Verb-Präfix (nicht mehr fixes Member), Continuation-Typen sind node-suffigiert. ID
-  beim Port vergeben, zu Nav1020/1021/1022 einreihen. Versions-gated (nur wo V2-Contexte entstehen).
-- **Anzeige-Modus-Kollision (Runde 7, ziel-art-übergreifend):** hat eine Quelle zwei Kanten zum
-  **selben** Ziel mit **unterschiedlichem Anzeige-Modus** (goto vs. modal vs. nonmodal, beide ohne
-  Concat), kollidieren die mode-freien Methoden-Signaturen — bei GUI-Knoten `Show{Node}(ViewTO)`
-  (View **und** Dialog), bei Tasks `Begin{Node}(…)`. Nicht über Rückgabetyp lösbar (anders als
-  plain+concat, §4.3-Union). Fachlich vermutlich ohnehin sinnlos → **eigene Diagnose** deckt es beim
-  Port auf, **für GUI- und Task-Ziele gleichermaßen**. (Der plain+concat-Fall ist **keine** Kollision,
-  sondern die Union.) ID beim Port vergeben.
+- **Diagnostics, versions-gated (Runde 2, IDs Runde 8):** Concat-Kanten und Choice-`[params]` sind nur
+  ab `#version 2` erlaubt (in V1-Units → Fehler über das **bestehende Nav5000** „requires Nav language
+  version {1}", **keine** neue ID); `--^` (Goto-Concat) wird vorerst generell abgelehnt („noch nicht
+  unterstützt", Leitentscheidung Runde 2 Nr. 4) — **Nav0123**.
+- **Generische Member-Kollisions-Diagnose Nav0124 (Runde 8, ersetzt die zuvor getrennt geplanten
+  Namens- und Anzeige-Modus-Kollisionen).** Berechnet aus der **generierten Member-Menge** einer Quelle,
+  verankert an der `.nav`-Deklaration/-Kante des Verursachers; Severity **Error**, versions-gated (nur wo
+  V2-Contexte entstehen). Deckt einheitlich ab:
+  - **Reservierte Namen:** ein Choice-Forward `{Choice}(…)` (der einzige **bare-name** Member — Views/
+    Tasks sind `Show`/`Begin`-präfixt) namens `Cancel`/`Exit`/`End`/`Result`.
+  - **Präfix-Klasch:** ein Choice namens `Show{X}`/`Begin{X}`, der auf den präfixten Member eines
+    gleichnamigen GUI-/Task-Knotens `X` derselben Quelle trifft.
+  - **Anzeige-Modus-Kollision:** eine Quelle mit zwei Kanten zum **selben** Ziel bei
+    **unterschiedlichem Anzeige-Modus** (goto vs. modal vs. nonmodal, beide ohne Concat) → gleiche
+    `Show{Node}(ViewTO)`- bzw. `Begin{Node}(…)`-Signatur, nicht über Rückgabetyp lösbar (anders als
+    plain+concat, §4.3-Union — das ist **keine** Kollision).
+
+  Ihr **Eigenwert** ist der **still kompilierende Overload** (unterschiedliche Signaturen), den `csc`
+  **nicht** meldet — die harten Fälle (CS0102/CS0111) fängt der Compiler zwar, aber ein `csc`-Fehler im
+  *generierten* Code ist kaum auf die `.nav`-Stelle rückführbar; die Nav-Diagnose ist die **frühe,
+  zeigende** Meldung. **Korpus: 0 Kollisionen** (Choices namens `Cancel`/`Exit`/`End`/`Result`: 0/5637;
+  `Show*`/`Begin*`-Choices existieren, kollidieren aber mit keinem gleichnamigen Knoten) → frühwarnende
+  Versicherung, kein häufiger Fall. **Kein** eigener reservierte-Namen-Blocklist-Analyzer (Nav0125 verworfen).
 
 ## 6. Architektur-Einbettung (`feature/nav-parser`) & Anti-Bloat
 
@@ -701,8 +848,11 @@ Begin(m, ctx)`); (c) klarere Fehlerdiagnose bei Signatur-Tippfehlern im Override
 „sauberere Namen" wiegt das nicht auf, da die Override-Methoden die Haupt-Berührungsfläche des Nutzers
 sind. Verbleibend/neu:
 
-1. **Kollisions-Diagnose-IDs** (Anzeige-Modus-Kollision für GUI-/Task-Ziele, Namens-Kollision) beim
-   Semantic-Model-Port vergeben und einreihen (§5).
+1. ~~**Kollisions-Diagnose-IDs** (Anzeige-Modus-Kollision für GUI-/Task-Ziele, Namens-Kollision) beim
+   Semantic-Model-Port vergeben und einreihen (§5).~~ **Erledigt (Runde 8):** Cluster **Nav0120–Nav0124**
+   im 01xx-Band; die beiden Kollisions-Diagnosen zu **einer generischen Member-Kollision (Nav0124)**
+   zusammengefasst, Nav0125 entfällt (Leitentscheidungen Runde 8 Nr. 4). Damit ist §7 leer — der
+   Arbeitsvorrat wandert in den Fahrplan (§8, Syntax-/Semantic-Model-/Codegen-Port).
 2. ~~**Analyzer Init-Signatur-Eindeutigkeit** (versionsUNabhängig, Error, Sibling von Nav0118) —
    korpussicher (0/419), kann sofort implementiert werden (§5). Nur noch ID + Umsetzung.~~
    **Erledigt: als `Nav0119` implementiert (§5).**
@@ -716,7 +866,8 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
 2. **Syntax vorwärts portieren** — Tokens/Parser/`ConcatTransitionSyntax`, **Choice-`[params]`**,
    Visitor/Walker; Parser-/Syntax-Tests.
 3. **Semantic Model vorwärts portieren** — `ConcatTransition`/`IConcatableEdge`/`ContinuationCall`,
-   Choice-Parameter, Analyzer Nav1020/1021/1022 + Nav0222-Fix + Versions-Gates (§5);
+   Choice-Parameter, Analyzer **Nav0120/0121/0122** (Concat-Struktur) + **Nav0123** (`--^`) + **Nav0124**
+   (generische Member-Kollision) + Nav0222-Fix + Versions-Gate über bestehendes **Nav5000** (§5);
    Diagnostics-Fixtures.
 4. **`CodeGen/V2/`-Gerüst** — CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie =
    `.Body`-Unwrap, alle Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
@@ -732,7 +883,7 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
 - Codegen: **neue V2-Golden-Snapshots** (CallContext-Grundform, Concat-Fall, Choice-mit-3-Quellen)
   via Snapshot-/`nav parity`-Workflow, Vergleich nach WS-Normalisierung. Die
   concat-Branch-`.expected.cs` sind **nicht** mehr Golden-Referenz (Leitentscheidungen Runde 2).
-- Diagnostics-Fixtures Nav1020/1021/1022 + Versions-Gates (mit `//==>>`-Erwartungen) als
+- Diagnostics-Fixtures **Nav0120–Nav0124** + Versions-Gate (Nav5000) (mit `//==>>`-Erwartungen) als
   Semantic-Tests.
 - Dispatcher-Invariante: **V1-Units bleiben byte-/verhaltensidentisch** (bestehende Regression
   unverändert grün), V2 greift nur für die neuen Fälle.
@@ -794,3 +945,21 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   + Descriptor + Analyzer + 3 Fixtures + `Errors.md` (Zeile 34). net10.0 1352/0, net472 1360/0 grün.
   §5/§7 erledigt-markiert. Damit ist die Init-Analyzer-Familie (Nav0110/0118/0119) komplett; offen
   bleiben nur die V2-Kollisions-Diagnose-IDs beim Semantic-Model-Port.
+- **Runde 8** — **Grill-Durchgang, sieben Gabelungen gegen Code/Korpus verifiziert; §7 geschlossen.**
+  **(1)** Null-Guard immer, zentralisiert als `Guard<T>` je `{Task}WFSBase` (kein Interface, `.Body`
+  bleibt `private`, Maschinerie = geschützter Einzeiler; Platzierung pro Klasse, nicht assembly-weit —
+  Inkrement-Build-/Framework-API-Kosten). **(2)** `[notimplemented]` (Thunk wirft) und `[donotinject]`
+  (expliziter Wrapper-Parameter, V1-treu; Wrapper laufzeit-selektiert aus nutzer-verwalteter Kollektion)
+  werden in V2 unterstützt — beide korpus-real (5/6 `.nav`), kein opt-out. **(3)** Union `plain+concat`:
+  implizite Konvertierung bleibt, geheilt per Doc-Politur + Ergonomie-Test. **(4)** Diagnose-IDs
+  **Nav0120–0124** im 01xx-Band (concat-Struktur 1020/1021/1022→0120/0121/0122 umnummeriert, kein
+  Kompatibilitätszwang; `--^`=0123); **eine generische Member-Kollision Nav0124** ersetzt Modus-Kollision
+  + reservierte Namen (**Nav0125 entfällt**), Wert = still kompilierender Overload den `csc` verschweigt;
+  Versions-Gate via bestehendem Nav5000. Korpus: 0 Kollisionen. **(5)** Verschachtelte Choices =
+  rekursives Forwarding (Anti-Bloat transitiv), Choice→Choice in §4.3-Tabelle. **(6)** Fixes `Exit(result)`
+  bestätigt: reales `InternalTaskResult<T>(result)` trägt keine Exit-Identität, Multi-Exit kollabiert
+  (0 Produktion/1 Framework-Test) → kein `Exit{Node}`. **(7)** `Logic`-Suffix/gemeinsame Basis/
+  Deferred-Thunk (inkl. Allokation) bestätigt, keine Änderung. Detail-Folding **nachgezogen**:
+  §4.2a (`Guard<T>`-Zentralisierung + Maschinerie-Einzeiler), §4.3 (Kanten-Tabelle um
+  notimplemented/donotinject/Choice→Choice + Multi-Exit-Note + reservierte Namen auf Nav0124),
+  §4.4 (Choice→Choice-Forward), §5 (IDs Nav0120–0124, Nav0125 verworfen, Gate via Nav5000), §7/§8/§9.
