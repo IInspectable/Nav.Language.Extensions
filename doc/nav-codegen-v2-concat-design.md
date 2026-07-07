@@ -144,15 +144,19 @@ Festlegungen:
   auch **Cross-Transition-Leckage** ausgeschlossen: ein aus dem `OnRetry`-Context stammendes
   Ergebnis lässt sich nicht aus `BeginLogic` zurückgeben — falscher Typ, Compile-Fehler. (Ein
   gemeinsamer Result-Typ je WFS käme mit weniger Typen aus, ließe aber genau dieses Leck offen.)
-- **`Result.Body` lebt in der Kommando-Welt, nicht in der Body-Welt.** In V1 gab die Logic einen
-  `INavCommandBody`-Marker zurück; in V2 liefert `Result.Body` das **fertige Framework-Kommando**
+- **`Result.Unwrap()` lebt in der Kommando-Welt, nicht in der Body-Welt.** In V1 gab die Logic einen
+  `INavCommandBody`-Marker zurück; in V2 liefert `Result.Unwrap()` das **fertige Framework-Kommando**
   (`IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit). Die Body→Kommando-Übersetzung,
   die in V1 der `switch` macht, sitzt in den Context-Methoden (§3.3).
-- **`Result` kapselt das Kommando *deferred* (`Func<…>`), gebaut erst beim `.Body`-Zugriff.**
+  **`Unwrap()` ist bewusst eine Methode, keine Property** (`Body`): der Zugriff feuert deferred
+  **Seiteneffekte** (GUI-Navigation) und kann **werfen** (`return default;`, s.u.) — beides schließt
+  laut .NET-Design-Guidelines eine Property aus; `Unwrap()` benennt den Vorgang ehrlich und meidet die
+  begriffliche Kollision mit der aufgegebenen V1-`INavCommandBody`-„Body"-Welt.
+- **`Result` kapselt das Kommando *deferred* (`Func<…>`), gebaut erst beim `Unwrap()`-Aufruf.**
   Grund: die Konstruktoren von `GOTO_GUI`/`OPEN_MODAL_GUI`/`.Concat(ITASK_BOUNDARY)` haben
   **Seiteneffekte** (Framework-verifiziert, §3.8/⑤). Würde die Fabrikmethode eager bauen, feuerte
   der Effekt schon beim Aufruf — auch wenn das Ergebnis nie zurückgegeben wird. Der Thunk verschiebt
-  ihn auf den `.Body`-Unwrap in der Maschinerie (V1-Timing) und ist robust gegen „Fabrik aufrufen,
+  ihn auf den `Unwrap()`-Aufruf in der Maschinerie (V1-Timing) und ist robust gegen „Fabrik aufrufen,
   aber nicht zurückgeben".
 
 **Null-/`default`-Schutz strukturell — es gibt keinen Laufzeit-Guard.** Weil `Result` ein
@@ -160,7 +164,7 @@ Festlegungen:
 Zweig vergessen"-Muster fängt der Compiler. Der V1-`switch`-`default:` fing `null` **und**
 unerwartete Marker ab; der Marker-Fall ist in V2 strukturell unmöglich (opaker `Result`), der
 `null`-Fall ein Compile-Fehler. Übrig bleibt nur explizites `return default;` (Func == null) — das
-prüft der **`.Body`-Getter selbst** mit einer generischen, handlungsweisenden Meldung
+prüft der **`Unwrap()`-Aufruf selbst** mit einer generischen, handlungsweisenden Meldung
 (`"A Logic method returned default(Result); every code path must return a navigation result via the
 call context."`); der Maschinerie-Methodenname ergibt sich aus dem **Stacktrace**. Kein
 pro-Klasse-Helfer, keine pro-Transition-Duplikation;
@@ -174,7 +178,7 @@ eager gebaut. Grund: der Massenfall (`--> View` → `GOTO_GUI`) ist seiteneffekt
 ohnehin thunken; selektiv-eager hülfe nur den selteneren reinen Kanten und kostete einen
 Zwei-Nutzlast-`Result` (Kommando **oder** `Func<>` → Diskriminator/zweites Feld → fetterer,
 by-value-kopierter Struct) plus Emitter-Komplexität. Bei Interaktions-Tempo ist der Alloc-Gewinn
-Null. Nur der ephemere `Result` ist ein Struct (in der Logic erzeugt, sofort `.Body`-unwrapped, nie
+Null. Nur der ephemere `Result` ist ein Struct (in der Logic erzeugt, sofort via `Unwrap()` aufgelöst, nie
 in Feldern/Collections gehalten → ideale Value-Semantik); der CallContext bleibt `class`
 (Nutzer-API-Fläche — der eine gesparte Alloc wäre immateriell).
 
@@ -183,11 +187,11 @@ Heap-Objekt (nur `GOTO_GUI`; das `ViewTO` existiert schon) auf `Result`+Thunk-Cl
 (~4 Objekte); nur für Task-Calls ist V2 mit V1 vergleichbar. Bei Interaktions- (nicht
 Schleifen-)Tempo immateriell.
 
-**`Result.Body` ist uniform `internal` — für Transition wie Choice.** Ein `private` Body ist kein
+**`Result.Unwrap()` ist uniform `internal` — für Transition wie Choice.** Ein `private` `Unwrap()` ist kein
 gültiger Kandidat: die klassische Nesting-Regel gilt nur *einseitig* — ein genesteter Typ erreicht
 `private` Member seines Containers, **nicht umgekehrt**. Die Accessibility-Domain eines `private`
 Members ist der Programmtext *seines deklarierenden Typs*; die Maschinerie in `{Task}WFSBase` liegt
-außerhalb von `{Ctx}.Result` und kann dessen `Body` daher **nicht** lesen. Empirisch belegt
+außerhalb von `{Ctx}.Result` und kann dessen `Unwrap()` daher **nicht** lesen. Empirisch belegt
 (`CS0122`; ein oder zwei Nesting-Ebenen ändern nichts):
 
 ```csharp
@@ -195,11 +199,11 @@ public class Wfs {                       // Container
     public sealed class Ctx {
         public readonly struct Result {
             readonly System.Func<int> _c; internal Result(System.Func<int> c)=>_c=c;
-            int Body => _c();             // private → CS0122 unten; internal → ok
+            int Unwrap() => _c();         // private → CS0122 unten; internal → ok
         }
         public Result Make()=>new(()=>1);
     }
-    public int Begin()=>new Ctx().Make().Body;   // Container erreicht nested private NICHT
+    public int Begin()=>new Ctx().Make().Unwrap();   // Container erreicht nested private NICHT
 }
 ```
 
@@ -208,8 +212,8 @@ Klasse im selben Assembly sichtbar" und „für die Container-Maschinerie erreic
 `internal`. Ein Forwarding-Helfer in der Basisklasse senkte die Sichtbarkeit ebenfalls nicht unter
 `internal` (er läge selbst im Container) und kostete nur einen zusätzlichen pro-Choice-Helfer;
 `[EditorBrowsable(Never)]` als Milderung zieht nicht (Roslyn ignoriert es für Symbole im *selben*
-Assembly/Solution — der Override-Autor sieht `Body` in IntelliSense trotzdem). Der **Footgun** —
-Override-Code *kann* `.Body` selbst früh unwrappen und den deferred Seiteneffekt fehlzünden — gilt
+Assembly/Solution — der Override-Autor sieht `Unwrap()` in IntelliSense trotzdem). Der **Footgun** —
+Override-Code *kann* `Unwrap()` selbst früh aufrufen und den deferred Seiteneffekt fehlzünden — gilt
 für alle `Result` gleichermaßen und ist harmlos (bewusster Fehlgriff nötig, der `Result`-ctor ist
 `internal`, der Autor kommt nur über eine Context-Methode an eine Instanz) → **nur dokumentieren**,
 keine Codegen-Maßnahme.
@@ -224,7 +228,7 @@ Body `ShowView(to) => new(() => _wfs.GotoGUI(to))` ist **nicht** teilbar, weil `
 anderen `Result` konstruiert. Vererbung brächte 2 Boilerplate-Zeilen Ersparnis gegen einen
 zusätzlichen Typ + Indirektion, die die selbsterklärenden Contexte verschleiert → nicht wert.
 
-### 3.3 Maschinerie = `.Body`-Unwrap
+### 3.3 Maschinerie = `Unwrap()`
 
 Der V1-`switch(body)` in **jeder** Maschinerie-Methode (hundertfach im Korpus) tut **zwei** Dinge:
 **(a) Validierung** (`default: throw`, dass die Logic nichts Undeklariertes liefert) und **(b)
@@ -237,36 +241,36 @@ nicht mehr:
 - **(b)** sitzt **in der Context-Methode**: statt einen `TaskCall`-Marker zu liefern, ruft
   `ctx.BeginB(…)` `OpenModalTask` **selbst** und verpackt das **fertige Kommando** im `Result`.
 
-Damit kollabiert jede Maschinerie-Methode auf einen **nackten `.Body`-Unwrap** — kein `switch`, kein
-geteilter Choice-Dispatch, keine Marker-Laufzeittypen. Der `.Body`-Zugriff wertet den Thunk aus und
+Damit kollabiert jede Maschinerie-Methode auf einen **nackten `Unwrap()`-Aufruf** — kein `switch`, kein
+geteilter Choice-Dispatch, keine Marker-Laufzeittypen. Der `Unwrap()`-Aufruf wertet den Thunk aus und
 feuert die Kommando-Konstruktion (inkl. etwaiger Seiteneffekte) an genau der Stelle, an der V1 den
 `switch` läuft — **nach** der Logic:
 
 ```csharp
 public virtual IINIT_TASK Begin(string message)
-    => BeginLogic(message, new Init1CallContext(this)).Body;
+    => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
 public virtual INavCommand OnFoo(ViewTO to) {
     to = BeforeTriggerLogic(to);                                     // Trigger-Vorlauf bleibt
-    return OnFooLogic(to, new OnFooCallContext(this)).Body;          // kein switch
+    return OnFooLogic(to, new OnFooCallContext(this)).Unwrap();      // kein switch
 }
 ```
 
 Die Context-Methoden sind expression-bodied Einzeiler, die den Kommando-Bau in einen `Func<…>`
 kapseln (§3.2 — der Thunk verschiebt den Seiteneffekt der `GOTO_GUI`/`OPEN_MODAL_GUI`/`Concat`-
-Konstruktoren auf den `.Body`-Unwrap; der Begin-Aufruf des Sub-Tasks bleibt zusätzlich als
+Konstruktoren auf den `Unwrap()`-Aufruf; der Begin-Aufruf des Sub-Tasks bleibt zusätzlich als
 `BeginTaskWrapper`-Thunk deferred):
 
 ```csharp
 public Result ShowView(ViewTO to)   => new(() => _wfs.GotoGUI(to));   // plain-only: direkt Result
 public Result BeginB(string b1)     => new(() => _wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
 
-// … mit dem geschachtelten Result-Typ (readonly struct; Body ist internal — die Maschinerie in
+// … mit dem geschachtelten Result-Typ (readonly struct; Unwrap() ist internal — die Maschinerie in
 // {Task}WFSBase ist Container von Result und kann dessen private Member NICHT lesen, §3.2):
 public readonly struct Result {
     readonly Func<IINIT_TASK> _command;
     internal Result(Func<IINIT_TASK> command) => _command = command;
-    internal IINIT_TASK Body                     // feuert die Konstruktion beim Unwrap
+    internal IINIT_TASK Unwrap()                 // feuert die Konstruktion beim Aufruf
         => _command is null                      // nur bei explizitem `return default;`
             ? throw new InvalidOperationException(
                   "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
@@ -279,7 +283,7 @@ public readonly struct Result {
 Der Context ist die **vollständige, benannte Übergangs-Fläche** der Transition bzw. Choice — pro
 tatsächlich vorhandener Nav-Kante eine Methode:
 
-Die Spalte „baut (deferred)" ist das Framework-Kommando, das der `Result`-Thunk beim `.Body`-Unwrap
+Die Spalte „baut (deferred)" ist das Framework-Kommando, das der `Result`-Thunk beim `Unwrap()`-Aufruf
 konstruiert (§3.2/§3.3) — kein Zwischenmarker:
 
 | Nav-Kante der Quelle | Context-Methode | baut (deferred im Thunk) |
@@ -289,14 +293,14 @@ konstruiert (§3.2/§3.3) — kein Zwischenmarker:
 | `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `GotoTask`/`OpenModalTask`/`StartNonModalTask(() => _wfs._x.Begin(…), After{Task})` |
 | `-->`/`o->`/`==>` `Task` **`[notimplemented]`** | `Begin{Task}(…)` (existiert weiter) | `throw new NotImplementedException("Task {Task} is specified as [notimplemented]")` im Thunk — V1-Timing (s. Absatz unten) |
 | `-->`/`o->`/`==>` `Task` **`[donotinject]`** | `Begin{Task}(IBegin{Task}WFS wrapper, …)` — **expliziter** Wrapper-Parameter | `…{mode}Task(() => wrapper.Begin(…), After{Task})` — Wrapper vom Nutzer laufzeit-selektiert (s. Absatz unten) |
-| `--> Choice` (auch **Choice→Choice**) | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Body` (Forward, §3.5; rekursiv bei Choice-Ketten) |
+| `--> Choice` (auch **Choice→Choice**) | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Unwrap()` (Forward, §3.5; rekursiv bei Choice-Ketten) |
 | `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` → `TASK_RESULT<T>`, castfrei (§3.8/②) |
 | `--> End` | `End()` | `EndNonModal()` → `END` |
 | immer | `Cancel()` | `Cancel()` → `CANCEL` |
 
 **`[notimplemented]`/`[donotinject]` (beide korpus-real — 5 bzw. 6 echte `.nav`, kein opt-out).**
 Beide werden in V2 unterstützt — ein „in `#version 2` verboten" schüfe eine nie migrierbare V1-Insel.
-`[notimplemented]`: der Ziel-Task bleibt begin-bar, scheitert aber beim `.Body`-Unwrap mit
+`[notimplemented]`: der Ziel-Task bleibt begin-bar, scheitert aber beim `Unwrap()`-Aufruf mit
 `NotImplementedException` — exakt V1s Laufzeitverhalten, nur ins Thunk-Modell überführt:
 `public Result BeginFoo(/*args*/) => new(() => throw new NotImplementedException("Task Foo is specified as [notimplemented]"));`.
 `[donotinject]`: der Wrapper wird **nicht** injiziert (kein `_wfs._x`-Feld), also nimmt `ctx.Begin{Task}`
@@ -328,6 +332,33 @@ opaker `Result`, Modus wandert **in** `ctx.Begin{Node}`). Weil der **CallContext
 kollidiert das nicht: erreichen zwei *verschiedene* Quellen denselben Task-Knoten mit verschiedenem
 Modus, sind das zwei Context-Klassen mit je eigenem `Begin{Node}`; die Anzeige-Modus-Kollision (§4)
 entsteht nur, wenn *eine* Quelle zwei verschieden-modale Kanten zum selben Knoten hat.
+
+**Casing-/Unterstrich-Regel der Member-Namen (silent, verbatim, kein Diagnostic).** Alle aus einem
+Nav-Knotennamen abgeleiteten Member (`Show{Node}`/`Begin{Node}`, der Choice-Forward `{Choice}`, das
+`{Choice}Logic`) übernehmen den Knotennamen **verbatim**, mit **einzig** dem V1-Präzedenzschritt
+`.ToPascalcase()` (nur der erste Buchstabe groß — `StringExtensions.cs`, wie V1 ihn schon auf
+Task-Knoten anwendet; fixt z.B. camelCase `hasWawiExtraLizenz` → `HasWawiExtraLizenz`).
+**Unterstriche bleiben erhalten:** im realen Korpus (1910 `.nav`, 5639 `choice`) tragen 1366/4044
+unique Namen einen Unterstrich, davon 1351 als bewusster `Gruppe_Rest`-Trenner mit PascalCase auf
+beiden Seiten (nur 16 echt snake-ish) — Strippen verschlechterte diese Namen zu Konkatenationen,
+entkoppelte `.nav`- vom C#-Namen und stünde **inkonsistent** neben den **invarianten**
+`After{Task}`/`Begin{Node}`-Membern, die (wegen Cross-Version-`taskref`) die V1-Schreibweise inkl.
+Unterstriche behalten müssen. Der `.ToPascalcase()`-Schritt ist korpusweit **kollisionsfrei**
+(0 zusammenfallende Namen). Es gibt daher **keine** Casing-/Unterstrich-Diagnose: ein Warning feuerte
+korpusweit ~1713-mal auf überwiegend absichtliche Namen (der Flood-Nachteil). Wer einen einzelnen
+Namen säubern will, nutzt die bestehende Rename-Infrastruktur (`ChoiceRenameCodeFix`/
+`RenameNodeCodeFix`, mit `Nav0022`-Dublettencheck). Eine spätere, **V2-gegatete Verschärfung** (dann
+als **Error**, nicht als Warning) bleibt möglich, ist aber **nicht** Teil dieses Designs.
+
+**Choices bleiben Bare-Name (kein Auto-`Choice`-Präfix).** Der Choice-Forward heißt `{Choice}(…)`
+verbatim — es wird **kein** `Choice`-Präfix vorangestellt (`choice Foo;` → `ctx.Foo(…)`/`FooLogic`,
+nicht `ChoiceFoo`). Der Real-Korpus präfixt selbst nicht; ein Auto-Präfix erzeugte Doppel-/Schräg-
+Namen (`OnF9Choice` → `ChoiceOnF9Choice`, historische `Choice_Init` → `ChoiceChoice_Init`) und
+verlangte eine fragile Strip-Heuristik. Der einzige Nutzen — Choice ist der einzige *bare-name*
+Member und damit der einzige Kollisionskandidat mit den reservierten `Cancel`/`Exit`/`End`/`Result` —
+ist korpus-0 und wird bereits von **Nav0124** (§4) als Fehler abgedeckt. `Show`/`Begin` tragen ein
+Verb; eine Choice hat keins, und das `Logic`-Suffix trennt call (`ctx.{Choice}(…)`) von implement
+(`{Choice}Logic`) bereits sauber (§3.7).
 
 **Namenskonvention View-Kanten: EIN mode-freies Verb `Show{NodeName}`.** Der Anzeige-Modus
 (`GotoGUI`/`OpenModalGUI`/`StartNonModalGUI`) ist im Nav via Edge festgelegt (`-->`/`o->`/`==>`) und
@@ -392,7 +423,7 @@ protected sealed class Choice_RetryCallContext {
     internal Choice_RetryCallContext(SampleWFSBase wfs) => _wfs = wfs;
 
     /// Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen; das Kommando wird deferred
-    /// gebaut (Thunk, §3.2). Body ist init-legal (IINIT_TASK), da Choice_Retry aus einem Init
+    /// gebaut (Thunk, §3.2). Das Unwrap()-Ergebnis ist init-legal (IINIT_TASK), da Choice_Retry aus einem Init
     /// erreichbar ist und das Semantic Model init-legale Ausgänge erzwingt (§3.8/④).
     public readonly struct Result {
         readonly Func<IINIT_TASK> _command;
@@ -400,7 +431,7 @@ protected sealed class Choice_RetryCallContext {
         // internal: schon der Container-Zugriff der Maschinerie verlangt internal (nested private
         // ist für den Container unerreichbar, §3.2); der Geschwister-Forward braucht dieselbe
         // Stufe, kein Mehr.
-        internal IINIT_TASK Body
+        internal IINIT_TASK Unwrap()
             => _command is null
                 ? throw new InvalidOperationException(
                       "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
@@ -431,7 +462,7 @@ protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(
 ```
 
 **Die Delegation** ist eine Methode im Context jeder Quelle und läuft **synchron**: sie ruft die
-abstrakte Choice-Logic direkt auf und **forwardet** deren fertiges Kommando (`.Body`) in den eigenen
+abstrakte Choice-Logic direkt auf und **forwardet** deren fertiges Kommando (`Unwrap()`) in den eigenen
 `Result` — kein Marker, kein geteilter Dispatch:
 
 ```csharp
@@ -439,11 +470,11 @@ protected sealed class Init1CallContext {
     readonly SampleWFSBase _wfs;
     internal Init1CallContext(SampleWFSBase wfs) => _wfs = wfs;
 
-    public readonly struct Result {                       // Body internal (Container WFSBase
+    public readonly struct Result {                       // Unwrap() internal (Container WFSBase
                                                           // erreicht nested private nicht, §3.2)
         readonly Func<IINIT_TASK> _command;
         internal Result(Func<IINIT_TASK> command) => _command = command;
-        internal IINIT_TASK Body
+        internal IINIT_TASK Unwrap()
             => _command is null
                 ? throw new InvalidOperationException(
                       "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
@@ -451,16 +482,16 @@ protected sealed class Init1CallContext {
     }
 
     // Init1 --> Choice_Retry: Choice-Logic aufrufen und Kommando durchreichen (deferred:
-    // die Choice-Entscheidung UND der Kommando-Bau feuern erst beim .Body-Unwrap)
+    // die Choice-Entscheidung UND der Kommando-Bau feuern erst beim Unwrap()-Aufruf)
     public Result Choice_Retry(string reason) =>
-        new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Body);
+        new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
 
     public Result Cancel() => new(() => _wfs.Cancel());
 }
 
-// Maschinerie: nackter .Body-Unwrap (§3.3)
+// Maschinerie: nackter Unwrap()-Aufruf (§3.3)
 public virtual IINIT_TASK Begin(string message)
-    => BeginLogic(message, new Init1CallContext(this)).Body;
+    => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
 protected abstract Init1CallContext.Result BeginLogic(string message, Init1CallContext callContext);
 ```
@@ -476,10 +507,10 @@ Entscheidung trifft frei formulierter Nutzer-Code in der Choice-Logic, nicht der
 Reachability löst Choice-Ketten rekursiv auf (`EdgeExtensions.GetReachableCallsImpl`, mit
 Zyklenschutz). V2 faltet **nicht** platt (das brächte die von V2 eliminierte Duplikation für Ketten
 zurück), sondern forwardet **eine Ebene tiefer**: `Choice_A`s Context bekommt `{Choice_B}({params})`
-→ `_wfs.Choice_BLogic({params}, new(_wfs)).Body` (deferred) — dieselbe Mechanik wie
+→ `_wfs.Choice_BLogic({params}, new(_wfs)).Unwrap()` (deferred) — dieselbe Mechanik wie
 Transition→Choice. **Anti-Bloat bleibt transitiv** (jede `Choice_XLogic` existiert einmal), und die
 Init-Legalitäts-Typisierung greift automatisch (ist `Choice_A` init-erreichbar, ist `Choice_B` es
-transitiv auch → beider `Result.Body` ist `IINIT_TASK`). Ein Choice-**Zyklus** ergäbe sich
+transitiv auch → beider `Result.Unwrap()` liefert `IINIT_TASK`). Ein Choice-**Zyklus** ergäbe sich
 gegenseitig referenzierende Context-Methoden (kompiliert sauber); ob er zur Laufzeit kreist,
 entscheidet allein die Nutzer-Logik — kein Codegen-Problem.
 
@@ -543,7 +574,7 @@ zusätzlichen `callContext`-Parameter auch ohne Suffix eine saubere Überladung 
 Maschinerie-Methode (compiler-eindeutig, keine Kollision), aber der Suffix trägt drei menschliche
 Vorteile: (a) er trennt beim **Choice** die Rolle **call** (`ctx.Choice_X(…)`, an der Quelle) von
 **implement** (`Choice_XLogic(…)`, die Entscheidung) — ohne Suffix hieße beides `Choice_X`; (b) die
-Maschinerie liest nicht als Selbst-Rekursion (`Begin(m) => BeginLogic(m, ctx).Body` statt scheinbar
+Maschinerie liest nicht als Selbst-Rekursion (`Begin(m) => BeginLogic(m, ctx).Unwrap()` statt scheinbar
 `Begin(m) => Begin(m, ctx)`); (c) klarere Fehlerdiagnose bei Signatur-Tippfehlern im Override. Der
 Gewinn „sauberere Namen" wiegt das nicht auf, da die Override-Methoden die Haupt-Berührungsfläche
 des Nutzers sind.
@@ -571,7 +602,7 @@ Quellen in `doc/WFS-Spracherweiterung — Framework-Verifikation.md`:
   `.Concat(ITASK_BOUNDARY)` feuern im **Konstruktor** Seiteneffekte (GUI-Navigation bzw.
   `ExecuteCallResult`); nur die feld-speichernden Commands (`OPEN_MODAL_TASK`/`START_NONMODAL_TASK`/
   `TASK_RESULT`/`CANCEL`/`END`/`GOTO_TASK`) sind rein. Deshalb kapselt `Result` den Bau **deferred**
-  (§3.2) — der Effekt feuert erst beim `.Body`-Unwrap, wie in V1.
+  (§3.2) — der Effekt feuert erst beim `Unwrap()`-Aufruf, wie in V1.
 - **⑥ `--^` (Goto-Concat) am Framework verifiziert.** `ExecuteCallResult` (`BaseWFService.cs:263`)
   ist **typ-agnostisch** (polymorphe `while (result is NavCommand)`-Schleife) → `GOTO_TASK` als
   Concat-Boundary wird ausgeführt, **nicht** per Typ-`switch` abgelehnt. `context.GotoTask`/
@@ -590,18 +621,18 @@ Quellen in `doc/WFS-Spracherweiterung — Framework-Verifikation.md`:
   `BaseWFService.cs:263 (ExecuteCallResult) / :167 (GotoTask) / :202 (OpenModalTask)`,
   `GOTO_TASK.cs:27–30`, `OPEN_MODAL_TASK.cs:18–21`, `ServerExecutionContext.cs:264/270`.
 
-**Rückgabetyp-Regel für `Result.Body`:**
+**Rückgabetyp-Regel für `Result.Unwrap()`:**
 
 - **Transition-Context:** `IINIT_TASK` bei Init-Transitionen, `INavCommand` bei Trigger/Exit —
-  entspricht exakt dem Maschinerie-Rückgabetyp, also `return …Logic(…).Body;` **ohne Cast**.
+  entspricht exakt dem Maschinerie-Rückgabetyp, also `return …Logic(…).Unwrap();` **ohne Cast**.
 - **Choice-Context:** `IINIT_TASK`, sobald die Choice aus **irgendeiner** Init-Quelle erreichbar ist,
-  sonst `INavCommand`. Weil `IINIT_TASK : INavCommand`, ist ein init-typisierter Choice-`Result.Body`
+  sonst `INavCommand`. Weil `IINIT_TASK : INavCommand`, ist ein init-typisierter Choice-`Result.Unwrap()`-Rückgabewert
   auch von Trigger-/Exit-Quellen zuweisbar (Forward in §3.5).
 - **④ Init-Legalität ist eine echte Einschränkung, keine Selbstverständlichkeit.** Das Framework macht
   `IINIT_TASK` **gezielt selektiv**: `OPEN_MODAL_TASK`/`OPEN_MODAL_GUI`/`START_NONMODAL_TASK`/`END` sind
   **nicht** `IINIT_TASK` (nur `GOTO_GUI`/`GOTO_TASK`/`TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`;
   Framework-Regel: „a task can only start with GOTO_TASK, GOTO_GUI or TASK_RESULT"). Ein
-  init-typisierter `Result.Body` ist also nur baubar, wenn **alle** aus einem Init erreichbaren Ausgänge
+  init-typisierter `Result.Unwrap()`-Rückgabewert ist also nur baubar, wenn **alle** aus einem Init erreichbaren Ausgänge
   in dieser Menge liegen. Das **erzwingt das Semantic Model** (§4).
 - **④a `--> End` aus Init ist die konkrete Lücke — empirisch verifiziert.** `END : NavCommand,
   ITASK_BOUNDARY, INavCommandBody` (bestätigt an `END.cs`) trägt **kein** `IINIT_TASK`. Der V1-Generator
@@ -638,7 +669,7 @@ portiert — **nach** dem Design:
   Ausgangskanten dürfen nur Kommandos der **`IINIT_TASK`-Menge** erzeugen (`GotoGUI`/`GotoTask`/
   `TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`); `o->`/`==>` direkt aus einem Init (→ `OPEN_MODAL_GUI`/
   `OPEN_MODAL_TASK`/`START_NONMODAL_TASK`, **nicht** `IINIT_TASK`) sowie `--> End` aus init-Reichweite
-  werden abgelehnt — sonst ist der `IINIT_TASK`-typisierte `Result.Body` nicht baubar (§3.8).
+  werden abgelehnt — sonst ist der `IINIT_TASK`-typisierte `Result.Unwrap()`-Rückgabewert nicht baubar (§3.8).
   Arbeitsteilung: **Nav0110** deckt den *Edge-Mode*-Teil ab (`o->`/`==>` aus Init-Reichweite =
   `EdgeMode != Goto` → Fehler), **nicht** aber `--> End` (Goto-Mode-Kante, `END` ist kein
   `IINIT_TASK` → CS0266, §3.8/④a); **Nav0222** trägt nichts bei (nur Edge-Mode-Konsistenz). Die
@@ -715,7 +746,7 @@ Versionierungs-Infrastruktur steht bereits:
   Choice-Forward/Exit/End/Cancel) beschreibt Transitions- **und** Choice-Kontexte — beide sind
   „Aufruffläche einer Kanten-Quelle" und unterscheiden sich nur in Namensquelle und Parametern.
 - **EIN `CallContextEmitter`** (Context-Klasse + `Result` + Continuations). Einen separaten
-  Dispatch-/Switch-Emitter gibt es nicht: die Maschinerie-Methode ist nur der `.Body`-Unwrap (§3.3),
+  Dispatch-/Switch-Emitter gibt es nicht: die Maschinerie-Methode ist nur der `Unwrap()`-Aufruf (§3.3),
   ein triviales Template-Fragment. Der in V1 dreifach fast identische Switch-Block in
   `WfsBaseEmitter.WriteInit/Exit/TriggerTransition` hat in V2 **kein Gegenstück**.
 - `EmitterCommon` (Header/Usings/Annotations) wird V1/V2-geteilt (nach `CodeGen/Shared/` heben; V1
@@ -737,7 +768,7 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
    Member-Kollision) + Nav0222-Fix + Versions-Gate über bestehendes **Nav5000** (§4);
    Diagnostics-Fixtures.
 4. **`CodeGen/V2/`-Gerüst** — CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie =
-   `.Body`-Unwrap, alle Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
+   `Unwrap()`-Aufruf, alle Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
 5. **V2 Concat** — `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt
    `OpenModalTask`/`GotoTask` je Edge-Mode). **`FrameworkStubs.cs` um die Concat-Typfläche
    erweitern** (`.Concat(INOT_A_TASK_BOUNDARY)`/`.Concat(ITASK_BOUNDARY)`-Überladungen auf `GOTO_GUI`,
