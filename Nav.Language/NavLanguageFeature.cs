@@ -5,11 +5,21 @@ namespace Pharmatechnik.Nav.Language;
 /// <summary>
 /// Ein versionsgebundenes Sprach- oder Codegen-Feature der Nav-Sprache. Jeder Wert ist über
 /// <see cref="NavLanguageFeatures.RequiredVersion"/> genau einer Mindest-<see cref="NavLanguageVersion"/>
-/// zugeordnet. Noch <b>ohne</b> Mitglieder — der erste Eintrag entsteht mit dem ersten Feature, das eine
-/// höhere <c>#version</c> voraussetzt; bis dahin steht nur die Gate-Mechanik
-/// (<see cref="NavLanguageFeatures"/>) bereit.
+/// zugeordnet.
 /// </summary>
 public enum NavLanguageFeature {
+
+    /// <summary>
+    /// Continuation-Kanten <c>… o-^ Task</c> / <c>… --^ Task</c> — der an einen GUI-Knoten gehängte
+    /// Fortsetzungs-Task. Ab <see cref="NavLanguageVersion.Version2"/>.
+    /// </summary>
+    Continuation,
+
+    /// <summary>
+    /// Parameter-Klausel an einer <c>choice</c>-Deklaration (<c>choice X [params …]</c>), analog zum
+    /// <c>init</c>-Knoten. Ab <see cref="NavLanguageVersion.Version2"/>.
+    /// </summary>
+    ChoiceParameters
 
 }
 
@@ -27,8 +37,12 @@ public static class NavLanguageFeatures {
     /// Solange kein Feature registriert ist, gilt <see cref="NavLanguageVersion.Default"/>.
     /// </summary>
     public static NavLanguageVersion RequiredVersion(NavLanguageFeature feature) {
-        // Noch keine versionsgebundenen Features registriert — jeder künftige Eintrag kommt hierher.
-        return NavLanguageVersion.Default;
+        return feature switch {
+            NavLanguageFeature.Continuation    => NavLanguageVersion.Version2,
+            NavLanguageFeature.ChoiceParameters => NavLanguageVersion.Version2,
+            // Ein künftiges, versionsloses Feature (oder ein unbekannter Wert) gilt als seit jeher verfügbar.
+            _ => NavLanguageVersion.Default
+        };
     }
 
     /// <summary>

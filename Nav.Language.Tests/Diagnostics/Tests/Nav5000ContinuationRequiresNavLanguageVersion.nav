@@ -16,4 +16,4 @@ task A
     V   --> B o-^ B on OnT;
     B:e --> e;
 }
-//==>>[Semantic](16,13,16,14): error Nav0120: The source node 'B' of the continuation must be a view or dialog
+//==>>[Semantic](16,15,16,18): error Nav5000: 'Continuation' requires Nav language version 2. Add '#version 2'.

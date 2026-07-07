@@ -15,6 +15,13 @@ public class Nav0122DifferentViewsInContinuationNotSupported: NavAnalyzer {
         // Continuation nur auf GENAU EINEN tragenden GUI-Knoten legen. Erreichen die Continuations einer
         // Quelle (auch über Choices hinweg) verschiedene Views, ist das nicht abbildbar. Die „Quelle" ist
         // je nach Übergangsart unterschiedlich gepoolt:
+        //
+        // Ist die Continuation unter der effektiven #version gar nicht verfügbar, ist das Nav5000-Versions-Gate
+        // die eine treffende Diagnose — die Struktur-Prüfung schweigt dann (Folgefehler unterdrücken).
+        if (!NavLanguageFeatures.IsAvailable(NavLanguageFeature.Continuation,
+                                             taskDefinition.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default)) {
+            yield break;
+        }
 
         // Init-Transitionen: alle Ausgänge eines Init-Knotens gemeinsam.
         foreach (var initNode in taskDefinition.NodeDeclarations.OfType<IInitNodeSymbol>()) {

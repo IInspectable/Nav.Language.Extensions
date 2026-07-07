@@ -15,6 +15,14 @@ public class Nav0121TargetNode0OfContinuationMustBeTask: NavAnalyzer {
         // .Concat(OpenModalTask/GotoTask(…)), was eine ITASK_BOUNDARY verlangt. Ein View-/Choice-/Exit-Ziel
         // hätte weder eine Begin-Fabrik noch ein Task-Boundary-Kommando. Unaufgelöste Knoten meldet bereits
         // Nav0011 — hier wird nur der aufgelöste Falschtyp gemeldet.
+        //
+        // Ist die Continuation unter der effektiven #version gar nicht verfügbar, ist das Nav5000-Versions-Gate
+        // die eine treffende Diagnose — die Struktur-Prüfung schweigt dann (Folgefehler unterdrücken).
+        if (!NavLanguageFeatures.IsAvailable(NavLanguageFeature.Continuation,
+                                             taskDefinition.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default)) {
+            yield break;
+        }
+
         foreach (var continuation in taskDefinition.Edges()
                                                    .OfType<IContinuableEdge>()
                                                    .Select(edge => edge.ContinuationTransition)

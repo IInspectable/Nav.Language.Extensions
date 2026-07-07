@@ -485,9 +485,47 @@ public class NavCompletionServiceTests {
         Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.ElseKeyword));
         Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // Continuation-Kanten sind ein Version-2-Feature — unter #version 1 (Default) NICHT angeboten,
+        // sonst böte die Completion einen Vorschlag an, der sofort Nav5000 würfe.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationModalEdgeKeyword)); // o-^
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationGoToEdgeKeyword));  // --^
         // Keine Knoten, keine Deklarations-Keywords.
         Assert.That(labels, Has.None.EqualTo("i"));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));
+    }
+
+    [Test]
+    public void AfterTarget_UnderVersion2_AlsoOffersContinuationEdges() {
+
+        // Wie oben, aber ab #version 2: hinter dem Ziel darf zusätzlich eine Continuation (`o-^`/`--^`)
+        // folgen — dieselbe Gate-Autorität wie Nav5000. Caret (|) hinter dem vollständigen Ziel `V ` (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                i --> V |;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\after-v2.nav");
+        var caret = m.Caret;
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Die Folge-Klauseln bleiben...
+        Assert.That(labels, Does.Contain(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // ...und die Continuation-Kanten kommen hinzu.
+        Assert.That(labels, Does.Contain(SyntaxFacts.ContinuationModalEdgeKeyword)); // o-^
+        Assert.That(labels, Does.Contain(SyntaxFacts.ContinuationGoToEdgeKeyword));  // --^
+        Assert.That(items.Single(i => i.Label == SyntaxFacts.ContinuationModalEdgeKeyword).Kind,
+                    Is.EqualTo(NavCompletionItemKind.Keyword));
     }
 
     [Test]
@@ -1045,6 +1083,60 @@ public class NavCompletionServiceTests {
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.UsingKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.CodeKeyword));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DonotinjectKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OnChoiceNode_UnderVersion1_OffersNothing() {
+
+        // Der choice-Knoten kennt als einziges Code-Keyword `params` — das aber ist ein Version-2-Feature.
+        // Unter #version 1 (Default) wird es NICHT angeboten, sonst böte die Completion einen Vorschlag an,
+        // der sofort Nav5000 würfe. Caret (|) hinter dem `[` des Code-Blocks am choice-Knoten.
+        var m = NavMarkup.Parse(
+            """
+            task A
+            {
+                init i;
+                exit e;
+                choice c [|];
+                i --> c;
+                c --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\choice-v1.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ParamsKeyword));
+    }
+
+    [Test]
+    public void InCodeBlockKeywordSlot_OnChoiceNode_UnderVersion2_OffersParams() {
+
+        // Ab #version 2 ist die Choice-`[params]`-Klausel verfügbar (dieselbe Gate-Autorität wie Nav5000).
+        // Caret (|) hinter dem `[` des Code-Blocks am choice-Knoten.
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                choice c [|];
+                i --> c;
+                c --> e;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\choice-v2.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Is.EquivalentTo(new[] { SyntaxFacts.ParamsKeyword }));
     }
 
     [Test]

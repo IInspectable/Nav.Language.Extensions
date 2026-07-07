@@ -36,7 +36,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | **erledigt** — s.u. |
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | **erledigt** — s.u. |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | **erledigt** — s.u. (Nav0124 → S4 verschoben) |
-| **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | offen |
+| **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **S4a erledigt** (Gate + Nav5000 + Completion), **S4b offen** (Nav0124) — s.u. |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | offen |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | offen — **gated?** (§Gating) |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
@@ -161,7 +161,49 @@ solche Abhängigkeit — deshalb sauber in S3, Nav0124 zusammen mit dem Gate in 
 
 Verifikation: `nav build` + beide TFMs grün (net10 1377/0, net472 1385/0 — je 3 explizite Skips);
 drei neue Diagnostics-Fixtures (`Nav0120…`/`Nav0121…`/`Nav0122….nav`) mit `//==>>`-Erwartungen, je
-kollateralfrei (nur die Zieldiagnose feuert).
+kollateralfrei (nur die Zieldiagnose feuert). **Diese drei Fixtures sind in S4a wieder entfallen** —
+siehe die S4-Anmerkung unten (die Struktur-Analyzer schweigen jetzt unter `#version 1`, und `#version 2`
+ist bis S5 nicht authorbar; ihre Fixtures kehren mit S5 zurück).
+
+### S4-Anmerkung: Aufteilung in S4a/S4b + die „ein treffender Fehler"-Entscheidung
+
+S4 ist für einen Commit zu groß (Gate + Nav5000 + versionsbewusste Completion + Nav0124 mit
+Korpus-Argumentation). Aufgeteilt in **S4a** (Versions-Gate + Nav5000 + Completion — **erledigt**) und
+**S4b** (Nav0124 generische Member-Kollision — **offen**). Die Reihenfolge ist zwingend: Nav0124 ist
+versions-gated und braucht das `NavLanguageFeatures`-Gate, das erst S4a liefert.
+
+**S4a umgesetzt:**
+
+- **`NavLanguageVersion.Version2`** als *benannter* Bezugspunkt — aber bewusst **noch nicht** in
+  `SupportedVersions`. Der V2-Codegenerator fehlt; bis er steht bleibt `#version 2` ein **Nav5001**
+  (statt beim Codegen zu scheitern). Version2 wandert erst mit dem Generator (S5) in
+  `SupportedVersionTable`. `IsAvailable`/`RequiredVersion` vergleichen nur numerisch — sie funktionieren
+  für das Gate und die Completion, ohne dass Version2 „unterstützt" sein muss.
+- **`NavLanguageFeature.Continuation`/`ChoiceParameters`** (`RequiredVersion = Version2`) — die ersten
+  Einträge des zuvor leeren Enums; einzige Autorität für „welches Feature ab welcher Version".
+- **Nav5000-Gate-Analyzer** (`Nav5000FeatureRequiresNavLanguageVersion`, Auto-Discovery): eine Meldung
+  je Continuation-Kante (Anker = Fortsetzungs-Kantenmodus `o-^`/`--^`) und je Choice-`[params]`-Klausel,
+  wenn die effektive `#version` das Feature nicht erreicht. Verankert `CodeGenerationUnit.LanguageVersion`.
+- **„Ein treffender Fehler" (Team-Entscheidung, Roslyn-Stil, [[nav-parser-recovery-roslyn-style]]):**
+  Feuert Nav5000, **schweigen** die Continuation-Struktur-Analyzer **Nav0120/0121/0122** (sie sind nun
+  hinter `IsAvailable(Continuation, …)` gegatet). Ein `#version 1`-File mit `o-^` bekommt also **nur**
+  Nav5000, nicht zusätzlich die Struktur-Diagnose. Konsequenz: unter `#version 1` sind die
+  Struktur-Analyzer stumm, und `#version 2` ist bis S5 nicht sauber authorbar (→ Nav5001) — die drei
+  S3-Struktur-Fixtures wurden daher **entfernt** und kehren mit S5 (dann `#version 2`) zurück. An ihre
+  Stelle treten zwei Nav5000-Fixtures: `Nav5000ContinuationRequiresNavLanguageVersion.nav` (belegt
+  zugleich die Unterdrückung — struktur-falsche Continuation unter v1 → **nur** Nav5000) und
+  `Nav5000ChoiceParametersRequireNavLanguageVersion.nav`.
+- **Versionsbewusste Completion** (§4.1): `AfterTarget` bietet `o-^`/`--^` erst ab `#version 2` an, die
+  Choice-`[params]`-Klausel (Code-Block-Slot am `choice`-Knoten) ebenso — beide hinter derselben
+  `NavLanguageFeatures.IsAvailable`-Autorität wie Nav5000. **Abweichung vom Design-Wortlaut §4.1:** die
+  Continuation-Keywords liegen in `AfterTargetItems`, **nicht** in `VisibleEdgeKeywordItems` — eine
+  Continuation leitet keine neue Transition ein (sie hängt hinter dem Zielknoten), sie sind daher — wie
+  schon in `SyntaxFacts.ContinuationEdgeKeywords` — von den regulären Edge-Keywords getrennt. Zusätzlich
+  nötig: `CodeBlockHostAt` kannte den `choice`-Knoten noch nicht (`CodeBlockHost.ChoiceNode`) — ergänzt.
+
+Verifikation S4a: `nav build` + beide TFMs grün (**net10 1379/0, net472 1387/0** — je 3 explizite Skips);
+zwei neue Diagnostics-Fixtures + drei neue Completion-Tests (`AfterTarget` v1/v2, Choice-`[params]`
+v1/v2).
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

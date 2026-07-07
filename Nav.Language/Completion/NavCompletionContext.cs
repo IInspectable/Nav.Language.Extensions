@@ -411,10 +411,11 @@ sealed class NavCompletionContext {
         if (anchor != null) {
             foreach (var node in anchor.AncestorsAndSelf()) {
                 switch (node) {
-                    case InitNodeDeclarationSyntax: return (CodeBlockHost.InitNode,       node);
-                    case TaskNodeDeclarationSyntax: return (CodeBlockHost.TaskNode,       node);
-                    case TaskDefinitionSyntax:      return (CodeBlockHost.TaskDefinition, node);
-                    case TaskDeclarationSyntax:     return (CodeBlockHost.TaskRef,        node);
+                    case InitNodeDeclarationSyntax:   return (CodeBlockHost.InitNode,       node);
+                    case ChoiceNodeDeclarationSyntax: return (CodeBlockHost.ChoiceNode,     node);
+                    case TaskNodeDeclarationSyntax:   return (CodeBlockHost.TaskNode,       node);
+                    case TaskDefinitionSyntax:        return (CodeBlockHost.TaskDefinition, node);
+                    case TaskDeclarationSyntax:       return (CodeBlockHost.TaskRef,        node);
                 }
             }
         }

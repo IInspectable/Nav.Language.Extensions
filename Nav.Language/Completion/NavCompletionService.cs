@@ -118,7 +118,7 @@ public static class NavCompletionService {
 
             // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die im jeweiligen Wirt zulässigen Code-Keywords.
             case NavCompletionContextKind.CodeBlock:
-                return CodeBlockKeywordItems(context);
+                return CodeBlockKeywordItems(context, unit.LanguageVersion);
 
             case NavCompletionContextKind.MemberLevel:
                 return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
@@ -146,7 +146,7 @@ public static class NavCompletionService {
                 return TransitionStartItems(context);
 
             case NavCompletionContextKind.AfterTarget:
-                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
+                return AfterTargetItems(unit.LanguageVersion);
 
             case NavCompletionContextKind.AfterTrigger:
                 return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
@@ -283,14 +283,48 @@ public static class NavCompletionService {
     // ein task-Kopf `code`/`base`/…, ein init-Knoten `abstractmethod`/`params` usw. — statt pauschal aller
     // Code-Keywords. Am Wirt bereits vorhandene Singletons (alle Deklarationen außer dem wiederholbaren
     // `using`) werden zusätzlich herausgefiltert (context.PresentCodeKeywords).
-    static List<NavCompletionItem> CodeBlockKeywordItems(NavCompletionContext context) {
+    static List<NavCompletionItem> CodeBlockKeywordItems(NavCompletionContext context, NavLanguageVersion version) {
         var items = new List<NavCompletionItem>();
         foreach (var keyword in CodeBlockFacts.AvailableDeclarationKeywords(context.Host, context.PresentCodeKeywords)
+                                              .Where(keyword => IsCodeKeywordAvailable(context.Host, keyword, version))
                                               .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
         return items;
+    }
+
+    // Die choice-`[params]`-Klausel ist ein Version-2-Feature (dieselbe Nav5000-Gate-Autorität): `params` wird
+    // im choice-Knoten erst ab #version 2 angeboten — sonst böte die Completion einen Vorschlag an, der sofort
+    // Nav5000 würfe. Alle übrigen Code-Block-Keywords (auch das versionsunabhängige `params` am init-Knoten und
+    // an der Task-Definition) sind versionsneutral.
+    static bool IsCodeKeywordAvailable(CodeBlockHost host, string keyword, NavLanguageVersion version) {
+        if (host == CodeBlockHost.ChoiceNode && keyword == SyntaxFacts.ParamsKeyword) {
+            return NavLanguageFeatures.IsAvailable(NavLanguageFeature.ChoiceParameters, version);
+        }
+
+        return true;
+    }
+
+    // Hinter einem vollständigen Ziel: die Folge-Klauseln on/if/else/do — und ab Sprachversion 2 zusätzlich die
+    // Continuation-Kanten o-^/--^ (`… --> View o-^ Task`), sofern das Feature unter der effektiven #version
+    // verfügbar ist (dieselbe Autorität wie das Nav5000-Gate). Die Continuation-Keywords liegen bewusst hier und
+    // NICHT in VisibleEdgeKeywordItems: eine Continuation leitet keine neue Transition ein (sie hängt hinter dem
+    // Zielknoten), sie sind daher — wie schon in SyntaxFacts — von den regulären Edge-Keywords getrennt.
+    static IReadOnlyList<NavCompletionItem> AfterTargetItems(NavLanguageVersion version) {
+
+        var keywords = new List<string> {
+            SyntaxFacts.OnKeyword,
+            SyntaxFacts.IfKeyword,
+            SyntaxFacts.ElseKeyword,
+            SyntaxFacts.DoKeyword
+        };
+
+        if (NavLanguageFeatures.IsAvailable(NavLanguageFeature.Continuation, version)) {
+            keywords.AddRange(SyntaxFacts.ContinuationEdgeKeywords);
+        }
+
+        return KeywordItems(keywords.ToArray());
     }
 
     // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Jedes Item trägt denselben Ersetzungsbereich
