@@ -36,10 +36,15 @@ public class SyntaxFactsTest {
         "notimplemented",
         "abstractmethod",
         "-->",
-        "*->",
         "o->",
         "==>",
         "code"
+    };
+
+    // Continuation-Kanten sind bewusst NICHT Teil von SyntaxFacts.Keywords (eigene Kategorie).
+    static readonly string[] ExpectedContinuationEdgeKeywords = {
+        "--^",
+        "o-^"
     };
 
     static readonly char[] ExpectedPunctuations = {
@@ -219,13 +224,32 @@ public class SyntaxFactsTest {
     }
 
     [Test]
-    public void ModalEdgeKeywordAltTest() {
-        Assert.That(SyntaxFacts.ModalEdgeKeywordAlt, Is.EqualTo("*->"));
+    public void NonModalEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.NonModalEdgeKeyword, Is.EqualTo("==>"));
     }
 
     [Test]
-    public void NonModalEdgeKeywordTest() {
-        Assert.That(SyntaxFacts.NonModalEdgeKeyword, Is.EqualTo("==>"));
+    public void ContinuationGoToEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.ContinuationGoToEdgeKeyword, Is.EqualTo("--^"));
+    }
+
+    [Test]
+    public void ContinuationModalEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.ContinuationModalEdgeKeyword, Is.EqualTo("o-^"));
+    }
+
+    [Test]
+    public void ContinuationEdgeKeywordsTest() {
+        Assert.That(SyntaxFacts.ContinuationEdgeKeywords, Is.EquivalentTo(ExpectedContinuationEdgeKeywords));
+    }
+
+    [Test]
+    [TestCaseSource(nameof(ExpectedContinuationEdgeKeywords))]
+    public void IsContinuationEdgeKeywordTest(string value) {
+        Assert.That(SyntaxFacts.IsContinuationEdgeKeyword(value), Is.True, $"'{value}' should be a continuation edge keyword");
+        // Continuation-Kanten sind KEINE regulären Edge-Keywords und keine Nav-Keywords.
+        Assert.That(SyntaxFacts.IsEdgeKeyword(value), Is.False, $"'{value}' should NOT be a regular edge keyword");
+        Assert.That(SyntaxFacts.IsKeyword(value),     Is.False, $"'{value}' should NOT be in Keywords");
     }
 
     [Test]

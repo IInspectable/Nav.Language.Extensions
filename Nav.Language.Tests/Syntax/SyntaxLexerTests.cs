@@ -103,6 +103,9 @@ public class SyntaxLexerTests {
         yield return new TestCaseData("-->",  new[] { SyntaxTokenType.GoToEdgeKeyword }).SetName("edge '-->'");
         yield return new TestCaseData("->",   new[] { SyntaxTokenType.Unknown, SyntaxTokenType.GreaterThan }).SetName("'->' zerfällt in Unknown + GreaterThan");
         yield return new TestCaseData("-",    new[] { SyntaxTokenType.Unknown }).SetName("'-' ist Unknown");
+        yield return new TestCaseData("--^",  new[] { SyntaxTokenType.ContinuationGoToEdgeKeyword }).SetName("edge '--^'");
+        yield return new TestCaseData("o-^",  new[] { SyntaxTokenType.ContinuationModalEdgeKeyword }).SetName("edge 'o-^'");
+        yield return new TestCaseData("o-^I", new[] { SyntaxTokenType.ContinuationModalEdgeKeyword, SyntaxTokenType.Identifier }).SetName("edge 'o-^I'");
         yield return new TestCaseData("==>",  new[] { SyntaxTokenType.NonModalEdgeKeyword }).SetName("edge '==>'");
         yield return new TestCaseData("=",    new[] { SyntaxTokenType.Unknown }).SetName("'=' ist Unknown");
         yield return new TestCaseData("==",   new[] { SyntaxTokenType.Unknown, SyntaxTokenType.Unknown }).SetName("'==' zerfällt in zwei Unknown");

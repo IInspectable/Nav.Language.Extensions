@@ -33,7 +33,7 @@ Commit-Message — der Commit macht der Nutzer.
 | # | Inhalt | Design-Ref | Fertig, wenn | Status |
 |---|---|---|---|---|
 | **S0** | Status-Doc (dieses) + Golden-**Input**-`.nav` festschreiben: CallContext-Grundform, Continuation, Choice-mit-3-Quellen | §6.1, §8.2 | `.nav` liegen unter `Regression/Tests/V2/`, alle `#version 2`, je distinkter Task-Name **und** `[namespaceprefix]` (sonst Dateinamens-Kollision, §7) | **erledigt** — `BasicFlow.nav`/`ContinuationFlow.nav`/`ChoiceFlow.nav`; Harness überspringt den `V2\`-Teilbaum vorläufig (s.u.) |
-| **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | offen |
+| **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | **erledigt** — s.u. |
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | offen |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + **Nav0124** (generische Member-Kollision) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | offen |
 | **S4** | **Versions-Gate + Completion:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`) | §6.3 (Teil C), §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000-Fixtures | offen |
@@ -54,6 +54,30 @@ nicht durch die `NavCodeGeneratorPipeline` laufen: Sprachversion 2 ist noch nich
 `PlainGetFileTestCases`). Die Dateien sind bis dahin **reine Referenz-Eingaben** — kein `.expected.cs`.
 Sobald V2 generiert, entfällt der Filter und der Teilbaum bekommt seine `.expected.cs` (dann greift die
 Auto-Discovery aus §7 ohne Sonderfall).
+
+### S1-Anmerkung: was die Syntax-Portierung umfasst
+
+Umgesetzt (versionsunabhängig, rein syntaktisch — Versions-Wirksamkeit ist erst S4):
+
+- **Tokens:** `SyntaxTokenType.ContinuationGoToEdgeKeyword` (`--^`) und `ContinuationModalEdgeKeyword`
+  (`o-^`); der `NavLexer` erkennt sie — wie die regulären Mehrzeichen-Kanten — **vor** dem Identifier.
+  In `SyntaxFacts` liegen sie in einer **eigenen** Menge `ContinuationEdgeKeywords`
+  (`IsContinuationEdgeKeyword`), bewusst **nicht** in `NavKeywords`/`EdgeKeywords`: eine Continuation
+  leitet keine neue Transition ein. Der alte Alt-Token `*->` (`ModalEdgeKeywordAlt`) ist **entfernt**
+  (er wurde vom Lexer ohnehin nie erzeugt).
+- **Syntaxknoten:** `ContinuationEdgeSyntax` (abstrakt) mit `ContinuationModalEdgeSyntax` (Modal) und
+  `ContinuationGoToEdgeSyntax` (Goto); `ContinuationTransitionSyntax` (`Edge`/`TargetNode`, beide
+  fehlertolerant optional). `TransitionDefinitionSyntax` **und** `ExitTransitionDefinitionSyntax`
+  tragen ein optionales `ContinuationTransition`-Kind (hinter dem Zielknoten, vor Trigger/Bedingung).
+  `ChoiceNodeDeclarationSyntax` bekommt ein optionales `CodeParamsDeclaration` (Wiederverwendung von
+  `ParameterListSyntax`, geparst wie beim `init`-Knoten über `CodeBlockHost.ChoiceNode`).
+- **Parser:** `ParseContinuationTransition`/`ParseContinuationEdge` samt Grammatik-Fragmenten; die
+  Continuation wird nur bei `o-^`/`--^` geparst — V1-Transitionen bleiben byte-identisch.
+- **Visitor/Walker** entstehen automatisch (Quellgenerator über alle konkreten `*Syntax`-Typen).
+- **Grammatik-Konsistenz:** die EBNF-Fragmente sind geschlossen (NAV001/NAV002 grün); der
+  Literal-Terminal-Check kennt jetzt auch `IsContinuationEdgeKeyword`.
+
+Verifikation: `nav build` + beide TFMs grün (net10 1369/0, net472 1377/0 — je 3 explizite Skips).
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

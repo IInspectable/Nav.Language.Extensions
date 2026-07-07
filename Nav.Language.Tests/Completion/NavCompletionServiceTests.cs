@@ -173,8 +173,10 @@ public class NavCompletionServiceTests {
         Assert.That(items.Single(i => i.Label == SyntaxFacts.ModalEdgeKeyword).Kind,
                     Is.EqualTo(NavCompletionItemKind.Keyword));
         // Versteckte Edge-Keywords nicht.
-        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ModalEdgeKeywordAlt)); // *->
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.NonModalEdgeKeyword));
+        // Continuation-Kanten sind keine regulären Transitions-Kanten und werden hier nicht angeboten.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationGoToEdgeKeyword));  // --^
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationModalEdgeKeyword)); // o-^
         // Hinter dem Quellknoten kann nur eine Edge folgen — keine Knoten, keine sonstigen Keywords.
         Assert.That(labels, Has.None.EqualTo("Sub"));
         Assert.That(labels, Has.None.EqualTo(SyntaxFacts.InitKeyword));

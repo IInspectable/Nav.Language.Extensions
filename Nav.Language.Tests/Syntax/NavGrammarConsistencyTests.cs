@@ -64,7 +64,8 @@ public class NavGrammarConsistencyTests {
 
         foreach (var terminal in QuotedTerminals(NavGrammar.Ebnf)) {
 
-            var known = SyntaxFacts.IsKeyword(terminal) ||
+            var known = SyntaxFacts.IsKeyword(terminal)                ||
+                        SyntaxFacts.IsContinuationEdgeKeyword(terminal) ||
                         terminal.Length == 1 && SyntaxFacts.IsPunctuation(terminal[0]);
 
             Assert.That(known, Is.True, $"Das literale Terminal \"{terminal}\" ist kein bekanntes Nav-Literal (SyntaxFacts).");

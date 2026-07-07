@@ -13,14 +13,16 @@ public partial class ExitTransitionDefinitionSyntax: SyntaxNode {
                                             IdentifierSourceNodeSyntax sourceNode,
                                             EdgeSyntax? edge,
                                             TargetNodeSyntax? targetNode,
+                                            ContinuationTransitionSyntax? continuationTransition,
                                             ConditionClauseSyntax? conditionClause,
                                             DoClauseSyntax? doClause): base(extent) {
 
-        AddChildNode(SourceNode      = sourceNode);
-        AddChildNode(Edge            = edge);
-        AddChildNode(TargetNode      = targetNode);
-        AddChildNode(ConditionClause = conditionClause);
-        AddChildNode(DoClause        = doClause);
+        AddChildNode(SourceNode             = sourceNode);
+        AddChildNode(Edge                   = edge);
+        AddChildNode(TargetNode             = targetNode);
+        AddChildNode(ContinuationTransition = continuationTransition);
+        AddChildNode(ConditionClause        = conditionClause);
+        AddChildNode(DoClause               = doClause);
     }
 
     public IdentifierSourceNodeSyntax SourceNode { get; }
@@ -33,6 +35,8 @@ public partial class ExitTransitionDefinitionSyntax: SyntaxNode {
     public EdgeSyntax? Edge { get; }
 
     public TargetNodeSyntax? TargetNode { get; }
+
+    public ContinuationTransitionSyntax? ContinuationTransition { get; }
 
     public ConditionClauseSyntax? ConditionClause { get; }
 

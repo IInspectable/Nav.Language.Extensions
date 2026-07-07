@@ -29,7 +29,10 @@ enum CodeBlockHost {
     InitNode,
 
     /// <summary><c>task</c>-Knoten: <c>donotinject</c>, <c>abstractmethod</c>.</summary>
-    TaskNode
+    TaskNode,
+
+    /// <summary><c>choice</c>-Knoten: <c>params</c> (ab Sprachversion 2).</summary>
+    ChoiceNode
 
 }
 
@@ -54,6 +57,7 @@ static class CodeBlockFacts {
         CodeBlockHost.TaskDefinition  => ImmutableArray.Create(SyntaxFacts.CodeKeyword,            SyntaxFacts.BaseKeyword,           SyntaxFacts.GeneratetoKeyword, SyntaxFacts.ParamsKeyword, SyntaxFacts.ResultKeyword),
         CodeBlockHost.InitNode        => ImmutableArray.Create(SyntaxFacts.AbstractmethodKeyword,  SyntaxFacts.ParamsKeyword),
         CodeBlockHost.TaskNode        => ImmutableArray.Create(SyntaxFacts.DonotinjectKeyword,     SyntaxFacts.AbstractmethodKeyword),
+        CodeBlockHost.ChoiceNode      => ImmutableArray.Create(SyntaxFacts.ParamsKeyword),
         _                             => ImmutableArray<string>.Empty
     };
 

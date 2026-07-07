@@ -61,6 +61,11 @@ public enum SyntaxTokenType {
     PragmaKeyword          = 53,
     VersionKeyword         = 54,
     SkippedTokensTrivia    = 55,
+    // Continuation-Kanten (`--^`/`o-^`, ab Sprachversion 2): der GUI-Knoten setzt den Übergang in einen
+    // Folge-Task fort (§Continuation des V2-Codegen-Designs). Getrennt von den regulären Transitions-Kanten,
+    // weil sie keine neue Transition einleiten.
+    ContinuationGoToEdgeKeyword  = 56, // --^
+    ContinuationModalEdgeKeyword = 57, // o-^
     EndOfFile              = 255
 
 }

@@ -65,6 +65,13 @@ sealed partial class NavParser {
         return builder.ToExtent();
     }
 
+    static TextExtent Span(ExtentPart p1, ExtentPart p2, ExtentPart p3, ExtentPart p4, ExtentPart p5, ExtentPart p6, ExtentPart p7, ExtentPart p8) {
+        var builder = new ExtentBuilder();
+        builder.Add(p1.Extent); builder.Add(p2.Extent); builder.Add(p3.Extent); builder.Add(p4.Extent);
+        builder.Add(p5.Extent); builder.Add(p6.Extent); builder.Add(p7.Extent); builder.Add(p8.Extent);
+        return builder.ToExtent();
+    }
+
     /// <summary>
     /// Ein Bestandteil eines <see cref="Span(ExtentPart)"/>-Aufrufs: trägt nur den <see cref="TextExtent"/>
     /// eines (optionalen) Tokens oder Kindknotens. Die impliziten Konvertierungen halten die Aufrufstellen

@@ -48,6 +48,10 @@ public class SyntaxWalkerTests {
             walker.Walk(skipped);
         }
 
+        // Die Continuation-Konstrukte (ab Sprachversion 2) fehlen in AllRules (Version 1) — eigener Schnipsel,
+        // damit auch ihre generierten WalkXxx-Methoden erreicht werden.
+        walker.Walk(SyntaxTree.ParseText("#version 2\r\ntask A\r\n{\r\n    view V;\r\n    task T;\r\n    V --> V o-^ T;\r\n    V --> V --^ T;\r\n}").Root);
+
         return walker.Walked;
     }
 

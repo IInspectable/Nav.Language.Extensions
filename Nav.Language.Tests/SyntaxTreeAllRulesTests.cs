@@ -27,7 +27,7 @@ public class SyntaxTreeTests {
 
         // Die Anzahl kann/darf sich über die Zeit auch ändern.
         // Blöd wäre nur, wenn hier keine Syntaxen gefunden würden ;-)
-        Assert.That(nodeTypes.Count, Is.EqualTo(49));
+        Assert.That(nodeTypes.Count, Is.EqualTo(52));
 
         // Direktiven und übersprungene Läufe sind strukturierte Trivia (keine Kindknoten) und werden daher
         // über die Trivia erreicht: AllRules trägt die wirksame #version (VersionDirectiveSyntax); eine
@@ -37,6 +37,10 @@ public class SyntaxTreeTests {
         presentTypes.UnionWith(cgu.SyntaxTree.Directives().Select(directive => directive.GetType()));
         presentTypes.UnionWith(SyntaxTree.ParseText("#unknown\r\ntask A{}").Directives().Select(directive => directive.GetType()));
         presentTypes.UnionWith(SyntaxTree.ParseText("task A\r\n{\r\n    init [];\r\n}").SkippedTokens().Select(skipped => skipped.GetType()));
+        // Die Continuation-Konstrukte (ContinuationTransitionSyntax samt beider Continuation-Kanten) sind ab
+        // Sprachversion 2 gültig; AllRules bleibt bewusst Version 1, daher aus einem eigenen Schnipsel.
+        presentTypes.UnionWith(SyntaxTree.ParseText("#version 2\r\ntask A\r\n{\r\n    view V;\r\n    task T;\r\n    V --> V o-^ T;\r\n    V --> V --^ T;\r\n}")
+                                         .Root.DescendantNodesAndSelf().Select(node => node.GetType()));
 
         foreach (var nodeType in nodeTypes) {
 

@@ -44,8 +44,8 @@ readonly record struct RawToken(SyntaxTokenType Type, TextExtent Extent) {
 /// <list type="bullet">
 /// <item>Ein Zeilenkommentar endet <b>vor</b> dem Zeilenende; das Zeilenende wird als eigenes
 /// <see cref="SyntaxTokenType.NewLine"/> gelext.</item>
-/// <item>Mehrzeichen-Kanten (<c>--&gt;</c>, <c>==&gt;</c>, <c>o-&gt;</c>) werden vor dem Identifier
-/// erkannt, sonst verschluckt der Identifier-Scan das <c>o</c>.</item>
+/// <item>Mehrzeichen-Kanten (<c>--&gt;</c>, <c>--^</c>, <c>==&gt;</c>, <c>o-&gt;</c>, <c>o-^</c>) werden vor
+/// dem Identifier erkannt, sonst verschluckt der Identifier-Scan das <c>o</c>.</item>
 /// <item>Ein String-Literal ohne schließendes <c>"</c> zerfällt: das öffnende <c>"</c> wird zu
 /// <see cref="SyntaxTokenType.Unknown"/>, der Rest normal weitergelext.</item>
 /// </list>
@@ -122,9 +122,14 @@ sealed class NavLexer {
             return;
         }
 
-        // Mehrzeichen-Kanten vor dem Identifier (sonst frisst der Identifier-Scan das 'o' aus 'o->').
+        // Mehrzeichen-Kanten vor dem Identifier (sonst frisst der Identifier-Scan das 'o' aus 'o->'/'o-^').
         if (Match("-->")) {
             AddAndAdvance(SyntaxTokenType.GoToEdgeKeyword, 3);
+            return;
+        }
+
+        if (Match("--^")) {
+            AddAndAdvance(SyntaxTokenType.ContinuationGoToEdgeKeyword, 3);
             return;
         }
 
@@ -135,6 +140,11 @@ sealed class NavLexer {
 
         if (Match("o->")) {
             AddAndAdvance(SyntaxTokenType.ModalEdgeKeyword, 3);
+            return;
+        }
+
+        if (Match("o-^")) {
+            AddAndAdvance(SyntaxTokenType.ContinuationModalEdgeKeyword, 3);
             return;
         }
 

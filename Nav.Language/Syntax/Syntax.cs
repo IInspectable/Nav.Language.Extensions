@@ -198,4 +198,8 @@ public static class Syntax {
         return (CodeNotImplementedDeclarationSyntax)NavParser.ParseRule(text, NavParser.Rule.CodeNotImplementedDeclaration, filePath, cancellationToken).Root;
     }
 
+    public static ContinuationTransitionSyntax ParseContinuationTransition(string? text, string? filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
+        return (ContinuationTransitionSyntax)NavParser.ParseRule(text, NavParser.Rule.ContinuationTransition, filePath, cancellationToken).Root;
+    }
+
 }

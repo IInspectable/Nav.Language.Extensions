@@ -40,7 +40,12 @@ public static class SyntaxFacts {
     public static readonly string GoToEdgeKeyword        = "-->";
     public static readonly string NonModalEdgeKeyword    = "==>";
     public static readonly string ModalEdgeKeyword       = "o->";
-    public static readonly string ModalEdgeKeywordAlt    = "*->";
+
+    // Continuation-Kanten (ab Sprachversion 2): `Quelle --> View o-^ Task` bzw. `--^ Task` — der GUI-Knoten
+    // zeigt eine View UND setzt den Übergang in einen Folge-Task fort. Eigene Kategorie, keine regulären
+    // Transitions-Kanten (sie leiten keine neue Transition ein), daher bewusst nicht in NavKeywords/EdgeKeywords.
+    public static readonly string ContinuationGoToEdgeKeyword  = "--^";
+    public static readonly string ContinuationModalEdgeKeyword = "o-^";
 
     // Direktiven-Schlüsselwörter (nur im Präprozessor-Modus hinter `#` gültig). Einzige Autorität für die
     // Literale — der Lexer (PreprocessorKeywords) und die Completion beziehen sie von hier.
@@ -69,8 +74,7 @@ public static class SyntaxFacts {
         DoKeyword,
         GoToEdgeKeyword,
         NonModalEdgeKeyword,
-        ModalEdgeKeyword,
-        ModalEdgeKeywordAlt
+        ModalEdgeKeyword
     }.ToImmutableHashSet();
 
     public static bool IsNavKeyword(string value) {
@@ -105,7 +109,6 @@ public static class SyntaxFacts {
         SpontaneousKeyword,
         SpontKeyword,
         NotimplementedKeyword,
-        ModalEdgeKeywordAlt,
         NonModalEdgeKeyword
 
     }.ToImmutableHashSet();
@@ -117,8 +120,7 @@ public static class SyntaxFacts {
     public static readonly ImmutableHashSet<string> EdgeKeywords = new[] {
         GoToEdgeKeyword,
         NonModalEdgeKeyword,
-        ModalEdgeKeyword,
-        ModalEdgeKeywordAlt
+        ModalEdgeKeyword
 
     }.ToImmutableHashSet();
 
@@ -127,13 +129,36 @@ public static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Ob der Token-Typ ein Edge-Keyword ist — die Token-Typ-Sicht auf <see cref="IsEdgeKeyword(string)"/>
-    /// (beide Schreibweisen der modalen Kante lexen zum selben <see cref="SyntaxTokenType.ModalEdgeKeyword"/>).
+    /// Ob der Token-Typ ein Edge-Keyword ist — die Token-Typ-Sicht auf <see cref="IsEdgeKeyword(string)"/>.
+    /// Die Continuation-Kanten (<c>--^</c>/<c>o-^</c>) gehören <b>nicht</b> dazu (siehe
+    /// <see cref="IsContinuationEdgeKeyword(SyntaxTokenType)"/>) — sie leiten keine neue Transition ein.
     /// </summary>
     public static bool IsEdgeKeyword(SyntaxTokenType type) {
         return type is SyntaxTokenType.GoToEdgeKeyword
                     or SyntaxTokenType.ModalEdgeKeyword
                     or SyntaxTokenType.NonModalEdgeKeyword;
+    }
+
+    // Die Continuation-Kanten (ab Sprachversion 2). Eigene Menge, getrennt von den regulären
+    // <see cref="EdgeKeywords"/>: eine Continuation hängt an einem GUI-Knoten und leitet — anders als eine
+    // Transitions-Kante — keine neue Transition ein.
+    public static readonly ImmutableHashSet<string> ContinuationEdgeKeywords = new[] {
+        ContinuationGoToEdgeKeyword,
+        ContinuationModalEdgeKeyword
+
+    }.ToImmutableHashSet();
+
+    public static bool IsContinuationEdgeKeyword(string value) {
+        return ContinuationEdgeKeywords.Contains(value);
+    }
+
+    /// <summary>
+    /// Ob der Token-Typ eine Continuation-Kante ist (<c>--^</c>/<c>o-^</c>) — die Token-Typ-Sicht auf
+    /// <see cref="IsContinuationEdgeKeyword(string)"/>.
+    /// </summary>
+    public static bool IsContinuationEdgeKeyword(SyntaxTokenType type) {
+        return type is SyntaxTokenType.ContinuationGoToEdgeKeyword
+                    or SyntaxTokenType.ContinuationModalEdgeKeyword;
     }
 
     // Die Zeichen, aus denen sich Edge-Keywords zusammensetzen (`-`, `>`, `o`, `*`). Einzige Autorität für

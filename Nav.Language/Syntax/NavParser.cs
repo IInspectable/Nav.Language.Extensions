@@ -139,22 +139,22 @@ sealed partial class NavParser {
     /// Array-Regel mit abdeckt).
     /// </summary>
     internal enum Rule {
-        DoClause,                     GoToEdge,                  ArrayType,
-        ModalEdge,                    Parameter,                 Identifier,
-        SimpleType,                   GenericType,               NonModalEdge,
-        EndTargetNode,                ParameterList,             SignalTrigger,
-        StringLiteral,                InitSourceNode,            TaskDefinition,
-        CodeDeclaration,              TaskDeclaration,           IncludeDirective,
-        IfConditionClause,            ArrayRankSpecifier,        EndNodeDeclaration,
-        SpontaneousTrigger,           CodeBaseDeclaration,       ElseConditionClause,
-        ExitNodeDeclaration,          InitNodeDeclaration,       TaskNodeDeclaration,
-        ViewNodeDeclaration,          CodeUsingDeclaration,      IdentifierSourceNode,
-        IdentifierTargetNode,         NodeDeclarationBlock,      TransitionDefinition,
-        ChoiceNodeDeclaration,        CodeParamsDeclaration,     CodeResultDeclaration,
-        ElseIfConditionClause,        DialogNodeDeclaration,     CodeNamespaceDeclaration,
-        ExitTransitionDefinition,     CodeGenerateToDeclaration, TransitionDefinitionBlock,
-        CodeDoNotInjectDeclaration,   CodeAbstractMethodDeclaration,
-        CodeNotImplementedDeclaration
+        DoClause,                      GoToEdge,                  ArrayType,
+        ModalEdge,                     Parameter,                 Identifier,
+        SimpleType,                    GenericType,               NonModalEdge,
+        EndTargetNode,                 ParameterList,             SignalTrigger,
+        StringLiteral,                 InitSourceNode,            TaskDefinition,
+        CodeDeclaration,               TaskDeclaration,           IncludeDirective,
+        IfConditionClause,             ArrayRankSpecifier,        EndNodeDeclaration,
+        SpontaneousTrigger,            CodeBaseDeclaration,       ElseConditionClause,
+        ExitNodeDeclaration,           InitNodeDeclaration,       TaskNodeDeclaration,
+        ViewNodeDeclaration,           CodeUsingDeclaration,      IdentifierSourceNode,
+        IdentifierTargetNode,          NodeDeclarationBlock,      TransitionDefinition,
+        ChoiceNodeDeclaration,         CodeParamsDeclaration,     CodeResultDeclaration,
+        ElseIfConditionClause,         DialogNodeDeclaration,     CodeNamespaceDeclaration,
+        ExitTransitionDefinition,      CodeGenerateToDeclaration, TransitionDefinitionBlock,
+        CodeDoNotInjectDeclaration,    CodeAbstractMethodDeclaration,
+        CodeNotImplementedDeclaration, ContinuationTransition
     }
 
     /// <summary>
@@ -237,6 +237,7 @@ sealed partial class NavParser {
             case Rule.CodeDoNotInjectDeclaration:    return ParseCodeDoNotInjectDeclaration();
             case Rule.CodeAbstractMethodDeclaration: return ParseCodeAbstractMethodDeclaration();
             case Rule.CodeNotImplementedDeclaration: return ParseCodeNotImplementedDeclaration();
+            case Rule.ContinuationTransition:        return ParseContinuationTransition();
             default: throw new ArgumentOutOfRangeException(nameof(rule), rule, null);
         }
     }
@@ -817,16 +818,28 @@ sealed partial class NavParser {
     /// <summary>Grammatikregel <c>choiceNodeDeclaration</c> → <see cref="ChoiceNodeDeclarationSyntax"/>.</summary>
     /// <remarks>
     /// <code><![CDATA[
-    /// choiceNodeDeclaration ::= "choice" Identifier ";"
+    /// choiceNodeDeclaration ::= "choice" Identifier codeParamsDeclaration? ";"
     /// ]]></code>
+    /// Die optionale <c>[params …]</c>-Klausel (ab Sprachversion 2) wird — wie beim <c>init</c>-Knoten —
+    /// verschränkt mit der Klammer-Recovery geparst.
     /// </remarks>
     ChoiceNodeDeclarationSyntax ParseChoiceNodeDeclaration() {
 
         var keyword = Eat(SyntaxTokenType.ChoiceKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
-        var semi    = Eat(SyntaxTokenType.Semicolon);
 
-        var node = new ChoiceNodeDeclarationSyntax(Span(keyword, name, semi));
+        CodeParamsDeclarationSyntax? codeParams = null;
+
+        // Ein '[' an dieser Stelle, das keiner bekannten Code-Deklaration entspricht, als Fehlerproduktion in
+        // der Klammer verschlucken (siehe ParseInitNodeDeclaration) — sonst bräche die Knoten-Deklaration ab.
+        var malformedBracket = ParseCodeDeclarations(CodeBlockHost.ChoiceNode, () => {
+            if (codeParams == null && AtCodeDeclaration(SyntaxTokenType.ParamsKeyword)) { codeParams = ParseCodeParamsDeclaration(); return true; }
+            return false;
+        });
+
+        var semi = malformedBracket ? TryEatSemicolonQuiet() : Eat(SyntaxTokenType.Semicolon);
+
+        var node = new ChoiceNodeDeclarationSyntax(Span(keyword, name, codeParams, semi), codeParams);
 
         Tok(node, keyword, TextClassification.Keyword);
         Tok(node, name,    TextClassification.Identifier);
@@ -932,11 +945,14 @@ sealed partial class NavParser {
     /// <summary>Grammatikregel <c>transitionDefinition</c> → <see cref="TransitionDefinitionSyntax"/>.</summary>
     /// <remarks>
     /// <code><![CDATA[
-    /// transitionDefinition ::= sourceNode edge targetNode trigger? conditionClause? doClause? ";"
+    /// transitionDefinition ::= sourceNode edge targetNode continuationTransition?
+    ///                          trigger? conditionClause? doClause? ";"
     /// ]]></code>
     /// <c>edge</c> und <c>targetNode</c> werden fehlertolerant geparst: fehlt die Kante, wird
     /// <c>missing edge</c> gemeldet; fehlt — bei vorhandener Kante — das Zielknoten, <c>missing target node</c>
-    /// (die beiden Fehlerproduktionen der ursprünglichen Grammatik).
+    /// (die beiden Fehlerproduktionen der ursprünglichen Grammatik). Die optionale
+    /// <c>continuationTransition</c> (<c>o-^</c>/<c>--^</c> Task, ab Sprachversion 2) hängt hinter dem
+    /// Zielknoten, vor Trigger/Bedingung.
     /// </remarks>
     TransitionDefinitionSyntax ParseTransitionDefinition() {
 
@@ -956,6 +972,8 @@ sealed partial class NavParser {
             ReportMissing("target node");
         }
 
+        var continuation = continues && StartsContinuation() ? ParseContinuationTransition() : null;
+
         var trigger   = continues && StartsTrigger()               ? ParseTrigger()         : null;
         var condition = continues && StartsCondition()             ? ParseConditionClause() : null;
         var doClause  = continues && At(SyntaxTokenType.DoKeyword)  ? ParseDoClause()        : null;
@@ -964,8 +982,8 @@ sealed partial class NavParser {
         // abgebrochenen Zeile unterdrückt (analog zur EOF-Kaskade).
         var semi = continues ? Eat(SyntaxTokenType.Semicolon) : TryEatSemicolonQuiet();
 
-        var node = new TransitionDefinitionSyntax(Span(source, edge, target, trigger, condition, doClause, semi),
-                                                  source, edge, target, trigger, condition, doClause);
+        var node = new TransitionDefinitionSyntax(Span(source, edge, target, continuation, trigger, condition, doClause, semi),
+                                                  source, edge, target, continuation, trigger, condition, doClause);
 
         Tok(node, semi, TextClassification.Punctuation);
 
@@ -976,10 +994,11 @@ sealed partial class NavParser {
     /// <remarks>
     /// <code><![CDATA[
     /// exitTransitionDefinition ::= identifierSourceNode ":" Identifier edge targetNode
-    ///                              conditionClause? doClause? ";"
+    ///                              continuationTransition? conditionClause? doClause? ";"
     /// ]]></code>
     /// Wie bei <see cref="ParseTransitionDefinition"/> werden <c>edge</c>/<c>targetNode</c> fehlertolerant
-    /// behandelt (<c>missing edge</c> / <c>missing target node</c>).
+    /// behandelt (<c>missing edge</c> / <c>missing target node</c>); die optionale
+    /// <c>continuationTransition</c> (<c>o-^</c>/<c>--^</c> Task) hängt hinter dem Zielknoten.
     /// </remarks>
     ExitTransitionDefinitionSyntax ParseExitTransitionDefinition() {
 
@@ -1010,6 +1029,8 @@ sealed partial class NavParser {
             ReportMissing("target node");
         }
 
+        var continuation = continues && StartsContinuation() ? ParseContinuationTransition() : null;
+
         var condition = continues && StartsCondition()             ? ParseConditionClause() : null;
         var doClause  = continues && At(SyntaxTokenType.DoKeyword)  ? ParseDoClause()        : null;
 
@@ -1019,9 +1040,9 @@ sealed partial class NavParser {
 
         var span = new ExtentBuilder();
         span.Add(source); span.Add(colon); span.Add(name); span.Add(edge); span.Add(target);
-        span.Add(condition); span.Add(doClause); span.Add(semi);
+        span.Add(continuation); span.Add(condition); span.Add(doClause); span.Add(semi);
 
-        var node = new ExitTransitionDefinitionSyntax(span.ToExtent(), source, edge, target, condition, doClause);
+        var node = new ExitTransitionDefinitionSyntax(span.ToExtent(), source, edge, target, continuation, condition, doClause);
 
         Tok(node, colon, TextClassification.Punctuation);
         Tok(node, name,  TextClassification.Identifier);
@@ -1167,6 +1188,78 @@ sealed partial class NavParser {
     NonModalEdgeSyntax ParseNonModalEdge() {
         var keyword = Eat(SyntaxTokenType.NonModalEdgeKeyword);
         var node    = new NonModalEdgeSyntax(Span(keyword));
+        Tok(node, keyword, TextClassification.Keyword);
+        return node;
+    }
+
+    #endregion
+
+    #region ContinuationTransition (o-^ / --^ Task)
+
+    bool StartsContinuation() {
+        return SyntaxFacts.IsContinuationEdgeKeyword(At0);
+    }
+
+    /// <summary>Grammatikregel <c>continuationTransition</c> → <see cref="ContinuationTransitionSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// continuationTransition ::= continuationEdge targetNode
+    /// ]]></code>
+    /// Der Fortsetzungs-Anhang einer Transition (<c>… o-^ Task</c> / <c>… --^ Task</c>, ab Sprachversion 2).
+    /// <c>continuationEdge</c> und <c>targetNode</c> werden fehlertolerant behandelt (fehlt der Zielknoten bei
+    /// vorhandener Kante: <c>missing target node</c>). Ob der Ziel-Knoten ein Task ist bzw. der tragende Knoten
+    /// ein GUI-Knoten, prüft erst das Semantic Model.
+    /// </remarks>
+    ContinuationTransitionSyntax ParseContinuationTransition() {
+
+        var edge = StartsContinuation() ? ParseContinuationEdge() : null;
+        if (edge == null) {
+            ReportMissing("continuation edge");
+        }
+
+        var target = StartsTargetNode() ? ParseTargetNode() : null;
+        if (target == null && edge != null) {
+            ReportMissing("target node");
+        }
+
+        return new ContinuationTransitionSyntax(Span(edge, target), edge, target);
+    }
+
+    /// <summary>Grammatikregel <c>continuationEdge</c> → <see cref="ContinuationEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// continuationEdge ::= continuationGoToEdge     (* "--^" *)
+    ///                    | continuationModalEdge    (* "o-^" *)
+    /// ]]></code>
+    /// </remarks>
+    ContinuationEdgeSyntax ParseContinuationEdge() {
+        return At(SyntaxTokenType.ContinuationModalEdgeKeyword)
+            ? ParseContinuationModalEdge()
+            : ParseContinuationGoToEdge();
+    }
+
+    /// <summary>Grammatikregel <c>continuationModalEdge</c> → <see cref="ContinuationModalEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// continuationModalEdge ::= "o-^"
+    /// ]]></code>
+    /// </remarks>
+    ContinuationModalEdgeSyntax ParseContinuationModalEdge() {
+        var keyword = Eat(SyntaxTokenType.ContinuationModalEdgeKeyword);
+        var node    = new ContinuationModalEdgeSyntax(Span(keyword));
+        Tok(node, keyword, TextClassification.Keyword);
+        return node;
+    }
+
+    /// <summary>Grammatikregel <c>continuationGoToEdge</c> → <see cref="ContinuationGoToEdgeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// continuationGoToEdge ::= "--^"
+    /// ]]></code>
+    /// </remarks>
+    ContinuationGoToEdgeSyntax ParseContinuationGoToEdge() {
+        var keyword = Eat(SyntaxTokenType.ContinuationGoToEdgeKeyword);
+        var node    = new ContinuationGoToEdgeSyntax(Span(keyword));
         Tok(node, keyword, TextClassification.Keyword);
         return node;
     }
