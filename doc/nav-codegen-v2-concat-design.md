@@ -1,4 +1,4 @@
-﻿# V2-Codegen-Design: CallContext, Concat & Choices in C#
+﻿# V2-Codegen-Design: CallContext, Continuation & Choices in C#
 
 > **Finale Spezifikation** des V2-Zielbilds vor der Umsetzung (Fahrplan §6, offene Punkte §8).
 > Framework-Verifikation der Laufzeit-Touchpoints ①–⑤: `doc/WFS-Spracherweiterung —
@@ -8,20 +8,30 @@
 
 Zwei zusammenhängende Vorhaben:
 
-1. **Concat** (Fachlichkeit): Ein Workflow-Übergang zeigt eine View/Dialog **und** ruft direkt
-   „obendrauf" den nächsten Task auf (typisch eine Messagebox). Nav-Syntax:
-   `Quelle --> View o-^ Task` bzw. `Quelle --> View --^ Task`.
+1. **Continuation** (Fachlichkeit): Ein Workflow-Übergang zeigt eine View/Dialog **und** ruft direkt
+   „obendrauf" den nächsten Task auf (typisch eine Messagebox) — der Task *setzt* den Übergang
+   *fort*. Nav-Syntax: `Quelle --> View o-^ Task` bzw. `Quelle --> View --^ Task`.
 2. **Codegen-Umstellung**: Nicht mehr **alle** `IBeginTask`-Wrapper als Parameter in die
    Logic-Methoden reichen, sondern einen **CallContext**, über den die im Nav-Workflow definierten
    Tasks aufgerufen werden.
 
-V2 stellt **alle** Transitionen auf den CallContext um (nicht Concat-only); Concat ist eine
-Spezialform darauf. Und weil **Choices an mehreren Targets/Quellen** hängen können, werden die
-**Choices in C#-Code** abgebildet, statt sie an jeder Quelle einzufalten.
+V2 stellt **alle** Transitionen auf den CallContext um (nicht Continuation-only); die Continuation
+ist eine Spezialform darauf. Und weil **Choices an mehreren Targets/Quellen** hängen können, werden
+die **Choices in C#-Code** abgebildet, statt sie an jeder Quelle einzufalten.
+
+> **Namensgebung (`Continuation`, nicht „Concat").** Das Feature heißt durchgängig **Continuation** —
+> die Nav-Kanten `o-^`/`--^`, die Syntax (`ContinuationTransitionSyntax`), das Semantic Model
+> (`IContinuationTransition`/`IContinuableEdge`/`ContinuationCall`) und der C#-Rückgabetyp
+> (`Show{View}Continuation`) tragen alle diesen Namen. „Continuation" benennt die **Absicht** („View
+> zeigen, dann in einen Folge-Task *fortsetzen*"); das frühere **`Concat`** war ein reiner
+> **Mechanismus-Name**, geliehen von der Framework-Instanzmethode `.Concat(ITASK_BOUNDARY)`. Genau
+> **dort** — und nur dort — bleibt `Concat` stehen: es ist der Framework-Call (nicht unser Name), auf
+> den eine Continuation *lowered*. Der `concat`-**Branch** und seine Referenz-Dateinamen
+> (`ConcatSample.nav` …) behalten ihren historischen Namen, weil sie real so existieren (§2.2).
 
 Grundsatz-Festlegungen:
 
-- **Voll-Fabrik + opaker Ergebnistyp.** ALLE Übergänge (View, Task, Concat, Choice, Exit, End,
+- **Voll-Fabrik + opaker Ergebnistyp.** ALLE Übergänge (View, Task, Continuation, Choice, Exit, End,
   Cancel) laufen über den CallContext; die Logic-Methode gibt einen opaken Typ zurück, den **nur der
   Context erzeugen kann** → illegale Übergänge werden **Compile-Fehler** statt
   Laufzeit-`InvalidOperationException`.
@@ -65,15 +75,15 @@ Quelle: `Nav.Language/CodeGen/V1/Emitters/WfsBaseEmitter.cs`, `CodeGen/V1/CodeMo
 
 ### 2.2 Referenz: der `concat`-Branch
 
-Auf dem Remote-Branch **`concat`** wurde Concat + CallContext bereits angefangen — allerdings
-**alt**: Merge-Base (`f44b91a3`) liegt vor 145 master-Commits und vor der gesamten
-**Codegen-Versionierung** auf `feature/nav-parser`. Der Branch codiert Concat noch in der alten
-**StringTemplate-(`.stg`)-Welt**.
+Auf dem Remote-Branch **`concat`** wurde die Continuation + CallContext bereits angefangen —
+allerdings **alt**: Merge-Base (`f44b91a3`) liegt vor 145 master-Commits und vor der gesamten
+**Codegen-Versionierung** auf `feature/nav-parser`. Der Branch codiert die Continuation noch in der
+alten **StringTemplate-(`.stg`)-Welt** und nannte das Feature dort durchweg „Concat" (§1).
 
 → Der Branch ist **Referenz-Zielbild**, wird **nicht** gemergt/cherry-gepickt. Umgesetzt wird in der
 heutigen Emitter/`CodeBuilder`-Welt als neues `CodeGen/V2/`. Er ist **konzeptionelle Referenz für
-die Concat-Mechanik** (`Show`/`Continuation`), **nicht** für die Code-Gestalt: das V2-Zielbild
-weicht bewusst vom Branch-Output ab (dort: CallContext nur als Concat-Vehikel,
+die Continuation-Mechanik** (`Show`/`Continuation`), **nicht** für die Code-Gestalt: das V2-Zielbild
+weicht bewusst vom Branch-Output ab (dort: CallContext nur als Continuation-Vehikel,
 `INavCommandBody`-Rückgabe, Records mit public `wfs`, Choices weiterhin an jeder Quelle
 eingefaltet). Es gibt **neue Golden-Snapshots**; die concat-Branch-`.expected.cs` bleiben nur
 konzeptionelle Referenz.
@@ -82,9 +92,9 @@ konzeptionelle Referenz.
 
 | Ebene | Inhalt |
 |---|---|
-| Syntax | Tokens `--^` (`ConcatGoToEdgeKeyword`), `o-^` (`ConcatModalEdgeKeyword`); `ConcatTransitionSyntax` (`Edge: ConcatEdgeSyntax?`, `TargetNode: TargetNodeSyntax?`). `ModalEdgeKeywordAlt "*->"` wird entfernt. |
-| Semantic Model | `ConcatTransition : IConcatTransition`, `IConcatableEdge`, `ContinuationCall` in `Call`, Erweiterungen an `ITransition`/`Transition`/`ExitTransition`/`TaskDefinitionSymbol(+Builder)`/`EdgeExtensions`. |
-| Diagnostics | Nav1020 (Source eines Concat muss View-Node sein), Nav1021 (Target muss Task-Node sein), Nav1022 (verschiedene Views in einer Concatenation nicht unterstützt) — beim Port umnummeriert nach **Nav0120/0121/0122** (§4); Fix an **Nav0222** (Reachability bei unterschiedlichen Edge-Modes). `IntroduceChoiceCodeFix` berücksichtigt Concat. |
+| Syntax | Tokens `--^` (Branch: `ConcatGoToEdgeKeyword` → V2 **`ContinuationGoToEdgeKeyword`**), `o-^` (`ConcatModalEdgeKeyword` → **`ContinuationModalEdgeKeyword`**); `ConcatTransitionSyntax` → **`ContinuationTransitionSyntax`** (`Edge: ContinuationEdgeSyntax?`, `TargetNode: TargetNodeSyntax?`). `ModalEdgeKeywordAlt "*->"` wird entfernt. |
+| Semantic Model | `ContinuationTransition : IContinuationTransition` (Branch: `Concat…`), `IContinuableEdge` (Branch: `IConcatableEdge`), `ContinuationCall` in `Call`, Erweiterungen an `ITransition`/`Transition`/`ExitTransition`/`TaskDefinitionSymbol(+Builder)`/`EdgeExtensions`. |
+| Diagnostics | Nav1020 (Source einer Continuation muss View-Node sein), Nav1021 (Target muss Task-Node sein), Nav1022 (verschiedene Views in einer Continuation nicht unterstützt) — beim Port umnummeriert nach **Nav0120/0121/0122** (§4); Fix an **Nav0222** (Reachability bei unterschiedlichen Edge-Modes). `IntroduceChoiceCodeFix` berücksichtigt die Continuation. |
 | Codegen (`.stg`) | `CallContextCodeModel` + `ContinuationCodeModel` (neu), Umbauten `TransitionCodeModel`/`WfsBaseCodeModel`/`CallCodeModel(+Builder)`/`Init|Exit|TriggerTransitionCodeModel`, Template `WFSBase.stg`. |
 | Referenz-Output | `Nav.Language.Tests/Regression/Tests/WFL/generated/ConcatSampleWFSBase.generated.expected.cs` (+ `IBegin…`, `IConcat…`) und `ConcatSample.nav`. |
 
@@ -103,7 +113,7 @@ C:Exit              --> Exit;
 
 ## 3. V2-Zielbild
 
-### 3.1 Durchgängiges Beispiel (Golden-Fall „Choice mit 3 Quellen + Concat")
+### 3.1 Durchgängiges Beispiel (Golden-Fall „Choice mit 3 Quellen + Continuation")
 
 ```
 task Sample
@@ -121,7 +131,7 @@ task Sample
     View         --> A o-> on OnStartA;
 
     Choice_Retry --> View;
-    Choice_Retry --> View o-^ Msg if "Fehler";       // Concat aus der Choice heraus
+    Choice_Retry --> View o-^ Msg if "Fehler";       // Continuation aus der Choice heraus
     Msg:Exit     --> View;
 }
 ```
@@ -289,7 +299,7 @@ konstruiert (§3.2/§3.3) — kein Zwischenmarker:
 | Nav-Kante der Quelle | Context-Methode | baut (deferred im Thunk) |
 |---|---|---|
 | `-->` / `o->` / `==>` **GUI-Knoten** (View **oder** Dialog) | `Show{Node}(ViewTO)` — **mode-frei** | `GotoGUI` / `OpenModalGUI` / `StartNonModalGUI` je Edge-Mode; Modal/Nonmodal nur im Task-Kontext (§3.8/④) |
-| `--> View o-^ Task` / `--> View --^ Task` (Concat) | `Show{View}(to).Begin{Task}(…)` — **selber Einstieg**, Rückgabetyp `Continuation` | `GotoGUI(to).Concat(OpenModalTask(…)/GotoTask(…), After{Task})` je Edge-Mode (`o-^`/`--^`) |
+| `--> View o-^ Task` / `--> View --^ Task` (Continuation) | `Show{View}(to).Begin{Task}(…)` — **selber Einstieg**, Rückgabetyp `Continuation` | `GotoGUI(to).Concat(OpenModalTask(…)/GotoTask(…), After{Task})` je Edge-Mode (`o-^`/`--^`) |
 | `-->`/`o->`/`==>` `Task` | `Begin{Task}(…)` je Init-Überladung | `GotoTask`/`OpenModalTask`/`StartNonModalTask(() => _wfs._x.Begin(…), After{Task})` |
 | `-->`/`o->`/`==>` `Task` **`[notimplemented]`** | `Begin{Task}(…)` (existiert weiter) | `throw new NotImplementedException("Task {Task} is specified as [notimplemented]")` im Thunk — V1-Timing (s. Absatz unten) |
 | `-->`/`o->`/`==>` `Task` **`[donotinject]`** | `Begin{Task}(IBegin{Task}WFS wrapper, …)` — **expliziter** Wrapper-Parameter | `…{mode}Task(() => wrapper.Begin(…), After{Task})` — Wrapper vom Nutzer laufzeit-selektiert (s. Absatz unten) |
@@ -297,6 +307,22 @@ konstruiert (§3.2/§3.3) — kein Zwischenmarker:
 | `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` → `TASK_RESULT<T>`, castfrei (§3.8/②) |
 | `--> End` | `End()` | `EndNonModal()` → `END` |
 | immer | `Cancel()` | `Cancel()` → `CANCEL` |
+
+**Die drei Positionen einer Continuation (`Quelle --> GUI o-^/--^ Task`).** Wer *was* sein darf, ist
+strikt getrennt — die `Show{Node}`/`Begin{Node}`-Spalten oben spiegeln das bereits:
+
+| Position | im Muster `Quelle --> View o-^ Task` | erlaubt | Gate |
+|---|---|---|---|
+| **Quelle** (links von `-->`) | `Quelle` | jede Transitionsquelle — **Init, View (Trigger), Exit, Choice** (z.B. `B:Exit --> View o-^ C`, `Choice_Retry --> View o-^ Msg`, §3.1) | — |
+| **tragender Knoten** (bekommt die Continuation) | `View` | **GUI-Knoten: View *oder* Dialog** (beide `IGuiNodeSymbol` → dasselbe `Show{Node}`) — **nie** ein Task | **Nav0120** |
+| **Continuation-Ziel** (rechts von `o-^`/`--^`) | `Task` | **nur Task** | **Nav0121** |
+
+„Nur Tasks" gilt also **präzise für das Ziel** (rechts vom `o-^`/`--^`) — und das ist **strukturell**,
+nicht willkürlich: `.Begin{Task}(…)` baut `.Concat(OpenModalTask/GotoTask(…))`, was eine
+`ITASK_BOUNDARY` verlangt; ein View-/Choice-/Exit-Ziel hätte weder eine `Begin`-Fabrik noch einen
+Task-Boundary-Command (§3.8/①). Der **tragende** Knoten dagegen ist immer ein GUI-Knoten
+(View/Dialog), **nie** ein Task — er baut das `GOTO_GUI`/`OPEN_MODAL_GUI`, auf dem `.Concat(…)` sitzt.
+Zwei verschiedene tragende Views in *einer* Continuation sind unzulässig (**Nav0122**).
 
 **`[notimplemented]`/`[donotinject]` (beide korpus-real — 5 bzw. 6 echte `.nav`, kein opt-out).**
 Beide werden in V2 unterstützt — ein „in `#version 2` verboten" schüfe eine nie migrierbare V1-Insel.
@@ -321,7 +347,7 @@ unterscheidet sie am Child-Ende ebenfalls nicht). Kein `Exit{Node}`; Korpus: 0 P
 Die `Begin{Task}`-Überladung folgt dem Edge-Mode: `-->` → `GotoTask` (init-legal aus jedem Kontext),
 `o->`/`==>` → `OpenModalTask`/`StartNonModalTask` (**nur** im Task-Kontext, da nicht `IINIT_TASK`;
 §3.8/④). Aus einem Init sind nur `GotoTask`/`Show{View}` (Goto-Mode)/`Exit`/`Cancel`/`Show{View}(…).Begin…`
-(Concat) zulässig. Das V1-Idiom `return to;` gibt es in V2 nicht mehr; an seine Stelle tritt
+(Continuation) zulässig. Das V1-Idiom `return to;` gibt es in V2 nicht mehr; an seine Stelle tritt
 `return ctx.Show{View}(to);`.
 
 **Task-Namensschema ist V1-Präzedenz:** `Begin{Node}` ist **nicht neu** — V1 emittiert bereits
@@ -377,11 +403,11 @@ unabhängig davon, ob er ein Fenster hochschaltet. Deshalb ersetzt die Knoten-Ar
 ist aus `init` verboten (Modus = Aufruf-Eigenschaft, ein Init ruft nicht modal auf) — genau das
 erzwingt **Nav0110** bereits (§3.8/④).
 
-**Concat wird durch den Rückgabetyp kodiert, nicht durch den Namen:** `Show{Node}(to)` liefert
-`Result` (direkt returnbar) ohne Concat, `Continuation` (mit `.Begin{Task}(…)`) bei Concat. Damit
-ist die Kernforderung **strukturell** erfüllt: bei erzwungenem Concat ist
-`return ctx.Show{Node}(to);` ein Compile-Fehler; und **symmetrisch** kann kein Concat hinzugefügt
-werden, den das Nav nicht definiert. Das Typsystem spiegelt die Nav-Definition exakt (§3.6).
+**Continuation wird durch den Rückgabetyp kodiert, nicht durch den Namen:** `Show{Node}(to)` liefert
+`Result` (direkt returnbar) ohne Continuation, `Continuation` (mit `.Begin{Task}(…)`) bei einer
+Continuation. Damit ist die Kernforderung **strukturell** erfüllt: bei erzwungener Continuation ist
+`return ctx.Show{Node}(to);` ein Compile-Fehler; und **symmetrisch** kann keine Continuation
+hinzugefügt werden, die das Nav nicht definiert. Das Typsystem spiegelt die Nav-Definition exakt (§3.6).
 
 **Union pro Ziel-Knoten** (nicht pro Kante): hat eine Quelle mehrere Kanten zur *selben* View,
 bündelt **eine** `Show{View}`-Methode deren Behandlungen. Der Rückgabetyp entsteht pro Ziel aus der
@@ -390,12 +416,13 @@ Union:
 | Kanten Quelle→View | `Show{View}(to)` liefert | `return ctx.Show{View}(to);` |
 |---|---|---|
 | nur plain | direkt `Result` | ✓ |
-| nur Concat (**erzwungen**) | `Continuation` (kein `Result`) | ✗ → `.Begin{Task}(…)` erzwungen |
-| plain **und** Concat | Typ mit implizitem `Result` **und** `.Begin{Task}(…)` | ✓ plain / `.Begin{Task}` Concat |
+| nur Continuation (**erzwungen**) | `Continuation` (kein `Result`) | ✗ → `.Begin{Task}(…)` erzwungen |
+| plain **und** Continuation | Typ mit implizitem `Result` **und** `.Begin{Task}(…)` | ✓ plain / `.Begin{Task}` Continuation |
 
 Der implizite `Result`-Operator wird genau dann emittiert, wenn eine plain-Kante existiert; je
-Concat-Kante ein `.Begin{Task}`. So spiegelt der Typ exakt die Nav-Definition („erzwungener Concat" =
-concat-only, keine plain-Schwesterkante). Die Guards (`if/else`) sind in V2 Doku-Charakter — die
+Continuation-Kante ein `.Begin{Task}`. So spiegelt der Typ exakt die Nav-Definition („erzwungene
+Continuation" = continuation-only, keine plain-Schwesterkante). Die Guards (`if/else`) sind in V2
+Doku-Charakter — die
 Union ist genau die Menge der vom Nav deklarierten legalen Ausgänge.
 
 **Reservierte Namen:** die fixen Member `Cancel`/`Exit`/`End` und der genestete Typ `Result` sind
@@ -448,7 +475,7 @@ protected sealed class Choice_RetryCallContext {
         public static implicit operator Result(ShowViewContinuation v)
             => new(() => v._wfs.GotoGUI(v._to));
 
-        // Concat-Kante (--> View o-^ Msg) existiert → Continuation (§3.6):
+        // Continuation-Kante (--> View o-^ Msg) existiert → Continuation-Rückgabetyp (§3.6):
         public Result BeginMsg(string text) =>
             new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
     }
@@ -514,10 +541,11 @@ transitiv auch → beider `Result.Unwrap()` liefert `IINIT_TASK`). Ein Choice-**
 gegenseitig referenzierende Context-Methoden (kompiliert sauber); ob er zur Laufzeit kreist,
 entscheidet allein die Nutzer-Logik — kein Codegen-Problem.
 
-### 3.6 Concat: derselbe `Show{View}`-Einstieg, Rückgabetyp `Continuation`
+### 3.6 Continuation: derselbe `Show{View}`-Einstieg, Rückgabetyp `Continuation`
 
-Der Concat ist **kein eigener Einstieg**: dieselbe `Show{View}`-Methode liefert statt `Result` eine
-`Continuation`, sobald die Kante einen Concat trägt. Deren `Begin{Task}(…)` baut das Concat-Kommando
+Die Continuation ist **kein eigener Einstieg**: dieselbe `Show{View}`-Methode liefert statt `Result`
+eine `Continuation`, sobald die Kante eine Continuation trägt. Deren `Begin{Task}(…)` baut das
+Continuation-Kommando
 **deferred** im `Result`-Thunk: `GotoGUI(to).Concat(OpenModalTask(…, After{Task}))` — die Mechanik
 sitzt vollständig in der Context-Methode, ohne Marker-Typ und ohne Sub-Switch. Der Rücksprung aus
 dem angehängten Task erfolgt wie in V1 über `After{Task}`. Wichtig: `GotoGUI` **und**
@@ -526,17 +554,17 @@ eager. `OpenModalTask` → `OPEN_MODAL_TASK : ITASK_BOUNDARY` wählt am Framewor
 `Concat(ITASK_BOUNDARY)` → `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY : IINIT_TASK`. **`.Concat(…)` ist
 die einzige neue Framework-API** (§3.8).
 
-**Rückgabetyp pro Ziel-View (Union, §3.4):** existiert **nur** eine Concat-Kante zu dieser View
+**Rückgabetyp pro Ziel-View (Union, §3.4):** existiert **nur** eine Continuation-Kante zu dieser View
 (keine plain-Schwester), fehlt der implizite `Result`-Operator → `return ctx.Show{View}(to);` ist
 ein Compile-Fehler, der Autor **muss** `.Begin{Task}(…)` anhängen. Existiert zusätzlich eine
 plain-Kante, ist beides zulässig (Nutzer-Beispiel `Choice_Retry`, §3.5). So spiegelt der Typ exakt
-die Nav-Definition — „erzwungener Concat" = concat-only.
+die Nav-Definition — „erzwungene Continuation" = continuation-only.
 
 Die `static implicit operator Result(Show{View}Continuation)`-Lösung hat eine bekannte, akzeptierte
-Schwäche: der plain-Pfad ist unsichtbar, und im concat-only-Fall meldet `csc` nur einen generischen
-`CS0029`. Milderung: sprechender Continuation-Typname + XML-Doc am Member („mit `.Begin{Task}(…)`
-fortsetzen"), plus ein Ergonomie-/Golden-Test, der den concat-only-`CS0029` als erwartetes Verhalten
-festschreibt. Der unsichtbare Pfad ist der harmlose (plain); `.Begin{Task}` ist auf dem Rückgabewert
+Schwäche: der plain-Pfad ist unsichtbar, und im continuation-only-Fall meldet `csc` nur einen
+generischen `CS0029`. Milderung: sprechender Continuation-Typname + XML-Doc am Member („mit
+`.Begin{Task}(…)` fortsetzen"), plus ein Ergonomie-/Golden-Test, der den continuation-only-`CS0029`
+als erwartetes Verhalten festschreibt. Der unsichtbare Pfad ist der harmlose (plain); `.Begin{Task}` ist auf dem Rückgabewert
 sichtbar.
 
 **`o-^` UND `--^` werden unterstützt.** Der Continuation-Builder wählt je Edge-Mode `OpenModalTask`
@@ -552,7 +580,7 @@ sichtbar.
 protected override Choice_RetryCallContext.Result Choice_RetryLogic(
         string reason, Choice_RetryCallContext ctx) {
     if (reason is null) return ctx.ShowView(CreateViewTO());          // plain (implizit → Result)
-    return ctx.ShowView(CreateViewTO()).BeginMsg(reason);             // Messagebox obendrauf (Concat)
+    return ctx.ShowView(CreateViewTO()).BeginMsg(reason);             // Messagebox obendrauf (Continuation)
 }
 
 // Drei Quellen, drei Einzeiler — typisiert, compile-sicher:
@@ -603,7 +631,7 @@ Quellen in `doc/WFS-Spracherweiterung — Framework-Verifikation.md`:
   `ExecuteCallResult`); nur die feld-speichernden Commands (`OPEN_MODAL_TASK`/`START_NONMODAL_TASK`/
   `TASK_RESULT`/`CANCEL`/`END`/`GOTO_TASK`) sind rein. Deshalb kapselt `Result` den Bau **deferred**
   (§3.2) — der Effekt feuert erst beim `Unwrap()`-Aufruf, wie in V1.
-- **⑥ `--^` (Goto-Concat) am Framework verifiziert.** `ExecuteCallResult` (`BaseWFService.cs:263`)
+- **⑥ `--^` (Goto-Continuation) am Framework verifiziert.** `ExecuteCallResult` (`BaseWFService.cs:263`)
   ist **typ-agnostisch** (polymorphe `while (result is NavCommand)`-Schleife) → `GOTO_TASK` als
   Concat-Boundary wird ausgeführt, **nicht** per Typ-`switch` abgelehnt. `context.GotoTask`/
   `OpenModalTask` (`ServerExecutionContext.cs:264/270`) pushen **denselben** `After{Task}`-Rückkehr-
@@ -647,23 +675,24 @@ Quellen in `doc/WFS-Spracherweiterung — Framework-Verifikation.md`:
   erst `csc` gegen das Framework ist das maßgebliche Gate (Roslyn/IDE-verifiziert: `CS0266: Cannot
   implicitly convert type '…IWFL.END' to '…IWFL.IINIT_TASK'` an `return EndNonModal();`).
 
-## 4. Syntax & Semantic Model (versionsunabhängig)
+## 4. Syntax, Semantic Model & Completion (versionsunabhängig)
 
-Beides ist **nicht** versionsspezifisch und wird einmal für alle Codegen-Versionen vorwärts
-portiert — **nach** dem Design:
+Syntax und Semantic Model sind **nicht** versionsspezifisch und werden einmal für alle
+Codegen-Versionen vorwärts portiert — **nach** dem Design; die Completion (§4.1) bleibt ebenfalls
+ein einziger Service und filtert nur versionsbewusst:
 
-- **Syntax:** Tokens `--^`/`o-^`, Grammatik/Lexer/Parser, `ConcatTransitionSyntax`, generierte
+- **Syntax:** Tokens `--^`/`o-^`, Grammatik/Lexer/Parser, `ContinuationTransitionSyntax`, generierte
   Visitor/Walker; der alternative Modal-Edge-Token `*->` (`ModalEdgeKeywordAlt`) wird entfernt.
   **Neu:** `[params …]`-Klausel an der `choice`-Deklaration, analog `init` (Wiederverwendung
   `ParameterListSyntax`).
-- **Semantic Model:** `IConcatTransition`/`ConcatTransition`, `IConcatableEdge`, `ContinuationCall`
-  in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222**-Fix (Reachability
-  bei unterschiedlichen Edge-Modes).
-- **Concat-Struktur-Analyzer Nav0120/0121/0122:** Concat-Quelle muss GUI/View-Knoten sein
-  (**Nav0120**), Concat-Ziel muss Task-Knoten sein (**Nav0121**), verschiedene Views in einer
-  Concatenation nicht unterstützt (**Nav0122**). Die concat-Branch-Nummern Nav1020/1021/1022 tragen
+- **Semantic Model:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`,
+  `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222**-Fix
+  (Reachability bei unterschiedlichen Edge-Modes).
+- **Continuation-Struktur-Analyzer Nav0120/0121/0122:** Continuation-Quelle muss GUI/View-Knoten sein
+  (**Nav0120**), Continuation-Ziel muss Task-Knoten sein (**Nav0121**), verschiedene Views in einer
+  Continuation nicht unterstützt (**Nav0122**). Die concat-Branch-Nummern Nav1020/1021/1022 tragen
   Error-Semantik im `Nav1xxx`-Band, das in diesem Repo **strikt DeadCode/Warning** ist — Error gehört
-  ins 01xx-Strukturband; da das Concat-Feature nie ausgeliefert wurde (der Branch ist reines
+  ins 01xx-Strukturband; da das Feature nie ausgeliefert wurde (der Branch ist reines
   Referenz-Zielbild), besteht keine Kompatibilitätsbindung an die alten Nummern.
 - **Init-Legalitäts-Analyzer (aus Framework-Verifikation ④).** Aus einem Init erreichbare
   Ausgangskanten dürfen nur Kommandos der **`IINIT_TASK`-Menge** erzeugen (`GotoGUI`/`GotoTask`/
@@ -693,9 +722,12 @@ portiert — **nach** dem Design:
   `List<int>` ≡ `List< int >`; Namen irrelevant); pro Task erste Signatur = Referenz, jede weitere
   Kollision wird am Identifier des Duplikats gemeldet. Greift auch für **edge-lose** Inits (der
   V1-Generator emittiert `Begin()` für *jeden* Init-Knoten, `CodeModelBuilder.GetInitTransitions`).
-- **Versions-Gate:** Concat-Kanten (`o-^` **und** `--^`) und Choice-`[params]` sind nur ab
+- **Versions-Gate:** Continuation-Kanten (`o-^` **und** `--^`) und Choice-`[params]` sind nur ab
   `#version 2` erlaubt — in V1-Units meldet das **bestehende Nav5000** („requires Nav language
-  version {1}"), **keine** neue ID, kein neuer Code.
+  version {1}"), **keine** neue ID, kein neuer Code. Registriert werden sie als die **ersten**
+  `NavLanguageFeature`-Werte (z.B. `Continuation`, `ChoiceParameters`; `RequiredVersion = Version2`)
+  im bereits vorhandenen `NavLanguageFeatures`-Gate — das Enum ist heute leer und dokumentiert genau
+  diesen Vorbehalt. Dieselbe Gate-Autorität speist auch die Completion (§4.1).
 - **Generische Member-Kollisions-Diagnose Nav0124.** **Eine** Diagnose statt getrennter Analyzer für
   reservierte Namen und Anzeige-Modus-Kollision: berechnet aus der **generierten Member-Menge** einer
   Quelle, verankert an der `.nav`-Deklaration/-Kante des Verursachers; Severity **Error**,
@@ -705,10 +737,10 @@ portiert — **nach** dem Design:
   - **Präfix-Klasch:** ein Choice namens `Show{X}`/`Begin{X}`, der auf den präfixten Member eines
     gleichnamigen GUI-/Task-Knotens `X` derselben Quelle trifft.
   - **Anzeige-Modus-Kollision:** eine Quelle mit zwei Kanten zum **selben** Ziel bei
-    **unterschiedlichem Anzeige-Modus** (goto vs. modal vs. nonmodal, beide ohne Concat) → gleiche
-    `Show{Node}(ViewTO)`- bzw. `Begin{Node}(…)`-Signatur, nicht über Rückgabetyp lösbar (anders als
-    plain+concat, §3.4-Union — das ist **keine** Kollision). Fachlich vermutlich ohnehin
-    sinnlos/illegal — die Diagnose deckt es auf, kein Codegen-Sonderfall.
+    **unterschiedlichem Anzeige-Modus** (goto vs. modal vs. nonmodal, beide ohne Continuation) →
+    gleiche `Show{Node}(ViewTO)`- bzw. `Begin{Node}(…)`-Signatur, nicht über Rückgabetyp lösbar
+    (anders als plain+Continuation, §3.4-Union — das ist **keine** Kollision). Fachlich vermutlich
+    ohnehin sinnlos/illegal — die Diagnose deckt es auf, kein Codegen-Sonderfall.
 
   Ihr **Eigenwert** ist der **still kompilierende Overload** (unterschiedliche Signaturen), den `csc`
   **nicht** meldet — die harten Fälle (CS0102/CS0111) fängt der Compiler zwar, aber ein `csc`-Fehler im
@@ -718,6 +750,33 @@ portiert — **nach** dem Design:
   `Show*`/`Begin*`-Choices existieren zwar zahlreich, kollidieren aber mit keinem gleichnamigen
   Knoten) → frühwarnende Versicherung, kein häufiger Fall — der Wert liegt in der Rückführbarkeit,
   nicht der Frequenz.
+
+### 4.1 Completion — ein versionsunabhängiger Service, versions*bewusst* gefiltert
+
+Code-Completion braucht **keinen** V1/V2-Split (keinen Dispatcher wie der Codegen, §5). Sie bleibt
+**ein** versionsunabhängiger Service (`NavCompletionService`, VS + LSP geteilt, syntaxbaum-getrieben),
+wird aber **versionsbewusst**: die versionsgateten Vorschläge — die Continuation-Kanten `o-^`/`--^`
+und die Choice-`[params]`-Klausel — werden nur angeboten, wenn die **effektive** `#version` sie
+zulässt. Sonst böte die Completion Konstrukte an, die sofort **Nav5000** werfen — ein Selbstwiderspruch.
+
+**Dieselbe Autorität wie das Gate, kein dupliziertes Versionswissen.** Die Mindestversion je Feature
+lebt in **einer** Quelle: dem `NavLanguageFeature`/`NavLanguageFeatures`-Gate
+(`NavLanguageFeatures.RequiredVersion`/`IsAvailable`), das auch **Nav5000** (`ReportIfUnavailable`)
+speist (§4, Versions-Gate). Die Completion ruft dieselbe
+`IsAvailable(feature, unit.LanguageVersion)`-Abfrage, bevor sie einen gateten Vorschlag aufnimmt:
+`VisibleEdgeKeywordItems` gatet `--^`/`o-^`, die Choice-Vorschläge gaten `[params]`. Das spiegelt
+den **bereits bestehenden** Präzedenzfall — die Completion zieht für den `#version`-Werte-Slot schon
+heute `NavLanguageVersion.SupportedVersions`, dieselbe Tabelle, die **Nav5001** validiert. Die
+effektive Version steht ihr über `CodeGenerationUnit.LanguageVersion` (Ergebnis von
+`ResolveLanguageVersion`) bereits zur Verfügung — `GetCompletions(CodeGenerationUnit unit, …)` bekommt
+das Semantic Model, nicht nur den Syntaxbaum.
+
+Damit fällt die Completion sauber in den §4-„versionsunabhängig"-Topf (**ein** Service, keine
+Versions-Weiche) plus einen reinen Feature-Filter — es gibt keine „V1-Completion"/„V2-Completion".
+Bewusst **nicht** umgesetzt: den gateten Token in einer V1-Unit doch anzubieten und per Fixup
+`#version 2` einzuziehen — das widerspräche dem „kein Auto-Upgrade"-Grundsatz (§1); der stille
+Filter passt besser. Umsetzung als Teil von Fahrplan-Schritt 2/3 (§6), wo Tokens und
+Choice-`[params]` ohnehin entstehen.
 
 ## 5. Architektur-Einbettung (`feature/nav-parser`) & Anti-Bloat
 
@@ -759,22 +818,24 @@ Versionierungs-Infrastruktur steht bereits:
 
 Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein Selbst-Commit).
 
-1. **Golden-`.nav`-Fälle festschreiben** — CallContext-Grundform, Concat, Choice-mit-3-Quellen aus
-   §3.1. Die Fixtures für Grundform und Concat sind noch zu schreiben (§8 Nr. 2).
-2. **Syntax vorwärts portieren** — Tokens/Parser/`ConcatTransitionSyntax`, **Choice-`[params]`**,
+1. **Golden-`.nav`-Fälle festschreiben** — CallContext-Grundform, Continuation, Choice-mit-3-Quellen
+   aus §3.1. Die Fixtures für Grundform und Continuation sind noch zu schreiben (§8 Nr. 2).
+2. **Syntax vorwärts portieren** — Tokens/Parser/`ContinuationTransitionSyntax`, **Choice-`[params]`**,
    Visitor/Walker; Parser-/Syntax-Tests.
-3. **Semantic Model vorwärts portieren** — `ConcatTransition`/`IConcatableEdge`/`ContinuationCall`,
-   Choice-Parameter, Analyzer **Nav0120/0121/0122** (Concat-Struktur) + **Nav0124** (generische
-   Member-Kollision) + Nav0222-Fix + Versions-Gate über bestehendes **Nav5000** (§4);
-   Diagnostics-Fixtures.
+3. **Semantic Model vorwärts portieren** — `ContinuationTransition`/`IContinuableEdge`/`ContinuationCall`,
+   Choice-Parameter, Analyzer **Nav0120/0121/0122** (Continuation-Struktur) + **Nav0124** (generische
+   Member-Kollision) + Nav0222-Fix + Versions-Gate über bestehendes **Nav5000** samt
+   `NavLanguageFeature`-Registrierung (`Continuation`/`ChoiceParameters`) + **versionsbewusste
+   Completion-Filterung** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter
+   `NavLanguageFeatures.IsAvailable`); Diagnostics-Fixtures + Completion-Tests je `#version`.
 4. **`CodeGen/V2/`-Gerüst** — CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie =
-   `Unwrap()`-Aufruf, alle Transitionen, ohne Concat/Choice); Golden gegen die Grundform.
-5. **V2 Concat** — `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt
-   `OpenModalTask`/`GotoTask` je Edge-Mode). **`FrameworkStubs.cs` um die Concat-Typfläche
+   `Unwrap()`-Aufruf, alle Transitionen, ohne Continuation/Choice); Golden gegen die Grundform.
+5. **V2 Continuation** — `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder
+   wählt `OpenModalTask`/`GotoTask` je Edge-Mode). **`FrameworkStubs.cs` um die `.Concat`-Typfläche
    erweitern** (`.Concat(INOT_A_TASK_BOUNDARY)`/`.Concat(ITASK_BOUNDARY)`-Überladungen auf `GOTO_GUI`,
    `TWO_STEP_IINIT_TASK`/`…_TO_TASK_BOUNDARY`, Tagging-Interfaces `ITASK_BOUNDARY`/`INOT_A_TASK_BOUNDARY`),
-   damit die generierten Concat-Fälle **gegen Stubs kompilieren**. Golden gegen beide Concat-Fälle
-   (`o-^`/`--^`). **Kein Laufzeit-Test** — das Nav-Repo verifiziert nur bis Codegen
+   damit die generierten Continuation-Fälle **gegen Stubs kompilieren**. Golden gegen beide
+   Continuation-Fälle (`o-^`/`--^`). **Kein Laufzeit-Test** — das Nav-Repo verifiziert nur bis Codegen
    (Compile-gegen-Stubs); Laufzeit ist Framework-Domäne (§3.8/⑥, offener Punkt §8 Nr. 1).
 6. **V2 Choices in C#** — Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch);
    Golden gegen den 3-Quellen-Fall aus §3.1.
@@ -783,7 +844,7 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
 
 - `. .\Tools\Commands\Import-NavCommands.ps1` einmalig; dann `nav test` (net472) **und**
   `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` (beide TFMs grün).
-- Codegen: **neue V2-Golden-Snapshots** (CallContext-Grundform, Concat-Fall, Choice-mit-3-Quellen)
+- Codegen: **neue V2-Golden-Snapshots** (CallContext-Grundform, Continuation-Fall, Choice-mit-3-Quellen)
   via Snapshot-/`nav parity`-Workflow, Vergleich nach WS-Normalisierung. Die
   concat-Branch-`.expected.cs` sind **nicht** Golden-Referenz (§2.2).
 - **Korpus-Organisation:** Der Harness (`RegressionTests`) discovert alle `.nav` unter
@@ -792,7 +853,7 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   `nav snapshot`", kein Wiring. Die V2-Fixtures liegen unter **`Regression\Tests\V2\`** (hält die
   V1-Parity-Goldens optisch/diff-technisch getrennt und macht die Invariante „V1 byte-identisch" auf
   einen Blick prüfbar; der Harness nutzt den Relativpfad als Identity, ein Unterordner ist
-  unkritisch). Backbone = **drei gestaffelte Goldens** (Grundform / Concat `o-^`+`--^` / Choice
+  unkritisch). Backbone = **drei gestaffelte Goldens** (Grundform / Continuation `o-^`+`--^` / Choice
   [3-Quellen + Union + Choice→Choice + Multi-Exit]). **`[notimplemented]`/`[donotinject]` je als
   isoliertes Minimal-Fixture**, nicht in ein Backbone-Golden gefaltet: beide sind Signatur-/Body-
   Sonderformen (notimplemented: `throw`-Thunk; donotinject: expliziter Wrapper-Parameter), ihr
@@ -804,7 +865,10 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   Baum.
 - Diagnostics-Fixtures **Nav0120/0121/0122 + Nav0124** + Versions-Gate (Nav5000) (mit
   `//==>>`-Erwartungen) als Semantic-Tests — Negatives sind **Diagnostics**-Fixtures, keine Goldens.
-- **Concat kompiliert gegen erweiterte Stubs:** `FrameworkStubs.cs` wird um die Concat-Typfläche
+- **Completion versionsbewusst (§4.1):** `NavCompletionServiceTests`-Fälle, die belegen, dass `--^`/
+  `o-^` und Choice-`[params]` in einer `#version 1`-Unit **nicht** und ab `#version 2` **doch**
+  vorgeschlagen werden (dieselbe `NavLanguageFeatures.IsAvailable`-Autorität wie Nav5000).
+- **Continuation kompiliert gegen erweiterte Stubs:** `FrameworkStubs.cs` wird um die `.Concat`-Typfläche
   ergänzt (`.Concat`-Überladungen, `TWO_STEP_*`, Tagging-Interfaces `ITASK_BOUNDARY`/`INOT_A_TASK_BOUNDARY`);
   der Golden-Compile deckt `o-^` **und** `--^` ab. **Kein** Laufzeit-Test im Nav-Repo — die
   Verifikation endet bei Codegen; die `--^`-Laufzeitsemantik ist quellcode-verifiziert (§3.8/⑥,
@@ -823,5 +887,5 @@ Zwei inhaltliche Entscheidungen stehen aus (Team-Entscheidungen, nicht Teil dies
    `ServerExecutionContext`, Assertion auf Client-Kommando-Sequenz + Stackframe) läge im
    Framework-Repo (`QuickTests`), nicht im Nav-Fahrplan. **Offen:** `--^`-Codegen sofort ausliefern
    **oder** bis zum Framework-Smoke-Test gaten.
-2. **Golden-`.nav`-Fixtures für Grundform + Concat sind noch nicht geschrieben.** Nur der Choice-Fall
+2. **Golden-`.nav`-Fixtures für Grundform + Continuation sind noch nicht geschrieben.** Nur der Choice-Fall
    (§3.1) liegt konkret vor. Teil von Fahrplan-Schritt 1 (§6).
