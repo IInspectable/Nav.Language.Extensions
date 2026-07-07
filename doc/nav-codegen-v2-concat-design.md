@@ -1,6 +1,6 @@
 ﻿# V2-Codegen-Design: CallContext, Concat & Choices in C#
 
-> **Status: lebendes Dokument, Runde 9.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
+> **Status: lebendes Dokument, Runde 10.** Dieses Dokument wird über mehrere Runden weiter ausgefeilt.
 > Offene Punkte sind als solche markiert; die „Offenen Design-Fragen" sind der Arbeitsvorrat für die
 > nächsten Runden. Framework-Verifikation der §4.7-Touchpoints: `doc/WFS-Spracherweiterung —
 > Framework-Verifikation.md`.
@@ -326,6 +326,55 @@ Vier Gabelungen im Grill-Durchgang (Kandidaten Deferred-Thunk-Allokation, `--^`-
    `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY.cs:8–13`, `BaseWFService.cs:263 (ExecuteCallResult) / :167 (GotoTask)
    / :202 (OpenModalTask)`, `GOTO_TASK.cs:27–30`, `OPEN_MODAL_TASK.cs:18–21`, `ServerExecutionContext.cs:264/270`.
 
+### Leitentscheidungen (Runde 10): `Result.Body` uniform `internal` (Zugriffsregel-Korrektur) + Golden-Korpus isoliert
+
+Zwei Rest-Fragen aus §7 (Nr. 4 Choice-Body-Sichtbarkeit, Nr. 5 Golden-Korpus-Organisation) gegrillt.
+Nr. 4 stützte sich auf eine **falsche C#-Annahme** in §4.2a — empirisch (csc, `CS0122`) widerlegt.
+
+1. **`Result.Body` ist *uniform* `internal` — die in §4.2a/§4.4 behauptete Transition-`private`-Variante
+   war ein Compile-Fehler.** Empirisch belegt (Testmatrix, `dotnet build`):
+   - **Container → nested `private` ist unmöglich.** Die klassische Nesting-Regel gilt nur *einseitig*:
+     ein genesteter Typ erreicht `private` Member seines Containers, **nicht umgekehrt**. Die
+     Accessibility-Domain eines `private` Members ist der Programmtext *seines deklarierenden Typs* — die
+     Maschinerie in `{Task}WFSBase` liegt außerhalb von `{Ctx}.Result` und kann dessen `Body` daher
+     **nicht** lesen (`WfsBase.Begin() → Init1Ctx.Result.Body(private)` ⇒ `CS0122`; mit `internal` ⇒
+     kompiliert; ein oder zwei Nesting-Ebenen ändern nichts).
+   - **Konsequenz: `internal` ist für *jedes* `Result.Body` verpflichtend**, Transition **wie** Choice —
+     nicht nur für die geschwister-geforwardete Choice. Die im Doc behauptete Asymmetrie (Transition
+     privat / nur Choice internal) **existiert nicht**; der „kleine Zusatz-Leak" der Choice ist **null**,
+     weil alle `Result.Body` ohnehin gleich im selben Assembly sichtbar sind.
+   - **`ForwardChoice_X` ist ein Nicht-Lösung** (verworfen): der Helfer läge selbst in der Basisklasse
+     (Container) und erreichte `private` genauso wenig — er senkt die Sichtbarkeit **nicht** unter
+     `internal`, kostet aber genau den pro-Choice-Helfer, den der `Guard<T>`-Wegfall (Runde 9 Nr. 1)
+     einsparte. Reiner Verlust.
+   - **`[EditorBrowsable(Never)]` als Milderung zieht nicht** (Roslyn ignoriert es für Symbole im *selben*
+     Assembly/Solution — der Override-Autor sieht `Body` in IntelliSense trotzdem). Es gibt **keine**
+     Accessibility-Stufe zwischen „für abgeleitete Klasse im selben Assembly sichtbar" und „für
+     Container-Maschinerie erreichbar" — beides ist `internal`. Der Leak ist auf `internal` **irreduzibel**.
+   - **Beschluss: `internal` akzeptieren (alternativlos), Footgun *nur dokumentieren*.** Der Footgun —
+     Override-Code *kann* `.Body` selbst früh unwrappen und den deferred Seiteneffekt fehlzünden — gilt
+     für **alle** `Result` gleichermaßen und ist harmlos (bewusster Fehlgriff nötig, `Result`-ctor ist
+     `internal`, der Autor kommt nur über eine Context-Methode an eine Instanz). Keine Codegen-Maßnahme.
+   - **Doc-Korrektur:** §4.2a (Result-Codeblock-Kommentar + der „umschließender Typ erreicht private"-Absatz)
+     und §4.4 (Init1-Context-`Result`-Kommentar) auf `internal Body` gezogen, die falsche
+     Container→nested-`private`-Begründung gestrichen.
+2. **Golden-Korpus: `[notimplemented]`/`[donotinject]` werden *isoliert*, nicht in ein Backbone-Golden
+   gefaltet (fold-vs-isolate → isolate).** Geerdet am Harness (`RegressionTests`): alle `.nav` unter
+   `Regression\Tests\` werden **rekursiv auto-discovered**, durch `NavCodeGeneratorPipeline` gejagt und
+   je generierte `.cs` per-File gegen ihre `.expected.cs` verglichen — ein Fixture kostet nur „`.nav`
+   reinlegen + `nav snapshot`", kein Wiring. Beide Attribute sind **Signatur-/Body-Sonderformen**
+   (notimplemented: `throw`-Thunk; donotinject: expliziter Wrapper-Parameter); ihr Review-Wert ist der
+   **saubere Ein-Konzept-Diff**. In die große Choice-Backbone gefaltet, würde eine Codegen-Änderung an
+   ihnen das ohnehin große `…WFSBase.generated.cs`-Golden churnen und die V1-Parität im Rauschen
+   vergraben. Isolation ist billig und passt zur bestehenden „wenige kleine fokussierte `.nav`"-Konvention.
+   Bestätigt: Backbone = drei gestaffelte Goldens (Grundform / Concat `o-^`+`--^` / Choice
+   [3-Quellen + Union + Choice→Choice + Multi-Exit]); Negatives (Nav0118/0119/0124/5000) als
+   **Diagnostics**-Fixtures (nicht Goldens); alle V2-`.nav` mit `#version 2`. **Zusätzlich:** V2-Fixtures
+   nach `Regression\Tests\V2\` (hält die V1-Parity-Goldens optisch/diff-technisch getrennt, macht die
+   §9-Invariante „V1 byte-identisch" auf einen Blick prüfbar; der Harness nutzt den Relativpfad als
+   Identity, ein Unterordner ist unkritisch). **Port-Caveat:** jedes isolierte Fixture braucht distinkten
+   Task-Namen **und** `[namespaceprefix]`, sonst kollidieren die generierten Dateinamen im geteilten Baum.
+
 ## 2. Referenz: der `concat`-Branch
 
 Auf dem Remote-Branch **`concat`** wurde beides bereits angefangen — allerdings **alt**: Merge-Base
@@ -467,12 +516,12 @@ Konstruktoren auf den `.Body`-Unwrap; der Begin-Aufruf des Sub-Tasks bleibt zus�
 public Result ShowView(ViewTO to)   => new(() => _wfs.GotoGUI(to));   // plain-only: direkt Result (Runde 7)
 public Result BeginB(string b1)     => new(() => _wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
 
-// … mit dem geschachtelten Result-Typ (readonly struct, Runde 9; Body bleibt private — nur die
-// Basisklasse erreicht ihn als umschließender Typ):
+// … mit dem geschachtelten Result-Typ (readonly struct, Runde 9; Body ist internal, Runde 10 — die
+// Maschinerie in {Task}WFSBase ist Container von Result und kann dessen private Member NICHT lesen):
 public readonly struct Result {
     readonly Func<IINIT_TASK> _command;
     internal Result(Func<IINIT_TASK> command) => _command = command;
-    IINIT_TASK Body                              // feuert die Konstruktion beim Unwrap
+    internal IINIT_TASK Body                     // feuert die Konstruktion beim Unwrap
         => _command is null                      // nur bei explizitem `return default;` (Runde 9 Nr. 2)
             ? throw new InvalidOperationException(
                   "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
@@ -488,10 +537,15 @@ Runde 3 strukturell unmöglich, der `null`-Fall seit Runde 9 ein Compile-Fehler.
 `return default;` (Func == null) — das prüft der **`.Body`-Getter selbst** mit einer generischen Meldung
 (§4.2a-Codeblock oben, Runde 9 Nr. 2). Kein `Guard<T>`, kein pro-Klasse-Helfer, keine pro-Transition-
 Duplikation; `NavCommandBody.ComposeUnexpectedTransitionMessage` wird in V2 **gar nicht mehr aufgerufen**.
-Der `.Body`-Zugriff erfolgt am Call-Site in der Basisklasse, die (als umschließender Typ) auch `private`
-genestete Member ihrer Transition-`Result`-Typen erreicht → **kein Interface / keine gemeinsame Basis**
-(verträgt sich mit Runde-4-Nr.-1), maximale Leck-Hygiene. *(Ausnahme: das **Choice**-`Result.Body` muss
-`internal` sein, weil es von **Geschwister**-Contexten geforwardet wird — §4.4.)*
+Der `.Body`-Zugriff erfolgt am Call-Site in der Basisklasse. **`Body` ist `internal`, nicht `private`
+(Runde 10):** die Maschinerie in `{Task}WFSBase` ist der *Container* der `Result`-Typen, und ein Container
+erreicht `private` Member seiner genesteten Typen in C# **nicht** (die Nesting-Regel gilt nur
+nested→Container). `internal` ist daher schon für **jedes** Transition-`Result.Body` verpflichtend — nicht
+erst für die Choice. Es bleibt trotzdem **kein Interface / keine gemeinsame Basis** (verträgt sich mit
+Runde-4-Nr.-1); die Leck-Hygiene endet bei „assembly-intern sichtbar" (irreduzibel — es gibt keine
+Accessibility-Stufe darunter, die die Maschinerie noch erreichte; Runde 10 Nr. 1). *(Das **Choice**-
+`Result.Body` wird zusätzlich von **Geschwister**-Contexten geforwardet — §4.4 —, braucht aber
+dieselbe `internal`-Stufe, kein Mehr.)*
 
 ### 4.3 Die Context-Fläche je Kanten-Art
 
@@ -601,7 +655,9 @@ protected sealed class Choice_RetryCallContext {
     public readonly struct Result {                       // Runde 9: struct
         readonly Func<IINIT_TASK> _command;
         internal Result(Func<IINIT_TASK> command) => _command = command;
-        // internal (NICHT private): das Choice-Result wird von Geschwister-Contexten geforwardet (§4.4)
+        // internal (Runde 10): schon der Container-Zugriff der Maschinerie verlangt internal (nested
+        // private ist für den Container unerreichbar, §4.2a); der Geschwister-Forward (§4.4) braucht
+        // dieselbe Stufe, kein Mehr. `private` ist hier kein gültiger Kandidat.
         internal IINIT_TASK Body
             => _command is null
                 ? throw new InvalidOperationException(
@@ -641,10 +697,11 @@ protected sealed class Init1CallContext {
     readonly SampleWFSBase _wfs;
     internal Init1CallContext(SampleWFSBase wfs) => _wfs = wfs;
 
-    public readonly struct Result {                       // Runde 9: struct; Body private (nur Maschinerie)
+    public readonly struct Result {                       // Runde 9: struct; Body internal (Runde 10 — Container
+                                                          // WFSBase erreicht nested private nicht, s. §4.2a)
         readonly Func<IINIT_TASK> _command;
         internal Result(Func<IINIT_TASK> command) => _command = command;
-        IINIT_TASK Body
+        internal IINIT_TASK Body
             => _command is null
                 ? throw new InvalidOperationException(
                       "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
@@ -940,25 +997,27 @@ sind. Verbleibend/neu:
    korpussicher (0/419), kann sofort implementiert werden (§5). Nur noch ID + Umsetzung.~~
    **Erledigt: als `Nav0119` implementiert (§5).**
 
-**Verbleibend (in Runde 9 neu aufgeworfen, noch zu grillen):**
+**In Runde 9 neu aufgeworfen, in Runde 9/10 abgearbeitet — §7 ist damit wieder leer; der Arbeitsvorrat
+liegt vollständig im Fahrplan (§8):**
 
 3. ~~**Platzierung des `--^`-Laufzeit-Smoke-Tests.**~~ **Erledigt (Runde 9):** Das Nav-Repo testet
    **kein Laufzeitverhalten**, nur bis Codegen. Die nötige Concat-Typfläche wird in `FrameworkStubs.cs`
    ergänzt, sodass die generierten Fälle (`o-^`/`--^`) **gegen Stubs kompilieren** (Golden, §8 Schritt 5,
    §9). Die `--^`-Laufzeitsemantik ist bereits **quellcode-verifiziert** (§4.7/⑥); ein automatisierter
    Laufzeit-Test gehört, wenn überhaupt, ins Framework-Repo (`QuickTests`) und ist **nicht** Nav-Fahrplan.
-4. **Choice-`Result.Body` muss `internal` sein — kleiner Leck-Kompromiss.** Anders als das Transition-
-   `Result.Body` (bleibt `private`, nur die Maschinerie in der Basisklasse greift zu) wird das
-   **Choice**-`Result.Body` von **Geschwister**-Contexten geforwardet (§4.4) → muss mindestens `internal`
-   sein, ist damit im selben Assembly für den Nutzer-Override sichtbar (kleiner Leak). Offen: akzeptieren
-   (dokumentiert, harmlos) oder per Basisklassen-Forward-Helfer (`ForwardChoice_X`) auf `private` zwingen
-   (kostet einen pro-Choice-Helfer — genau das, was der `Guard<T>`-Wegfall gerade eingespart hat)?
-5. **Golden-Snapshot-Korpus-Organisation (nächstes Grill-Thema, noch offen).** Vorschlag (noch **nicht**
-   entschieden): Backbone = die drei gestaffelten Goldens (Grundform / Concat [`o-^`+`--^`] / Choice
-   [3-Quellen + Union + Choice→Choice + Multi-Exit]); `[notimplemented]` und `[donotinject]` als je
-   **isoliertes** Minimal-Fixture (Signatur-/Body-Sonderform, V1-Parity-Port, saubere Diffs); Negatives
-   (Nav0118/0119/0124/5000) als **Diagnostics**-Fixtures statt Goldens; alle V2-`.nav` mit `#version 2`.
-   Die offene Gabelung ist **fold-vs-isolate** für notimplemented/donotinject.
+4. ~~**Choice-`Result.Body` muss `internal` sein — kleiner Leck-Kompromiss.**~~ **Erledigt (Runde 10):**
+   Die Prämisse war falsch (empirisch, `CS0122`). Ein Container erreicht `private` Member seiner
+   genesteten Typen **nicht** → schon das Transition-`Result.Body` **muss** `internal` sein; es gibt keine
+   Transition-`private`-Variante. Damit ist `internal` **uniform** (Transition wie Choice), der
+   Choice-Zusatz-Leak **null**, `ForwardChoice_X` ein Nicht-Lösung (senkt nicht unter `internal`).
+   `internal` akzeptiert, Footgun nur dokumentiert; Doc-Stellen in §4.2a/§4.4 korrigiert
+   (Leitentscheidung Runde 10 Nr. 1).
+5. ~~**Golden-Snapshot-Korpus-Organisation.**~~ **Erledigt (Runde 10):** fold-vs-isolate → **isolate**
+   (je isoliertes Minimal-Fixture für `[notimplemented]`/`[donotinject]` — sauberer Ein-Konzept-Diff,
+   Auto-Discovery macht Fixtures billig). Backbone = drei gestaffelte Goldens; Negatives als
+   Diagnostics-Fixtures; alle V2-`.nav` mit `#version 2`; zusätzlich V2-Fixtures nach
+   `Regression\Tests\V2\`; Port-Caveat distinkter Task-Name + `[namespaceprefix]` je Fixture
+   (Leitentscheidung Runde 10 Nr. 2).
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
@@ -991,6 +1050,10 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
 - Codegen: **neue V2-Golden-Snapshots** (CallContext-Grundform, Concat-Fall, Choice-mit-3-Quellen)
   via Snapshot-/`nav parity`-Workflow, Vergleich nach WS-Normalisierung. Die
   concat-Branch-`.expected.cs` sind **nicht** mehr Golden-Referenz (Leitentscheidungen Runde 2).
+- **Korpus-Organisation (Runde 10):** V2-Fixtures liegen unter `Regression\Tests\V2\` (getrennt von den
+  V1-Parity-Goldens, `RegressionTests` sammelt rekursiv auto-discovered); Backbone = die drei gestaffelten
+  Goldens; `[notimplemented]`/`[donotinject]` je als **isoliertes** Minimal-Fixture (nicht in ein Backbone
+  gefaltet — Ein-Konzept-Diff); je Fixture distinkter Task-Name + `[namespaceprefix]` (Dateinamen-Kollision).
 - Diagnostics-Fixtures **Nav0120/0121/0122 + Nav0124** (Nav0123 entfällt, Runde 9) + Versions-Gate
   (Nav5000) (mit `//==>>`-Erwartungen) als Semantic-Tests.
 - **Concat kompiliert gegen erweiterte Stubs (Runde 9):** `FrameworkStubs.cs` wird um die Concat-Typfläche
@@ -1092,6 +1155,19 @@ Jeder Umsetzungs-Step mit Review + Build/Test + gelieferter Commit-Message (kein
   Laufzeit-Test hier** (Laufzeit = Framework-Domäne, `--^`-Semantik quellcode-verifiziert).
   Detail-Folding nachgezogen: Header (Runde 9), §4.2/§4.2a (Struct + `.Body`-Selbstprüfung, Guard-Block ersetzt),
   §4.3 (Concat-Zeile `o-^`/`--^`), §4.4 (beide `Result` als Struct; Choice-`Body` `internal`, Transition-`Body`
-  `private`), §4.5 (`--^` unterstützt), §4.7 (⑥), §5 (Nav0123 entfällt), §7 (Smoke-Test-Platzierung in
-  Runde 9 gleich erledigt — Nav testet nur bis Codegen, Stubs erweitern; ein offener Punkt bleibt:
-  Choice-`Body`-`internal`-Leak), §8/§9/§10.
+  `private` — **letzteres in Runde 10 als Fehler korrigiert: uniform `internal`**), §4.5 (`--^` unterstützt),
+  §4.7 (⑥), §5 (Nav0123 entfällt), §7 (Smoke-Test-Platzierung in Runde 9 gleich erledigt — Nav testet nur
+  bis Codegen, Stubs erweitern; ein offener Punkt bleibt: Choice-`Body`-`internal`-Leak), §8/§9/§10.
+- **Runde 10** — **`Result.Body` uniform `internal` (Zugriffsregel-Korrektur) + Golden-Korpus isoliert;
+  §7 wieder leer.** **(1)** Empirisch (csc, `CS0122`) belegt: ein Container erreicht `private` Member seiner
+  genesteten Typen **nicht** (Nesting-Regel gilt nur nested→Container) → schon das Transition-`Result.Body`
+  **muss** `internal` sein; die in §4.2a/§4.4 behauptete Transition-`private`-Variante war ein Compile-Fehler.
+  Damit ist `internal` **uniform** (Transition wie Choice), der Choice-Zusatz-Leak **null**, `ForwardChoice_X`
+  ein Nicht-Lösung (senkt nicht unter `internal`), `[EditorBrowsable(Never)]` wirkungslos (same-assembly).
+  `internal` akzeptiert, Footgun (früher `.Body`-Unwrap durch Override-Code) **nur dokumentiert**; §4.2a
+  (Result-Codeblock + „umschließender Typ"-Absatz) und §4.4 (Init1-Context-`Result`, Choice-`Result`-Kommentar)
+  korrigiert. **(2)** Golden-Korpus: fold-vs-isolate → **isolate** (`[notimplemented]`/`[donotinject]` je
+  isoliertes Minimal-Fixture — Ein-Konzept-Diff, Auto-Discovery macht Fixtures billig); Backbone = drei
+  gestaffelte Goldens; Negatives als Diagnostics-Fixtures; V2-Fixtures nach `Regression\Tests\V2\`;
+  Port-Caveat distinkter Task-Name + `[namespaceprefix]` je Fixture; §9 um Korpus-Organisation ergänzt.
+  §7 Nr. 4/5 erledigt-markiert (§7 wieder leer), Header (Runde 10).
