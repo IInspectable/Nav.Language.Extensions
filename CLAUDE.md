@@ -7,6 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Immer echte Umlaute verwenden** (ä, ö, ü, Ä, Ö, Ü, ß) — in Code-Kommentaren, Commit-Messages,
   Dokumentation und sämtlichem erzeugten Text, insbesondere auch in `.cs`- und `.md`-Dateien.
   **Keine** ASCII-Ersatzschreibweisen wie „ae", „oe", „ue", „ss".
+  **Echte Umlaute sind der Grundzustand — solange sie nicht ausdrücklich verboten wurden, werden sie
+  verwendet.** Nicht mit einer ASCII-Fassung „auf Nummer sicher gehen" und nicht rückfragen oder eine
+  ASCII-Variante anbieten (etwa aus Sorge um Terminal-/Kodierungsprobleme); auch echte typografische
+  Zeichen (z.B. Pfeile im Fließtext) bleiben erhalten.
 - **Standard-Dateikodierung ist UTF-8 *mit* BOM.** Gilt für **alle** Textdateien, die hier erzeugt
   oder bearbeitet werden — `.cs`, `.md`, sowie Projekt-/Build-Dateien (`.csproj`, `.props`, `.targets`
   und sonstige MSBuild-Files, `.slnx`/`.sln` etc.). Neue Dateien immer als UTF-8 mit BOM anlegen;
