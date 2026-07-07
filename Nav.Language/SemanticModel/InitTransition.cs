@@ -6,8 +6,9 @@ sealed class InitTransition: Transition, IInitTransition {
                           ITaskDefinitionSymbol containingTask,
                           InitNodeReferenceSymbol? initNodeReference,
                           EdgeModeSymbol? edgeMode,
-                          NodeReferenceSymbol? targetReference)
-        : base(syntax, containingTask, initNodeReference, edgeMode, targetReference) {
+                          NodeReferenceSymbol? targetReference,
+                          ContinuationTransition? continuationTransition)
+        : base(syntax, containingTask, initNodeReference, edgeMode, targetReference, continuationTransition) {
     }
 
     public IInitNodeReferenceSymbol? InitNodeSourceReference => (IInitNodeReferenceSymbol?) SourceReference;

@@ -328,7 +328,8 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     private void AddExitTransition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax, TaskNodeReferenceSymbol sourceNodeReference, ExitConnectionPointReferenceSymbol? exitConnectionPointReference, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
-        var exitTransition = new ExitTransition(exitTransitionDefinitionSyntax, _taskDefinition, sourceNodeReference, exitConnectionPointReference, edgeMode, targetNodeReference);
+        var continuationTransition = CreateContinuationTransition(exitTransitionDefinitionSyntax.ContinuationTransition, exitTransitionDefinitionSyntax.TargetNode);
+        var exitTransition         = new ExitTransition(exitTransitionDefinitionSyntax, _taskDefinition, sourceNodeReference, exitConnectionPointReference, edgeMode, targetNodeReference, continuationTransition);
 
         _taskDefinition.ExitTransitions.Add(exitTransition);
 
@@ -342,8 +343,9 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     private void AddInitTransition(InitNodeSymbol initNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodeLocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
-        var initNodeReference = new InitNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodeLocation, initNode, NodeReferenceType.Source);
-        var initTransition    = new InitTransition(transitionDefinitionSyntax, _taskDefinition, initNodeReference, edgeMode, targetNodeReference);
+        var continuationTransition = CreateContinuationTransition(transitionDefinitionSyntax.ContinuationTransition, transitionDefinitionSyntax.TargetNode);
+        var initNodeReference      = new InitNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodeLocation, initNode, NodeReferenceType.Source);
+        var initTransition         = new InitTransition(transitionDefinitionSyntax, _taskDefinition, initNodeReference, edgeMode, targetNodeReference, continuationTransition);
 
         _taskDefinition.InitTransitions.Add(initTransition);
 
@@ -355,8 +357,9 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     private void AddChoiceTransition(ChoiceNodeSymbol choiceNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
-        var choiceNodeReference = new ChoiceNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodelocation, choiceNode, NodeReferenceType.Source);
-        var choiceTransition    = new ChoiceTransition(transitionDefinitionSyntax, _taskDefinition, choiceNodeReference, edgeMode, targetNodeReference);
+        var continuationTransition = CreateContinuationTransition(transitionDefinitionSyntax.ContinuationTransition, transitionDefinitionSyntax.TargetNode);
+        var choiceNodeReference    = new ChoiceNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodelocation, choiceNode, NodeReferenceType.Source);
+        var choiceTransition       = new ChoiceTransition(transitionDefinitionSyntax, _taskDefinition, choiceNodeReference, edgeMode, targetNodeReference, continuationTransition);
 
         _taskDefinition.ChoiceTransitions.Add(choiceTransition);
 
@@ -372,8 +375,9 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
         _diagnostics.AddRange(diagnostics);
 
-        var guiNodeReference  = new GuiNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodelocation, guiNode, NodeReferenceType.Source);
-        var triggerTransition = new TriggerTransition(transitionDefinitionSyntax, _taskDefinition, guiNodeReference, edgeMode, targetNodeReference, triggers);
+        var continuationTransition = CreateContinuationTransition(transitionDefinitionSyntax.ContinuationTransition, transitionDefinitionSyntax.TargetNode);
+        var guiNodeReference       = new GuiNodeReferenceSymbol(sourceNodeSyntax.SyntaxTree, sourceNodeSyntax.Name, sourceNodelocation, guiNode, NodeReferenceType.Source);
+        var triggerTransition      = new TriggerTransition(transitionDefinitionSyntax, _taskDefinition, guiNodeReference, edgeMode, targetNodeReference, continuationTransition, triggers);
 
         _taskDefinition.TriggerTransitions.Add(triggerTransition);
 
@@ -384,40 +388,79 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
     }
 
     private NodeReferenceSymbol? CreateTargetNodeReference(TargetNodeSyntax? targetNodeSyntax) {
+        return CreateNodeReference(targetNodeSyntax, NodeReferenceType.Target);
+    }
 
-        if (targetNodeSyntax == null) {
+    /// <summary>
+    /// Erzeugt für den benannten Zielknoten (<paramref name="nodeSyntax"/>) das passende, typisierte
+    /// <see cref="NodeReferenceSymbol"/> (je nach aufgelöster Deklaration Init/Choice/Task/Gui/Exit/End)
+    /// mit der angegebenen Referenz-Richtung <paramref name="referenceType"/>; liefert null, wenn kein
+    /// Knoten benannt ist.
+    /// </summary>
+    private NodeReferenceSymbol? CreateNodeReference(TargetNodeSyntax? nodeSyntax, NodeReferenceType referenceType) {
+
+        if (nodeSyntax == null) {
             return null;
         }
 
-        var targetNodeDeclaration = _taskDefinition.NodeDeclarations.TryFindSymbol(targetNodeSyntax.Name);
-        var targetNodeLocation    = targetNodeSyntax.GetLocation();
+        var nodeDeclaration = _taskDefinition.NodeDeclarations.TryFindSymbol(nodeSyntax.Name);
+        var nodeLocation    = nodeSyntax.GetLocation();
 
-        NodeReferenceSymbol targetNodeReference;
-        switch (targetNodeDeclaration) {
+        NodeReferenceSymbol nodeReference;
+        switch (nodeDeclaration) {
             case IInitNodeSymbol initNode:
-                targetNodeReference = new InitNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, initNode, NodeReferenceType.Target);
+                nodeReference = new InitNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, initNode, referenceType);
                 break;
             case IChoiceNodeSymbol choiceNode:
-                targetNodeReference = new ChoiceNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, choiceNode, NodeReferenceType.Target);
+                nodeReference = new ChoiceNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, choiceNode, referenceType);
                 break;
             case ITaskNodeSymbol taskNode:
-                targetNodeReference = new TaskNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, taskNode, NodeReferenceType.Target);
+                nodeReference = new TaskNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, taskNode, referenceType);
                 break;
             case IGuiNodeSymbol guiNode:
-                targetNodeReference = new GuiNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, guiNode, NodeReferenceType.Target);
+                nodeReference = new GuiNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, guiNode, referenceType);
                 break;
             case IExitNodeSymbol exitNode:
-                targetNodeReference = new ExitNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, exitNode, NodeReferenceType.Target);
+                nodeReference = new ExitNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, exitNode, referenceType);
                 break;
             case IEndNodeSymbol endNode:
-                targetNodeReference = new EndNodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, endNode, NodeReferenceType.Target);
+                nodeReference = new EndNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, endNode, referenceType);
                 break;
             default:
-                targetNodeReference = new NodeReferenceSymbol(targetNodeSyntax.SyntaxTree, targetNodeSyntax.Name, targetNodeLocation, targetNodeDeclaration, NodeReferenceType.Target);
+                nodeReference = new NodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeLocation, nodeDeclaration, referenceType);
                 break;
         }
 
-        return targetNodeReference;
+        return nodeReference;
+    }
+
+    /// <summary>
+    /// Baut zum optionalen Continuation-Anhang (<c>… o-^ Task</c> / <c>… --^ Task</c>, ab Sprachversion 2)
+    /// einer Transition die <see cref="ContinuationTransition"/> im Semantic Model: Quelle ist der tragende
+    /// GUI-Knoten (<paramref name="carrierNodeSyntax"/>, der Zielknoten der umgebenden Transition), Ziel der
+    /// Folge-Task; das Ziel wird in den Referenzgraphen eingehängt. Die strukturelle Gültigkeit (Quelle = GUI-,
+    /// Ziel = Task-Knoten) prüfen eigene Analyzer. Liefert null, wenn keine Continuation vorhanden ist.
+    /// </summary>
+    private ContinuationTransition? CreateContinuationTransition(ContinuationTransitionSyntax? continuationTransitionSyntax, TargetNodeSyntax? carrierNodeSyntax) {
+
+        if (continuationTransitionSyntax == null) {
+            return null;
+        }
+
+        var sourceNodeReference = CreateNodeReference(carrierNodeSyntax, NodeReferenceType.Source);
+        var targetNodeReference = CreateNodeReference(continuationTransitionSyntax.TargetNode, NodeReferenceType.Target);
+
+        EdgeModeSymbol? edgeMode   = null;
+        var             edgeSyntax = continuationTransitionSyntax.Edge;
+        if (edgeSyntax != null) {
+            edgeMode = new EdgeModeSymbol(continuationTransitionSyntax.SyntaxTree, edgeSyntax.ToString(), edgeSyntax.GetLocation(), edgeSyntax.Mode);
+        }
+
+        var continuationTransition = new ContinuationTransition(continuationTransitionSyntax, _taskDefinition, sourceNodeReference, edgeMode, targetNodeReference);
+
+        WireTargetNodeReferences(continuationTransition);
+
+        return continuationTransition;
     }
 
     private static void WireTargetNodeReferences(IEdge edge) {

@@ -13,13 +13,15 @@ abstract class Transition: ITransition {
                         ITaskDefinitionSymbol containingTask,
                         NodeReferenceSymbol? sourceReference,
                         EdgeModeSymbol? edgeMode,
-                        NodeReferenceSymbol? targetReference) {
+                        NodeReferenceSymbol? targetReference,
+                        ContinuationTransition? continuationTransition) {
 
-        ContainingTask  = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
-        Syntax          = syntax         ?? throw new ArgumentNullException(nameof(syntax));
-        SourceReference = sourceReference;
-        EdgeMode        = edgeMode;
-        TargetReference = targetReference;
+        ContainingTask         = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
+        Syntax                 = syntax         ?? throw new ArgumentNullException(nameof(syntax));
+        SourceReference        = sourceReference;
+        EdgeMode               = edgeMode;
+        TargetReference        = targetReference;
+        ContinuationTransition = continuationTransition;
 
         if (sourceReference != null) {
             sourceReference.Edge = this;
@@ -47,6 +49,8 @@ abstract class Transition: ITransition {
 
     public INodeReferenceSymbol? TargetReference { get; }
 
+    public IContinuationTransition? ContinuationTransition { get; }
+
     public virtual IEnumerable<ISymbol> Symbols() {
 
         if (SourceReference != null) {
@@ -59,6 +63,12 @@ abstract class Transition: ITransition {
 
         if (TargetReference != null) {
             yield return TargetReference;
+        }
+
+        if (ContinuationTransition != null) {
+            foreach (var symbol in ContinuationTransition.Symbols()) {
+                yield return symbol;
+            }
         }
     }
 

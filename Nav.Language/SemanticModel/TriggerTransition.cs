@@ -9,8 +9,9 @@ sealed class TriggerTransition: Transition, ITriggerTransition {
                              GuiNodeReferenceSymbol? sourceReference,
                              EdgeModeSymbol? edgeMode,
                              NodeReferenceSymbol? targetReference,
+                             ContinuationTransition? continuationTransition,
                              SymbolCollection<TriggerSymbol>? triggers)
-        : base(syntax, containingTask, sourceReference, edgeMode, targetReference) {
+        : base(syntax, containingTask, sourceReference, edgeMode, targetReference, continuationTransition) {
 
         Triggers = triggers ?? new SymbolCollection<TriggerSymbol>();
 

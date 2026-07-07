@@ -34,7 +34,7 @@ Commit-Message — der Commit macht der Nutzer.
 |---|---|---|---|---|
 | **S0** | Status-Doc (dieses) + Golden-**Input**-`.nav` festschreiben: CallContext-Grundform, Continuation, Choice-mit-3-Quellen | §6.1, §8.2 | `.nav` liegen unter `Regression/Tests/V2/`, alle `#version 2`, je distinkter Task-Name **und** `[namespaceprefix]` (sonst Dateinamens-Kollision, §7) | **erledigt** — `BasicFlow.nav`/`ContinuationFlow.nav`/`ChoiceFlow.nav`; Harness überspringt den `V2\`-Teilbaum vorläufig (s.u.) |
 | **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | **erledigt** — s.u. |
-| **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | offen |
+| **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | **erledigt** — s.u. |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + **Nav0124** (generische Member-Kollision) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | offen |
 | **S4** | **Versions-Gate + Completion:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`) | §6.3 (Teil C), §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000-Fixtures | offen |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | offen |
@@ -78,6 +78,47 @@ Umgesetzt (versionsunabhängig, rein syntaktisch — Versions-Wirksamkeit ist er
   Literal-Terminal-Check kennt jetzt auch `IsContinuationEdgeKeyword`.
 
 Verifikation: `nav build` + beide TFMs grün (net10 1369/0, net472 1377/0 — je 3 explizite Skips).
+
+### S2-Anmerkung: was der Semantic-Model-Kern umfasst
+
+Umgesetzt (versionsunabhängig, reiner Modell-Aufbau — Struktur-Diagnostik ist erst S3):
+
+- **Interfaces:** `IContinuableEdge: IEdge` (trägt optional eine `ContinuationTransition`) — `ITransition`
+  **und** `IExitTransition` erben davon; `IContinuationTransition: IEdge` (selbst **nicht**
+  `IContinuableEdge`: eine Continuation kann keine weitere tragen).
+- **Klasse `ContinuationTransition`:** implementiert `IContinuationTransition` mit **generisch** typisierten
+  `IEdge`-Referenzen (Quelle/Ziel als `INodeReferenceSymbol?`). Bewusst **keine** stark typisierten
+  Gui-/Task-Shadows wie im concat-Branch: der Branch erzwang die Typen im Builder und emittierte dort die
+  Struktur-Diagnosen — das kollidiert mit der sauberen Analyzer-Trennung dieses Repos. Quelle/Ziel-Typprüfung
+  (GUI- bzw. Task-Knoten) macht der Analyzer in S3.
+- **Trägerkanten:** `Transition` (Basis von Init/Trigger/Choice) und `ExitTransition` bekommen den
+  `ContinuationTransition`-Parameter, die `ContinuationTransition`-Property und ziehen deren Symbole in
+  `Symbols()` nach; die drei Transition-Subklassen reichen den Parameter durch.
+- **`Call.ContinuationCall`:** der `Call`-Ctor nimmt jetzt die **Edge** statt nur des `EdgeMode` und leitet
+  daraus bei einer `IContinuableEdge` mit Continuation den Folge-Task-`Call` ab. `CallComparer` bezieht
+  `ContinuationCall` in Gleichheit **und** Hash ein (manuelles Hashing beibehalten — `System.HashCode`
+  fehlt in netstandard2.0).
+- **Reachability:** `EdgeExtensions.GetReachableContinuationCalls` (Folge-Task-Calls einer Kante);
+  `GetReachableCalls` baut Calls nun über `new Call(target, edge)`.
+- **Builder:** `CreateContinuationTransition` (im Trigger/Init/Choice/Exit-Pfad) baut die Continuation aus
+  dem `ContinuationTransition`-Syntaxknoten; Quelle ist der tragende GUI-Knoten (= Zielknoten der
+  umgebenden Transition), Ziel der Folge-Task (via `WireTargetNodeReferences` in den Referenzgraphen
+  gehängt). `CreateTargetNodeReference` wurde zum richtungs-parametrischen `CreateNodeReference`
+  refaktoriert (Quelle **und** Ziel teilen die Reference-Fabrik).
+- **Choice-Parameter:** `choice X [params …]` ist bereits über `IChoiceNodeSymbol.Syntax.CodeParamsDeclaration`
+  erreichbar (S1-Syntax + vorhandener `Syntax`-Accessor) — **kein** eigenes Symbol, exakt die
+  `init [params …]`-Präzedenz (auch dort lesen Konsumenten `Syntax.CodeParamsDeclaration` direkt).
+
+**Nav0222-Scope-Entscheidung.** Der „Nav0222-Fix" ist die **Reachability-Ebene**: `Call` trägt jetzt die
+Edge → `ContinuationCall` → korrektes Dedup zweier nur-durch-Continuation-verschiedener Calls. Der
+Nav0222-**Analyzer** bleibt V1-**identisch** (bestehende Regression unverändert). Der concat-Branch hatte
+den Analyzer breiter umgeschrieben (Exit-Transitionen pro Task-Knoten **gepoolt** statt per-Kante) — das
+**ändert die V1-Diagnostik** und verletzte die „V1 unverändert"-Invariante. Continuation-Modus-Konflikte
+(dieselbe Continuation-Ziel-Task via `o-^` **und** `--^`) gehören daher V1-sicher zu den S3-Analyzern
+(überlappt mit Nav0124), nicht in Nav0222.
+
+Verifikation: `nav build` + beide TFMs grün (net10 1374/0, net472 1382/0 — je 3 explizite Skips);
+neue `ContinuationSemanticTests` (5 Fälle).
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

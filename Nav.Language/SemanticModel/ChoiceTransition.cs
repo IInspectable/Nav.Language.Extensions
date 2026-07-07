@@ -6,8 +6,9 @@ sealed class ChoiceTransition: Transition, IChoiceTransition {
                             ITaskDefinitionSymbol containingTask,
                             ChoiceNodeReferenceSymbol? choiceReference,
                             EdgeModeSymbol? edgeMode,
-                            NodeReferenceSymbol? targetReference)
-        : base(syntax, containingTask, choiceReference, edgeMode, targetReference) {
+                            NodeReferenceSymbol? targetReference,
+                            ContinuationTransition? continuationTransition)
+        : base(syntax, containingTask, choiceReference, edgeMode, targetReference, continuationTransition) {
     }
 
     public IChoiceNodeReferenceSymbol? ChoiceNodeSourceReference => (IChoiceNodeReferenceSymbol?) SourceReference;

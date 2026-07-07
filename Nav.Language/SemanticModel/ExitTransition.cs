@@ -14,7 +14,8 @@ sealed class ExitTransition: IExitTransition {
                             TaskNodeReferenceSymbol? taskNodeReference,
                             ExitConnectionPointReferenceSymbol? exitConnectionPointReference,
                             EdgeModeSymbol? edgeMode,
-                            NodeReferenceSymbol? targetReference) {
+                            NodeReferenceSymbol? targetReference,
+                            ContinuationTransition? continuationTransition) {
 
         Syntax                       = syntax         ?? throw new ArgumentNullException(nameof(syntax));
         ContainingTask               = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
@@ -22,6 +23,7 @@ sealed class ExitTransition: IExitTransition {
         ExitConnectionPointReference = exitConnectionPointReference;
         EdgeMode                     = edgeMode;
         TargetReference              = targetReference;
+        ContinuationTransition       = continuationTransition;
 
         if (taskNodeReference != null) {
             taskNodeReference.Edge = this;
@@ -56,6 +58,8 @@ sealed class ExitTransition: IExitTransition {
 
     public INodeReferenceSymbol? TargetReference { get; }
 
+    public IContinuationTransition? ContinuationTransition { get; }
+
     public IEnumerable<ISymbol> Symbols() {
 
         if (SourceReference != null) {
@@ -72,6 +76,12 @@ sealed class ExitTransition: IExitTransition {
 
         if (TargetReference != null) {
             yield return TargetReference;
+        }
+
+        if (ContinuationTransition != null) {
+            foreach (var symbol in ContinuationTransition.Symbols()) {
+                yield return symbol;
+            }
         }
     }
 

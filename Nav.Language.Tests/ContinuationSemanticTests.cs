@@ -1,0 +1,117 @@
+﻿using System.Linq;
+
+using NUnit.Framework;
+
+using Pharmatechnik.Nav.Language;
+
+// ReSharper disable PossibleNullReferenceException
+
+namespace Nav.Language.Tests;
+
+/// <summary>
+/// Semantic-Model-Tests für die Continuation (<c>… o-^ Task</c> / <c>… --^ Task</c>) und die
+/// Choice-Parameter (<c>choice X [params …]</c>) — der versionsunabhängige Semantic-Model-Kern (S2).
+/// Die Versions-Wirksamkeit (Nav5000) und die Struktur-Analyzer (Nav0120/0121/0122) sind hier bewusst
+/// nicht im Spiel: das Modell baut die Continuation unabhängig von <c>#version</c>.
+/// </summary>
+[TestFixture]
+public class ContinuationSemanticTests {
+
+    const string SampleNav = """
+
+        task Sample [namespaceprefix N]
+        {
+            init Init1;
+            exit Exit;
+            task Msg;
+            view View;
+            choice Choice_Retry [params string reason];
+
+            Init1        --> Choice_Retry;
+            Choice_Retry --> View;
+            Choice_Retry --> View o-^ Msg if "Fehler";
+            Msg:Exit     --> View --^ Msg;
+            View         --> Exit on OnClose;
+        }
+                
+        """;
+
+    [Test]
+    public void ContinuationTransitionIsBuiltOnCarryingEdge() {
+
+        var task = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+
+        var plainEdge = task.ChoiceTransitions.Single(t => t.SourceReference.Name == "Choice_Retry" &&
+                                                           t.TargetReference.Name == "View"          &&
+                                                           t.ContinuationTransition == null);
+        Assert.That(plainEdge, Is.Not.Null, "Die plain-Kante trägt keine Continuation.");
+
+        var continuationEdge = task.ChoiceTransitions.Single(t => t.SourceReference.Name == "Choice_Retry" &&
+                                                                 t.ContinuationTransition != null);
+
+        var continuation = continuationEdge.ContinuationTransition;
+        Assert.That(continuation.EdgeMode.EdgeMode,     Is.EqualTo(EdgeMode.Modal), "o-^ ist eine Modal-Continuation.");
+        Assert.That(continuation.TargetReference.Name,  Is.EqualTo("Msg"));
+        Assert.That(continuation.SourceReference.Name,  Is.EqualTo("View"), "Quelle der Continuation ist der tragende GUI-Knoten.");
+    }
+
+    [Test]
+    public void GotoContinuationOnExitTransitionUsesGotoMode() {
+
+        var task = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+
+        var exitEdge = task.ExitTransitions.Single(t => t.ContinuationTransition != null);
+
+        Assert.That(exitEdge.ContinuationTransition.EdgeMode.EdgeMode,    Is.EqualTo(EdgeMode.Goto), "--^ ist eine Goto-Continuation.");
+        Assert.That(exitEdge.ContinuationTransition.TargetReference.Name, Is.EqualTo("Msg"));
+    }
+
+    [Test]
+    public void ReachableContinuationCallsSurfaceTheFollowUpTask() {
+
+        var task      = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+        var initEdge  = task.TryFindNode<IInitNodeSymbol>("Init1").Outgoings.Single();
+
+        // Init1 --> Choice_Retry löst die Choice auf; genau eine ihrer Ausgangskanten trägt eine
+        // Continuation (o-^ Msg) → genau ein Continuation-Call auf Msg (Modal).
+        var continuationCalls = initEdge.GetReachableContinuationCalls().ToList();
+
+        Assert.That(continuationCalls.Select(c => c.Node.Name), Is.EquivalentTo(new[] { "Msg" }));
+        Assert.That(continuationCalls.Single().EdgeMode.EdgeMode, Is.EqualTo(EdgeMode.Modal));
+    }
+
+    [Test]
+    public void PlainAndContinuationEdgeToSameViewAreDistinctCalls() {
+
+        var task      = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+        var initEdge  = task.TryFindNode<IInitNodeSymbol>("Init1").Outgoings.Single();
+
+        // Beide Choice-Kanten zeigen (goto) auf View; sie unterscheiden sich nur in der Continuation.
+        // Der ContinuationCall im Gleichheits-/Hash-Kontrakt von Call hält sie auseinander (Nav0222-Basis).
+        var viewCalls = initEdge.GetReachableCalls().Where(c => c.Node.Name == "View").ToList();
+
+        Assert.That(viewCalls, Has.Count.EqualTo(2));
+        Assert.That(viewCalls.Count(c => c.ContinuationCall == null), Is.EqualTo(1));
+        Assert.That(viewCalls.Count(c => c.ContinuationCall != null), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void ChoiceParametersAreReachableViaSyntax() {
+
+        var task   = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+        var choice = task.TryFindNode<IChoiceNodeSymbol>("Choice_Retry");
+
+        var parameters = choice.Syntax.CodeParamsDeclaration?.ParameterList;
+
+        Assert.That(parameters,                        Is.Not.Null, "choice [params …] muss am Choice-Knoten ankommen.");
+        Assert.That(parameters.Count,                  Is.EqualTo(1));
+        Assert.That(parameters[0].Identifier.ToString(), Is.EqualTo("reason"));
+        Assert.That(parameters[0].Type.ToString().Trim(), Is.EqualTo("string"));
+    }
+
+    static CodeGenerationUnit ParseModel(string source) {
+        var syntax = Syntax.ParseCodeGenerationUnit(source);
+        return CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);
+    }
+
+}

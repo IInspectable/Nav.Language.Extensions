@@ -9,6 +9,17 @@ namespace Pharmatechnik.Nav.Language;
 
 public static class EdgeExtensions {
 
+    /// <summary>
+    /// Liefert zu allen von <paramref name="source"/> erreichbaren <see cref="Call"/>s deren
+    /// <see cref="Call.ContinuationCall"/> (der „obendrauf" liegende Folge-Task-Aufruf einer Continuation,
+    /// <c>… o-^ Task</c> / <c>… --^ Task</c>); Calls ohne Continuation werden übersprungen.
+    /// </summary>
+    public static IEnumerable<Call> GetReachableContinuationCalls(this IEdge source) {
+        return source.GetReachableCalls()
+                     .Select(call => call.ContinuationCall)
+                     .WhereNotNull();
+    }
+
     public static IEnumerable<Call> GetReachableCalls(this IEdge source) {
         return GetReachableCallsImpl(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
     }
@@ -49,7 +60,7 @@ public static class EdgeExtensions {
             }
         } else if (edge.EdgeMode != null) {
             // Nur Edges mit einem definiertem Edge Mode ergeben einen Call
-            yield return new Call(targetNode, edge.EdgeMode);
+            yield return new Call(targetNode, edge);
         }
     }
 
