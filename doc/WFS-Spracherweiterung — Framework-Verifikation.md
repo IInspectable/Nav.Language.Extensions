@@ -1,7 +1,9 @@
-# WFS-Spracherweiterung — Framework-Verifikation der 5 Unbekannten
+﻿# WFS-Spracherweiterung — Framework-Verifikation der 5 Unbekannten
 
 > Verifiziert am realen Framework (`Framework.NavigationEngine`), nicht aus Stubs/V1-Branch geschlossen.
 > Alle Command-Typen der `…IWFL`-Familie (nicht `…IWFL.ClientNavCommands`).
+> Die sechste Verifikation ⑥ (`--^`/Goto-Concat) ist im Design dokumentiert:
+> `doc/nav-codegen-v2-concat-design.md`, §3.8/⑥.
 
 ## ⚠️ Vorab: Zwei gleichnamige Command-Familien — die richtige treffen
 
@@ -68,9 +70,9 @@ public class CANCEL : NavCommand, IINIT_TASK, INavCommandBody   // CANCEL.cs:5  
 
 ---
 
-## ④ Init-Legalitäts-Matrix — Auflösung **(b): Typsystem verbietet die Kante bewusst**
+## ④ Init-Legalitäts-Matrix — das Typsystem verbietet die Kante bewusst
 
-Nicht (a). `IINIT_TASK` ist **gezielt selektiv** implementiert:
+`IINIT_TASK` ist **gezielt selektiv** implementiert:
 
 | Command | Producer | Interfaces | `IINIT_TASK`? |
 |---|---|---|:---:|
@@ -87,7 +89,7 @@ Nicht (a). `IINIT_TASK` ist **gezielt selektiv** implementiert:
 
 Design-Grund wörtlich im Framework (`TWO_STEP.cs`, Header): *„…we suddenly undermine the rule that a task can only start with GOTO_TASK, GOTO_GUI or TASK_RESULT."* Deshalb ist `TWO_STEP` gesplittet; nur der `GOTO_GUI`-Intro trägt `IINIT_TASK`.
 
-**Konsequenz V2:** Zeigt eine Init-Transition (`o->`/`==>`) **direkt** auf Modal-Task/Non-Modal-Task/Modal-GUI, entsteht `OPEN_MODAL_TASK`/`START_NONMODAL_TASK`/`OPEN_MODAL_GUI` (**nicht** `IINIT_TASK`) → `IINIT_TASK`-typisierter `Result.Body` = **Compile-Fehler**. Das ist die beabsichtigte Einschränkung. Der opake `Result.Body` ist **nicht** immer `IINIT_TASK`-typisierbar. Semantic Model **muss** Init-Ausgangskanten auf die `IINIT_TASK`-Menge beschränken (`GOTO_GUI`, `GOTO_TASK`, `TASK_RESULT`, `CANCEL`, `GOTO_GUI(…).Concat(…)`). Modal/Nonmodal/Modal-GUI nur *innerhalb* eines Tasks (erst `GOTO_GUI`, dann `.Concat(…)`). Trägt §4.7 via (b).
+**Konsequenz V2:** Zeigt eine Init-Transition (`o->`/`==>`) **direkt** auf Modal-Task/Non-Modal-Task/Modal-GUI, entsteht `OPEN_MODAL_TASK`/`START_NONMODAL_TASK`/`OPEN_MODAL_GUI` (**nicht** `IINIT_TASK`) → `IINIT_TASK`-typisierter `Result.Body` = **Compile-Fehler**. Das ist die beabsichtigte Einschränkung. Der opake `Result.Body` ist **nicht** immer `IINIT_TASK`-typisierbar. Semantic Model **muss** Init-Ausgangskanten auf die `IINIT_TASK`-Menge beschränken (`GOTO_GUI`, `GOTO_TASK`, `TASK_RESULT`, `CANCEL`, `GOTO_GUI(…).Concat(…)`). Modal/Nonmodal/Modal-GUI nur *innerhalb* eines Tasks (erst `GOTO_GUI`, dann `.Concat(…)`). Trägt die Init-Legalitäts-Regel des Designs (§3.8/④, umgesetzt als Analyzer Nav0110+Nav0118, Design §4).
 
 ---
 
@@ -105,7 +107,7 @@ Design-Grund wörtlich im Framework (`TWO_STEP.cs`, Header): *„…we suddenly 
 
 Stubs (Rückgabe `null`) verschleiern das. Das Framework selbst vermeidet den Eager-Effekt per Thunk: `StartNonModalGUI(to) => StartNonModalTask(() => GotoGUI(to))` (`BaseWFService.cs:153`); `BeginTaskWrapper` (`INavCommand.cs:6`) ist der Verzögerungsmechanismus.
 
-**Konsequenz V2:** `GotoGUI`/`OpenModalGUI`/`Concat(ITASK_BOUNDARY)` aus dem `BeginTaskWrapper`-Thunk in eine **eager** Context-Fabrikmethode zu verschieben feuert GUI-Navigation bzw. `ExecuteCallResult` **zur Konstruktionszeit statt beim kontrollierten Ausführen** → Verhaltensänderung. §7.3 muss das abfangen: diese drei bleiben lazy (im Thunk); nur feld-speichernde Commands dürfen eager gebaut werden.
+**Konsequenz V2:** `GotoGUI`/`OpenModalGUI`/`Concat(ITASK_BOUNDARY)` aus dem `BeginTaskWrapper`-Thunk in eine **eager** Context-Fabrikmethode zu verschieben feuert GUI-Navigation bzw. `ExecuteCallResult` **zur Konstruktionszeit statt beim kontrollierten Ausführen** → Verhaltensänderung. Das Design fängt das ab: der `Result`-Thunk baut **alle** Kommandos deferred (Design §3.2) — feld-speichernde Commands *dürften* zwar eager gebaut werden, diese drei aber keinesfalls.
 
 ---
 
@@ -114,7 +116,7 @@ Stubs (Rückgabe `null`) verschleiern das. Das Framework selbst vermeidet den Ea
 - **①** Instanzmethode auf `GOTO_GUI`; Param = `INOT_A_TASK_BOUNDARY`/`ITASK_BOUNDARY`; Ergebnis `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY` ist `IINIT_TASK`+`INavCommand` ✓ (Concat-Seiteneffekt beachten).
 - **②** Keine Schwester nötig — `InternalTaskResult<T>` liefert `TASK_RESULT<T>`; konkret typisieren → castfrei; sonst Cast laufzeitsicher.
 - **③** `_wfs.Cancel()` → `new CANCEL()` (Factory-Methode) — Doc korrekt.
-- **④** **(b)** Semantic Model muss die Kante verbieten; Command-Typen sind bewusst nicht alle `IINIT_TASK`.
+- **④** Semantic Model muss die Kante verbieten; Command-Typen sind bewusst nicht alle `IINIT_TASK`.
 - **⑤** **Nicht** seiteneffektfrei: `GOTO_GUI`, `OPEN_MODAL_GUI`, `Concat(ITASK_BOUNDARY)` haben Konstruktor-Seiteneffekte → müssen im Thunk bleiben.
 
 ## Quellen (Datei:Zeile)
