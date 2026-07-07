@@ -20,6 +20,9 @@ task A
     I2  --> C;
     I3  --> C;
 }
+//==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
+//==>>[Semantic](14,10,14,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
+//==>>[Semantic](15,10,15,12): error Nav0119: The init node 'I3' has the same parameter signature as init node 'I1'
 //==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge declared for exit 'e1'
 //==>>[Semantic](17,10,17,11): error Nav0025: No outgoing edge declared for exit 'e2'
 //==>>[Semantic](20,13,20,14): error Nav0025: No outgoing edge declared for exit 'e1'

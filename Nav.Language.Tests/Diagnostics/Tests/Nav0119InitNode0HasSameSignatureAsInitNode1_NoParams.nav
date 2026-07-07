@@ -1,7 +1,10 @@
 ﻿task A
 {
-    init I1;    
+    init I1;
     init I2;
     exit e1;
+
+    I1 --> e1;
+    I2 --> e1;
 }
 //==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'

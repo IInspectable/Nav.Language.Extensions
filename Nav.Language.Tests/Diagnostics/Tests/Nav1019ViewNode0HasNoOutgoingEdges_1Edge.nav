@@ -8,5 +8,6 @@
     I1  --> e1;
     I2  --> C;                    
 }
+//==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
 //==>>[Semantic](6,10,6,11): warning Nav0117: The view node 'C' has no outgoing edges
 //==>>[DeadCode](9,5,9,15): warning Nav1019: The view node 'C' has no outgoing edges

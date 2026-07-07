@@ -258,6 +258,16 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
+        /// The init node '{0}' has the same parameter signature as init node '{1}'
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0119InitNode0HasSameSignatureAsInitNode1 = new(
+            id             : DiagnosticId.Nav0119,
+            messageFormat  : "The init node '{0}' has the same parameter signature as init node '{1}'",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
         /// The choice node '{0}' has no incoming edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0111ChoiceNode0HasNoIncomingEdges = new(
