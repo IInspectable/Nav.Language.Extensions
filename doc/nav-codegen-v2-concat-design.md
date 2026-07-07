@@ -470,10 +470,19 @@ Framework-Verifikation.md`):
   `IINIT_TASK` **gezielt selektiv**: `OPEN_MODAL_TASK`/`OPEN_MODAL_GUI`/`START_NONMODAL_TASK`/`END` sind
   **nicht** `IINIT_TASK` (nur `GOTO_GUI`/`GOTO_TASK`/`TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`). Ein
   init-typisierter `Result.Body` ist also nur baubar, wenn **alle** aus einem Init erreichbaren Ausgänge
-  in dieser Menge liegen. Das **muss das Semantic Model erzwingen** (§5) — die frühere Annahme
-  „Nav0110/Nav0222 garantieren das schon" ist **beim Port zu verifizieren**, nicht vorausgesetzt: es
-  ist unklar, ob die bestehende Reachability die Edge-Mode-/`IINIT_TASK`-Legalität an Init-Ausgängen
-  bereits abdeckt oder ob eine neue Regel nötig ist.
+  in dieser Menge liegen. Das **muss das Semantic Model erzwingen** (§5).
+- **④a `--> End` aus Init ist die konkrete Lücke — verifiziert (Runde 6).** `END : NavCommand,
+  ITASK_BOUNDARY, INavCommandBody` (bestätigt an `END.cs`) trägt **kein** `IINIT_TASK`. Der V1-Generator
+  emittiert für `init --> end` aber `public virtual IINIT_TASK Begin() { … case END _: return
+  EndNonModal(); }` (`WfsBaseEmitter.cs:194`+`:333–337`), und `EndNonModal()` liefert `END` → die
+  Zuweisung `END → IINIT_TASK` ist **CS0266**. V1 erzeugt für diesen (im Korpus offenbar nicht
+  vorkommenden) Fall also bereits **nicht-kompilierenden** Code. **Nav0110 fängt es *nicht*:** `--> End`
+  ist eine **Goto-Mode**-Kante und passiert Nav0110 (das nur `EdgeMode != Goto` in Init-Reichweite
+  verbietet) — die `IINIT_TASK`-Mitgliedschaft ist ein *anderes* Kriterium als der Edge-Mode, und für
+  `End` fallen beide auseinander. Der §5-Analyzer braucht daher **zusätzlich** eine Regel gegen `--> End`
+  in Init-Reichweite (bzw. eine Nav0110-Erweiterung von „Edge-Mode" auf „`IINIT_TASK`-Zielkommando"). Ein
+  reiner `nav.exe`-Codegen-Erfolg beweist die Kompilierbarkeit hier **nicht** — erst `csc` gegen das
+  Framework ist das maßgebliche Gate.
 
 ## 5. Syntax & Semantic Model (versionsunabhängig)
 
@@ -491,9 +500,12 @@ portiert — **nach** dem Design:
   `TASK_RESULT`/`CANCEL`/`GotoGUI(…).Concat(…)`); `o->`/`==>` direkt aus einem Init (→ `OPEN_MODAL_GUI`/
   `OPEN_MODAL_TASK`/`START_NONMODAL_TASK`, **nicht** `IINIT_TASK`) sowie `--> End` aus init-Reichweite
   müssen abgelehnt werden — sonst ist der `IINIT_TASK`-typisierte `Result.Body` nicht baubar (§4.7).
-  **Beim Port zu klären:** ob die bestehende Reachability (**Nav0110**/**Nav0222**, edge-mode-bewusst
-  seit concat-Branch) das schon abdeckt oder eine neue Regel nötig ist. Modal/Nonmodal/Modal-GUI nur
-  *innerhalb* eines Tasks (erst `GotoGUI`, dann `.Concat(…)`).
+  **Port-Klärung erledigt (Runde 6):** **Nav0110** deckt den *Edge-Mode*-Teil bereits ab (`o->`/`==>`
+  aus Init-Reichweite = `EdgeMode != Goto` → Fehler), **nicht** aber `--> End` (Goto-Mode-Kante, `END`
+  ist kein `IINIT_TASK` → CS0266, §4.7/④a). **Nav0222** trägt nichts bei (nur Edge-Mode-Konsistenz).
+  Es ist also **eine neue bzw. erweiterte Regel nötig**: entweder ein eigener Analyzer gegen `--> End`
+  in Init-Reichweite oder Nav0110 von „Edge-Mode" auf „`IINIT_TASK`-Zielkommando" umstellen.
+  Modal/Nonmodal/Modal-GUI nur *innerhalb* eines Tasks (erst `GotoGUI`, dann `.Concat(…)`).
 - **Diagnostics, versions-gated (Runde 2):** Concat-Kanten und Choice-`[params]` sind nur ab
   `#version 2` erlaubt (in V1-Units → Fehler-Diagnostic mit Verweis auf `#version`); `--^` wird
   vorerst generell abgelehnt („noch nicht unterstützt", Leitentscheidung Nr. 4).
@@ -550,12 +562,17 @@ Diagnose, Leitentscheidung Runde 4 Nr. 3/4), ~~gemeinsame Base class~~ (nein, Nr
 Runde 5 (Framework-Verifikation, `doc/WFS-Spracherweiterung — Framework-Verifikation.md`):
 ~~Framework-Touchpoints (§4.7)~~ (`.Concat` = Instanzmethode auf `GOTO_GUI`; Exit castfrei via
 `TASK_RESULT<T>`; `ctx.Cancel()` = Factory `_wfs.Cancel()`), ~~Eager-Bau~~ (**nicht**
-seiteneffektfrei → `Result`-Thunk, §4.2a/⑤). Verbleibend/neu:
+seiteneffektfrei → `Result`-Thunk, §4.2a/⑤). Erledigt in Runde 6 (empirisch, gegen `END.cs` +
+`WfsBaseEmitter.cs`): ~~Port-Klärung Init-Legalität~~ — **`END ∉ IINIT_TASK` bestätigt**, Nav0110
+deckt nur den Edge-Mode-Teil ab, `--> End` aus Init braucht eine **neue/erweiterte** Regel (§4.7/④a,
+§5). Verbleibend/neu:
 
 1. **Verb-Lexikon-Detail** — ob `Goto`/`OpenModal`/`ShowNonModal` die endgültigen Verben sind
    (Namensschema selbst steht, Runde 4 Nr. 3).
-2. **Init-Legalität im Semantic Model umsetzen (§5, aus ④)** — beim Port klären, ob Nav0110/Nav0222
-   die `IINIT_TASK`-Legalität an Init-Ausgängen bereits erzwingen oder eine neue Regel nötig ist.
+2. **Init-Legalitäts-Regel implementieren (§5, aus ④/④a)** — Klärung erledigt: Nav0110 deckt `o->`/`==>`
+   aus Init ab, **`--> End` nicht** (Goto-Mode, `END` kein `IINIT_TASK`). Offen ist nur noch die
+   *Umsetzung*: eigener Analyzer gegen `--> End` in Init-Reichweite **oder** Nav0110 von „Edge-Mode" auf
+   „`IINIT_TASK`-Zielkommando" erweitern.
 
 ## 8. Fahrplan (nach Design-Abschluss)
 
