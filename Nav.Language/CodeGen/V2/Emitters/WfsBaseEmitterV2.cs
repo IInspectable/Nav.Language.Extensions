@@ -23,6 +23,9 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 static class WfsBaseEmitterV2 {
 
+    /// <summary>Name des zentralen <c>Result.Unwrap()</c>-Guards (einmal je <c>{Task}WFSBase</c>).</summary>
+    const string UnwrapHelperName = "UnwrapOrThrow";
+
     public static string Emit(WfsBaseCodeModelV2 model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();
@@ -76,6 +79,12 @@ static class WfsBaseEmitterV2 {
             foreach (var viewParameter in model.ViewParameters) {
                 cb.WriteLine($"protected virtual {viewParameter.ParameterType} {CodeGenFacts.BeforeTriggerLogicMethodName}({viewParameter.ParameterType} {viewParameter.ParameterName}) => {viewParameter.ParameterName};");
                 cb.WriteLine();
+            }
+
+            // Der Null-/default-Guard aller Result.Unwrap() sitzt einmalig hier (nur nötig, wenn
+            // überhaupt ein Call-Context — und damit ein Result — emittiert wird).
+            if (EmitsAnyContext(model)) {
+                WriteUnwrapHelper(cb);
             }
 
             foreach (var transition in model.InitTransitions) {
@@ -231,22 +240,44 @@ static class WfsBaseEmitterV2 {
 
         // Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen; das Kommando wird deferred im Thunk
         // gebaut (§3.2). Unwrap() ist internal — die Maschinerie in {Task}WFSBase ist Container von Result
-        // und erreicht dessen private Member NICHT (§3.2).
+        // und erreicht dessen private Member NICHT (§3.2). Der Null-/default-Guard sitzt einmalig in
+        // {Task}WFSBase.UnwrapOrThrow (kein pro-Context-Duplikat).
         cb.Write("public readonly struct Result ");
         using (cb.Block()) {
             cb.Write($"""
                       readonly System.Func<{commandType}> _command;
                       internal Result(System.Func<{commandType}> command) => _command = command;
-
-                      internal {commandType} Unwrap()
-                          => _command is null
-                              ? throw new InvalidOperationException(
-                                  "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                              : _command();
+                      internal {commandType} Unwrap() => {UnwrapHelperName}(_command);
                       """);
         }
 
         cb.WriteLine();
+    }
+
+    /// <summary>
+    /// Der zentrale Null-/<c>default</c>-Guard aller <c>Result.Unwrap()</c> dieser <c>{Task}WFSBase</c>
+    /// (§3.2): feuert den deferred Kommando-Thunk und wirft nur beim expliziten <c>return default;</c>
+    /// (Func == null). Einmal je Basisklasse — die genesteten <c>Result</c>-Structs leiten hierher weiter,
+    /// statt Guard und Meldung pro Context zu duplizieren. Der Maschinerie-Methodenname ergibt sich beim
+    /// Wurf aus dem Stacktrace.
+    /// </summary>
+    static void WriteUnwrapHelper(CodeBuilder cb) {
+        cb.WriteLine($"""
+                  static TCommand {UnwrapHelperName}<TCommand>(System.Func<TCommand> command)
+                      => command is null
+                          ? throw new InvalidOperationException(
+                              "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                          : command();
+
+                  """);
+    }
+
+    /// <summary>Wird für diese WFSBase überhaupt ein Call-Context (und damit ein <c>Result</c>) emittiert?</summary>
+    static bool EmitsAnyContext(WfsBaseCodeModelV2 model) {
+        return model.InitTransitions
+                    .Concat(model.ExitTransitions)
+                    .Concat(model.TriggerTransitions)
+                    .Any(t => !t.GenerateAbstractMachinery);
     }
 
     // -- {Task}WFS: die partielle Implementierungsklasse (V1-deckungsgleich) --------------------------

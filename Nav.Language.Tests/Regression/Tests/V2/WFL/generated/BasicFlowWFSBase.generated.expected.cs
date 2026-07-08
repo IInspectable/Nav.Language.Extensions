@@ -32,6 +32,12 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
 
         protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
 
+        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command)
+            => command is null
+                ? throw new InvalidOperationException(
+                    "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                : command();
+
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
@@ -52,12 +58,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<IINIT_TASK> _command;
                 internal Result(System.Func<IINIT_TASK> command) => _command = command;
-
-                internal IINIT_TASK Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -84,12 +85,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -116,12 +112,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -148,12 +139,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -182,12 +168,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result End() => new(() => _wfs.EndNonModal());
@@ -216,12 +197,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result BeginGotoSub() => new(() => _wfs.GotoTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterGotoSub));
@@ -250,12 +226,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
@@ -284,12 +255,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result BeginModalSub() => new(() => _wfs.OpenModalTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterModalSub));
@@ -318,12 +284,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -352,12 +313,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-
-                internal INavCommand Unwrap()
-                    => _command is null
-                        ? throw new InvalidOperationException(
-                            "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                        : _command();
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
             }
 
             public Result BeginNonModalSub() => new(() => _wfs.StartNonModalTask(() => _wfs._sub.Begin(), _wfs.AfterNonModalSub));
