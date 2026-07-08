@@ -75,6 +75,9 @@ public static class CodeGenInvariants {
     /// <summary>Tag an einer generierten Exit-Methode (<c>NavExit</c>).</summary>
     public const string AnnotationTagNavExit = "NavExit";
 
+    /// <summary>Tag an einer generierten <c>{Choice}Logic</c>-Methode (<c>NavChoice</c>).</summary>
+    public const string AnnotationTagNavChoice = "NavChoice";
+
     /// <summary>Tag an einem generierten Init-Aufruf (<c>NavInitCall</c>).</summary>
     public const string AnnotationTagNavInitCall = "NavInitCall";
 

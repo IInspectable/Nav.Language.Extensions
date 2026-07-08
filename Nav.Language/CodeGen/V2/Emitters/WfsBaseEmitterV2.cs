@@ -183,6 +183,8 @@ static class WfsBaseEmitterV2 {
 
         // Die Entscheidung liegt EINMAL beim Nutzer — die Quellen forwarden nur (§3.5). Anders als eine
         // Transition hat eine Choice keine öffentliche Weiche; es gibt daher nur die abstrakte Logic.
+        // Die <NavChoice>-Annotation trägt den C#→Nav-Rückweg (Intra-Text-GoTo auf {Choice}Logic).
+        EmitterCommon.WriteNavChoiceAnnotation(cb, choice.ChoiceName);
         cb.Write($"protected abstract {choice.Context.ContextTypeName}.Result {choice.LogicName}(");
         WriteAlignedDecls(cb, ChoiceLogicDeclarations(choice));
         cb.WriteLine(");");

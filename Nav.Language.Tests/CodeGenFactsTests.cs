@@ -131,6 +131,10 @@ public class CodeGenFactsTests {
         Assert.That(CodeGenInvariants.AnnotationTagNavExit, Is.EqualTo("NavExit"), "Wrong AnnotationTagNavExit");
     }
     [Test]
+    public void InvariantAnnotationTagNavChoice() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavChoice, Is.EqualTo("NavChoice"), "Wrong AnnotationTagNavChoice");
+    }
+    [Test]
     public void InvariantAnnotationTagNavInitCall() {
         Assert.That(CodeGenInvariants.AnnotationTagNavInitCall, Is.EqualTo("NavInitCall"), "Wrong AnnotationTagNavInitCall");
     }

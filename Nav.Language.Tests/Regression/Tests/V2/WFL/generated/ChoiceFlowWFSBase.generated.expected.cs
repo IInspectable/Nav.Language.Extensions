@@ -184,6 +184,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public Result Cancel() => new(() => _wfs.Cancel());
         }
 
+        #region Nav Annotations
+        /// <NavChoice>Choice_Retry</NavChoice>
+        #endregion
         protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
                                                                             Choice_RetryCallContext next);
 
@@ -214,6 +217,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public Result Cancel() => new(() => _wfs.Cancel());
         }
 
+        #region Nav Annotations
+        /// <NavChoice>Choice_Escalate</NavChoice>
+        #endregion
         protected abstract Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
                                                                                   Choice_EscalateCallContext next);
 

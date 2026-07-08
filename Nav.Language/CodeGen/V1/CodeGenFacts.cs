@@ -46,6 +46,7 @@ public static class CodeGenFacts {
     public const string AnnotationTagNavTrigger  = "NavTrigger";
     public const string AnnotationTagNavInit     = "NavInit";
     public const string AnnotationTagNavExit     = "NavExit";
+    public const string AnnotationTagNavChoice   = "NavChoice";
     public const string AnnotationTagNavInitCall = "NavInitCall";
 
     internal static string BuildQualifiedName(params string[] identifier) {

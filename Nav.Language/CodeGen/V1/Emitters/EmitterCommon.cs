@@ -93,6 +93,15 @@ static class EmitterCommon {
                       """);
     }
 
+    /// <summary>Schreibt die Choice-Annotation (<c>NavChoice</c>) einer <c>{Choice}Logic</c>-Methode.</summary>
+    public static void WriteNavChoiceAnnotation(CodeBuilder cb, string choiceName) {
+        cb.WriteLine($"""
+                      #region {AnnotationRegionName}
+                      /// <{CodeGenInvariants.AnnotationTagNavChoice}>{choiceName}</{CodeGenInvariants.AnnotationTagNavChoice}>
+                      #endregion
+                      """);
+    }
+
     /// <summary>Schreibt die Init-Call-Annotation (<c>NavInitCall</c>) einer Begin-Wrapper-Methode.</summary>
     public static void WriteInitCallAnnotation(CodeBuilder cb, string beginInterfaceFullyQualifiedName) {
         cb.WriteLine($"""

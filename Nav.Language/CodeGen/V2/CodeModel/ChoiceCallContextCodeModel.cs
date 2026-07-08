@@ -25,13 +25,21 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 sealed class ChoiceCallContextCodeModel {
 
-    ChoiceCallContextCodeModel(string logicName,
+    ChoiceCallContextCodeModel(string choiceName,
+                               string logicName,
                                ImmutableList<ParameterCodeModel> parameters,
                                CallContextCodeModel context) {
+        ChoiceName = choiceName;
         LogicName  = logicName;
         Parameters = parameters;
         Context    = context;
     }
+
+    /// <summary>
+    /// Name des Choice-Knotens im <c>.nav</c> (unverändert, z.B. <c>Choice_Retry</c>) — trägt die
+    /// <c>&lt;NavChoice&gt;</c>-Annotation für den C#→Nav-Rückweg.
+    /// </summary>
+    public string ChoiceName { get; }
 
     /// <summary>Name der abstrakten Entscheidungsmethode (<c>{Choice}Logic</c>).</summary>
     public string LogicName { get; }
@@ -63,6 +71,7 @@ sealed class ChoiceCallContextCodeModel {
             ownerTaskResult: ownerTaskResult);
 
         return new ChoiceCallContextCodeModel(
+            choiceName: choiceNode.Name,
             logicName : logicName,
             parameters: parameters,
             context   : context);
