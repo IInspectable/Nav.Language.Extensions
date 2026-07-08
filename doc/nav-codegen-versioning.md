@@ -490,10 +490,47 @@ Reihenfolge so gewählt, dass jeder Schritt für sich baubar/testbar ist und V1-
 | 4 | **ST-Migration (Variante B), isolierter Schritt — Artefakt für Artefakt:** CodeBuilder-Grundgerüst (`CodeGen/CodeBuilder/`), dann je Template-Familie ein Sub-Step (IBeginWFS ✓, IWFS ✓, WFSBase ✓, WFSOneShot ✓ — byte-identisch migriert; **TO ✗ nicht migriert, sondern ganz entfernt**, s.u.); zum Schluss ST-Sonderweg entfernt (`.stg`, `Resources.cs`, Facts-Export inkl. `CustomBuild.targets`/`GenerateCodeGenFacts.cs`/`CodeGenFacts.generated.cs`, `StringTemplate4`) — `CodeGenFacts` ist jetzt handgeschriebenes C#. **ABGESCHLOSSEN.** | Byte-Identität je WFS-Sub-Step bewiesen; **TO-Entfernung bewusst nicht byte-identisch** (Korpus-Parity `NormChanged=0`, `Added=0`, `Removed=1431` = ausschließlich `*TO.generated.cs`); Perf Kandidat 30,2 s vs. Ref 36,3 s; net10 1346/0, net472 1354/0 |
 | 5 | Dispatcher `VersionDispatchingCodeGenerator` als `CodeGeneratorProvider.Default`; bisheriger Generator wird `CodeGeneratorV1`. **ABGESCHLOSSEN (2026-07-06).** | Pipeline-Verhalten für V1 unverändert (Korpus-Parity wie Step-4-Baseline: `NormChanged=0`, `Added=0`, `Removed=1431` = nur `*TO.generated.cs`); net472 1354/0, net10 1347/0, kein Snapshot-Drift |
 | 6 | V2-Inhalte: Facts V2, CodeModel-/Emitter-Schnitt, `PathProvider`-V2, **keine TO-Stubs mehr** — **Interfaces `I{Task}WFS`/`IBegin{Task}WFS` identisch zu V1 emittiert** (geteilte Emitter-Bausteine); **Version 2 in `SupportedVersions` freischalten** | neue Snapshot-Fixtures `Regression/Tests-V2/`; `nav snapshot` beherrscht beide; Interface-Identitäts-Test V1↔V2 |
-| 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung |
+| 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung. **Voranalyse + `NavInitCall`-Reparatur erledigt (s.u.); VS-Smoke offen.** |
 
 Nach jedem Step: Code-Review + `nav test` (net472 **und** net10.0), Commit-Message liefern —
 Commit macht der Nutzer (Arbeitsweise siehe `CLAUDE.md`).
+
+### Step 7 — Voranalyse & Stand
+
+**Voranalyse-Befund (die „Option B"-Frage ist entschieden — negativ).** Die V2-Codegestalt bricht das
+V1-Suchverfahren **nicht**, weil die V2-Namensalgebra bewusst V1-identisch ist (`NavCodeGenFacts`):
+`{Task}WFSBase`-Basisklasse + Derived-Descent, das `IBegin{Task}WFS`-Interface, die Logic-Member
+`BeginLogic`/`After{Node}Logic`/`{Trigger}Logic` und die Annotationen
+`NavFile`/`NavTask`/`NavInit`/`NavExit`/`NavTrigger` existieren im V2-Output unverändert. Damit
+überleben **GoTo Task/Init/Exit/Trigger, QuickInfo (C#→Nav), Rename, FindReferences und CodeLens** V2
+ohne Änderung — eine versionierte Such-Strategie-Schnittstelle ist **nicht** nötig.
+
+**Was brach — und die Reparatur.** Es brachen genau die zwei `NavInitCall`-gestützten
+C#→C#-Komfortsprünge (`NavInitCallLocationInfoProvider` „Begin-Logic des Sub-Tasks",
+`NavExitBeginCallerLocationInfoProvider` „Begin-Aufrufer einer After-Methode"): V1 emittierte die
+`NavInitCall`-Annotation an einem als bloßer Bezeichner gerufenen `Begin{Node}`-Wrapper; V2 hat den
+`Begin{Node}`-Aufruf in die Call-Context-Methode verschoben (Aufruf als `ctx.Begin{Node}(…)` im
+Nutzer-Logic-Code, unannotiert). Zwei lokale Änderungen schließen die Lücke:
+
+1. **V2-Emitter** schreibt die `NavInitCall`-Annotation (Inhalt = voll qualifizierter
+   `IBegin{Task}WFS`-Name, via demselben `ParameterCodeModel.GetTaskBeginAsParameter` wie V1) vor jede
+   `Begin{Node}`-Callable des Call-Contexts — plain wie Continuation-`Begin{Task}`. Getragen über ein
+   optionales `CallableMethodModel.NavInitCallInterface`.
+2. **`AnnotationReader.ReadInitCallAnnotation`** (versionsneutral) akzeptiert neben dem V1-`IdentifierNameSyntax`
+   nun auch den V2-`MemberAccessExpressionSyntax` (`ctx.Begin{Node}(…)`) — Anker ist in beiden Fällen der
+   Methoden-Bezeichner. Das Scan-Modell erreicht den Nutzer-Logic-Code, weil `ReadNavTaskAnnotation` der
+   Basisklasse/allen Partials folgt (die `NavTask`-Annotation der generierten `{Task}WFS`-Partial gilt so
+   auch für die Nutzer-Partial/-Ableitung).
+
+**Abdeckung.** Die Emitter-Seite ist über die fünf aktualisierten V2-`*WFSBase.generated.expected.cs`
+abgesichert (reine `<NavInitCall>`-Additionen, V1 byte-identisch). Der Reader-Zweig (MemberAccess) hat
+bewusst **kein** automatisiertes Test — ein Roslyn-Auslesetest wäre gegen die net472-only
+`Nav.Language.CodeAnalysis` gepinnt und dupliziert nur, was die Goldens (Annotation *wird* geschrieben)
+schon zeigen; er wird per **VS-Smoke** verifiziert. **Offen:** VS-Smoke (GoTo aus V2-Logic-Code auf die
+Sub-Task-Begin-Logic) sowie die restliche End-to-End-Verifikation (Rename/FindReferences/Cross-Version-`taskref`).
+
+Verifikation: `nav build` + beide TFMs grün (**net472 1414/0, net10 1406/0** — je 3 Explicit-Skips);
+fünf V2-Goldens um `<NavInitCall>` ergänzt (`nav snapshot`), V1- und übrige V2-Regression unverändert.
 
 ## Entschiedene Design-Fragen (mit dem Nutzer geklärt 2026-07-05 — nicht ohne Grund umwerfen)
 

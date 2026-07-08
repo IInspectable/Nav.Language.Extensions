@@ -86,6 +86,9 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnWarnLogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>IWFService</NavInitCall>
+            #endregion
             public Result BeginWarn(string text) => new(() => throw new NotImplementedException("Task Warn is specified as [notimplemented]"));
             public Result Cancel() => new(() => _wfs.Cancel());
         }

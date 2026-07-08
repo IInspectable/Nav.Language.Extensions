@@ -177,6 +177,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnStartALogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Choice.WFL.IBeginAWFS</NavInitCall>
+            #endregion
             public Result BeginA() => new(() => _wfs.OpenModalTask<AResult>(() => _wfs._a.Begin(), _wfs.AfterA));
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -202,6 +205,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
                 internal ShowHomeContinuation(ChoiceFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
 
                 public static implicit operator Result(ShowHomeContinuation v) => new(() => v._wfs.GotoGUI(v._to));
+                #region Nav Annotations
+                /// <NavInitCall>NS.V2.Choice.WFL.IBeginMsgWFS</NavInitCall>
+                #endregion
                 public Result BeginMsg(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
             }
             public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());

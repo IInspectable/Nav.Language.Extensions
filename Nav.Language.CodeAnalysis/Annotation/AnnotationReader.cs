@@ -364,7 +364,17 @@ public static class AnnotationReader {
 
         foreach (var invocationExpression in invocationExpressions) {
 
-            if (!(invocationExpression.Expression is IdentifierNameSyntax identifier)) {
+            // Der Begin-Wrapper wird je nach Codegen-Generation unterschiedlich aufgerufen:
+            //   V1: Begin{Node}(…)      — bloßer Bezeichner in der generierten {Task}WFSBase
+            //   V2: ctx.Begin{Node}(…)  — Member-Zugriff auf den Call-Context (im Nutzer-Logic-Code)
+            // In beiden Fällen ist der navigierbare Anker der Methoden-Bezeichner selbst.
+            var identifier = invocationExpression.Expression switch {
+                IdentifierNameSyntax id                                          => id,
+                MemberAccessExpressionSyntax { Name: IdentifierNameSyntax name } => name,
+                _                                                                => null
+            };
+
+            if (identifier == null) {
                 continue;
             }
 

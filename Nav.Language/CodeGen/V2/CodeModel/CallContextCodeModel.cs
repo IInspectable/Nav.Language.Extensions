@@ -176,7 +176,7 @@ sealed class CallContextCodeModel {
                     ? piece.BoundaryExpression
                     : $"{WfsFieldName}.{carrierEngine}({ToFieldName}).Concat({piece.BoundaryExpression})";
 
-                begins.Add(new CallableMethodModel($"{piece.Name}({piece.ParameterList})", thunkBody));
+                begins.Add(new CallableMethodModel($"{piece.Name}({piece.ParameterList})", thunkBody, piece.InterfaceFqn));
             }
         }
 
@@ -197,8 +197,9 @@ sealed class CallContextCodeModel {
                 SortOrderTask,
                 piece.Name,
                 new CallableMethodModel(
-                    signature: $"{piece.Name}({piece.ParameterList})",
-                    thunkBody: piece.BoundaryExpression));
+                    signature           : $"{piece.Name}({piece.ParameterList})",
+                    thunkBody           : piece.BoundaryExpression,
+                    navInitCallInterface: piece.InterfaceFqn));
         }
     }
 
@@ -261,7 +262,7 @@ sealed class CallContextCodeModel {
                 ? $"throw new NotImplementedException(\"Task {task.Name} is specified as [notimplemented]\")"
                 : $"{WfsFieldName}.{engineCall}(() => {beginReceiver}.{CodeGenFacts.BeginMethodPrefix}({argumentList}), {WfsFieldName}.{afterMethod})";
 
-            yield return new TaskBeginPiece($"Begin{namePascal}", parameterList, boundary, notImplemented);
+            yield return new TaskBeginPiece($"Begin{namePascal}", parameterList, boundary, notImplemented, wrapper.ParameterType);
         }
     }
 
@@ -360,11 +361,12 @@ sealed class CallContextCodeModel {
     /// <summary>Die pro Init berechneten Bausteine einer <c>Begin{Node}</c>-Fortsetzung (siehe <see cref="BuildTaskBegins"/>).</summary>
     readonly struct TaskBeginPiece {
 
-        public TaskBeginPiece(string name, string parameterList, string boundaryExpression, bool notImplemented) {
+        public TaskBeginPiece(string name, string parameterList, string boundaryExpression, bool notImplemented, string interfaceFqn) {
             Name               = name;
             ParameterList      = parameterList;
             BoundaryExpression = boundaryExpression;
             NotImplemented     = notImplemented;
+            InterfaceFqn       = interfaceFqn;
         }
 
         /// <summary>Der Methodenname <c>Begin{Node}</c>.</summary>
@@ -375,6 +377,8 @@ sealed class CallContextCodeModel {
         public string BoundaryExpression { get; }
         /// <summary>Ob der Ziel-Task <c>[notimplemented]</c> ist (<see cref="BoundaryExpression"/> ist dann ein <c>throw</c>).</summary>
         public bool   NotImplemented     { get; }
+        /// <summary>Der voll qualifizierte <c>IBegin{Task}WFS</c>-Interface-Name des Ziel-Tasks (Inhalt der <c>NavInitCall</c>-Annotation).</summary>
+        public string InterfaceFqn       { get; }
 
     }
 
@@ -393,13 +397,22 @@ abstract class CallableModel {
 /// </summary>
 sealed class CallableMethodModel: CallableModel {
 
-    public CallableMethodModel(string signature, string thunkBody) {
-        Signature = signature;
-        ThunkBody = thunkBody;
+    public CallableMethodModel(string signature, string thunkBody, string? navInitCallInterface = null) {
+        Signature            = signature;
+        ThunkBody            = thunkBody;
+        NavInitCallInterface = navInitCallInterface;
     }
 
     public string Signature { get; }
     public string ThunkBody { get; }
+
+    /// <summary>
+    /// Ist die Callable ein <c>Begin{Node}</c>-Sub-Task-Aufruf, trägt sie hier den voll qualifizierten
+    /// <c>IBegin{Task}WFS</c>-Interface-Namen — der Emitter schreibt daraus die <c>NavInitCall</c>-Annotation
+    /// (C#→BeginLogic-Navigation, gelesen vom <c>AnnotationReader</c> am Aufrufort <c>ctx.Begin{Node}(…)</c>).
+    /// <c>null</c> für alle übrigen Callables (<c>Show</c>/<c>Exit</c>/<c>End</c>/<c>Cancel</c>/Choice-Forward).
+    /// </summary>
+    public string? NavInitCallInterface { get; }
 
 }
 

@@ -200,6 +200,9 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnGotoLogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Basic.WFL.IBeginSubWFS</NavInitCall>
+            #endregion
             public Result BeginGotoSub() => new(() => _wfs.GotoTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterGotoSub));
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -258,6 +261,9 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnModalLogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Basic.WFL.IBeginSubWFS</NavInitCall>
+            #endregion
             public Result BeginModalSub() => new(() => _wfs.OpenModalTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterModalSub));
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -316,6 +322,9 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnNonModalLogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Basic.WFL.IBeginSubWFS</NavInitCall>
+            #endregion
             public Result BeginNonModalSub() => new(() => _wfs.StartNonModalTask(() => _wfs._sub.Begin(), _wfs.AfterNonModalSub));
             public Result Cancel() => new(() => _wfs.Cancel());
         }

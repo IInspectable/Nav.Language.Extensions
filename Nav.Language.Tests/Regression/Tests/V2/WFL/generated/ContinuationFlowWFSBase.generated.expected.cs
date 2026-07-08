@@ -181,6 +181,9 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
                 readonly HomeTO _to;
                 internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
 
+                #region Nav Annotations
+                /// <NavInitCall>NS.V2.Cont.WFL.IBeginMsgWFS</NavInitCall>
+                #endregion
                 public Result BeginWarn(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterWarn)));
             }
             public Result Cancel() => new(() => _wfs.Cancel());
@@ -217,6 +220,9 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
                 readonly HomeTO _to;
                 internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
 
+                #region Nav Annotations
+                /// <NavInitCall>NS.V2.Cont.WFL.IBeginDetailWFS</NavInitCall>
+                #endregion
                 public Result BeginDrill(int id) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.GotoTask<DetailResult>(() => _wfs._detail.Begin(id), _wfs.AfterDrill)));
             }
             public Result Cancel() => new(() => _wfs.Cancel());

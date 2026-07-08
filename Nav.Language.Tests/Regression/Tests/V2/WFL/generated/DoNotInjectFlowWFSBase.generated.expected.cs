@@ -113,6 +113,9 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEditLogic));
             }
 
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.DoNotInject.WFL.IBeginEditorWFS</NavInitCall>
+            #endregion
             public Result BeginEdit(NS.V2.DoNotInject.WFL.IBeginEditorWFS wfs, int id) => new(() => _wfs.OpenModalTask<EditorResult>(() => wfs.Begin(id), _wfs.AfterEdit));
             public Result Cancel() => new(() => _wfs.Cancel());
         }

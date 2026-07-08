@@ -213,6 +213,10 @@ static class WfsBaseEmitterV2 {
             foreach (var method in context.Methods) {
                 switch (method) {
                     case CallableMethodModel simple:
+                        if (simple.NavInitCallInterface != null) {
+                            EmitterCommon.WriteInitCallAnnotation(cb, simple.NavInitCallInterface);
+                        }
+
                         cb.WriteLine($"public Result {simple.Signature} => new(() => {simple.ThunkBody});");
                         break;
                     case ShowContinuationCallableModel continuation:
@@ -248,6 +252,10 @@ static class WfsBaseEmitterV2 {
             }
 
             foreach (var begin in continuation.Begins) {
+                if (begin.NavInitCallInterface != null) {
+                    EmitterCommon.WriteInitCallAnnotation(cb, begin.NavInitCallInterface);
+                }
+
                 cb.WriteLine($"public Result {begin.Signature} => new(() => {begin.ThunkBody});");
             }
         }
