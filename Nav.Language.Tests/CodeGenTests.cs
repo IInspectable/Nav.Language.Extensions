@@ -326,6 +326,73 @@ public class CodeGenTests {
             }
         }) {
             TestName = "V2 Continuation (o-^ and --^) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("ChoiceCompile.nav"),
+                    // V2-Choices in C#: der durchgängige Fall (§3.1/§3.5). Deckt ab: 3 Quellen an dieselbe
+                    // Choice (Init/Trigger/Exit forwarden), Union pro Ziel (Home plain UND o-^ Msg),
+                    // Choice→Choice (Choice_Retry --> Choice_Escalate, rekursives Forwarding) und Multi-Exit
+                    // (Choice_Escalate --> Done/Esc → EINE Exit()-Fabrik). Self-contained: die Folge-Tasks A
+                    // und Msg sind lokal [result bool] (kein externer Result-Typ nötig). Kompiliert gegen die
+                    // Stubs (kein Laufzeit-Test) und belegt zugleich die Init-Legalität (alles aus Init1 über
+                    // Choice_Retry Erreichbare liegt in der IINIT_TASK-Menge).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.ChoiceCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              task A [result bool] {
+                                  init;
+                                  exit E1;
+                                  exit E2;
+                                  init --> E1;
+                                  init --> E2;
+                              }
+
+                              task Msg [result bool] {
+                                  init I [params string text];
+                                  exit Ok;
+                                  I --> Ok;
+                              }
+
+                              task ChoiceCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1 [params string message];
+                                  exit Done;
+                                  exit Esc;
+                                  task A;
+                                  task Msg;
+                                  view Home;
+                                  choice Choice_Retry    [params string reason];
+                                  choice Choice_Escalate [params int level];
+
+                                  Init1 --> Choice_Retry;
+                                  Home  --> Choice_Retry on OnRetry;
+                                  A:E1  --> Choice_Retry;
+
+                                  Home  o-> A on OnStartA;
+                                  A:E2  --> Home;
+
+                                  Choice_Retry --> Home;
+                                  Choice_Retry --> Home o-^ Msg if "Fehler";
+                                  Choice_Retry --> Choice_Escalate if "Fatal";
+
+                                  Choice_Escalate --> Done;
+                                  Choice_Escalate --> Esc;
+
+                                  Msg:Ok --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 Choices in C# (3 sources, union, choice->choice, multi-exit) should compile against stubs"
         }
     };
 

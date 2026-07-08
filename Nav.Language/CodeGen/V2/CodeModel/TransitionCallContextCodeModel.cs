@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -85,7 +84,7 @@ sealed class TransitionCallContextCodeModel {
             : CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : InitCommandType,
-                reachableCalls : initNode.Outgoings.GetReachableCalls(),
+                directCalls    : initNode.Outgoings.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
         return new TransitionCallContextCodeModel(
@@ -115,7 +114,7 @@ sealed class TransitionCallContextCodeModel {
             : CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : TransitionCommandType,
-                reachableCalls : taskNode.Outgoings.GetReachableCalls(),
+                directCalls    : taskNode.Outgoings.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
         return new TransitionCallContextCodeModel(
@@ -145,7 +144,7 @@ sealed class TransitionCallContextCodeModel {
             var context = CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : TransitionCommandType,
-                reachableCalls : triggerTransition.GetReachableCalls(),
+                directCalls    : new IEdge[] { triggerTransition }.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
             yield return new TransitionCallContextCodeModel(
@@ -168,6 +167,6 @@ sealed class TransitionCallContextCodeModel {
     /// <summary>Rückgabetyp/Command-Typ einer Trigger-/Exit-Transition.</summary>
     public const string TransitionCommandType = "INavCommand";
 
-    const string ContextTypeSuffix = "CallContext";
+    const string ContextTypeSuffix = CallContextCodeModel.ContextTypeSuffix;
 
 }

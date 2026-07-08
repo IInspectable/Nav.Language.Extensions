@@ -57,8 +57,7 @@ public class RegressionTests {
         var directory = GetRegressiontestDirectory();
 
         var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
-                             .Where(f => !f.EndsWith("expected.cs"))
-                             .Where(f => !IsPendingVersion2Corpus(directory, f));
+                             .Where(f => !f.EndsWith("expected.cs"));
 
         return files.Select(f => new FileTestCase {
                 GeneratedFile = Path.GetFullPath(f),
@@ -69,32 +68,10 @@ public class RegressionTests {
 
     static IEnumerable<FileSpec> CollectNavFiles() {
         var directory    = GetRegressiontestDirectory();
-        var navFiles     = Directory.EnumerateFiles(directory, "*.nav", SearchOption.AllDirectories)
-                                    .Where(file => !IsPendingVersion2Corpus(directory, file));
+        var navFiles     = Directory.EnumerateFiles(directory, "*.nav", SearchOption.AllDirectories);
         var dirFileSpecs = navFiles.Select(file => new FileSpec(identity: PathHelper.GetRelativePath(directory, file), fileName: file));
 
         return dirFileSpecs;
-    }
-
-    // Das Choice-Fixture des V2-Korpus (unter Regression\Tests\V2\) braucht den V2-Choice-Codegen (S7),
-    // der noch fehlt; bis dahin bleibt es eine reine Referenz-Eingabe und wird hier übersprungen, damit
-    // die Regression grün bleibt. BasicFlow (CallContext-Grundform, S5) und ContinuationFlow
-    // (Continuation, S6) generieren dagegen und haben ihre .expected.cs.
-    static readonly string[] PendingVersion2Fixtures = { "ChoiceFlow" };
-
-    static bool IsPendingVersion2Corpus(string rootDirectory, string filePath) {
-
-        var relative = PathHelper.GetRelativePath(rootDirectory, filePath);
-        var underV2  = relative.StartsWith(@"V2\", System.StringComparison.OrdinalIgnoreCase) ||
-                       relative.StartsWith("V2/",  System.StringComparison.OrdinalIgnoreCase);
-        if (!underV2) {
-            return false;
-        }
-
-        // Sowohl die .nav-Eingabe als auch alle daraus generierten .cs tragen den Fixture-Namen im
-        // Dateinamen (z.B. ContinuationFlow.nav, ContinuationFlowWFSBase.generated.cs).
-        var fileName = Path.GetFileName(filePath);
-        return PendingVersion2Fixtures.Any(f => fileName.IndexOf(f, System.StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     static string GetRegressiontestDirectory() {

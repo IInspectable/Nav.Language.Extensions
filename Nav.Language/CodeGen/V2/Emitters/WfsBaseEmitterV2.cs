@@ -98,6 +98,12 @@ static class WfsBaseEmitterV2 {
             foreach (var transition in model.TriggerTransitions) {
                 WriteTransition(cb, model, transition);
             }
+
+            // Choices als eigene Bausteine (§3.5): je Choice die abstrakte {Choice}Logic + ihr Call-Context —
+            // ohne öffentliche Maschinerie-Methode (Choices werden nur über {Choice}(…)-Forwards erreicht).
+            foreach (var choice in model.Choices) {
+                WriteChoice(cb, model, choice);
+            }
         }
     }
 
@@ -168,6 +174,21 @@ static class WfsBaseEmitterV2 {
 
         // Der Call-Context der Quelle.
         WriteCallContext(cb, model, transition.Context);
+        cb.WriteLine();
+    }
+
+    // -- Eine Choice: abstrakte Logic + Call-Context (keine Maschinerie-Methode) ----------------------
+
+    static void WriteChoice(CodeBuilder cb, WfsBaseCodeModelV2 model, ChoiceCallContextCodeModel choice) {
+
+        // Die Entscheidung liegt EINMAL beim Nutzer — die Quellen forwarden nur (§3.5). Anders als eine
+        // Transition hat eine Choice keine öffentliche Weiche; es gibt daher nur die abstrakte Logic.
+        cb.Write($"protected abstract {choice.Context.ContextTypeName}.Result {choice.LogicName}(");
+        WriteAlignedDecls(cb, ChoiceLogicDeclarations(choice));
+        cb.WriteLine(");");
+        cb.WriteLine();
+
+        WriteCallContext(cb, model, choice.Context);
         cb.WriteLine();
     }
 
@@ -274,7 +295,8 @@ static class WfsBaseEmitterV2 {
 
     /// <summary>Wird für diese WFSBase überhaupt ein Call-Context (und damit ein <c>Result</c>) emittiert?</summary>
     static bool EmitsAnyContext(WfsBaseCodeModelV2 model) {
-        return model.InitTransitions
+        return model.Choices.Count > 0 ||
+               model.InitTransitions
                     .Concat(model.ExitTransitions)
                     .Concat(model.TriggerTransitions)
                     .Any(t => !t.GenerateAbstractMachinery);
@@ -355,6 +377,12 @@ static class WfsBaseEmitterV2 {
     static IEnumerable<string> LogicSignatureDeclarations(TransitionCallContextCodeModel transition) {
         return transition.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
                          .Concat(new[] { $"{transition.Context!.ContextTypeName} callContext" });
+    }
+
+    /// <summary>Die Parameter-Deklarationen der abstrakten <c>{Choice}Logic(…)</c>-Signatur (inkl. Context-Parameter).</summary>
+    static IEnumerable<string> ChoiceLogicDeclarations(ChoiceCallContextCodeModel choice) {
+        return choice.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
+                     .Concat(new[] { $"{choice.Context.ContextTypeName} callContext" });
     }
 
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {

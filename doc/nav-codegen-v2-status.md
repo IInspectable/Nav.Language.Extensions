@@ -39,7 +39,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **S4a erledigt** (Gate + Nav5000 + Completion), **S4b offen** (Nav0124) — s.u. |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | **erledigt** — s.u. |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | **erledigt** — `--^` **sofort ausgeliefert** (Gating-Entscheidung §8.1 zugunsten des Design-Defaults); s.u. |
-| **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
+| **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | **erledigt** — s.u. |
 | **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | offen |
 
 ### S0-Anmerkung: vorläufiger Harness-Skip des `V2\`-Teilbaums
@@ -292,6 +292,53 @@ byte-identisch):
 Verifikation S6: `nav build` + beide TFMs grün (**net10 1388/0, net472 1396/0** — 3 Explicit-Skips);
 V1- **und** V2-Grundform-Regression byte-identisch.
 
+### S7-Anmerkung: was der V2-Choice-Codegen umfasst
+
+Umgesetzt (Choices als eigene C#-Bausteine — Context + `{Choice}Logic` + Forward statt Platt-Falten;
+V1 und die V2-Grundform/-Continuation byte-identisch):
+
+- **Nicht-transitive Reachability `EdgeExtensions.GetDirectCalls`:** die neue, semantik-nahe Grundlage.
+  Anders als `GetReachableCalls` (das Choices transitiv **plattfaltet**, §2.1) behandelt sie ein
+  Choice-Ziel als **terminalen `Call`** (`Call.Node` = `IChoiceNodeSymbol`), statt in dessen Ausgänge
+  abzusteigen. Für **choice-freie** Quellen ist das Ergebnis deckungsgleich mit `GetReachableCalls`
+  (je Kante genau ein Call, gleiche Reihenfolge, gleiches Dedup via `CallComparer.Default`) — daher
+  bleiben BasicFlow (S5) und ContinuationFlow (S6) **byte-identisch**. Die drei
+  `TransitionCallContextCodeModel`-Fabriken (Init/Exit/Trigger) speisen jetzt `GetDirectCalls` statt
+  `GetReachableCalls`.
+- **Choice-Forward (`CallContextCodeModel`):** zeigt eine Quelle direkt auf eine Choice, entsteht ein
+  `{Choice}({params}) => new(() => _wfs.{Choice}Logic({args}, new(_wfs)).Unwrap())`-Callable (§3.5) —
+  kein Dispatch, kein Marker. Die Choice-Parameter kommen aus
+  `IChoiceNodeSymbol.Syntax.CodeParamsDeclaration`; den Choice-Context konstruiert das target-getypte
+  `new(_wfs)`. **Choice→Choice** ist dieselbe Mechanik eine Ebene tiefer (der Choice-Context bekommt
+  seinerseits einen `{Choice}(…)`-Forward) — die Kette wird **nicht** entfaltet (Anti-Bloat bleibt
+  transitiv, jede `{Choice}Logic` existiert genau einmal).
+- **Choice als eigener Baustein (`ChoiceCallContextCodeModel`):** je erreichbarer Choice die abstrakte
+  `{Choice}Logic(params, {Choice}CallContext)` + ihr `CallContextCodeModel` (aus den **direkten**
+  Choice-Ausgängen). **Keine** öffentliche Maschinerie-Methode (kein `Begin`/`On`/`After`) — eine
+  Choice wird nur über die Forwards ihrer Quellen erreicht. Der `Result.Unwrap()`-Command-Typ folgt der
+  **Init-Erreichbarkeit** (§3.8/④): `IINIT_TASK`, sobald die Choice von **irgendeinem** Init aus
+  (transitiv über Choices) erreicht wird, sonst `INavCommand`.
+- **Erreichbarkeits-Auswahl (`CodeModelBuilderV2.GetChoices`):** BFS von den Quellen-Wurzelkanten
+  (Init-Ausgänge + erreichbare, nicht-`[notimplemented]` Task-Ausgänge + Trigger) über Choice-Ketten;
+  nur der eine Schritt „Kante → Choice-Ziel" wird verfolgt (Views/Tasks/Exits sind terminal und tragen
+  die Erreichbarkeit **nicht** weiter — genau die Init-Legalitäts-Semantik). Eine zweite, engere BFS
+  nur ab den **Init**-Wurzeln liefert die Init-Erreichbarkeit je Choice. Unerreichbare Choices erzeugen
+  — wie bei V1 — **keinen** Code. Ausgabereihenfolge = Deklarationsreihenfolge.
+- **Union & Continuation aus der Choice heraus:** unverändert aus S6 wiederverwendet — `Choice_Retry`
+  hat zur View `Home` eine plain- **und** eine `o-^ Msg`-Kante → **eine** `ShowHome`-Methode mit
+  implizitem `Result`-Operator (plain) **und** `BeginMsg(…)` (Continuation, baut
+  `GotoGUI(to).Concat(OpenModalTask<MsgResult>(…))`). **Multi-Exit:** `Choice_Escalate --> Done`/`--> Esc`
+  kollabieren via `CallComparer.FoldExits` auf **eine** `Exit(bool par)`-Fabrik.
+- **Golden un-skippt + Sonderfall-Filter entfernt:** `ChoiceFlow` war das letzte pending V2-Fixture —
+  `PendingVersion2Fixtures`/`IsPendingVersion2Corpus` sind aus `RegressionTests` **ganz entfernt**
+  (Auto-Discovery ohne Sonderfall, §7). Vier neue `ChoiceFlow`-`.expected.cs`. **Neuer Compile-Test**
+  (`CodeGenTests.CompileTest`): ein self-contained `#version 2`-Nav mit 3 Quellen an eine Choice,
+  Union, Choice→Choice und Multi-Exit kompiliert gegen die Stubs (Roslyn in-memory, **kein**
+  Laufzeit-Test).
+
+Verifikation S7: `nav build` + beide TFMs grün (**net10 1393/0, net472 1401/0** — 3 Explicit-Skips);
+V1-, V2-Grundform- **und** V2-Continuation-Regression byte-identisch.
+
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),
 ggf. mit der versionierten Such-Strategie-Schnittstelle.
@@ -305,9 +352,10 @@ ggf. mit der versionierten Such-Strategie-Schnittstelle.
    Nav-Repo verifiziert ohnehin nur bis Codegen (Compile-gegen-Stubs deckt `o-^` **und** `--^` ab),
    die Laufzeit-Korrektheit ist quellcode-verifiziert (§3.8/⑥) und Framework-Domäne. Ein späteres
    Gaten bliebe eine separate Entscheidung, falls der Framework-Smoke-Test etwas aufdeckt.
-2. **Golden-`.nav`-Fixtures für Grundform + Continuation fehlten (§8.2) — erledigt.** Grundform
-   (`BasicFlow`, S5) und Continuation (`ContinuationFlow`, S6) liegen als Golden vor; offen nur noch
-   der Choice-Fall (`ChoiceFlow`, S7, bereits als Input geschrieben).
+2. **Golden-`.nav`-Fixtures (§8.2) — vollständig erledigt.** Grundform (`BasicFlow`, S5), Continuation
+   (`ContinuationFlow`, S6) **und** Choice-mit-3-Quellen (`ChoiceFlow`, S7) liegen als Golden vor. Der
+   Backbone der drei gestaffelten Goldens (§7) steht; offen ist nur noch S8 (die isolierten
+   Sonderform-Fixtures `[notimplemented]`/`[donotinject]`).
 
 ## Verifikation (Wiederholrezept)
 

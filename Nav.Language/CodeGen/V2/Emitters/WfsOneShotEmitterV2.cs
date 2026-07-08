@@ -1,6 +1,5 @@
 ﻿#region Using Directives
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -61,6 +60,17 @@ static class WfsOneShotEmitterV2 {
             cb.WriteLine();
             wroteAny = true;
         }
+
+        // Die {Choice}Logic-Stubs folgen — die Entscheidung, die der Nutzer je Choice EINMAL trifft (§3.5).
+        foreach (var choice in model.Choices) {
+            if (wroteAny) {
+                cb.WriteLine();
+            }
+
+            WriteChoiceStub(cb, choice);
+            cb.WriteLine();
+            wroteAny = true;
+        }
     }
 
     static void WriteStub(CodeBuilder cb, TransitionCallContextCodeModel transition) {
@@ -81,9 +91,25 @@ static class WfsOneShotEmitterV2 {
         }
     }
 
+    static void WriteChoiceStub(CodeBuilder cb, ChoiceCallContextCodeModel choice) {
+
+        cb.Write($"protected override {choice.Context.ContextTypeName}.Result {choice.LogicName}(");
+        WriteAlignedDecls(cb, ChoiceLogicDeclarations(choice));
+
+        cb.Write(") ");
+        using (cb.Block()) {
+            cb.WriteLine("throw new NotImplementedException();");
+        }
+    }
+
     static IEnumerable<string> LogicSignatureDeclarations(TransitionCallContextCodeModel transition) {
         return transition.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
                          .Concat(new[] { $"{transition.Context!.ContextTypeName} callContext" });
+    }
+
+    static IEnumerable<string> ChoiceLogicDeclarations(ChoiceCallContextCodeModel choice) {
+        return choice.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
+                     .Concat(new[] { $"{choice.Context.ContextTypeName} callContext" });
     }
 
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {

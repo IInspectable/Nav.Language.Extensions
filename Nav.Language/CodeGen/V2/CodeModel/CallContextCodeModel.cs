@@ -54,18 +54,20 @@ sealed class CallContextCodeModel {
     public ImmutableList<CallableModel> Methods { get; }
 
     /// <summary>
-    /// Baut die Aufruffläche aus den erreichbaren Aufrufen einer Quelle. <paramref name="reachableCalls"/>
-    /// sind die (noch nicht entdoppelten) <see cref="Call"/>s der Quelle; <paramref name="ownerTaskResult"/>
+    /// Baut die Aufruffläche aus den <b>direkten</b> Aufrufen einer Quelle. <paramref name="directCalls"/>
+    /// sind die (noch nicht entdoppelten) <see cref="Call"/>s der Quelle — <b>ohne</b> plattgefaltete
+    /// Choices (<see cref="EdgeExtensions.GetDirectCalls"/>): ein Choice-Ziel ist ein eigener
+    /// <see cref="Call"/> und wird zu einem <c>{Choice}(…)</c>-Forward (§3.5). <paramref name="ownerTaskResult"/>
     /// ist das Ergebnis des <b>umgebenden</b> Tasks (für die fixe <c>Exit</c>-Fabrik, §3.4).
     /// </summary>
     public static CallContextCodeModel Build(string contextTypeName,
                                              string commandType,
-                                             IEnumerable<Call> reachableCalls,
+                                             IEnumerable<Call> directCalls,
                                              ParameterCodeModel ownerTaskResult) {
 
         // Wie V1: Exits werden im Codegen nicht unterschieden (FoldExits) — mehrere exit-Ziele
         // kollabieren auf eine einzige Exit()-Fabrik.
-        var distinct = reachableCalls.Distinct(CallComparer.FoldExits).ToList();
+        var distinct = directCalls.Distinct(CallComparer.FoldExits).ToList();
 
         var entries = new List<Entry>();
 
@@ -85,6 +87,9 @@ sealed class CallContextCodeModel {
                     break;
                 case ITaskNodeSymbol task:
                     entries.AddRange(BuildBeginTask(task, call.EdgeMode.EdgeMode));
+                    break;
+                case IChoiceNodeSymbol choice:
+                    entries.Add(BuildChoiceForward(choice));
                     break;
                 case IExitNodeSymbol:
                     entries.Add(BuildExit(ownerTaskResult));
@@ -227,6 +232,37 @@ sealed class CallContextCodeModel {
         }
     }
 
+    /// <summary>
+    /// Baut den <c>{Choice}(…)</c>-Forward einer Quelle, die direkt auf eine Choice zeigt (§3.5): ruft die
+    /// geteilte <c>{Choice}Logic(…)</c> auf und reicht deren fertiges Kommando (<c>Unwrap()</c>) durch. Die
+    /// Argumente sind die Choice-Parameter (<c>choice X [params …]</c>); den Choice-Context konstruiert der
+    /// target-getypte <c>new(_wfs)</c>. Rekursiv identisch für Choice→Choice (die Choice-Kette entfaltet der
+    /// Codegen nicht, sondern forwardet eine Ebene tiefer).
+    /// </summary>
+    static Entry BuildChoiceForward(IChoiceNodeSymbol choice) {
+
+        var namePascal = choice.Name.ToPascalcase();
+        var logicName  = $"{namePascal}{CodeGenFacts.LogicMethodSuffix}";
+
+        var parameters = ParameterCodeModel.FromParameterSyntaxes(choice.Syntax.CodeParamsDeclaration?.ParameterList)
+                                           .ToList();
+
+        var parameterList = String.Join(", ", parameters.Select(p => $"{p.ParameterType} {p.ParameterName}"));
+        var argumentList  = String.Join(", ", parameters.Select(p => p.ParameterName));
+
+        // Der Choice-Context ist der zweite Logic-Parameter → target-getyptes new(_wfs).
+        var forwardArguments = argumentList.Length == 0
+            ? $"new({WfsFieldName})"
+            : $"{argumentList}, new({WfsFieldName})";
+
+        return new Entry(
+            SortOrderChoice,
+            namePascal,
+            new CallableMethodModel(
+                signature: $"{namePascal}({parameterList})",
+                thunkBody: $"{WfsFieldName}.{logicName}({forwardArguments}).Unwrap()"));
+    }
+
     static Entry BuildExit(ParameterCodeModel ownerTaskResult) {
         return new Entry(
             SortOrderExit,
@@ -263,11 +299,15 @@ sealed class CallContextCodeModel {
 
     const string ContinuationTypeSuffix = "Continuation";
 
-    // Reihenfolge-Kategorien (an V1s CallCodeModel.SortOrder angelehnt): Task, Gui, Exit, End, Cancel.
+    /// <summary>Namenssuffix aller Call-Context-Typen (Transition wie Choice): z.B. <c>Init1<b>CallContext</b></c>.</summary>
+    public const string ContextTypeSuffix = "CallContext";
+
+    // Reihenfolge-Kategorien (an V1s CallCodeModel.SortOrder angelehnt): Task, Gui, Choice, Exit, End, Cancel.
     const int SortOrderTask   = 1;
     const int SortOrderGui    = 2;
-    const int SortOrderExit   = 3;
-    const int SortOrderEnd    = 4;
+    const int SortOrderChoice = 3;
+    const int SortOrderExit   = 4;
+    const int SortOrderEnd    = 5;
     const int SortOrderCancel = Int32.MaxValue;
 
     readonly struct Entry {

@@ -50,6 +50,33 @@ public static class EdgeExtensions {
         }
     }
 
+    /// <summary>
+    /// Liefert die <b>direkten</b> Aufrufe der <paramref name="edges"/> — die <see cref="Call"/>s ihrer
+    /// unmittelbaren Ziele, <b>ohne</b> Choices plattzufalten. Zeigt eine Kante auf eine Choice, entsteht
+    /// ein <see cref="Call"/> auf den <b>Choice-Knoten selbst</b> (dessen <see cref="Call.Node"/> ein
+    /// <see cref="IChoiceNodeSymbol"/> ist), statt — wie <see cref="GetReachableCalls(IEnumerable{IEdge})"/>
+    /// — rekursiv in deren Ausgänge abzusteigen. Der V2-Codegen bildet einen solchen Choice-Call auf einen
+    /// <c>{Choice}(…)</c>-Forward ab (§3.5), statt die Choice-Logik an jeder Quelle einzufalten. Für
+    /// choice-freie Quellen ist das Ergebnis deckungsgleich mit <see cref="GetReachableCalls(IEnumerable{IEdge})"/>.
+    /// </summary>
+    public static IEnumerable<Call> GetDirectCalls(this IEnumerable<IEdge> edges) {
+
+        var calls = new List<Call>();
+
+        foreach (var edge in edges) {
+
+            var targetNode = edge.TargetReference?.Declaration;
+
+            // Nur aufgelöste Ziele mit definiertem Kantenmodus ergeben einen Call (wie GetReachableCallsImpl);
+            // ein Choice-Ziel wird dabei NICHT aufgelöst, sondern selbst zum Call.
+            if (targetNode != null && edge.EdgeMode != null) {
+                calls.Add(new Call(targetNode, edge));
+            }
+        }
+
+        return calls.Distinct(CallComparer.Default);
+    }
+
     public static IEnumerable<Call> GetReachableCalls(this IEdge source) {
         return GetReachableCallsImpl(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
     }

@@ -27,7 +27,8 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
                        ImmutableList<ParameterCodeModel> taskParameter,
                        ImmutableList<TransitionCallContextCodeModel> initTransitions,
                        ImmutableList<TransitionCallContextCodeModel> exitTransitions,
-                       ImmutableList<TransitionCallContextCodeModel> triggerTransitions)
+                       ImmutableList<TransitionCallContextCodeModel> triggerTransitions,
+                       ImmutableList<ChoiceCallContextCodeModel> choices)
         : base(taskCodeInfo, relativeSyntaxFileName, filePath) {
 
         UsingNamespaces    = usingNamespaces    ?? throw new ArgumentNullException(nameof(usingNamespaces));
@@ -37,6 +38,7 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
         InitTransitions    = initTransitions    ?? throw new ArgumentNullException(nameof(initTransitions));
         ExitTransitions    = exitTransitions    ?? throw new ArgumentNullException(nameof(exitTransitions));
         TriggerTransitions = triggerTransitions ?? throw new ArgumentNullException(nameof(triggerTransitions));
+        Choices            = choices            ?? throw new ArgumentNullException(nameof(choices));
 
         // Je distinktem Trigger-View-TO eine BeforeTriggerLogic-Überladung (wie V1).
         ViewParameters = TriggerTransitions.Select(t => t.Parameters[0])
@@ -56,6 +58,7 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
     public ImmutableList<TransitionCallContextCodeModel>  InitTransitions    { get; }
     public ImmutableList<TransitionCallContextCodeModel>  ExitTransitions    { get; }
     public ImmutableList<TransitionCallContextCodeModel>  TriggerTransitions { get; }
+    public ImmutableList<ChoiceCallContextCodeModel>      Choices            { get; }
     public ImmutableList<ParameterCodeModel>              ViewParameters     { get; }
 
     public static WfsBaseCodeModelV2 FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {
@@ -81,7 +84,8 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
             taskParameter         : taskParameter.ToImmutableList(),
             initTransitions       : CodeModelBuilderV2.GetInitTransitions(taskDefinition, taskResult).ToImmutableList(),
             exitTransitions       : CodeModelBuilderV2.GetExitTransitions(taskDefinition, taskResult).ToImmutableList(),
-            triggerTransitions    : CodeModelBuilderV2.GetTriggerTransitions(taskDefinition, taskResult).ToImmutableList());
+            triggerTransitions    : CodeModelBuilderV2.GetTriggerTransitions(taskDefinition, taskResult).ToImmutableList(),
+            choices               : CodeModelBuilderV2.GetChoices(taskDefinition, taskResult).ToImmutableList());
     }
 
     static IEnumerable<string> GetUsingNamespaces(ITaskDefinitionSymbol taskDefinition, TaskCodeInfo taskCodeInfo) {

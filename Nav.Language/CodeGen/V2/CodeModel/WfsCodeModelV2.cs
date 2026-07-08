@@ -24,13 +24,15 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
                    ImmutableList<string> usingNamespaces,
                    ImmutableList<TransitionCallContextCodeModel> initTransitions,
                    ImmutableList<TransitionCallContextCodeModel> exitTransitions,
-                   ImmutableList<TransitionCallContextCodeModel> triggerTransitions)
+                   ImmutableList<TransitionCallContextCodeModel> triggerTransitions,
+                   ImmutableList<ChoiceCallContextCodeModel> choices)
         : base(taskCodeInfo, relativeSyntaxFileName, filePath) {
 
         UsingNamespaces    = usingNamespaces    ?? throw new ArgumentNullException(nameof(usingNamespaces));
         InitTransitions    = initTransitions    ?? throw new ArgumentNullException(nameof(initTransitions));
         ExitTransitions    = exitTransitions    ?? throw new ArgumentNullException(nameof(exitTransitions));
         TriggerTransitions = triggerTransitions ?? throw new ArgumentNullException(nameof(triggerTransitions));
+        Choices            = choices            ?? throw new ArgumentNullException(nameof(choices));
     }
 
     public string WflNamespace => Task.WflNamespace;
@@ -40,6 +42,7 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
     public ImmutableList<TransitionCallContextCodeModel> InitTransitions    { get; }
     public ImmutableList<TransitionCallContextCodeModel> ExitTransitions    { get; }
     public ImmutableList<TransitionCallContextCodeModel> TriggerTransitions { get; }
+    public ImmutableList<ChoiceCallContextCodeModel>     Choices            { get; }
 
     public static WfsCodeModelV2 FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {
 
@@ -58,7 +61,8 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
             usingNamespaces       : GetUsingNamespaces(taskDefinition, taskCodeInfo).ToImmutableList(),
             initTransitions       : CodeModelBuilderV2.GetInitTransitions(taskDefinition, taskResult).ToImmutableList(),
             exitTransitions       : CodeModelBuilderV2.GetExitTransitions(taskDefinition, taskResult).ToImmutableList(),
-            triggerTransitions    : CodeModelBuilderV2.GetTriggerTransitions(taskDefinition, taskResult).ToImmutableList());
+            triggerTransitions    : CodeModelBuilderV2.GetTriggerTransitions(taskDefinition, taskResult).ToImmutableList(),
+            choices               : CodeModelBuilderV2.GetChoices(taskDefinition, taskResult).ToImmutableList());
     }
 
     static IEnumerable<string> GetUsingNamespaces(ITaskDefinitionSymbol taskDefinition, TaskCodeInfo taskCodeInfo) {
