@@ -78,12 +78,14 @@ sealed class TransitionCallContextCodeModel {
 
         var generateAbstract = initNode.CodeGenerateAbstractMethod();
         var contextTypeName  = $"{initNode.Name.ToPascalcase()}{ContextTypeSuffix}";
+        var logicName        = $"{CodeGenFacts.BeginMethodPrefix}{CodeGenFacts.LogicMethodSuffix}";
 
         var context = generateAbstract
             ? null
             : CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : InitCommandType,
+                logicMethodName: logicName,
                 directCalls    : initNode.Outgoings.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
@@ -96,7 +98,7 @@ sealed class TransitionCallContextCodeModel {
             parameters               : parameters,
             isTrigger                : false,
             generateAbstractMachinery: generateAbstract,
-            logicName                : $"{CodeGenFacts.BeginMethodPrefix}{CodeGenFacts.LogicMethodSuffix}",
+            logicName                : logicName,
             context                  : context);
     }
 
@@ -108,12 +110,14 @@ sealed class TransitionCallContextCodeModel {
         var subTaskResult    = ParameterCodeModel.TaskResult(taskNode.Declaration);
         var generateAbstract = taskNode.CodeGenerateAbstractMethod();
         var contextTypeName  = $"{machineryName}{ContextTypeSuffix}";
+        var logicName        = $"{machineryName}{CodeGenFacts.LogicMethodSuffix}";
 
         var context = generateAbstract
             ? null
             : CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : TransitionCommandType,
+                logicMethodName: logicName,
                 directCalls    : taskNode.Outgoings.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
@@ -126,7 +130,7 @@ sealed class TransitionCallContextCodeModel {
             parameters               : ImmutableList.Create(subTaskResult),
             isTrigger                : false,
             generateAbstractMachinery: generateAbstract,
-            logicName                : $"{machineryName}{CodeGenFacts.LogicMethodSuffix}",
+            logicName                : logicName,
             context                  : context);
     }
 
@@ -140,10 +144,12 @@ sealed class TransitionCallContextCodeModel {
             var viewParameter   = new ParameterCodeModel(triggerCodeInfo.TOClassName, CodeGenFacts.ToParamtername);
             var triggerName     = triggerCodeInfo.TriggerName;
             var contextTypeName = $"{triggerName}{ContextTypeSuffix}";
+            var logicName       = $"{triggerName}{CodeGenFacts.LogicMethodSuffix}";
 
             var context = CallContextCodeModel.Build(
                 contextTypeName: contextTypeName,
                 commandType    : TransitionCommandType,
+                logicMethodName: logicName,
                 directCalls    : new IEdge[] { triggerTransition }.GetDirectCalls(),
                 ownerTaskResult: taskResult);
 
@@ -156,7 +162,7 @@ sealed class TransitionCallContextCodeModel {
                 parameters               : ImmutableList.Create(viewParameter),
                 isTrigger                : true,
                 generateAbstractMachinery: false,
-                logicName                : $"{triggerName}{CodeGenFacts.LogicMethodSuffix}",
+                logicName                : logicName,
                 context                  : context);
         }
     }

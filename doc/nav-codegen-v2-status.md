@@ -419,6 +419,28 @@ V2-Goldens (BasicFlow/Continuation/Choice) byte-identisch.
 **Damit sind S0–S8 abgeschlossen** — der V2-Codegen (CallContext, Continuation, Choices, Sonderformen)
 steht vollständig hinter dem `VersionDispatchingCodeGenerator`.
 
+### Nachtrag: zentraler `UnwrapOrThrow`-Guard mit Task-/Override-genauer Meldung
+
+Zwei Verfeinerungen des `Result.Unwrap()`-Guards nach S6 bzw. S8 (Design-Doc §3.2/§3.3/§3.5
+entsprechend nachgezogen):
+
+- **Guard zentralisiert (nach S6):** Der Null-/`default`-Guard sitzt nicht mehr inline in jedem
+  `Result.Unwrap()`, sondern **einmal je `{Task}WFSBase`** als statischer generischer Helfer
+  `UnwrapOrThrow<TCommand>`; die genesteten `Result`-Structs delegieren. Emittiert nur, wenn
+  überhaupt ein Call-Context entsteht (`EmitsAnyContext` — reine `[abstract]`-Tasks bleiben
+  helferfrei). Das ersetzt die ursprüngliche Spec-Formulierung „der `Unwrap()`-Aufruf prüft selbst"
+  — funktional identisch (gleiches Thunk-Timing, wirft nur bei explizitem `return default;`), aber
+  Guard und Meldungstext existieren einmal pro Klasse statt einmal pro Context.
+- **Meldung benennt Task + Logic-Override (nach S8):** `UnwrapOrThrow` bekommt den Namen der
+  Logic-Methode als Parameter — `Unwrap()` reicht ihn als **`nameof({Logic})`** durch
+  (Compile-Zeit-Literal, rename-sicher), der Task-Name steht als Konstante in der Meldung:
+  `"BeginLogic of task 'ChoiceFlow' returned default(Result); …"`. Grund: das schuldige Override ist
+  beim Wurf bereits **returned** und steht nicht mehr auf dem Stack — der Stacktrace zeigt nur die
+  Maschinerie-Methode, beim Choice-Forward sogar nur einen Compiler-generierten Lambda-Frame; die
+  Meldung ist damit auch in Produktions-Logs ohne Stacktrace handlungsfähig. Die Meldungs-Verkettung
+  liegt im throw-Zweig (keine Allokation im Erfolgspfad). Träger: `CallContextCodeModel.LogicMethodName`
+  (gespeist aus den Fabriken für Init/Exit/Trigger/Choice).
+
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),
 ggf. mit der versionierten Such-Strategie-Schnittstelle.

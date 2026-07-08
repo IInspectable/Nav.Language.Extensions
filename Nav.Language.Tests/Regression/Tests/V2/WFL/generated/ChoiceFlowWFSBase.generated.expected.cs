@@ -35,10 +35,10 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
 
         protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
 
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command)
+        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
             => command is null
                 ? throw new InvalidOperationException(
-                    "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                    logicMethodName + " of task 'ChoiceFlow' returned default(Result); every code path must return a navigation result via the call context.")
                 : command();
 
         #region Nav Annotations
@@ -61,7 +61,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<IINIT_TASK> _command;
                 internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command);
+                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
             }
 
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
@@ -88,7 +88,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterALogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -116,7 +116,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterMsgLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -145,7 +145,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnRetryLogic));
             }
 
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
@@ -174,7 +174,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnStartALogic));
             }
 
             public Result BeginA() => new(() => _wfs.OpenModalTask<AResult>(() => _wfs._a.Begin(), _wfs.AfterA));
@@ -192,7 +192,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<IINIT_TASK> _command;
                 internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command);
+                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));
             }
 
             public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
@@ -219,7 +219,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             public readonly struct Result {
                 readonly System.Func<IINIT_TASK> _command;
                 internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command);
+                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_EscalateLogic));
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));

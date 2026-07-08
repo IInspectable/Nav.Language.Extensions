@@ -84,7 +84,7 @@ static class WfsBaseEmitterV2 {
             // Der Null-/default-Guard aller Result.Unwrap() sitzt einmalig hier (nur nötig, wenn
             // überhaupt ein Call-Context — und damit ein Result — emittiert wird).
             if (EmitsAnyContext(model)) {
-                WriteUnwrapHelper(cb);
+                WriteUnwrapHelper(cb, model);
             }
 
             foreach (var transition in model.InitTransitions) {
@@ -262,13 +262,14 @@ static class WfsBaseEmitterV2 {
         // Opaker Ergebnistyp: nur dieser Context kann ihn erzeugen; das Kommando wird deferred im Thunk
         // gebaut (§3.2). Unwrap() ist internal — die Maschinerie in {Task}WFSBase ist Container von Result
         // und erreicht dessen private Member NICHT (§3.2). Der Null-/default-Guard sitzt einmalig in
-        // {Task}WFSBase.UnwrapOrThrow (kein pro-Context-Duplikat).
+        // {Task}WFSBase.UnwrapOrThrow (kein pro-Context-Duplikat); nameof benennt das Logic-Override,
+        // das beim Wurf nicht mehr auf dem Stack steht.
         cb.Write("public readonly struct Result ");
         using (cb.Block()) {
             cb.Write($"""
                       readonly System.Func<{commandType}> _command;
                       internal Result(System.Func<{commandType}> command) => _command = command;
-                      internal {commandType} Unwrap() => {UnwrapHelperName}(_command);
+                      internal {commandType} Unwrap() => {UnwrapHelperName}(_command, nameof({context.LogicMethodName}));
                       """);
         }
 
@@ -279,15 +280,18 @@ static class WfsBaseEmitterV2 {
     /// Der zentrale Null-/<c>default</c>-Guard aller <c>Result.Unwrap()</c> dieser <c>{Task}WFSBase</c>
     /// (§3.2): feuert den deferred Kommando-Thunk und wirft nur beim expliziten <c>return default;</c>
     /// (Func == null). Einmal je Basisklasse — die genesteten <c>Result</c>-Structs leiten hierher weiter,
-    /// statt Guard und Meldung pro Context zu duplizieren. Der Maschinerie-Methodenname ergibt sich beim
-    /// Wurf aus dem Stacktrace.
+    /// statt Guard und Meldung pro Context zu duplizieren. Die Meldung benennt Task und Logic-Override
+    /// (via <c>nameof</c> aus <c>Unwrap()</c>): das Override ist beim Wurf bereits returned und steht
+    /// nicht mehr auf dem Stack — der Stacktrace allein zeigt nur die Maschinerie-Methode bzw. beim
+    /// Choice-Forward einen Compiler-generierten Lambda-Frame. Die Verkettung liegt im throw-Zweig
+    /// (keine Allokation im Erfolgspfad).
     /// </summary>
-    static void WriteUnwrapHelper(CodeBuilder cb) {
+    static void WriteUnwrapHelper(CodeBuilder cb, WfsBaseCodeModelV2 model) {
         cb.WriteLine($"""
-                  static TCommand {UnwrapHelperName}<TCommand>(System.Func<TCommand> command)
+                  static TCommand {UnwrapHelperName}<TCommand>(System.Func<TCommand> command, string logicMethodName)
                       => command is null
                           ? throw new InvalidOperationException(
-                              "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                              logicMethodName + " of task '{model.Task.TaskName}' returned default(Result); every code path must return a navigation result via the call context.")
                           : command();
 
                   """);

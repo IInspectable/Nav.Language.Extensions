@@ -32,10 +32,10 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
 
         protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
 
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command)
+        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
             => command is null
                 ? throw new InvalidOperationException(
-                    "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                    logicMethodName + " of task 'BasicFlow' returned default(Result); every code path must return a navigation result via the call context.")
                 : command();
 
         #region Nav Annotations
@@ -58,7 +58,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<IINIT_TASK> _command;
                 internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command);
+                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -85,7 +85,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterGotoSubLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -112,7 +112,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterModalSubLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -139,7 +139,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterNonModalSubLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -168,7 +168,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEndLogic));
             }
 
             public Result End() => new(() => _wfs.EndNonModal());
@@ -197,7 +197,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnGotoLogic));
             }
 
             public Result BeginGotoSub() => new(() => _wfs.GotoTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterGotoSub));
@@ -226,7 +226,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
@@ -255,7 +255,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnModalLogic));
             }
 
             public Result BeginModalSub() => new(() => _wfs.OpenModalTask<SubResult>(() => _wfs._sub.Begin(), _wfs.AfterModalSub));
@@ -284,7 +284,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnReloadLogic));
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
@@ -313,7 +313,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
             public readonly struct Result {
                 readonly System.Func<INavCommand> _command;
                 internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command);
+                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnNonModalLogic));
             }
 
             public Result BeginNonModalSub() => new(() => _wfs.StartNonModalTask(() => _wfs._sub.Begin(), _wfs.AfterNonModalSub));

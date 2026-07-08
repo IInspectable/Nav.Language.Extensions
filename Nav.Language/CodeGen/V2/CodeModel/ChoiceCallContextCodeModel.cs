@@ -47,6 +47,7 @@ sealed class ChoiceCallContextCodeModel {
                                                         bool initReachable) {
 
         var namePascal  = choiceNode.Name.ToPascalcase();
+        var logicName   = $"{namePascal}{CodeGenFacts.LogicMethodSuffix}";
         var commandType = initReachable
             ? TransitionCallContextCodeModel.InitCommandType
             : TransitionCallContextCodeModel.TransitionCommandType;
@@ -57,11 +58,12 @@ sealed class ChoiceCallContextCodeModel {
         var context = CallContextCodeModel.Build(
             contextTypeName: $"{namePascal}{CallContextCodeModel.ContextTypeSuffix}",
             commandType    : commandType,
+            logicMethodName: logicName,
             directCalls    : choiceNode.Outgoings.GetDirectCalls(),
             ownerTaskResult: ownerTaskResult);
 
         return new ChoiceCallContextCodeModel(
-            logicName : $"{namePascal}{CodeGenFacts.LogicMethodSuffix}",
+            logicName : logicName,
             parameters: parameters,
             context   : context);
     }

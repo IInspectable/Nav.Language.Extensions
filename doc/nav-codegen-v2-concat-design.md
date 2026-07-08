@@ -169,15 +169,21 @@ Festlegungen:
   ihn auf den `Unwrap()`-Aufruf in der Maschinerie (V1-Timing) und ist robust gegen „Fabrik aufrufen,
   aber nicht zurückgeben".
 
-**Null-/`default`-Schutz strukturell — es gibt keinen Laufzeit-Guard.** Weil `Result` ein
+**Null-/`default`-Schutz strukturell — der Laufzeit-Guard ist ein Rest-Fall.** Weil `Result` ein
 `readonly struct` ist, ist `return null;` ein **Compile-Fehler** — das häufigste „ich habe einen
 Zweig vergessen"-Muster fängt der Compiler. Der V1-`switch`-`default:` fing `null` **und**
 unerwartete Marker ab; der Marker-Fall ist in V2 strukturell unmöglich (opaker `Result`), der
-`null`-Fall ein Compile-Fehler. Übrig bleibt nur explizites `return default;` (Func == null) — das
-prüft der **`Unwrap()`-Aufruf selbst** mit einer generischen, handlungsweisenden Meldung
-(`"A Logic method returned default(Result); every code path must return a navigation result via the
-call context."`); der Maschinerie-Methodenname ergibt sich aus dem **Stacktrace**. Kein
-pro-Klasse-Helfer, keine pro-Transition-Duplikation;
+`null`-Fall ein Compile-Fehler. Übrig bleibt nur explizites `return default;` (Func == null) — den
+prüft ein **zentraler statischer Helfer `UnwrapOrThrow<TCommand>`, einmal je `{Task}WFSBase`**, an
+den jedes `Result.Unwrap()` delegiert: `UnwrapOrThrow(_command, nameof({Logic}))`. Die Meldung
+benennt **Task und Logic-Override** (`"BeginLogic of task 'Sample' returned default(Result); every
+code path must return a navigation result via the call context."`) — bewusst nicht bloß per
+Stacktrace: das Override ist beim Wurf bereits **returned** und steht nicht mehr auf dem Stack (der
+Stacktrace zeigt nur die Maschinerie-Methode, beim Choice-Forward sogar nur einen
+Compiler-generierten Lambda-Frame). Das `nameof` ist ein Compile-Zeit-Literal (rename-sicher, kostet
+zur Laufzeit nichts), die Meldungs-Verkettung liegt im throw-Zweig (keine Allokation im
+Erfolgspfad); Guard und Meldungstext existieren **einmal pro Klasse statt einmal pro Context** —
+keine pro-Transition-Duplikation.
 `NavCommandBody.ComposeUnexpectedTransitionMessage` wird in V2 **nirgends aufgerufen**. Der Fall ist
 extrem selten (nur explizites `return default;`). Leitästhetik: strukturelle Korrektheit vor
 Laufzeit-Guard.
@@ -276,16 +282,21 @@ public Result ShowView(ViewTO to)   => new(() => _wfs.GotoGUI(to));   // plain-o
 public Result BeginB(string b1)     => new(() => _wfs.OpenModalTask<FooResult>(() => _wfs._b.Begin(b1), _wfs.AfterB));
 
 // … mit dem geschachtelten Result-Typ (readonly struct; Unwrap() ist internal — die Maschinerie in
-// {Task}WFSBase ist Container von Result und kann dessen private Member NICHT lesen, §3.2):
+// {Task}WFSBase ist Container von Result und kann dessen private Member NICHT lesen, §3.2). Der
+// Unwrap()-Aufruf feuert die Konstruktion; der default-Guard delegiert an den zentralen Helfer:
 public readonly struct Result {
     readonly Func<IINIT_TASK> _command;
     internal Result(Func<IINIT_TASK> command) => _command = command;
-    internal IINIT_TASK Unwrap()                 // feuert die Konstruktion beim Aufruf
-        => _command is null                      // nur bei explizitem `return default;`
-            ? throw new InvalidOperationException(
-                  "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-            : _command();
+    internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
 }
+
+// … und dem Guard einmal je {Task}WFSBase (§3.2 — wirft nur bei explizitem `return default;`;
+// nameof benennt das Override, das beim Wurf nicht mehr auf dem Stack steht):
+static TCommand UnwrapOrThrow<TCommand>(Func<TCommand> command, string logicMethodName)
+    => command is null
+        ? throw new InvalidOperationException(
+              logicMethodName + " of task 'Sample' returned default(Result); every code path must return a navigation result via the call context.")
+        : command();
 ```
 
 ### 3.4 Die Context-Fläche je Kanten-Art
@@ -457,12 +468,8 @@ protected sealed class Choice_RetryCallContext {
         internal Result(Func<IINIT_TASK> command) => _command = command;
         // internal: schon der Container-Zugriff der Maschinerie verlangt internal (nested private
         // ist für den Container unerreichbar, §3.2); der Geschwister-Forward braucht dieselbe
-        // Stufe, kein Mehr.
-        internal IINIT_TASK Unwrap()
-            => _command is null
-                ? throw new InvalidOperationException(
-                      "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                : _command();
+        // Stufe, kein Mehr. Der default-Guard sitzt zentral in {Task}WFSBase.UnwrapOrThrow (§3.2).
+        internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));
     }
 
     // Beide Choice_Retry --> View-Kanten (plain + o-^ Msg) → EINE Methode, Union der Behandlungen.
@@ -501,11 +508,7 @@ protected sealed class Init1CallContext {
                                                           // erreicht nested private nicht, §3.2)
         readonly Func<IINIT_TASK> _command;
         internal Result(Func<IINIT_TASK> command) => _command = command;
-        internal IINIT_TASK Unwrap()
-            => _command is null
-                ? throw new InvalidOperationException(
-                      "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
-                : _command();
+        internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
     }
 
     // Init1 --> Choice_Retry: Choice-Logic aufrufen und Kommando durchreichen (deferred:

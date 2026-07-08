@@ -38,9 +38,10 @@ sealed class CallContextCodeModel {
     /// <summary>Der Parametername der <c>Show{Node}</c>-Methode (und des Continuation-Konstruktors).</summary>
     public const string ToParameterName = "to";
 
-    CallContextCodeModel(string contextTypeName, string commandType, ImmutableList<CallableModel> methods) {
+    CallContextCodeModel(string contextTypeName, string commandType, string logicMethodName, ImmutableList<CallableModel> methods) {
         ContextTypeName = contextTypeName;
         CommandType     = commandType;
+        LogicMethodName = logicMethodName;
         Methods         = methods;
     }
 
@@ -49,6 +50,15 @@ sealed class CallContextCodeModel {
 
     /// <summary>Der vom <c>Result.Unwrap()</c> gelieferte Framework-Kommandotyp (<c>IINIT_TASK</c>/<c>INavCommand</c>).</summary>
     public string CommandType { get; }
+
+    /// <summary>
+    /// Der Name der Logic-Methode, deren Override diesen Context bekommt (z.B. <c>BeginLogic</c>,
+    /// <c>Choice_RetryLogic</c>). <c>Result.Unwrap()</c> reicht ihn als <c>nameof(…)</c> an den zentralen
+    /// Guard durch, damit dessen Meldung das schuldige Override benennt — beim Wurf ist die Logic bereits
+    /// returned und steht <b>nicht</b> mehr auf dem Stack (der Stacktrace zeigt nur die Maschinerie- bzw.
+    /// beim Choice-Forward einen Compiler-generierten Lambda-Frame).
+    /// </summary>
+    public string LogicMethodName { get; }
 
     /// <summary>Die Callables des Contexts, in stabiler Reihenfolge (inkl. <c>Cancel</c>).</summary>
     public ImmutableList<CallableModel> Methods { get; }
@@ -62,6 +72,7 @@ sealed class CallContextCodeModel {
     /// </summary>
     public static CallContextCodeModel Build(string contextTypeName,
                                              string commandType,
+                                             string logicMethodName,
                                              IEnumerable<Call> directCalls,
                                              ParameterCodeModel ownerTaskResult) {
 
@@ -110,7 +121,7 @@ sealed class CallContextCodeModel {
                              .Select(e => e.Method)
                              .ToImmutableList();
 
-        return new CallContextCodeModel(contextTypeName, commandType, methods);
+        return new CallContextCodeModel(contextTypeName, commandType, logicMethodName, methods);
     }
 
     // -- Callable-Fabriken je Kanten-Art --------------------------------------------------------------
