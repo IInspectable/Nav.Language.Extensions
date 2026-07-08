@@ -111,4 +111,12 @@ static class EmitterCommon {
                       """);
     }
 
+    public static void WriteNavChoiceCallAnnotation(CodeBuilder cb, string choiceName) {
+        cb.WriteLine($"""
+                      #region {AnnotationRegionName}
+                      /// <{CodeGenInvariants.AnnotationTagNavChoiceCall}>{choiceName}</{CodeGenInvariants.AnnotationTagNavChoiceCall}>
+                      #endregion
+                      """);
+    }
+
 }

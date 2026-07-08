@@ -4,6 +4,7 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
     public interface INavTaskAnnotationVisitor {
         void VisitNavTaskAnnotation(NavTaskAnnotation navTaskAnnotation);
         void VisitNavChoiceAnnotation(NavChoiceAnnotation navChoiceAnnotation);
+        void VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation);
         void VisitNavExitAnnotation(NavExitAnnotation navExitAnnotation);
         void VisitNavInitAnnotation(NavInitAnnotation navInitAnnotation);
         void VisitNavInitCallAnnotation(NavInitCallAnnotation navInitCallAnnotation);
@@ -13,6 +14,7 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
     public interface INavTaskAnnotationVisitor<T> {
         T VisitNavTaskAnnotation(NavTaskAnnotation navTaskAnnotation);
         T VisitNavChoiceAnnotation(NavChoiceAnnotation navChoiceAnnotation);
+        T VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation);
         T VisitNavExitAnnotation(NavExitAnnotation navExitAnnotation);
         T VisitNavInitAnnotation(NavInitAnnotation navInitAnnotation);
         T VisitNavInitCallAnnotation(NavInitCallAnnotation navInitCallAnnotation);
@@ -39,6 +41,17 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
 
         internal override T Accept<T>(INavTaskAnnotationVisitor<T> visitor) {
             return visitor.VisitNavChoiceAnnotation(this);
+        }
+    }
+
+    partial class NavChoiceCallAnnotation {
+
+        internal override void Accept(INavTaskAnnotationVisitor visitor) {
+            visitor.VisitNavChoiceCallAnnotation(this);
+        }
+
+        internal override T Accept<T>(INavTaskAnnotationVisitor<T> visitor) {
+            return visitor.VisitNavChoiceCallAnnotation(this);
         }
     }
 
@@ -103,6 +116,10 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
             DefaultVisit(navChoiceAnnotation);
         }
 
+		public virtual void VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation) {
+            DefaultVisit(navChoiceCallAnnotation);
+        }
+
 		public virtual void VisitNavExitAnnotation(NavExitAnnotation navExitAnnotation) {
             DefaultVisit(navExitAnnotation);
         }
@@ -137,6 +154,10 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
 
 		public virtual T VisitNavChoiceAnnotation(NavChoiceAnnotation navChoiceAnnotation) {
             return DefaultVisit(navChoiceAnnotation);
+        }
+
+		public virtual T VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation) {
+            return DefaultVisit(navChoiceCallAnnotation);
         }
 
 		public virtual T VisitNavExitAnnotation(NavExitAnnotation navExitAnnotation) {

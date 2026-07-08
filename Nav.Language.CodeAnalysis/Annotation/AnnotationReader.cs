@@ -56,6 +56,12 @@ public static class AnnotationReader {
             foreach (var initCallAnnotation in callAnnotations) {
                 yield return initCallAnnotation;
             }
+
+            var choiceCallAnnotations = ReadChoiceCallAnnotation(semanticModel, navTaskAnnotation, invocationExpressions);
+
+            foreach (var choiceCallAnnotation in choiceCallAnnotations) {
+                yield return choiceCallAnnotation;
+            }
         }
     }
 
@@ -457,6 +463,56 @@ public static class AnnotationReader {
 
 
             yield return callAnnotation;
+        }
+    }
+
+    #endregion
+
+    #region ReadChoiceCallAnnotation
+
+    static IEnumerable<NavChoiceCallAnnotation> ReadChoiceCallAnnotation(
+        SemanticModel semanticModel,
+        NavTaskAnnotation navTaskAnnotation,
+        IEnumerable<InvocationExpressionSyntax> invocationExpressions) {
+
+        if (semanticModel == null || navTaskAnnotation == null) {
+            yield break;
+        }
+
+        foreach (var invocationExpression in invocationExpressions) {
+
+            // Der Choice-Forward wird im Nutzer-Logic-Code über den Call-Context aufgerufen:
+            //   next.{Choice}(…)  — Member-Zugriff auf den Context. Der navigierbare Anker ist der
+            // Methoden-Bezeichner selbst.
+            var identifier = invocationExpression.Expression switch {
+                IdentifierNameSyntax id                                          => id,
+                MemberAccessExpressionSyntax { Name: IdentifierNameSyntax name } => name,
+                _                                                                => null
+            };
+
+            if (identifier == null) {
+                continue;
+            }
+
+            if (!(semanticModel.GetSymbolInfo(identifier).Symbol is IMethodSymbol methodSymbol)) {
+                continue;
+            }
+
+            var declaringMethodNode = methodSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
+            var navChoiceCallTag    = ReadNavTags(declaringMethodNode).FirstOrDefault(tag => tag.TagName == CodeGenFacts.AnnotationTagNavChoiceCall);
+            if (navChoiceCallTag == null) {
+                continue;
+            }
+
+            // Der Forward liegt im geschachtelten {Choice}CallContext, der wiederum in der {Task}WFSBase liegt:
+            // methodSymbol → CallContext → WFSBase. Diesen Anker für den C#→C#-Sprung zur {Choice}Logic mitnehmen.
+            var wfsBaseFullyQualifiedName = methodSymbol.ContainingType?.ContainingType?.ToDisplayString() ?? string.Empty;
+
+            yield return new NavChoiceCallAnnotation(
+                taskAnnotation           : navTaskAnnotation,
+                identifier               : identifier,
+                choiceName               : navChoiceCallTag.Content,
+                wfsBaseFullyQualifiedName: wfsBaseFullyQualifiedName);
         }
     }
 

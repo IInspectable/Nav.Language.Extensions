@@ -219,6 +219,10 @@ static class WfsBaseEmitterV2 {
                             EmitterCommon.WriteInitCallAnnotation(cb, simple.NavInitCallInterface);
                         }
 
+                        if (simple.NavChoiceName != null) {
+                            EmitterCommon.WriteNavChoiceCallAnnotation(cb, simple.NavChoiceName);
+                        }
+
                         cb.WriteLine($"public Result {simple.Signature} => new(() => {simple.ThunkBody});");
                         break;
                     case ShowContinuationCallableModel continuation:

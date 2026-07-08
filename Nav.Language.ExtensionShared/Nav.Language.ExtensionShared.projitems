@@ -164,6 +164,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\LocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavAnnotationLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavChoiceAnnotationLocationInfoProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavChoiceCallerLocationInfoProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavChoiceCallLocationInfoProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavChoiceCallLogicLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavExitAnnotationLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavExitBeginCallerLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\NavInitAnnotationLocationInfoProvider.cs" />

@@ -138,6 +138,10 @@ public class CodeGenFactsTests {
     public void InvariantAnnotationTagNavInitCall() {
         Assert.That(CodeGenInvariants.AnnotationTagNavInitCall, Is.EqualTo("NavInitCall"), "Wrong AnnotationTagNavInitCall");
     }
+    [Test]
+    public void InvariantAnnotationTagNavChoiceCall() {
+        Assert.That(CodeGenInvariants.AnnotationTagNavChoiceCall, Is.EqualTo("NavChoiceCall"), "Wrong AnnotationTagNavChoiceCall");
+    }
 
     // -- Versionierbare Facts (ICodeGenFacts) — V1-Instanz pinnen -------------------------------------
     // NavCodeGenFacts.For(Version1) muss exakt die historischen Werte der geteilten Namensfläche

@@ -113,6 +113,33 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
             imageMoniker: ImageMonikers.GoToDefinition,
             toolTip     : ToolTipGoToChoiceDefinition);
 
+        // Zusätzlich zum Nav-Choice-Knoten die C#-Aufrufstellen der zugehörigen {Choice}(…)-Forwards
+        // (next.{Choice}(…)) anbieten — klassenweit, inkl. partial-Deklarationen in anderen Dateien.
+        tag.Provider.Add(new NavChoiceCallerLocationInfoProvider(
+                             sourceBuffer    : _textSnapshot.TextBuffer,
+                             choiceAnnotation: navChoiceAnnotation));
+
+        return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
+    }
+
+    public override ITagSpan<IntraTextGoToTag> VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation) {
+
+        var start  = navChoiceCallAnnotation.Identifier.Span.Start;
+        var length = navChoiceCallAnnotation.Identifier.Span.Length;
+
+        var snapshotSpan = new SnapshotSpan(_textSnapshot, start, length);
+        var provider     = new NavChoiceCallLocationInfoProvider(navChoiceCallAnnotation);
+        var tag = new IntraTextGoToTag(
+            provider    : provider,
+            imageMoniker: ImageMonikers.GoToDefinition,
+            toolTip     : ToolTipGoToChoiceDefinition);
+
+        // Zusätzlich zum Nav-Choice-Knoten die C#-Implementierung der geteilten {Choice}Logic anbieten
+        // (Abstieg von der {Task}WFSBase auf die abgeleitete Nutzer-Klasse).
+        tag.Provider.Add(new NavChoiceCallLogicLocationInfoProvider(
+                             sourceBuffer  : _textSnapshot.TextBuffer,
+                             callAnnotation: navChoiceCallAnnotation));
+
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 

@@ -64,6 +64,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
                 internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
             }
 
+            #region Nav Annotations
+            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
+            #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -92,6 +95,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+            #region Nav Annotations
+            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
+            #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -148,6 +154,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
                 internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnRetryLogic));
             }
 
+            #region Nav Annotations
+            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
+            #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
             public Result Cancel() => new(() => _wfs.Cancel());
         }
@@ -213,6 +222,9 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
                 #endregion
                 public Result BeginMsg(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
             }
+            #region Nav Annotations
+            /// <NavChoiceCall>Choice_Escalate</NavChoiceCall>
+            #endregion
             public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());
             public Result Cancel() => new(() => _wfs.Cancel());
         }

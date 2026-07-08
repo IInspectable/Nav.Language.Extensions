@@ -301,8 +301,9 @@ sealed class CallContextCodeModel {
             SortOrderChoice,
             namePascal,
             new CallableMethodModel(
-                signature: $"{namePascal}({parameterList})",
-                thunkBody: $"{WfsFieldName}.{logicName}({forwardArguments}).Unwrap()"));
+                signature    : $"{namePascal}({parameterList})",
+                thunkBody    : $"{WfsFieldName}.{logicName}({forwardArguments}).Unwrap()",
+                navChoiceName: choice.Name));
     }
 
     static Entry BuildExit(ParameterCodeModel ownerTaskResult) {
@@ -405,10 +406,11 @@ abstract class CallableModel {
 /// </summary>
 sealed class CallableMethodModel: CallableModel {
 
-    public CallableMethodModel(string signature, string thunkBody, string? navInitCallInterface = null) {
+    public CallableMethodModel(string signature, string thunkBody, string? navInitCallInterface = null, string? navChoiceName = null) {
         Signature            = signature;
         ThunkBody            = thunkBody;
         NavInitCallInterface = navInitCallInterface;
+        NavChoiceName        = navChoiceName;
     }
 
     public string Signature { get; }
@@ -421,6 +423,14 @@ sealed class CallableMethodModel: CallableModel {
     /// <c>null</c> für alle übrigen Callables (<c>Show</c>/<c>Exit</c>/<c>End</c>/<c>Cancel</c>/Choice-Forward).
     /// </summary>
     public string? NavInitCallInterface { get; }
+
+    /// <summary>
+    /// Ist die Callable ein <c>{Choice}(…)</c>-Forward, trägt sie hier den Choice-Knotennamen — der Emitter
+    /// schreibt daraus die <c>NavChoiceCall</c>-Annotation (C#→Nav-Navigation, gelesen vom
+    /// <c>AnnotationReader</c> am Aufrufort <c>next.{Choice}(…)</c>, führt zum Choice-Knoten im <c>.nav</c>).
+    /// <c>null</c> für alle übrigen Callables.
+    /// </summary>
+    public string? NavChoiceName { get; }
 
 }
 

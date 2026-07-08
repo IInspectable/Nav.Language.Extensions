@@ -81,4 +81,7 @@ public static class CodeGenInvariants {
     /// <summary>Tag an einem generierten Init-Aufruf (<c>NavInitCall</c>).</summary>
     public const string AnnotationTagNavInitCall = "NavInitCall";
 
+    /// <summary>Tag an einem generierten <c>{Choice}(…)</c>-Forward (<c>NavChoiceCall</c>).</summary>
+    public const string AnnotationTagNavChoiceCall = "NavChoiceCall";
+
 }

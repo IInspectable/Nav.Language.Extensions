@@ -41,13 +41,14 @@ public static class CodeGenFacts {
     public const string FieldPrefix                  = "_";
 
     public const string AnnotationTagPrefix      = "Nav";
-    public const string AnnotationTagNavFile     = "NavFile";
-    public const string AnnotationTagNavTask     = "NavTask";
-    public const string AnnotationTagNavTrigger  = "NavTrigger";
-    public const string AnnotationTagNavInit     = "NavInit";
-    public const string AnnotationTagNavExit     = "NavExit";
-    public const string AnnotationTagNavChoice   = "NavChoice";
-    public const string AnnotationTagNavInitCall = "NavInitCall";
+    public const string AnnotationTagNavFile       = "NavFile";
+    public const string AnnotationTagNavTask       = "NavTask";
+    public const string AnnotationTagNavTrigger    = "NavTrigger";
+    public const string AnnotationTagNavInit       = "NavInit";
+    public const string AnnotationTagNavExit       = "NavExit";
+    public const string AnnotationTagNavChoice     = "NavChoice";
+    public const string AnnotationTagNavInitCall   = "NavInitCall";
+    public const string AnnotationTagNavChoiceCall = "NavChoiceCall";
 
     internal static string BuildQualifiedName(params string[] identifier) {
         var parts = identifier.Where(part => !String.IsNullOrEmpty(part)).ToList();

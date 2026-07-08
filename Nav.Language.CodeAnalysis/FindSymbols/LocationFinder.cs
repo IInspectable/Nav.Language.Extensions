@@ -14,6 +14,7 @@ using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using Pharmatechnik.Nav.Language.CodeGen;
+using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.Common;
 using Pharmatechnik.Nav.Utilities.Logging;
@@ -57,6 +58,10 @@ public static class LocationFinder {
         return $"{facts.BeginMethodPrefix}{facts.LogicMethodSuffix}";
     }
 
+    // Logic-Suffix der Default-Generation — für den annotationsgetriebenen C#→{Choice}Logic-Sprung
+    // (FindCallChoiceLogicDeclarationLocationAsync), der kein Nav-Symbol und damit keine Sprach-Version hat.
+    static readonly string DefaultLogicMethodSuffix = NavCodeGenFacts.For(NavLanguageVersion.Default).LogicMethodSuffix;
+
     #region FindNavLocationsAsync
 
     /// <exception cref="LocationNotFoundException"/>
@@ -82,6 +87,11 @@ public static class LocationFinder {
     /// <exception cref="LocationNotFoundException"/>
     public static Task<IEnumerable<Location>> FindNavLocationsAsync(string sourceText, NavChoiceAnnotation annotation, CancellationToken cancellationToken) {
         return FindNavLocationsAsync(sourceText, annotation, GetChoiceLocations, cancellationToken);
+    }
+
+    /// <exception cref="LocationNotFoundException"/>
+    public static Task<IEnumerable<Location>> FindNavLocationsAsync(string sourceText, NavChoiceCallAnnotation annotation, CancellationToken cancellationToken) {
+        return FindNavLocationsAsync(sourceText, annotation, GetChoiceCallLocations, cancellationToken);
     }
 
     // TODO Hier sollte bereits eine CodeGenerationUnit an Stelle des Source Texts rein. Alternativ eine "echte "SourceText" Implementierung
@@ -146,6 +156,19 @@ public static class LocationFinder {
 
         if (choiceNode == null) {
             throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceAnnotation.ChoiceName, task.Name));
+        }
+
+        return ToEnumerable(choiceNode.Location);
+    }
+
+    static IEnumerable<Location> GetChoiceCallLocations(ITaskDefinitionSymbol task, NavChoiceCallAnnotation choiceCallAnnotation) {
+
+        var choiceNode = task.NodeDeclarations
+                             .OfType<IChoiceNodeSymbol>()
+                             .FirstOrDefault(n => n.Name == choiceCallAnnotation.ChoiceName);
+
+        if (choiceNode == null) {
+            throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceCallAnnotation.ChoiceName, task.Name));
         }
 
         return ToEnumerable(choiceNode.Location);
@@ -513,20 +536,48 @@ public static class LocationFinder {
 
     #region FindChoiceLogicDeclarationLocationAsync
 
+    /// <summary>
+    /// Genuiner Nav→C#-Pfad (Choice-Knoten → <c>{Choice}Logic</c>): der Logic-Name kommt versionsrichtig aus
+    /// <see cref="ChoiceCodeInfo.ChoiceLogicMethodName"/>.
+    /// </summary>
     /// <exception cref="LocationNotFoundException"/>
     public static Task<Location> FindChoiceLogicDeclarationLocationAsync(Project project, ChoiceCodeInfo codegenInfo, CancellationToken cancellationToken) {
+        return FindChoiceLogicDeclarationLocationAsync(
+            project              : project,
+            wfsBaseFqn           : codegenInfo.ContainingTask.FullyQualifiedWfsBaseName,
+            choiceLogicMethodName: codegenInfo.ChoiceLogicMethodName,
+            cancellationToken    : cancellationToken);
+    }
+
+    /// <summary>
+    /// Annotationsgetriebener C#→C#-Pfad (Aufrufstelle <c>next.{Choice}(…)</c> → <c>{Choice}Logic</c>): startet an
+    /// einer <c>&lt;NavChoiceCall&gt;</c>-Annotation ohne Nav-Symbol, der Logic-Name läuft daher — wie
+    /// <see cref="DefaultBeginLogicMethodName"/> — auf der Default-Generation.
+    /// </summary>
+    /// <exception cref="LocationNotFoundException"/>
+    public static Task<Location> FindCallChoiceLogicDeclarationLocationAsync(Project project, NavChoiceCallAnnotation choiceCallAnnotation, CancellationToken cancellationToken) {
+        var choiceLogicMethodName = $"{choiceCallAnnotation.ChoiceName.ToPascalcase()}{DefaultLogicMethodSuffix}";
+        return FindChoiceLogicDeclarationLocationAsync(
+            project              : project,
+            wfsBaseFqn           : choiceCallAnnotation.WfsBaseFullyQualifiedName,
+            choiceLogicMethodName: choiceLogicMethodName,
+            cancellationToken    : cancellationToken);
+    }
+
+    /// <exception cref="LocationNotFoundException"/>
+    static Task<Location> FindChoiceLogicDeclarationLocationAsync(Project project, string wfsBaseFqn, string choiceLogicMethodName, CancellationToken cancellationToken) {
 
         var task = Task.Run(async () => {
 
-            (var wfsBaseSymbol, project) = await GetTypeByMetadataNameWithSharedProjectsAsync(project, codegenInfo.ContainingTask.FullyQualifiedWfsBaseName, cancellationToken).ConfigureAwait(false);
+            (var wfsBaseSymbol, project) = await GetTypeByMetadataNameWithSharedProjectsAsync(project, wfsBaseFqn, cancellationToken).ConfigureAwait(false);
             if (wfsBaseSymbol == null) {
-                throw new LocationNotFoundException(String.Format(MsgUnableToFind0, codegenInfo.ContainingTask.FullyQualifiedWfsBaseName));
+                throw new LocationNotFoundException(String.Format(MsgUnableToFind0, wfsBaseFqn));
             }
 
             // Wir kennen de facto nur den Basisklassen Namespace + Namen, da die abgeleiteten Klassen theoretisch in einem
             // anderen Namespace liegen können. Deshalb steigen wir von der Basisklasse zu den abgeleiteten Klassen ab.
             var derived        = await SymbolFinder.FindDerivedClassesAsync(wfsBaseSymbol, project.Solution, ToImmutableSet(project), cancellationToken);
-            var memberSymbol   = derived.SelectMany(d => d.GetMembers(codegenInfo.ChoiceLogicMethodName)).FirstOrDefault();
+            var memberSymbol   = derived.SelectMany(d => d.GetMembers(choiceLogicMethodName)).FirstOrDefault();
             var memberLocation = memberSymbol?.Locations.FirstOrDefault();
 
             var location = ToLocation(memberLocation);

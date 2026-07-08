@@ -51,6 +51,7 @@ Annotation trägt beide). Nach jedem Step: Review + `nav test` (net472) **und** 
 | **B** | **Nav → C#** (Choice-Knoten/-Referenz → `{Choice}Logic`) | `ChoiceCodeInfo` (Shared), `LocationFinder.FindChoiceLogicDeclarationLocationAsync`, `GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` | F12 auf `choice X` springt in `{Choice}Logic`; Referenzen (`--> X`) erben den Sprung via `VisitNodeReferenceSymbol` | **erledigt** — s.u. |
 | **C** | **C# → Nav** (`{Choice}Logic` → Choice-Knoten) | `NavChoiceAnnotation`, T4-Visitor-Regen, `AnnotationReader.ReadNavChoiceAnnotation`, `LocationFinder.FindNavLocationsAsync(NavChoiceAnnotation)`/`GetChoiceLocations`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider` | Intra-Text-GoTo auf `{Choice}Logic` springt auf `choice X` im `.nav` | **erledigt** — s.u. |
 | **D** | **FindReferences** (`{Choice}Logic` → `{Choice}(…)`-Forwards) | `WfsReferenceFinder` (Choice-Zweig, C#-Forward-Aufrufstellen) | „Alle Referenzen" auf eine Choice listet die C#-Forward-Aufrufstellen | **erledigt** — s.u. |
+| **E** | **C# → Nav an der Aufrufstelle** (`next.{Choice}(…)` → Choice-Knoten) | Tag `NavChoiceCall`, `EmitterCommon.WriteNavChoiceCallAnnotation`, `CallableMethodModel.NavChoiceName`, `NavChoiceCallAnnotation`, `AnnotationReader.ReadChoiceCallAnnotation` (invocation-basiert), `LocationFinder`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceCallAnnotation` + `NavChoiceCallLocationInfoProvider` | Glyph/GoTo direkt auf `next.Choice_Retry("warn")` im Nutzer-Logic-Code → „Go To Choice Definition" | **erledigt** — s.u. |
 
 ### A — Annotation + Emitter (Fundament)
 
@@ -186,12 +187,68 @@ abgedeckt (VS-/Roslyn-Solution-Territorium; der V2-Korpus ist proprietär, nicht
 Compile-grün + Review, wie beim bestehenden `WfsReferenceFinder`-Code. Verifikation: **`nav build` grün**
 (inkl. VS-Extension), **net472 1415/0** (3 Skips), **net10 1407/0**.
 
+### E — C# → Nav an der Aufrufstelle (`next.{Choice}(…)` → Choice-Knoten)
+
+**Warum das (nach A–D) noch fehlte.** C verankert den Rückweg nur auf der **`{Choice}Logic`-Deklaration**
+(Intra-Text-GoTo, deklarations-basiert). Die eigentlichen **Aufrufstellen** `return next.Choice_Retry("warn");`
+im Nutzer-Logic-Code boten **keinen** Rücksprung — anders als der Init-Aufruf `next.BeginA()`, der über die
+**invocation-basierte** `<NavInitCall>`-Kette direkt an der Aufrufstelle navigiert. E schließt die Lücke als
+voller Spiegel dieses InitCall-Pfads (Nutzer-Entscheid: „an der Aufrufstelle, wie BeginA").
+
+**E umgesetzt.** Analog `<NavInit>` (Deklaration) vs. `<NavInitCall>` (Aufrufstelle) ein **eigener** Tag
+`AnnotationTagNavChoiceCall = "NavChoiceCall"` in `CodeGenInvariants` **und** V1-`CodeGenFacts` (den der
+`AnnotationReader` liest) + Invariant-Test `InvariantAnnotationTagNavChoiceCall`.
+`EmitterCommon.WriteNavChoiceCallAnnotation` (Trigger-/InitCall-Muster). Träger ist die neue Property
+`CallableMethodModel.NavChoiceName` (= `choiceNode.Name`, gesetzt in `CallContextCodeModel.BuildChoiceForward`);
+`WfsBaseEmitterV2.WriteCallContext` schreibt die Annotation **vor** den `{Choice}(…)`-Forward (parallel zum
+bestehenden `NavInitCallInterface`-Zweig). `NavChoiceCallAnnotation : NavInvocationAnnotation` (Spiegel
+`NavInitCallAnnotation`, `partial`, nur `ChoiceName` — kein Parameter-/Overload-Matching nötig, ein Knoten je
+Name). T4-Visitor `NavTaskAnnotationVisitor.Generated.cs` **von Hand** um die `NavChoiceCallAnnotation`-Stellen
+ergänzt (2 Interfaces + 2 Basisklassen + `Accept`-Block), **alphabetisch nach `NavChoice`, vor `NavExit`** (=
+EnvDTE-Regen-Ordnung → idempotent). `AnnotationReader.ReadChoiceCallAnnotation` (invocation-basiert, Spiegel
+`ReadInitCallAnnotation`) + Wiring in `ReadNavTaskAnnotations`; liest `<NavChoiceCall>` vom aufgerufenen
+Forward-Symbol. `LocationFinder.FindNavLocationsAsync(NavChoiceCallAnnotation)` + `GetChoiceCallLocations`
+(Choice-Knoten per Name). VS: `IntraTextGoToTagSpanBuilder.VisitNavChoiceCallAnnotation` (Anker =
+Invocation-Identifier, ToolTip „Go To Choice Definition") + `NavChoiceCallLocationInfoProvider` (Moniker
+`ImageMonikers.ChoiceNode`), in `.projitems`. **Kein Versions-Guard nötig** (wie D): V1 faltet Choices platt →
+keine Forwards → nie ein `<NavChoiceCall>`-Tag → sauberer No-op. Golden-Regen: **nur**
+`ChoiceFlowWFSBase.generated.expected.cs` (+4 `<NavChoiceCall>`-Blöcke: 3× `Choice_Retry`, 1× `Choice_Escalate`);
+alle übrigen byte-identisch. **Nicht lokal laufzeit-verifizierbar** (VS-IntraTextGoTo, keine Test-Abdeckung) →
+Prüfung Build-grün + Review. Verifikation: **`nav build` grün** (0/0), **net472 1416/0** (3 Skips), **net10 1408/0**.
+
+**E-Ergänzung — Aufrufer-Liste am `{Choice}Logic`-Glyph (Gegenrichtung).** Der C#→Nav-Glyph auf der
+`{Choice}Logic`-Deklaration (Step C) sprang bislang **direkt** zum Choice-Knoten, ohne Auswahl. Analog zu
+`VisitNavExitAnnotation` (das neben den Nav-Zielen die C#-Aufrufstellen der `BeginXY`-Methode über
+`NavExitBeginCallerLocationInfoProvider` anbietet) hängt `VisitNavChoiceAnnotation` jetzt einen **zweiten**
+Provider `NavChoiceCallerLocationInfoProvider` an denselben Tag: klassenweit (inkl. `partial`-Deklarationen)
+werden die `NavChoiceCallAnnotation`s (die Step-E-Aufrufstellen `next.{Choice}(…)`) gelesen und nach
+Task/File/Choice-Name gefiltert. Bei mehreren Zielen zeigt VS die Auswahl (Nav-Knoten **oder** die
+`next.Choice_Retry("warn")`-Aufrufstellen). Trägt der Glyph das **`override`** (Nutzer-OneShot, `{Task}WFS`),
+findet die klassenweite Suche die Aufrufe im selben `{Task}WFS`; die `NavChoiceAnnotation` wird dort über den
+`OverriddenMethod`-Fallback des `AnnotationReader` gelesen — exakt das Exit-Muster. Reine VS-/Leseseite (kein
+Golden-Impact). Verifikation: **`nav build` grün** (0/0), **net472 1416/0**, **net10 1408/0**.
+
+**E-Ergänzung — C#-`{Choice}Logic` am Aufrufstellen-Glyph (zweites Ziel).** Umgekehrt bot der Step-E-Glyph
+auf `next.{Choice}(…)` nur den Nav-Knoten. Analog zu `VisitNavInitCallAnnotation` (Aufrufstelle → C#-
+Implementierung) hängt `VisitNavChoiceCallAnnotation` jetzt einen **zweiten** Provider
+`NavChoiceCallLogicLocationInfoProvider` an: Sprung zur geteilten `{Choice}Logic`-Implementierung. Damit die
+annotationsgetriebene Suche (ohne Nav-Symbol) die tragende `{Task}WFSBase` kennt, trägt die
+`NavChoiceCallAnnotation` jetzt zusätzlich `WfsBaseFullyQualifiedName`, am Leseort aus dem Forward-Symbol
+bestimmt (`methodSymbol.ContainingType.ContainingType` — CallContext → WFSBase). Neuer
+`LocationFinder.FindCallChoiceLogicDeclarationLocationAsync` (Logic-Name = `ChoiceName.ToPascalcase()` +
+**Default-Generation**-`LogicMethodSuffix`, wie `DefaultBeginLogicMethodName` — der Call-Site-Pfad hat keine
+Sprach-Version); der Abstieg auf die abgeleiteten Klassen ist mit dem genuinen Nav→C#-Pfad
+(`FindChoiceLogicDeclarationLocationAsync`) in **einen** Kern zusammengefasst. Damit bieten **beide**
+Aufrufstellen-Glyphs eine Auswahl: der `{Choice}Logic`-Glyph → Nav-Knoten **oder** die C#-Aufrufstellen; der
+`next.{Choice}(…)`-Glyph → Nav-Knoten **oder** die C#-`{Choice}Logic`. Reine VS-/Leseseite (kein Golden-Impact).
+Verifikation: **`nav build` grün** (0/0), **net472 1416/0**, **net10 1408/0**.
+
 ## Feature komplett
 
-Der Choice-Navigations-Dreiklang steht: **A** (Annotation-Fundament) · **B** (Nav→C# GoTo) · **C** (C#→Nav
-Intra-Text-GoTo) · **D** (FindReferences → C#-Forwards). Alle vier uncommittet; je Step eine
-Commit-Message geliefert (der Nutzer committet). Offen bleibt allein die **Laufzeit-Verifikation von D**
-in VS gegen einen V2-Korpus.
+Der Choice-Navigations-Klang steht vollständig: **A** (Annotation-Fundament) · **B** (Nav→C# GoTo) · **C**
+(C#→Nav Intra-Text-GoTo auf `{Choice}Logic`) · **D** (FindReferences → C#-Forwards) · **E** (C#→Nav an der
+Aufrufstelle `next.{Choice}(…)`). Alle uncommittet; je Step eine Commit-Message geliefert (der Nutzer
+committet). Offen bleibt allein die **Laufzeit-Verifikation von D und E** in VS gegen einen V2-Korpus.
 
 ## Fallstricke (gesammelt)
 
