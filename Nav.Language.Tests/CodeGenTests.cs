@@ -286,40 +286,42 @@ public class CodeGenTests {
                     // Der generierte Code muss gegen die erweiterte .Concat-Typfläche der Stubs
                     // kompilieren (kein Laufzeit-Test, §3.8/⑥). Self-contained: der Folge-Task Msg ist
                     // lokal definiert und [result bool] (kein externer Result-Typ nötig).
-                    Content = @"#version 2
+                    Content = """
+                              #version 2
 
-[namespaceprefix Nav.Language.Tests.V2.ContinuationCompile]
+                              [namespaceprefix Nav.Language.Tests.V2.ContinuationCompile]
 
-[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
-[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
 
-task Msg [result bool] {
-    init I [params string text];
-    exit Done;
-    I --> Done;
-}
+                              task Msg [result bool] {
+                                  init I [params string text];
+                                  exit Done;
+                                  I --> Done;
+                              }
 
-task ContinuationCompile [base StandardWFS : IWFServiceBase]
-    [result bool]
-{
-    init Init1;
-    view Home;
-    task Msg Warn;
-    task Msg Drill;
-    exit Ok;
+                              task ContinuationCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  view Home;
+                                  task Msg Warn;
+                                  task Msg Drill;
+                                  exit Ok;
 
-    Init1 --> Home;
+                                  Init1 --> Home;
 
-    // o-^ : Home zeigen, dann modal Warn obendrauf → GotoGUI(to).Concat(OpenModalTask(...))
-    Home --> Home o-^ Warn on OnShowWarn;
+                                  // o-^ : Home zeigen, dann modal Warn obendrauf → GotoGUI(to).Concat(OpenModalTask(...))
+                                  Home --> Home o-^ Warn on OnShowWarn;
 
-    // --^ : Home zeigen, per Goto in Drill → GotoGUI(to).Concat(GotoTask(...))
-    Home --> Home --^ Drill on OnDrillDown;
+                                  // --^ : Home zeigen, per Goto in Drill → GotoGUI(to).Concat(GotoTask(...))
+                                  Home --> Home --^ Drill on OnDrillDown;
 
-    Warn:Done  --> Home;
-    Drill:Done --> Home;
-    Home --> Ok on OnClose;
-}"
+                                  Warn:Done  --> Home;
+                                  Drill:Done --> Home;
+                                  Home --> Ok on OnClose;
+                              }
+                              """
                 }
             }
         }) {
