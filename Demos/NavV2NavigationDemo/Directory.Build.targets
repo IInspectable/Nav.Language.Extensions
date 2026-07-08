@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!--
+    Bewusst leer. Stoppt (wie Directory.Build.props daneben) die MSBuild-Aufwärtssuche, damit die
+    Directory.Build.targets des Engine-Repos — die das zentrale Quellgenerator-Wiring
+    (SourceGenerator.targets) importiert — NICHT in diese standalone-Demo greift.
+  -->
+
+</Project>

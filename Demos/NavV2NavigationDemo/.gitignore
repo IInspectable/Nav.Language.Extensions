@@ -1,0 +1,10 @@
+# Build-Ausgaben
+bin/
+obj/
+
+# Generierter Nav-Code (wird beim Build aus Demo.nav erzeugt)
+**/generated/
+
+# VS-Benutzerdateien
+.vs/
+*.user

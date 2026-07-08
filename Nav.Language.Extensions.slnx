@@ -26,6 +26,7 @@
     <File Path="Tools/Commands/Functions/Invoke-Build.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Clean.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-CodeGenParity.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Demo.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-Deploy.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-GenerateErrors.ps1" />
     <File Path="Tools/Commands/Functions/Invoke-IncreaseMajor.ps1" />
@@ -88,6 +89,17 @@
     <File Path="doc/nav-versioning-status.md" />
     <File Path="doc/nav-weg-b-structured-trivia.md" />
     <File Path="doc/vs-call-hierarchy-plan.md" />
+  </Folder>
+  <!-- Demo bewusst NUR als Dateien, NICHT als <Project>: sie hat eine eigene Solution
+       (Demos/NavV2NavigationDemo/NavV2NavigationDemo.slnx), baut nur mit MSBuild.exe und setzt ein
+       vorheriges `nav publish` voraus — als echtes Projekt würde sie `nav build` (Solution-Build)
+       vor dem Publish brechen (Henne-Ei). Gebaut wird sie über `nav demo` bzw. den Smoke-Test in
+       `nav publish`. -->
+  <Folder Name="/Demos/">
+    <File Path="Demos/NavV2NavigationDemo/README.md" />
+    <File Path="Demos/NavV2NavigationDemo/Demo.nav" />
+    <File Path="Demos/NavV2NavigationDemo/WFL/ContinuationFlowWFS.cs" />
+    <File Path="Demos/NavV2NavigationDemo/build.ps1" />
   </Folder>
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />

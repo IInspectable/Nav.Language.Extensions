@@ -1,0 +1,70 @@
+﻿#version 2
+
+[namespaceprefix NavV2Demo]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Demo-Workflow für die Begin↔After-Navigation im V2-Codegen.
+//
+// Home (View) zeigt sich und setzt in zwei Folge-Tasks fort (Continuation):
+//   - o-^ Warn  : modale Fortsetzung  → ctx…BeginWarn(text),  Rücksprung über AfterWarn(Logic)
+//   - --^ Drill : Goto-Fortsetzung    → ctx…BeginDrill(id),   Rücksprung über AfterDrill(Logic)
+//
+// Damit gibt es je Sub-Task genau ein Begin (in einer CallContext-Continuation-Methode) und
+// eine After-Methode — die Enden der GoTo-Sprünge, die wir testen wollen.
+
+taskref Msg [namespaceprefix NavV2Demo.Sub]
+            [result MsgResult r] {
+
+    init [params string text];
+    exit Ok;
+}
+
+taskref Detail [namespaceprefix NavV2Demo.Sub]
+               [result DetailResult r] {
+
+    init [params int id];
+    exit Closed;
+}
+
+task ContinuationFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1;
+    exit Exit;
+    task Msg Warn;
+    task Detail Drill;
+    view Home;
+    choice Choice_Retry [params string reason];
+
+    Init1 --> Home;
+
+    // o-^ : Home zeigen, dann modal Warn obendrauf; Rücksprung über AfterWarn.
+    Home --> Home o-^ Warn on OnShowWarn;
+
+    // Zweiter Trigger, der ebenfalls in Warn fortsetzt → zweite BeginWarn-Aufrufstelle (in einer
+    // ANDEREN Logic-Methode). Zeigt, dass die Rücksprung-Navigation ab AfterWarn ALLE Aufrufstellen
+    // klassenweit sammelt.
+    Home --> Home o-^ Warn on OnReWarn;
+
+    // --^ : Home zeigen, per Goto in Drill voll-navigieren; Rücksprung über AfterDrill.
+    Home --> Home --^ Drill on OnDrillDown;
+
+    // Trigger, der eine Entscheidung anstößt (delegiert an die Choice Choice_Retry).
+    Home --> Choice_Retry on OnDecide;
+
+    Home --> Exit on OnClose;
+
+    // Choice: entscheidet zwischen drei Ausgängen. Der Continuation-Ausgang o-^ Warn erzeugt in der
+    // generierten Choice-Logic eine DRITTE BeginWarn-Aufrufstelle — auch sie muss beim GoTo aus
+    // AfterWarnLogic mitgelistet werden (Aufrufstelle steckt in der Choice-Logic, nicht in einem Trigger).
+    Choice_Retry --> Home;                        // plain: zurück auf Home (Default)
+    Choice_Retry --> Home o-^ Warn if "Warnung";  // Continuation: Home + modal Warn → BeginWarn
+    Choice_Retry --> Exit if "Abbruch";           // Abbruch: Task beenden
+
+    Warn:Ok      --> Home;
+    Drill:Closed --> Home;
+}
