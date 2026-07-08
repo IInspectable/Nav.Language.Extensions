@@ -298,6 +298,16 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
+        /// The generated member '{0}' collides with another generated member
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0124GeneratedMember0CollidesWithAnotherMember = new(
+            id             : DiagnosticId.Nav0124,
+            messageFormat  : "The generated member '{0}' collides with another generated member",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
         /// The choice node '{0}' has no incoming edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0111ChoiceNode0HasNoIncomingEdges = new(

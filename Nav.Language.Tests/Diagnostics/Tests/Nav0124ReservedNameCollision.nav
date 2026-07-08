@@ -1,0 +1,17 @@
+﻿#version 2
+
+// Reservierter Name: der bare-name Choice-Forward {Choice} heißt wie das fixe Kommando Cancel
+// (ebenso unzulässig: Exit/End/Result). csc meldete allenfalls einen still kompilierenden Overload.
+
+task A
+{
+    init I1;
+    exit e;
+    view V;
+    choice Cancel;
+
+    I1     --> Cancel;
+    Cancel --> V;
+    V      --> e on OnGo;
+}
+//==>>[Semantic](11,12,11,18): error Nav0124: The generated member 'Cancel' collides with another generated member

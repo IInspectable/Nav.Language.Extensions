@@ -36,7 +36,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S1** | **Syntax vorwärts portieren:** Tokens `--^`/`o-^`, `ContinuationTransitionSyntax` (`Edge`/`TargetNode` optional), `choice [params]` (Wiederverwendung `ParameterListSyntax`), Visitor/Walker; `ModalEdgeKeywordAlt "*->"` entfernen | §6.2 | Parser-/Syntax-Tests grün, beide TFMs | **erledigt** — s.u. |
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | **erledigt** — s.u. |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | **erledigt** — s.u. (Nav0124 → S4 verschoben) |
-| **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **S4a erledigt** (Gate + Nav5000 + Completion), **S4b offen** (Nav0124) — s.u. |
+| **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **erledigt** — S4a (Gate + Nav5000 + Completion) **und** S4b (Nav0124), s.u. |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | **erledigt** — s.u. |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | **erledigt** — `--^` **sofort ausgeliefert** (Gating-Entscheidung §8.1 zugunsten des Design-Defaults); s.u. |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | **erledigt** — s.u. |
@@ -204,6 +204,48 @@ versions-gated und braucht das `NavLanguageFeatures`-Gate, das erst S4a liefert.
 Verifikation S4a: `nav build` + beide TFMs grün (**net10 1379/0, net472 1387/0** — je 3 explizite Skips);
 zwei neue Diagnostics-Fixtures + drei neue Completion-Tests (`AfterTarget` v1/v2, Choice-`[params]`
 v1/v2).
+
+**S4b umgesetzt (Nav0124 generische Member-Kollision):**
+
+Der Analyzer `Nav0124GeneratedMember0CollidesWithAnotherMember` (Auto-Discovery, Severity **Error**,
+`DiagnosticId.Nav0124` — `Nav0123` bleibt bewusst unbelegt, toter V2-Zwischenstand) rechnet je **Quelle**
+die flache V2-Aufruffläche und meldet **eine** Diagnose für alle Kollisionsarten (§4). Die „Quellen" sind
+exakt die Member-Flächen, aus denen `CodeModelBuilderV2` je einen Call-Context baut: nicht-abstrakte
+Init-Knoten, jede Trigger-Transition, erreichbare nicht-`[notimplemented]`/nicht-abstrakte Task-Knoten
+(Exit) **und** erreichbare Choices (auch der Choice-Context trägt eine Aufruffläche). Abgedeckt:
+
+- **Reservierte Namen:** ein bare-name Choice-Forward `{Choice}` (der einzige verb-präfixlose Member —
+  Views/Tasks sind `Show`/`Begin`-präfixt) namens `Cancel`/`Exit`/`End`/`Result`.
+- **Präfix-Klasch:** ein Choice namens `Show{X}`/`Begin{X}`, der aus derselben Quelle auf den präfixten
+  Member eines gleichnamigen GUI-/Task-Knotens `X` trifft (inkl. Choice↔Choice bei gleichem
+  Pascalcase-Namen — dieselbe bare-name-Landschaft).
+- **Anzeige-Modus-Kollision:** eine Quelle mit zwei **plain**-Kanten (beide ohne Continuation) zum selben
+  Ziel bei unterschiedlichem Anzeige-Modus (goto/modal/nonmodal) → gleiche `Show{Node}`/`Begin{Node}`-
+  Signatur, nicht über den Rückgabetyp lösbar (anders als die plain+Continuation-Union, §3.4).
+
+Die Namensalgebra (`Show`/`Begin`-Präfix, `ToPascalcase()`) spiegelt `CallContextCodeModel`; die Präfixe
+liegen als lokale Konstanten im Analyzer (der Analyzer lebt in `SemanticAnalyzer/`, `CodeGenFacts` in
+`CodeGen/`). **Versions-Gate:** `taskDefinition.CodeGenerationUnit.LanguageVersion >=
+NavLanguageVersion.Version2` — die flache Aufruffläche (und damit jede Kollision) entsteht erst im
+V2-Codegen; unter `#version 1` (switch-basiert) schweigt der Analyzer. Unaufgelöste Ziele bleiben Nav0011
+überlassen (Roslyn-Stil). Dieselbe Kollision, die über mehrere Quellen an dieselbe `.nav`-Stelle verankert
+würde (z.B. eine Choice `Cancel`, die von Init **und** Trigger geforwardet wird), wird per
+`(Member, Ort)`-Dedup nur **einmal** gemeldet.
+
+**Fixture-Fallstrick (Modus-Kollision & Init-Legalität).** Eine Modus-Kollision ist nur dann
+**kollateralfrei** authorbar, wenn die kollidierenden Kanten von einer **Task-Exit**-Transition ausgehen
+und das Ziel **nur** darüber (nicht über den Init-Goto-Baum) erreichbar ist: `Nav0110` (Init-Legalität)
+flacht Choices und den Goto-Baum ab, stoppt aber an Task-Knoten, sodass ein `o->`/`==>` hinter einer
+Task-Grenze zulässig ist. Ein Init-/Choice-gespeister Modus-Konflikt (`I1 --> V; I1 o-> V;`) zöge dagegen
+zwingend **Nav0110** nach sich — die Fixture `Nav0124DisplayModeCollision.nav` nutzt daher bewusst eine
+Sub-Task-Exit-Quelle (`B:e1 --> V` / `B:e2 o-> V`).
+
+Verifikation S4b: `nav build` + beide TFMs grün (**net10 1396/0, net472 1404/0** — je 3 explizite Skips
+auf net472); drei neue Diagnostics-Fixtures, je kollateralfrei (nur Nav0124 feuert):
+`Nav0124ReservedNameCollision.nav` (Choice `Cancel`), `Nav0124PrefixClashCollision.nav` (Choice `ShowV`
+trifft View `V`, aus einer Choice-Quelle), `Nav0124DisplayModeCollision.nav` (goto+modal auf dieselbe
+View aus einer Task-Exit-Quelle). Die V1- **und** die V2-Golden-Regression bleiben unverändert (keine
+Kollision im Golden-Korpus, Design „Korpus: 0").
 
 ### S5-Anmerkung: was das `CodeGen/V2/`-Gerüst umfasst
 

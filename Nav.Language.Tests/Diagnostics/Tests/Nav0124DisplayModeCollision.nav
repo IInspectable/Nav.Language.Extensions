@@ -1,0 +1,29 @@
+﻿#version 2
+
+// Anzeige-Modus-Kollision: EINE Quelle (die Exit-Transitionen des Sub-Tasks B) zeigt mit zwei
+// plain-Kanten auf dieselbe View V, aber in unterschiedlichem Modus (goto und modal). Beide lowern
+// auf dieselbe ShowV(VTO)-Signatur — nicht über den Rückgabetyp lösbar (anders als die
+// plain+Continuation-Union). V wird nur über B:exit erreicht (nicht über den Init-Goto-Baum), daher
+// greift die Init-Legalität (Nav0110) nicht — die Kollision steht isoliert.
+
+taskref B
+{
+    init;
+    exit e1;
+    exit e2;
+}
+
+task A
+{
+    init I1;
+    exit e;
+    task B;
+    view V;
+
+    I1   --> B;
+    B:e1 --> V;
+    B:e2 o-> V;
+    V    --> e on OnGo;
+}
+//==>>[Semantic](24,10,24,13): error Nav0124: The generated member 'ShowV' collides with another generated member
+//==>>[Semantic](25,10,25,13): error Nav0124: The generated member 'ShowV' collides with another generated member
