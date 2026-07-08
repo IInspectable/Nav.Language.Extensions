@@ -172,3 +172,18 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 - `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — u.a. für Raw-String-Literale in den
   CodeBuilder-Codegen-Emittern (reines Compiler-Feature, trägt auf net472/netstandard2.0). NuGet via
   Central Package Management (`Directory.Packages.props`, transitives Pinning aktiv).
+- **String-Literale: Raw-Strings (`"""…"""`) sind der Grundzustand — kein `@"…"`-Verbatim.** Gilt für
+  Produktiv- **und** Testcode (z.B. mehrzeilige `.nav`-Inhalte in Fixtures). Den Raw-String sauber auf
+  Code-Ebene einrücken; die schließende `"""`-Zeile entfernt die Basis-Einrückung, die *relative*
+  Struktur des Inhalts bleibt erhalten. `@"…"` nur dort, wo ein Raw-String klar schlechter liest —
+  kurze Pfad-Fragmente mit Backslash (`@"V2\"`).
+- **Codegen-Emitter (CodeBuilder): zusammenhängende Blöcke als *einen* Raw-String schreiben, nicht als
+  Folge von `cb.Write`/`cb.WriteLine`.** Mehrere aufeinanderfolgende Schreibaufrufe mit
+  statischem/interpoliertem Text — inkl. per `cb.Indent()` gestaffelter Zeilen — zu einem
+  `$"""…"""`-Block zusammenfassen. Der `CodeBuilder` rückt **jede** Zeile neu auf die aktuelle Stufe ein,
+  daher trägt die *relative* Einrückung im Raw-String direkt in die Ausgabe (führende Leerzeichen einer
+  Zeile bleiben als Zusatz-Einzug erhalten). Enthält der **erzeugte** Code literale `{ }` (z.B. ein
+  Inline-Konstruktorrumpf), `$$"""…"""` nutzen (Interpolation `{{…}}`, Klammer bleibt einfach). Einen
+  Block-Rumpf via `cb.Write` (ohne abschließenden Umbruch) schreiben — `Block()` setzt den Umbruch vor
+  dem `}` selbst. Ergebnis ist byte-identisch; über die Regression-Snapshots (`nav snapshot`)
+  abgesichert.
