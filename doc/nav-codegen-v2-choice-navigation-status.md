@@ -49,7 +49,7 @@ Annotation trägt beide). Nach jedem Step: Review + `nav test` (net472) **und** 
 |---|---|---|---|---|
 | **A** | **Annotation + Emitter:** `<NavChoice>` auf `{Choice}Logic` | `CodeGenInvariants`/`CodeGenFacts` (Tag `NavChoice`), `EmitterCommon.WriteNavChoiceAnnotation`, `WfsBaseEmitterV2.WriteChoice`; Golden-Regen; Invariant-Test | ChoiceFlow-Golden trägt `<NavChoice>` je Logic; **V1 byte-identisch**; `AnnotationTagNavChoice`-Invariant-Test grün | **erledigt** — s.u. |
 | **B** | **Nav → C#** (Choice-Knoten/-Referenz → `{Choice}Logic`) | `ChoiceCodeInfo` (Shared), `LocationFinder.FindChoiceLogicDeclarationLocationAsync`, `GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` | F12 auf `choice X` springt in `{Choice}Logic`; Referenzen (`--> X`) erben den Sprung via `VisitNodeReferenceSymbol` | **erledigt** — s.u. |
-| **C** | **C# → Nav** (`{Choice}Logic` → Choice-Knoten) | `NavChoiceAnnotation`, T4-Visitor-Regen, `AnnotationReader.ReadNavChoiceAnnotation`, `LocationFinder.FindNavLocationsAsync(NavChoiceAnnotation)`/`GetChoiceLocations`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider` | Intra-Text-GoTo auf `{Choice}Logic` springt auf `choice X` im `.nav` | offen |
+| **C** | **C# → Nav** (`{Choice}Logic` → Choice-Knoten) | `NavChoiceAnnotation`, T4-Visitor-Regen, `AnnotationReader.ReadNavChoiceAnnotation`, `LocationFinder.FindNavLocationsAsync(NavChoiceAnnotation)`/`GetChoiceLocations`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider` | Intra-Text-GoTo auf `{Choice}Logic` springt auf `choice X` im `.nav` | **erledigt** — s.u. |
 | **D** | **FindReferences** (`{Choice}Logic` → `{Choice}(…)`-Forwards) | `WfsReferenceFinder` (Choice-Zweig, C#-Forward-Aufrufstellen) | „Alle Referenzen" auf eine Choice listet die C#-Forward-Aufrufstellen | offen |
 
 ### A — Annotation + Emitter (Fundament)
@@ -137,6 +137,25 @@ unverändert).
   annotation)`: die `IChoiceNodeSymbol` per Name im Task finden → deren `Location`.
 - **VS:** `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider`
   (Spiegel Trigger).
+
+**C umgesetzt.** `NavChoiceAnnotation : NavMethodAnnotation` (Spiegel `NavTriggerAnnotation`, `partial` —
+die generierte Visitor-Hälfte liefert `Accept`) mit `ChoiceName`. Der **T4-Visitor
+`NavTaskAnnotationVisitor.Generated.cs`** wurde **von Hand** um die `NavChoiceAnnotation`-Stellen ergänzt
+(2 Interface-Deklarationen + 2 Basisklassen-`VisitNavChoiceAnnotation` + der `partial class
+NavChoiceAnnotation`-`Accept`-Block), **alphabetisch nach der Basis, vor `NavExitAnnotation`** — genau die
+Reihenfolge, die der EnvDTE-T4 beim „Run Custom Tool" in VS reproduziert (die Bestandsordnung Exit/Init/
+InitCall/Trigger ist alphabetisch), also idempotent gegen einen späteren Regen. `AnnotationReader`:
+`ReadNavChoiceAnnotation` (+ zwei interne Overloads inkl. `OverriddenMethod`-Fallback, Spiegel Trigger) +
+Dispatch in `ReadMethodAnnotations`; liest den `<NavChoice>`-Tag über `CodeGenFacts.AnnotationTagNavChoice`
+(Step A). `LocationFinder`: `FindNavLocationsAsync(sourceText, NavChoiceAnnotation, ct)` + `GetChoiceLocations`
+(die `IChoiceNodeSymbol` per Name im Task → deren `Location`; `LocationNotFoundException`, falls nicht
+gefunden). VS: `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` (ToolTip „Go To Choice Definition") +
+`NavChoiceAnnotationLocationInfoProvider` (Spiegel `NavTriggerAnnotationLocationInfoProvider`, Moniker
+`ImageMonikers.ChoiceNode`), in `.projitems` eingetragen. **Fallstricke:** T4 bleibt VS-only (Regen nur in
+VS); der grüne Build **beweist** die Vollständigkeit der handgepflegten `.Generated.cs` (fehlte eine
+Visitor-Stelle, bräche die Interface-Implementierung der abstrakten Basisklassen). Keine Golden-/Codegen-
+Änderung (reine Lese-/Navigations-Seite). Verifikation: **`nav build` grün** (inkl. VS-Extension),
+**net472 1415/0** (3 Skips), **net10 1407/0**.
 
 ### D — FindReferences (`{Choice}Logic` → C#-Forward-Aufrufstellen)
 

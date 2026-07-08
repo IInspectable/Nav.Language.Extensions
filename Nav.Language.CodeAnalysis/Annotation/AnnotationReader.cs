@@ -180,7 +180,13 @@ public static class AnnotationReader {
             var triggerAnnotation = ReadNavTriggerAnnotation(navTaskAnnotation, methodDeclaration, methodSymbol);
             if (triggerAnnotation != null) {
                 yield return triggerAnnotation;
-            }               
+            }
+
+            // Choice Annotation
+            var choiceAnnotation = ReadNavChoiceAnnotation(navTaskAnnotation, methodDeclaration, methodSymbol);
+            if (choiceAnnotation != null) {
+                yield return choiceAnnotation;
+            }
         }
     }
 
@@ -349,7 +355,62 @@ public static class AnnotationReader {
         return new NavTriggerAnnotation(navTaskAnnotation, methodDeclaration, navTriggerName);
     }
 
-    #endregion 
+    #endregion
+
+    #region ReadNavChoiceAnnotation
+
+    [CanBeNull]
+    static NavChoiceAnnotation ReadNavChoiceAnnotation(
+        [NotNull] NavTaskAnnotation navTaskAnnotation,
+        [NotNull] MethodDeclarationSyntax methodDeclaration,
+        [CanBeNull] IMethodSymbol methodSymbol) {
+
+        if (navTaskAnnotation == null) {
+            throw new ArgumentNullException(nameof(navTaskAnnotation));
+        }
+
+        var choiceAnnotation = ReadNavChoiceAnnotationInternal(navTaskAnnotation, methodDeclaration, methodSymbol) ??
+                               ReadNavChoiceAnnotationInternal(navTaskAnnotation, methodDeclaration, methodSymbol?.OverriddenMethod); // In der überschriebenen Methode nachsehen
+
+        return choiceAnnotation;
+    }
+
+    [CanBeNull]
+    static NavChoiceAnnotation ReadNavChoiceAnnotationInternal(
+        [NotNull] NavTaskAnnotation navTaskAnnotation,
+        [NotNull] MethodDeclarationSyntax methodDeclaration,
+        [CanBeNull] IMethodSymbol declaringMethod) {
+
+        var choiceAnnotation = declaringMethod?.DeclaringSyntaxReferences
+                                               .Select(dsr => dsr.GetSyntax())
+                                               .OfType<MethodDeclarationSyntax>()
+                                               .Select(syntax => ReadNavChoiceAnnotationInternal(
+                                                           navTaskAnnotation         : navTaskAnnotation,
+                                                           methodDeclaration         : methodDeclaration,
+                                                           declaringMethodDeclaration: syntax))
+                                               .FirstOrDefault(nti => nti != null);
+
+        return choiceAnnotation;
+    }
+
+    [CanBeNull]
+    static NavChoiceAnnotation ReadNavChoiceAnnotationInternal(
+        [NotNull] NavTaskAnnotation navTaskAnnotation,
+        [NotNull] MethodDeclarationSyntax methodDeclaration,
+        [NotNull] MethodDeclarationSyntax declaringMethodDeclaration) {
+
+        var tags          = ReadNavTags(declaringMethodDeclaration);
+        var navChoiceTag  = tags.FirstOrDefault(t => t.TagName == CodeGenFacts.AnnotationTagNavChoice);
+        var navChoiceName = navChoiceTag?.Content;
+
+        if (String.IsNullOrEmpty(navChoiceName)) {
+            return null;
+        }
+
+        return new NavChoiceAnnotation(navTaskAnnotation, methodDeclaration, navChoiceName);
+    }
+
+    #endregion
 
     #region ReadInitCallAnnotation
 

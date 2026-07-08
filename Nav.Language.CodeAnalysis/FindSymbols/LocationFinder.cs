@@ -29,6 +29,7 @@ public static class LocationFinder {
     const string MsgUnableToFind0                            = "Unable to find {0}";
     const string MsgUnableToFindTask0InFile1                 = "Unable to find task '{0}' in file '{1}'";
     const string MsgUnableToFindSignalTrigger0InTask1        = "Unable to find signal trigger '{0}' in task '{1}'";
+    const string MsgUnableToFindChoice0InTask1               = "Unable to find choice '{0}' in task '{1}'";
     const string MsgUnableToFindInit0InTask1                 = "Unable to find init '{0}' in task '{1}'";
     const string MsgUnableToFindTheExitTransitionsInTask0    = "Unable to find the exit transitions in task '{0}'";
     const string MsgUnableToFindInterface0                   = "Unable to find interface '{0}'";
@@ -76,6 +77,11 @@ public static class LocationFinder {
     /// <exception cref="LocationNotFoundException"/>
     public static Task<IEnumerable<Location>> FindNavLocationsAsync(string sourceText, NavTriggerAnnotation annotation, CancellationToken cancellationToken) {
         return FindNavLocationsAsync(sourceText, annotation, GetTriggerLocations, cancellationToken);
+    }
+
+    /// <exception cref="LocationNotFoundException"/>
+    public static Task<IEnumerable<Location>> FindNavLocationsAsync(string sourceText, NavChoiceAnnotation annotation, CancellationToken cancellationToken) {
+        return FindNavLocationsAsync(sourceText, annotation, GetChoiceLocations, cancellationToken);
     }
 
     // TODO Hier sollte bereits eine CodeGenerationUnit an Stelle des Source Texts rein. Alternativ eine "echte "SourceText" Implementierung
@@ -130,6 +136,19 @@ public static class LocationFinder {
         }
 
         return ToEnumerable(trigger.Location);
+    }
+
+    static IEnumerable<Location> GetChoiceLocations(ITaskDefinitionSymbol task, NavChoiceAnnotation choiceAnnotation) {
+
+        var choiceNode = task.NodeDeclarations
+                             .OfType<IChoiceNodeSymbol>()
+                             .FirstOrDefault(n => n.Name == choiceAnnotation.ChoiceName);
+
+        if (choiceNode == null) {
+            throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceAnnotation.ChoiceName, task.Name));
+        }
+
+        return ToEnumerable(choiceNode.Location);
     }
 
     static IEnumerable<Location> GetInitLocations(ITaskDefinitionSymbol task, NavInitAnnotation initAnnotation) {

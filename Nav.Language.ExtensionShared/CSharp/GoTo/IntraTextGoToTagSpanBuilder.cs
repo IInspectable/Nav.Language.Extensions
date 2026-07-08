@@ -23,6 +23,7 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
     const string ToolTipGoToInitDefinition    = "Go To Init Definition";
     const string ToolTipGoToExitDefinition    = "Go To Exit Definition";
     const string ToolTipGoToTriggerDefinition = "Go To Trigger Definition";
+    const string ToolTipGoToChoiceDefinition  = "Go To Choice Definition";
     const string ToolTipGoToImplementation    = "Go To Implementation";
 
     readonly ImmutableList<NavTaskAnnotation> _allAnnotations;
@@ -96,6 +97,21 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
             provider    : provider, 
             imageMoniker: ImageMonikers.GoToDefinition, 
             toolTip     : ToolTipGoToTriggerDefinition);
+
+        return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
+    }
+
+    public override ITagSpan<IntraTextGoToTag> VisitNavChoiceAnnotation(NavChoiceAnnotation navChoiceAnnotation) {
+
+        int start  = navChoiceAnnotation.MethodDeclarationSyntax.Identifier.Span.Start;
+        int length = navChoiceAnnotation.MethodDeclarationSyntax.Identifier.Span.Length;
+
+        var snapshotSpan = new SnapshotSpan(_textSnapshot, start, length);
+        var provider     = new NavChoiceAnnotationLocationInfoProvider(navChoiceAnnotation);
+        var tag = new IntraTextGoToTag(
+            provider    : provider,
+            imageMoniker: ImageMonikers.GoToDefinition,
+            toolTip     : ToolTipGoToChoiceDefinition);
 
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
