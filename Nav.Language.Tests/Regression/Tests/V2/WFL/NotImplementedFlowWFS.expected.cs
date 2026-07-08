@@ -9,17 +9,17 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 
 namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
     public partial class NotImplementedFlowWFS {
-        protected override Init1CallContext.Result BeginLogic(Init1CallContext callContext) {
+        protected override Init1CallContext.Result BeginLogic(Init1CallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnWarnCallContext.Result OnWarnLogic(HomeTO to,
-                                                                OnWarnCallContext callContext) {
+                                                                OnWarnCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext) {
+                                                                  OnCloseCallContext next) {
             throw new NotImplementedException();
         }
     }

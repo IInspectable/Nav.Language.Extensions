@@ -44,7 +44,7 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext callContext);
+        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
         protected sealed class Init1CallContext {
 
@@ -73,7 +73,7 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
         /// <NavTrigger>OnWarn</NavTrigger>
         #endregion
         protected abstract OnWarnCallContext.Result OnWarnLogic(HomeTO to,
-                                                                OnWarnCallContext callContext);
+                                                                OnWarnCallContext next);
 
         protected sealed class OnWarnCallContext {
 
@@ -105,7 +105,7 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
         /// <NavTrigger>OnClose</NavTrigger>
         #endregion
         protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext);
+                                                                  OnCloseCallContext next);
 
         protected sealed class OnCloseCallContext {
 

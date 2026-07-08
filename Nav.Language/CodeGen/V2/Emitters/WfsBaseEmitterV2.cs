@@ -388,13 +388,13 @@ static class WfsBaseEmitterV2 {
     /// <summary>Die Parameter-Deklarationen der abstrakten <c>…Logic(…)</c>-Signatur (inkl. Context-Parameter).</summary>
     static IEnumerable<string> LogicSignatureDeclarations(TransitionCallContextCodeModel transition) {
         return transition.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
-                         .Concat(new[] { $"{transition.Context!.ContextTypeName} callContext" });
+                         .Concat(new[] { $"{transition.Context!.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
     /// <summary>Die Parameter-Deklarationen der abstrakten <c>{Choice}Logic(…)</c>-Signatur (inkl. Context-Parameter).</summary>
     static IEnumerable<string> ChoiceLogicDeclarations(ChoiceCallContextCodeModel choice) {
         return choice.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
-                     .Concat(new[] { $"{choice.Context.ContextTypeName} callContext" });
+                     .Concat(new[] { $"{choice.Context.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {

@@ -50,7 +50,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext callContext);
+        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
         protected sealed class Init1CallContext {
 
@@ -77,7 +77,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         /// <NavExit>Warn</NavExit>
         #endregion
         protected abstract AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
-                                                                      AfterWarnCallContext callContext);
+                                                                      AfterWarnCallContext next);
 
         protected sealed class AfterWarnCallContext {
 
@@ -104,7 +104,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         /// <NavExit>Drill</NavExit>
         #endregion
         protected abstract AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
-                                                                        AfterDrillCallContext callContext);
+                                                                        AfterDrillCallContext next);
 
         protected sealed class AfterDrillCallContext {
 
@@ -133,7 +133,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         /// <NavTrigger>OnClose</NavTrigger>
         #endregion
         protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext);
+                                                                  OnCloseCallContext next);
 
         protected sealed class OnCloseCallContext {
 
@@ -162,7 +162,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         /// <NavTrigger>OnShowWarn</NavTrigger>
         #endregion
         protected abstract OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
-                                                                        OnShowWarnCallContext callContext);
+                                                                        OnShowWarnCallContext next);
 
         protected sealed class OnShowWarnCallContext {
 
@@ -201,7 +201,7 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
         /// <NavTrigger>OnDrillDown</NavTrigger>
         #endregion
         protected abstract OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
-                                                                          OnDrillDownCallContext callContext);
+                                                                          OnDrillDownCallContext next);
 
         protected sealed class OnDrillDownCallContext {
 

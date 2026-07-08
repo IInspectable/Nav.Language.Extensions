@@ -51,7 +51,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         /// <NavInit>Init1</NavInit>
         #endregion
         protected abstract Init1CallContext.Result BeginLogic(string message,
-                                                              Init1CallContext callContext);
+                                                              Init1CallContext next);
 
         protected sealed class Init1CallContext {
 
@@ -78,7 +78,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         /// <NavExit>A</NavExit>
         #endregion
         protected abstract AfterACallContext.Result AfterALogic(AResult result,
-                                                                AfterACallContext callContext);
+                                                                AfterACallContext next);
 
         protected sealed class AfterACallContext {
 
@@ -106,7 +106,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         /// <NavExit>Msg</NavExit>
         #endregion
         protected abstract AfterMsgCallContext.Result AfterMsgLogic(MsgResult result,
-                                                                    AfterMsgCallContext callContext);
+                                                                    AfterMsgCallContext next);
 
         protected sealed class AfterMsgCallContext {
 
@@ -135,7 +135,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         /// <NavTrigger>OnRetry</NavTrigger>
         #endregion
         protected abstract OnRetryCallContext.Result OnRetryLogic(HomeTO to,
-                                                                  OnRetryCallContext callContext);
+                                                                  OnRetryCallContext next);
 
         protected sealed class OnRetryCallContext {
 
@@ -164,7 +164,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         /// <NavTrigger>OnStartA</NavTrigger>
         #endregion
         protected abstract OnStartACallContext.Result OnStartALogic(HomeTO to,
-                                                                    OnStartACallContext callContext);
+                                                                    OnStartACallContext next);
 
         protected sealed class OnStartACallContext {
 
@@ -185,7 +185,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         }
 
         protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
-                                                                            Choice_RetryCallContext callContext);
+                                                                            Choice_RetryCallContext next);
 
         protected sealed class Choice_RetryCallContext {
 
@@ -215,7 +215,7 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
         }
 
         protected abstract Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
-                                                                                  Choice_EscalateCallContext callContext);
+                                                                                  Choice_EscalateCallContext next);
 
         protected sealed class Choice_EscalateCallContext {
 

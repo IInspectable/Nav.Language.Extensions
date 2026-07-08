@@ -14,7 +14,7 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </summary>
 /// <remarks>
 /// Anders als V1 überschreiben die Stubs die neuen Logic-Signaturen
-/// <c>protected override {Context}.Result …Logic(args, {Context} callContext)</c> (bzw. bei
+/// <c>protected override {Context}.Result …Logic(args, {Context} next)</c> (bzw. bei
 /// <c>[abstract]</c>-Quellen die Maschinerie-Methode selbst). Wie die V1-OneShot-Datei trägt sie
 /// <b>keinen</b> <c>&lt;auto-generated&gt;</c>-Kopf.
 /// </remarks>
@@ -104,12 +104,12 @@ static class WfsOneShotEmitterV2 {
 
     static IEnumerable<string> LogicSignatureDeclarations(TransitionCallContextCodeModel transition) {
         return transition.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
-                         .Concat(new[] { $"{transition.Context!.ContextTypeName} callContext" });
+                         .Concat(new[] { $"{transition.Context!.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
     static IEnumerable<string> ChoiceLogicDeclarations(ChoiceCallContextCodeModel choice) {
         return choice.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
-                     .Concat(new[] { $"{choice.Context.ContextTypeName} callContext" });
+                     .Concat(new[] { $"{choice.Context.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {

@@ -10,52 +10,52 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
     public partial class BasicFlowWFS {
         protected override Init1CallContext.Result BeginLogic(string message,
-                                                              Init1CallContext callContext) {
+                                                              Init1CallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterGotoSubCallContext.Result AfterGotoSubLogic(SubResult result,
-                                                                            AfterGotoSubCallContext callContext) {
+                                                                            AfterGotoSubCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterModalSubCallContext.Result AfterModalSubLogic(SubResult result,
-                                                                              AfterModalSubCallContext callContext) {
+                                                                              AfterModalSubCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterNonModalSubCallContext.Result AfterNonModalSubLogic(SubResult result,
-                                                                                    AfterNonModalSubCallContext callContext) {
+                                                                                    AfterNonModalSubCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnEndCallContext.Result OnEndLogic(HomeTO to,
-                                                              OnEndCallContext callContext) {
+                                                              OnEndCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnGotoCallContext.Result OnGotoLogic(HomeTO to,
-                                                                OnGotoCallContext callContext) {
+                                                                OnGotoCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext) {
+                                                                  OnCloseCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnModalCallContext.Result OnModalLogic(HomeTO to,
-                                                                  OnModalCallContext callContext) {
+                                                                  OnModalCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnReloadCallContext.Result OnReloadLogic(HomeTO to,
-                                                                    OnReloadCallContext callContext) {
+                                                                    OnReloadCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnNonModalCallContext.Result OnNonModalLogic(HomeTO to,
-                                                                        OnNonModalCallContext callContext) {
+                                                                        OnNonModalCallContext next) {
             throw new NotImplementedException();
         }
     }

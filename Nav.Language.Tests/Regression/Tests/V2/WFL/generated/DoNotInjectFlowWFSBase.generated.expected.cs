@@ -44,7 +44,7 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
         #region Nav Annotations
         /// <NavInit>Init1</NavInit>
         #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext callContext);
+        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
         protected sealed class Init1CallContext {
 
@@ -71,7 +71,7 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
         /// <NavExit>Edit</NavExit>
         #endregion
         protected abstract AfterEditCallContext.Result AfterEditLogic(EditorResult result,
-                                                                      AfterEditCallContext callContext);
+                                                                      AfterEditCallContext next);
 
         protected sealed class AfterEditCallContext {
 
@@ -100,7 +100,7 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
         /// <NavTrigger>OnEdit</NavTrigger>
         #endregion
         protected abstract OnEditCallContext.Result OnEditLogic(HomeTO to,
-                                                                OnEditCallContext callContext);
+                                                                OnEditCallContext next);
 
         protected sealed class OnEditCallContext {
 
@@ -132,7 +132,7 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
         /// <NavTrigger>OnClose</NavTrigger>
         #endregion
         protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext);
+                                                                  OnCloseCallContext next);
 
         protected sealed class OnCloseCallContext {
 

@@ -38,6 +38,14 @@ sealed class CallContextCodeModel {
     /// <summary>Der Parametername der <c>Show{Node}</c>-Methode (und des Continuation-Konstruktors).</summary>
     public const string ToParameterName = "to";
 
+    /// <summary>
+    /// Der Parametername des Call-Context-Parameters in der <c>…Logic(…)</c>-Signatur — der Empfänger,
+    /// über den der handgeschriebene Logic-Body navigiert (<c>next.Show{Node}(…)</c>, <c>next.Begin{Task}(…)</c>,
+    /// <c>next.Exit(…)</c> …). Bewusst emitter-intern (nicht in <see cref="ICodeGenFacts"/>): eine andere
+    /// Generation bringt ihr eigenes Vokabular mit.
+    /// </summary>
+    public const string ContextParameterName = "next";
+
     CallContextCodeModel(string contextTypeName, string commandType, string logicMethodName, ImmutableList<CallableModel> methods) {
         ContextTypeName = contextTypeName;
         CommandType     = commandType;

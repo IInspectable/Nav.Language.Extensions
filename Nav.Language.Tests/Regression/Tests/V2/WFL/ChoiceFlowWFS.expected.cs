@@ -10,37 +10,37 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
     public partial class ChoiceFlowWFS {
         protected override Init1CallContext.Result BeginLogic(string message,
-                                                              Init1CallContext callContext) {
+                                                              Init1CallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterACallContext.Result AfterALogic(AResult result,
-                                                                AfterACallContext callContext) {
+                                                                AfterACallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterMsgCallContext.Result AfterMsgLogic(MsgResult result,
-                                                                    AfterMsgCallContext callContext) {
+                                                                    AfterMsgCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnRetryCallContext.Result OnRetryLogic(HomeTO to,
-                                                                  OnRetryCallContext callContext) {
+                                                                  OnRetryCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnStartACallContext.Result OnStartALogic(HomeTO to,
-                                                                    OnStartACallContext callContext) {
+                                                                    OnStartACallContext next) {
             throw new NotImplementedException();
         }
 
         protected override Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
-                                                                            Choice_RetryCallContext callContext) {
+                                                                            Choice_RetryCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
-                                                                                  Choice_EscalateCallContext callContext) {
+                                                                                  Choice_EscalateCallContext next) {
             throw new NotImplementedException();
         }
     }

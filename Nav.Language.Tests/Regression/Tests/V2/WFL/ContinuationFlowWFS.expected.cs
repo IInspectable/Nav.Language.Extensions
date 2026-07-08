@@ -9,32 +9,32 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 
 namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
     public partial class ContinuationFlowWFS {
-        protected override Init1CallContext.Result BeginLogic(Init1CallContext callContext) {
+        protected override Init1CallContext.Result BeginLogic(Init1CallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
-                                                                      AfterWarnCallContext callContext) {
+                                                                      AfterWarnCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
-                                                                        AfterDrillCallContext callContext) {
+                                                                        AfterDrillCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext) {
+                                                                  OnCloseCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
-                                                                        OnShowWarnCallContext callContext) {
+                                                                        OnShowWarnCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
-                                                                          OnDrillDownCallContext callContext) {
+                                                                          OnDrillDownCallContext next) {
             throw new NotImplementedException();
         }
     }

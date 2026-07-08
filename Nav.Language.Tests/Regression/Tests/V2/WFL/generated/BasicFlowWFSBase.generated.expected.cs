@@ -48,7 +48,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavInit>Init1</NavInit>
         #endregion
         protected abstract Init1CallContext.Result BeginLogic(string message,
-                                                              Init1CallContext callContext);
+                                                              Init1CallContext next);
 
         protected sealed class Init1CallContext {
 
@@ -75,7 +75,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavExit>GotoSub</NavExit>
         #endregion
         protected abstract AfterGotoSubCallContext.Result AfterGotoSubLogic(SubResult result,
-                                                                            AfterGotoSubCallContext callContext);
+                                                                            AfterGotoSubCallContext next);
 
         protected sealed class AfterGotoSubCallContext {
 
@@ -102,7 +102,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavExit>ModalSub</NavExit>
         #endregion
         protected abstract AfterModalSubCallContext.Result AfterModalSubLogic(SubResult result,
-                                                                              AfterModalSubCallContext callContext);
+                                                                              AfterModalSubCallContext next);
 
         protected sealed class AfterModalSubCallContext {
 
@@ -129,7 +129,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavExit>NonModalSub</NavExit>
         #endregion
         protected abstract AfterNonModalSubCallContext.Result AfterNonModalSubLogic(SubResult result,
-                                                                                    AfterNonModalSubCallContext callContext);
+                                                                                    AfterNonModalSubCallContext next);
 
         protected sealed class AfterNonModalSubCallContext {
 
@@ -158,7 +158,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnEnd</NavTrigger>
         #endregion
         protected abstract OnEndCallContext.Result OnEndLogic(HomeTO to,
-                                                              OnEndCallContext callContext);
+                                                              OnEndCallContext next);
 
         protected sealed class OnEndCallContext {
 
@@ -187,7 +187,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnGoto</NavTrigger>
         #endregion
         protected abstract OnGotoCallContext.Result OnGotoLogic(HomeTO to,
-                                                                OnGotoCallContext callContext);
+                                                                OnGotoCallContext next);
 
         protected sealed class OnGotoCallContext {
 
@@ -219,7 +219,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnClose</NavTrigger>
         #endregion
         protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext);
+                                                                  OnCloseCallContext next);
 
         protected sealed class OnCloseCallContext {
 
@@ -248,7 +248,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnModal</NavTrigger>
         #endregion
         protected abstract OnModalCallContext.Result OnModalLogic(HomeTO to,
-                                                                  OnModalCallContext callContext);
+                                                                  OnModalCallContext next);
 
         protected sealed class OnModalCallContext {
 
@@ -280,7 +280,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnReload</NavTrigger>
         #endregion
         protected abstract OnReloadCallContext.Result OnReloadLogic(HomeTO to,
-                                                                    OnReloadCallContext callContext);
+                                                                    OnReloadCallContext next);
 
         protected sealed class OnReloadCallContext {
 
@@ -309,7 +309,7 @@ namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
         /// <NavTrigger>OnNonModal</NavTrigger>
         #endregion
         protected abstract OnNonModalCallContext.Result OnNonModalLogic(HomeTO to,
-                                                                        OnNonModalCallContext callContext);
+                                                                        OnNonModalCallContext next);
 
         protected sealed class OnNonModalCallContext {
 

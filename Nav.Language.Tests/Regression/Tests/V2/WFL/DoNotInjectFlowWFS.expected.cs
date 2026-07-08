@@ -9,22 +9,22 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 
 namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
     public partial class DoNotInjectFlowWFS {
-        protected override Init1CallContext.Result BeginLogic(Init1CallContext callContext) {
+        protected override Init1CallContext.Result BeginLogic(Init1CallContext next) {
             throw new NotImplementedException();
         }
 
         protected override AfterEditCallContext.Result AfterEditLogic(EditorResult result,
-                                                                      AfterEditCallContext callContext) {
+                                                                      AfterEditCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnEditCallContext.Result OnEditLogic(HomeTO to,
-                                                                OnEditCallContext callContext) {
+                                                                OnEditCallContext next) {
             throw new NotImplementedException();
         }
 
         protected override OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext callContext) {
+                                                                  OnCloseCallContext next) {
             throw new NotImplementedException();
         }
     }

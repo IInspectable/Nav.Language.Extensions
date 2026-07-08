@@ -13,7 +13,7 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// Codemodell der <c>{Task}WFS</c>-OneShot-Datei der <b>Generation 2</b> — die (einmalig erzeugte)
 /// Benutzer-Datei mit je einem <c>NotImplementedException</c>-Stub für die abstrakten Logic-Methoden
 /// aus <c>{Task}WFSBase</c>. Anders als V1 überschreiben die Stubs die neuen
-/// <c>{Context}.Result …Logic(args, {Context} callContext)</c>-Signaturen (bzw. bei
+/// <c>{Context}.Result …Logic(args, {Context} next)</c>-Signaturen (bzw. bei
 /// <c>[abstract]</c>-Quellen die Maschinerie-Methode selbst).
 /// </summary>
 sealed class WfsCodeModelV2: FileGenerationCodeModel {
