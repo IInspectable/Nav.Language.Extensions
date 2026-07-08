@@ -171,8 +171,10 @@ static class WfsBaseEmitterV2 {
 
             cb.WriteLine();
 
-            cb.WriteLine($"readonly {model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName};");
-            cb.WriteLine($"internal {context.ContextTypeName}({model.WfsBaseTypeName} wfs) => {CallContextCodeModel.WfsFieldName} = wfs;");
+            cb.WriteLine($"""
+                          readonly {model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName};
+                          internal {context.ContextTypeName}({model.WfsBaseTypeName} wfs) => {CallContextCodeModel.WfsFieldName} = wfs;
+                          """);
             cb.WriteLine();
 
             WriteResultStruct(cb, context);
@@ -203,9 +205,11 @@ static class WfsBaseEmitterV2 {
         cb.Write($"public sealed class {continuation.ContinuationTypeName} ");
         using (cb.Block()) {
 
-            cb.WriteLine($"readonly {model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName};");
-            cb.WriteLine($"readonly {continuation.ToParameterType} {CallContextCodeModel.ToFieldName};");
-            cb.WriteLine($"internal {continuation.ContinuationTypeName}({model.WfsBaseTypeName} wfs, {continuation.ToParameterType} {CallContextCodeModel.ToParameterName}) {{ {CallContextCodeModel.WfsFieldName} = wfs; {CallContextCodeModel.ToFieldName} = {CallContextCodeModel.ToParameterName}; }}");
+            cb.WriteLine($$"""
+                           readonly {{model.WfsBaseTypeName}} {{CallContextCodeModel.WfsFieldName}};
+                           readonly {{continuation.ToParameterType}} {{CallContextCodeModel.ToFieldName}};
+                           internal {{continuation.ContinuationTypeName}}({{model.WfsBaseTypeName}} wfs, {{continuation.ToParameterType}} {{CallContextCodeModel.ToParameterName}}) { {{CallContextCodeModel.WfsFieldName}} = wfs; {{CallContextCodeModel.ToFieldName}} = {{CallContextCodeModel.ToParameterName}}; }
+                           """);
             cb.WriteLine();
 
             // plain-Schwesterkante vorhanden → impliziter Result-Operator (§3.6).
@@ -230,21 +234,16 @@ static class WfsBaseEmitterV2 {
         // und erreicht dessen private Member NICHT (§3.2).
         cb.Write("public readonly struct Result ");
         using (cb.Block()) {
-            cb.WriteLine($"readonly System.Func<{commandType}> _command;");
-            cb.WriteLine($"internal Result(System.Func<{commandType}> command) => _command = command;");
-            cb.WriteLine();
-            cb.WriteLine($"internal {commandType} Unwrap()");
-            using (cb.Indent()) {
-                cb.WriteLine("=> _command is null");
-                using (cb.Indent()) {
-                    cb.WriteLine("? throw new InvalidOperationException(");
-                    using (cb.Indent()) {
-                        cb.WriteLine("\"A Logic method returned default(Result); every code path must return a navigation result via the call context.\")");
-                    }
+            cb.Write($"""
+                      readonly System.Func<{commandType}> _command;
+                      internal Result(System.Func<{commandType}> command) => _command = command;
 
-                    cb.WriteLine(": _command();");
-                }
-            }
+                      internal {commandType} Unwrap()
+                          => _command is null
+                              ? throw new InvalidOperationException(
+                                  "A Logic method returned default(Result); every code path must return a navigation result via the call context.")
+                              : _command();
+                      """);
         }
 
         cb.WriteLine();
