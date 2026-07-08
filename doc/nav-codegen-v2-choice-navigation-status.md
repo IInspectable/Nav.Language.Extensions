@@ -50,7 +50,7 @@ Annotation trägt beide). Nach jedem Step: Review + `nav test` (net472) **und** 
 | **A** | **Annotation + Emitter:** `<NavChoice>` auf `{Choice}Logic` | `CodeGenInvariants`/`CodeGenFacts` (Tag `NavChoice`), `EmitterCommon.WriteNavChoiceAnnotation`, `WfsBaseEmitterV2.WriteChoice`; Golden-Regen; Invariant-Test | ChoiceFlow-Golden trägt `<NavChoice>` je Logic; **V1 byte-identisch**; `AnnotationTagNavChoice`-Invariant-Test grün | **erledigt** — s.u. |
 | **B** | **Nav → C#** (Choice-Knoten/-Referenz → `{Choice}Logic`) | `ChoiceCodeInfo` (Shared), `LocationFinder.FindChoiceLogicDeclarationLocationAsync`, `GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` | F12 auf `choice X` springt in `{Choice}Logic`; Referenzen (`--> X`) erben den Sprung via `VisitNodeReferenceSymbol` | **erledigt** — s.u. |
 | **C** | **C# → Nav** (`{Choice}Logic` → Choice-Knoten) | `NavChoiceAnnotation`, T4-Visitor-Regen, `AnnotationReader.ReadNavChoiceAnnotation`, `LocationFinder.FindNavLocationsAsync(NavChoiceAnnotation)`/`GetChoiceLocations`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider` | Intra-Text-GoTo auf `{Choice}Logic` springt auf `choice X` im `.nav` | **erledigt** — s.u. |
-| **D** | **FindReferences** (`{Choice}Logic` → `{Choice}(…)`-Forwards) | `WfsReferenceFinder` (Choice-Zweig, C#-Forward-Aufrufstellen) | „Alle Referenzen" auf eine Choice listet die C#-Forward-Aufrufstellen | offen |
+| **D** | **FindReferences** (`{Choice}Logic` → `{Choice}(…)`-Forwards) | `WfsReferenceFinder` (Choice-Zweig, C#-Forward-Aufrufstellen) | „Alle Referenzen" auf eine Choice listet die C#-Forward-Aufrufstellen | **erledigt** — s.u. |
 
 ### A — Annotation + Emitter (Fundament)
 
@@ -165,6 +165,33 @@ in den Quell-Contexts (`Init1CallContext.Choice_Retry` usw.). Das C#-Pendant zu 
 `{Choice}(…)`-Forward-Member). Die reine Nav-Seite (`… --> Choice_Retry`) steht bereits über
 `FindReferencesVisitor.VisitChoiceNodeSymbol` (`FindReferences/FindReferencesVisitor.cs:433`) und ist
 **nicht** Teil von D.
+
+**D umgesetzt.** Der `FindReferencesCommandHandler` ruft ohnehin **beide** Finder — den Nav-seitigen
+`ReferenceFinder` (liefert die `--> Choice_X`-Kanten via `FindReferencesVisitor.VisitChoiceNodeSymbol`)
+**und** `WfsReferenceFinder` (C#-Seite). Der neue Zweig in `WfsReferenceFinder.FindReferencesAsync`
+(`args.OriginatingSymbol is IChoiceNodeSymbol`) → `FindChoiceReferencesAsync`: über `ChoiceCodeInfo`
+(Step B) das abstrakte `{Choice}Logic`-Symbol auf der `{Task}WFSBase` auflösen
+(`FindChoiceLogicMethodAsync`: je Projekt `GetTypeByMetadataName(FullyQualifiedWfsBaseName)` →
+`GetMembers(ChoiceLogicMethodName)`), dann Roslyn `SymbolFinder.FindReferencesAsync` darauf — die Treffer
+sind die `_wfs.{Choice}Logic(…)`-Aufrufe in den Forwards jeder Quelle. Je Treffer ein `ReferenceItem`
+(gemeinsame Preview-/Klassifizierungs-Maschinerie `CreateReferenceItemAsync`). **Gemeinsamer Bucket:** die
+Definition wird **identisch** zum Nav-seitigen Finder erzeugt (`DefinitionItem.Create(choiceNode,
+choiceNode.ToDisplayParts())`) → gleicher `SortText` ⇒ der VS-`DefinitionBucket` führt Nav-Kanten und
+C#-Forwards unter **einer** Choice-Definition zusammen (genau wie beim bestehenden Task-Zweig). **Kein
+Versions-Guard nötig** (anders als Step B): unter `#version 1` — oder wenn der generierte Code noch nicht
+gebaut ist — liefert `FindChoiceLogicMethodAsync` schlicht `null` → keine C#-Referenzen, sauberer No-op
+(kein fehlschlagendes Angebot wie beim GoTo). Non-nullable-Stil (Nav.Language.CodeAnalysis hat `<Nullable>`
+bewusst **aus**). **Nicht lokal laufzeit-verifizierbar:** `WfsReferenceFinder` ist nicht von der Test-Suite
+abgedeckt (VS-/Roslyn-Solution-Territorium; der V2-Korpus ist proprietär, nicht im Repo) — Prüfung =
+Compile-grün + Review, wie beim bestehenden `WfsReferenceFinder`-Code. Verifikation: **`nav build` grün**
+(inkl. VS-Extension), **net472 1415/0** (3 Skips), **net10 1407/0**.
+
+## Feature komplett
+
+Der Choice-Navigations-Dreiklang steht: **A** (Annotation-Fundament) · **B** (Nav→C# GoTo) · **C** (C#→Nav
+Intra-Text-GoTo) · **D** (FindReferences → C#-Forwards). Alle vier uncommittet; je Step eine
+Commit-Message geliefert (der Nutzer committet). Offen bleibt allein die **Laufzeit-Verifikation von D**
+in VS gegen einen V2-Korpus.
 
 ## Fallstricke (gesammelt)
 

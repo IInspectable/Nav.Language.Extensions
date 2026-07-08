@@ -76,6 +76,89 @@ public static partial class WfsReferenceFinder {
             }
         }
 
+        if (args.OriginatingSymbol is IChoiceNodeSymbol choiceNode) {
+            await FindChoiceReferencesAsync(args.Context, solution, choiceNode).ConfigureAwait(false);
+        }
+
+    }
+
+    static async Task FindChoiceReferencesAsync(IFindReferencesContext context,
+                                                Solution solution,
+                                                IChoiceNodeSymbol choiceNode) {
+
+        // Nav-Symbol → generierte {Choice}Logic. Jede Quelle forwardet über new(() => _wfs.{Choice}Logic(…));
+        // genau diese Aufrufstellen der abstrakten Logic-Methode im generierten Code sind die C#-"Referenzen"
+        // der Choice — das C#-Pendant zu den „… --> Choice_X"-Kanten, die der Nav-seitige ReferenceFinder liefert.
+        var choiceCodeInfo    = ChoiceCodeInfo.FromChoiceNode(choiceNode);
+        var choiceLogicMethod = await FindChoiceLogicMethodAsync(solution, choiceCodeInfo, context.CancellationToken).ConfigureAwait(false);
+
+        // Keine {Choice}Logic auffindbar (z.B. #version 1, das Choices platt-faltet, oder Code noch nicht
+        // gebaut) → schlicht keine C#-Referenzen; die Nav-Kanten liefert der Nav-seitige Finder bereits.
+        if (choiceLogicMethod == null) {
+            return;
+        }
+
+        // Dieselbe Definition wie der Nav-seitige Finder: gleicher Anzeige-Text ⇒ gemeinsamer Bucket im
+        // „Find All References"-Fenster (der DefinitionBucket wird über den Namen/SortText zusammengeführt).
+        var definitionItem = DefinitionItem.Create(choiceNode, choiceNode.ToDisplayParts());
+
+        foreach (var referenceItem in (await GetReferenceItems().ConfigureAwait(false)).OrderByLocation()) {
+            await context.OnReferenceFoundAsync(referenceItem).ConfigureAwait(false);
+        }
+
+        async Task<ImmutableArray<ReferenceItem>> GetReferenceItems() {
+
+            var referenceItems = ImmutableArray.CreateBuilder<ReferenceItem>();
+
+            var references = await SymbolFinder.FindReferencesAsync(choiceLogicMethod, solution, context.CancellationToken).ConfigureAwait(false);
+
+            foreach (var reference in references) {
+
+                foreach (var referenceLocation in reference.Locations) {
+
+                    if (!TryGetLocation(referenceLocation.Location, out var location)) {
+                        continue;
+                    }
+
+                    var syntaxTree = referenceLocation.Location.SourceTree;
+                    if (syntaxTree == null) {
+                        continue;
+                    }
+
+                    var referenceItem = await CreateReferenceItemAsync(definition       : definitionItem,
+                                                                       referenceLocation: location,
+                                                                       solution         : solution,
+                                                                       syntaxTree       : syntaxTree,
+                                                                       cancellationToken: context.CancellationToken).ConfigureAwait(false);
+
+                    referenceItems.Add(referenceItem);
+                }
+            }
+
+            return referenceItems.ToImmutableArray();
+        }
+    }
+
+    static async Task<IMethodSymbol> FindChoiceLogicMethodAsync(Solution solution, ChoiceCodeInfo choiceCodeInfo, CancellationToken cancellationToken) {
+
+        // Die generierte {Task}WFSBase trägt die abstrakte {Choice}Logic; von ihrem voll qualifizierten
+        // Namen aus finden wir das Methoden-Symbol, auf das die Forwards verweisen.
+        foreach (var project in solution.Projects) {
+
+            var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+
+            var wfsBase = compilation?.GetTypeByMetadataName(choiceCodeInfo.ContainingTask.FullyQualifiedWfsBaseName);
+
+            var choiceLogicMethod = wfsBase?.GetMembers(choiceCodeInfo.ChoiceLogicMethodName)
+                                            .OfType<IMethodSymbol>()
+                                            .FirstOrDefault();
+
+            if (choiceLogicMethod != null) {
+                return choiceLogicMethod;
+            }
+        }
+
+        return null;
     }
 
     static async Task FindTaskFields(IFindReferencesContext context,
