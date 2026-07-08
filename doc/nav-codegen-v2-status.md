@@ -37,7 +37,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S2** | **Semantic-Model-Kern:** `IContinuationTransition`/`ContinuationTransition`, `IContinuableEdge`, `ContinuationCall` in `Call`, Edge-Mode-Behandlung, Parameter am `IChoiceNodeSymbol`; **Nav0222-Fix** (Reachability bei unterschiedlichen Edge-Modes) | §6.3 (Teil A) | Semantik-Tests grün | **erledigt** — s.u. |
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | **erledigt** — s.u. (Nav0124 → S4 verschoben) |
 | **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **S4a erledigt** (Gate + Nav5000 + Completion), **S4b offen** (Nav0124) — s.u. |
-| **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | offen |
+| **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | **erledigt** — s.u. |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | offen — **gated?** (§Gating) |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
 | **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | offen |
@@ -204,6 +204,49 @@ versions-gated und braucht das `NavLanguageFeatures`-Gate, das erst S4a liefert.
 Verifikation S4a: `nav build` + beide TFMs grün (**net10 1379/0, net472 1387/0** — je 3 explizite Skips);
 zwei neue Diagnostics-Fixtures + drei neue Completion-Tests (`AfterTarget` v1/v2, Choice-`[params]`
 v1/v2).
+
+### S5-Anmerkung: was das `CodeGen/V2/`-Gerüst umfasst
+
+Umgesetzt (CallContext-Grundform für **alle** Transitionen, **ohne** Continuation/Choice):
+
+- **Version freigeschaltet:** `NavLanguageVersion.Version2` ist jetzt in `SupportedVersionTable.All` —
+  `#version 2` übersetzt und wirft kein `Nav5001` mehr. `NavCodeGenFacts.For(Version2)` liefert eine
+  eigene `CodeGenFactsV2`-Instanz, deren **Namensalgebra bewusst V1-identisch** ist (die aus
+  Knotennamen abgeleiteten Member `Begin{Node}`/`After{Node}` und die `WFS`/`WFSBase`/`WFL`-Suffixe
+  müssen die V1-Schreibweise behalten, damit die invarianten `IBegin{Task}WFS`-Schnittstellen
+  cross-version konsumierbar bleiben, §5). Die bestehenden Versions-Tests bleiben grün, weil sie
+  `#version 99`/`0` als „unbekannt" nutzen und die Completion die Werte-Liste aus
+  `SupportedVersions` **ableitet** (self-referentiell).
+- **Dispatcher:** `VersionDispatchingCodeGenerator` erzeugt für Version2 einen neuen
+  **`CodeGeneratorV2`**. Der teilt sich die **invarianten** Interface-Familien `I{Task}WFS` und
+  `IBegin{Task}WFS` (Emitter + CodeModel unverändert aus der V1-Schicht); neu sind nur die
+  Maschinerie-Basisklasse (`WfsBaseEmitterV2`) und die OneShot-Datei (`WfsOneShotEmitterV2`).
+- **CallContext-Gestalt (§3.2/§3.3):** Jede Transition (Init/Trigger/Exit) kollabiert auf
+  `…Logic(args, new {Context}(this)).Unwrap()` und trägt einen geschachtelten
+  `{Context}CallContext` mit opakem `Result` (`readonly struct`, `internal` ctor, `internal Unwrap()`,
+  deferred `Func<…>`-Thunk). Rückgabetyp des `Unwrap()`: `IINIT_TASK` bei Init-Transitionen, sonst
+  `INavCommand`. Callables je Kanten-Art: `Show{Node}` (Gui, mode-frei), `Begin{Node}`
+  (`GotoTask`/`OpenModalTask<T>`/`StartNonModalTask` je Edge-Mode, je Init eine Überladung),
+  `Exit({result})` (fixes Member, `InternalTaskResult`), `End()`, und immer `Cancel()`. Der
+  V1-`switch(body)`, die Begin-Wrapper-Hilfsmethoden und der `TaskResult`-Helfer haben **kein**
+  Gegenstück mehr. Die `{Task}WFS`-Partial-Klasse (Felder/Konstruktoren) bleibt V1-deckungsgleich.
+- **Modell/Emitter:** eigenes `CodeGen/V2/` (`CallContextCodeModel` + `CallableMethodModel`,
+  `TransitionCallContextCodeModel`, `CodeModelBuilderV2`, `WfsBaseCodeModelV2`, `WfsCodeModelV2`;
+  Emitter `WfsBaseEmitterV2`/`WfsOneShotEmitterV2`). Version-neutrale Bausteine geteilt: der
+  `CodeGeneratorContext` ist von `CodeGeneratorV1` **entkoppelt** (nimmt jetzt `GenerationOptions`
+  statt des Generators) und nach `CodeGen/Shared/` gewandert; Reachability, Parameter-/Task-Begin-
+  Analyse und die `EmitterCommon`-Bausteine kommen unverändert aus der geteilten bzw. V1-Schicht.
+- **Golden-Fixture:** `BasicFlow.nav` generiert jetzt (Grundform-Golden unter `Regression\Tests\V2\`,
+  vier `.expected.cs`). Der Harness-Filter `IsPendingVersion2Corpus` überspringt nur noch
+  **`ContinuationFlow`/`ChoiceFlow`** (name-basiert) — sie brauchen den V2-Continuation-/Choice-Codegen
+  (S6/S7). **Fallstrick:** die generierten V2-`.cs` liegen unter `Regression\Tests\V2\{WFL,IWFL}\` und
+  mussten in `Nav.Language.Tests.csproj` explizit aus dem Compile genommen werden (`NoCompile` deckte
+  nur den V1-`Tests\{WFL,IWFL}\`-Zweig ab) — sonst bricht der net472-Build (die Framework-`[using]`s
+  der `.nav` sind Stubs, kein echtes Framework). `dotnet build` verdeckte das zunächst, weil dort erst
+  **nach** dem Build generiert wurde.
+
+Verifikation S5: `nav build` + beide TFMs grün (**net10 1383/0, net472 1391/0** — je 3 explizite
+Skips); vier neue BasicFlow-`.expected.cs` (`nav snapshot`); V1-Regression byte-identisch.
 
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),

@@ -37,10 +37,9 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
     /// Version 2 — die Generation mit Continuation-Kanten (<c>o-^</c>/<c>--^</c>) und Choice-Parametern.
     /// Diese Konstante ist der <b>benannte Bezugspunkt</b> des Feature-Gates
     /// (<see cref="NavLanguageFeatures.RequiredVersion"/>): Konstrukte, die diese Generation voraussetzen,
-    /// verweisen hierauf statt auf eine „magische" <c>2</c>. Sie ist bewusst <b>noch nicht</b> in
-    /// <see cref="SupportedVersions"/> aufgenommen — der zugehörige Codegenerator existiert noch nicht, und
-    /// bis er steht wird ein <c>#version 2</c> weiterhin als <c>Nav5001</c> gemeldet (statt beim Codegen zu
-    /// scheitern). Erst mit dem V2-Codegenerator reiht sie sich in <see cref="SupportedVersionTable"/> ein.
+    /// verweisen hierauf statt auf eine „magische" <c>2</c>. Seit der V2-Codegenerator
+    /// (<c>CodeGeneratorV2</c>) steht, ist sie in <see cref="SupportedVersions"/> aufgenommen —
+    /// <c>#version 2</c> übersetzt und meldet daher kein <c>Nav5001</c> mehr.
     /// </summary>
     public static NavLanguageVersion Version2 { get; } = new(2);
 
@@ -124,6 +123,7 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
 static class SupportedVersionTable {
 
     public static readonly ImmutableArray<NavLanguageVersion> All = ImmutableArray.Create(
-        NavLanguageVersion.Version1);
+        NavLanguageVersion.Version1,
+        NavLanguageVersion.Version2);
 
 }

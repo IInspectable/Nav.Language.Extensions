@@ -60,6 +60,8 @@
     <NoCompile Include="Resources\FrameworkStubsWithoutNS.cs" />
     <NoCompile Include="Regression\Tests\IWFL\**\*" />
     <NoCompile Include="Regression\Tests\WFL\**\*" />
+    <NoCompile Include="Regression\Tests\V2\IWFL\**\*" />
+    <NoCompile Include="Regression\Tests\V2\WFL\**\*" />
   </ItemGroup>
 
   <ItemGroup>

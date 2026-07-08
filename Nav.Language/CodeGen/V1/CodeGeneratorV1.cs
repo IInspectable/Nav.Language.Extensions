@@ -76,7 +76,7 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
 
         // Das TaskDefinition stammt aus codeGenerationUnit.TaskDefinitions; dessen CodeGenerationUnit
         // ist nach FinalConstruct gesetzt und hier stets vorhanden.
-        var context = new CodeGeneratorContext(this, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
+        var context = new CodeGeneratorContext(Options, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
 
         // Reihenfolge wie beim bisherigen FileGenerator (nur log-/statistikrelevant, nicht
         // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs. Leere Specs (ausgeschaltete

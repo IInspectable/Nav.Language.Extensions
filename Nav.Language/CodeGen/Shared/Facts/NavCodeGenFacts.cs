@@ -16,6 +16,7 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 public static class NavCodeGenFacts {
 
     static readonly ICodeGenFacts V1 = new CodeGenFactsV1();
+    static readonly ICodeGenFacts V2 = new CodeGenFactsV2();
 
     /// <summary>
     /// Liefert die versionierbaren Codegen-Fakten der angegebenen Sprach-Version. Für eine (noch)
@@ -29,6 +30,10 @@ public static class NavCodeGenFacts {
             return V1;
         }
 
+        if (version == NavLanguageVersion.Version2) {
+            return V2;
+        }
+
         throw new NotSupportedException(
             $"Für die Nav-Sprachversion '{version}' sind keine Codegen-Fakten implementiert.");
     }
@@ -39,6 +44,26 @@ public static class NavCodeGenFacts {
     /// exportiert), unter denen der Bestand byte-identisch übersetzt.
     /// </summary>
     sealed class CodeGenFactsV1: ICodeGenFacts {
+
+        public string BeginMethodPrefix  => CodeGenFacts.BeginMethodPrefix;
+        public string ExitMethodPrefix   => CodeGenFacts.ExitMethodPrefix;
+        public string LogicMethodSuffix  => CodeGenFacts.LogicMethodSuffix;
+        public string WfsClassSuffix     => CodeGenFacts.WfsClassSuffix;
+        public string WfsBaseClassSuffix => CodeGenFacts.WfsBaseClassSuffix;
+        public string WflNamespaceSuffix => CodeGenFacts.WflNamespaceSuffix;
+
+    }
+
+    /// <summary>
+    /// Version 2 — der CallContext-Codegen. Die versionierbare <b>Namensalgebra</b> ist bewusst
+    /// identisch zu Version 1: die aus Nav-Knotennamen abgeleiteten Member (<c>Begin{Node}</c>,
+    /// <c>After{Node}</c>) und die Klassen-/Namespace-Suffixe (<c>WFS</c>/<c>WFSBase</c>/<c>WFL</c>)
+    /// müssen die V1-Schreibweise behalten, damit die invarianten <c>IBegin{Task}WFS</c>-Schnittstellen
+    /// über Sprachversionen hinweg konsumierbar bleiben (Cross-Version-<c>taskref</c>). V2 unterscheidet
+    /// sich von V1 nicht in den <i>Namen</i>, sondern in der erzeugten <i>Gestalt</i> (CallContext statt
+    /// Switch) — und die steckt allein im V2-Emitter, nicht in diesen Fakten.
+    /// </summary>
+    sealed class CodeGenFactsV2: ICodeGenFacts {
 
         public string BeginMethodPrefix  => CodeGenFacts.BeginMethodPrefix;
         public string ExitMethodPrefix   => CodeGenFacts.ExitMethodPrefix;

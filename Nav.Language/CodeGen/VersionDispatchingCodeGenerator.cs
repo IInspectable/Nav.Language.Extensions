@@ -14,9 +14,10 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// kann ein einziger Lauf Dateien verschiedener Generationen mischen; die passenden Generatoren
 /// werden hier je Version einmalig erzeugt und wiederverwendet.
 /// <para>
-/// Derzeit ist ausschließlich <see cref="NavLanguageVersion.Version1"/> implementiert
-/// (<see cref="CodeGeneratorV1"/>). Eine neue Generation reiht sich in <see cref="CreateGenerator"/>
-/// ein — analog zu <see cref="NavCodeGenFacts.For"/>.
+/// Implementiert sind <see cref="NavLanguageVersion.Version1"/> (<see cref="CodeGeneratorV1"/>) und
+/// <see cref="NavLanguageVersion.Version2"/> (<c>CodeGeneratorV2</c>, der CallContext-Codegen). Eine
+/// neue Generation reiht sich in <see cref="CreateGenerator"/> ein — analog zu
+/// <see cref="NavCodeGenFacts.For"/>.
 /// </para>
 /// </summary>
 sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
@@ -59,6 +60,10 @@ sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
 
         if (version == NavLanguageVersion.Version1) {
             return new CodeGeneratorV1(_options, _pathProviderFactory);
+        }
+
+        if (version == NavLanguageVersion.Version2) {
+            return new CodeGeneratorV2(_options, _pathProviderFactory);
         }
 
         // Unerreichbar: GetGenerator normalisiert auf eine unterstützte Version, und für jede

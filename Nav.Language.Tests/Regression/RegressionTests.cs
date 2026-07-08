@@ -76,15 +76,25 @@ public class RegressionTests {
         return dirFileSpecs;
     }
 
-    // Der V2-Golden-Input-Korpus liegt bereits unter Regression\Tests\V2\, kann aber noch nicht
-    // durch die Pipeline laufen: Sprachversion 2 ist noch nicht freigeschaltet und die V2-Syntax
-    // (o-^ / --^ / choice-Parameter) sowie der V2-Codegenerator fehlen. Bis der V2-Generator steht,
-    // sind diese Dateien reine Referenz-Eingaben — hier übersprungen, damit die V1-Regression grün
-    // bleibt. Sobald V2 generiert, entfällt dieser Filter und der Teilbaum erhält seine .expected.cs.
+    // Continuation- und Choice-Fixtures des V2-Korpus (unter Regression\Tests\V2\) brauchen den
+    // V2-Continuation- bzw. -Choice-Codegen (S6/S7), der noch fehlt; bis dahin bleiben sie reine
+    // Referenz-Eingaben und werden hier übersprungen, damit die Regression grün bleibt. BasicFlow
+    // (CallContext-Grundform) generiert dagegen ab dem V2-Gerüst (S5) und hat seine .expected.cs.
+    static readonly string[] PendingVersion2Fixtures = { "ContinuationFlow", "ChoiceFlow" };
+
     static bool IsPendingVersion2Corpus(string rootDirectory, string filePath) {
+
         var relative = PathHelper.GetRelativePath(rootDirectory, filePath);
-        return relative.StartsWith(@"V2\", System.StringComparison.OrdinalIgnoreCase) ||
-               relative.StartsWith("V2/",  System.StringComparison.OrdinalIgnoreCase);
+        var underV2  = relative.StartsWith(@"V2\", System.StringComparison.OrdinalIgnoreCase) ||
+                       relative.StartsWith("V2/",  System.StringComparison.OrdinalIgnoreCase);
+        if (!underV2) {
+            return false;
+        }
+
+        // Sowohl die .nav-Eingabe als auch alle daraus generierten .cs tragen den Fixture-Namen im
+        // Dateinamen (z.B. ContinuationFlow.nav, ContinuationFlowWFSBase.generated.cs).
+        var fileName = Path.GetFileName(filePath);
+        return PendingVersion2Fixtures.Any(f => fileName.IndexOf(f, System.StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     static string GetRegressiontestDirectory() {
