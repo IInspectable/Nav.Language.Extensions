@@ -158,6 +158,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\GoToLocationService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\GoToTag.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\LocationInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\ChoiceLogicDeclarationLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\CodeAnalysisLocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\ILocationInfoProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GoToLocation\Provider\LocationInfoProvider.cs" />

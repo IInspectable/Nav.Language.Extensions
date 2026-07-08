@@ -48,7 +48,7 @@ Annotation trägt beide). Nach jedem Step: Review + `nav test` (net472) **und** 
 | # | Inhalt | Kern-Dateien | Fertig, wenn | Status |
 |---|---|---|---|---|
 | **A** | **Annotation + Emitter:** `<NavChoice>` auf `{Choice}Logic` | `CodeGenInvariants`/`CodeGenFacts` (Tag `NavChoice`), `EmitterCommon.WriteNavChoiceAnnotation`, `WfsBaseEmitterV2.WriteChoice`; Golden-Regen; Invariant-Test | ChoiceFlow-Golden trägt `<NavChoice>` je Logic; **V1 byte-identisch**; `AnnotationTagNavChoice`-Invariant-Test grün | **erledigt** — s.u. |
-| **B** | **Nav → C#** (Choice-Knoten/-Referenz → `{Choice}Logic`) | `ChoiceCodeInfo` (Shared), `LocationFinder.FindChoiceLogicDeclarationLocationAsync`, `GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` | F12 auf `choice X` springt in `{Choice}Logic`; Referenzen (`--> X`) erben den Sprung via `VisitNodeReferenceSymbol` | offen |
+| **B** | **Nav → C#** (Choice-Knoten/-Referenz → `{Choice}Logic`) | `ChoiceCodeInfo` (Shared), `LocationFinder.FindChoiceLogicDeclarationLocationAsync`, `GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` | F12 auf `choice X` springt in `{Choice}Logic`; Referenzen (`--> X`) erben den Sprung via `VisitNodeReferenceSymbol` | **erledigt** — s.u. |
 | **C** | **C# → Nav** (`{Choice}Logic` → Choice-Knoten) | `NavChoiceAnnotation`, T4-Visitor-Regen, `AnnotationReader.ReadNavChoiceAnnotation`, `LocationFinder.FindNavLocationsAsync(NavChoiceAnnotation)`/`GetChoiceLocations`, `IntraTextGoToTagSpanBuilder.VisitNavChoiceAnnotation` + `NavChoiceAnnotationLocationInfoProvider` | Intra-Text-GoTo auf `{Choice}Logic` springt auf `choice X` im `.nav` | offen |
 | **D** | **FindReferences** (`{Choice}Logic` → `{Choice}(…)`-Forwards) | `WfsReferenceFinder` (Choice-Zweig, C#-Forward-Aufrufstellen) | „Alle Referenzen" auf eine Choice listet die C#-Forward-Aufrufstellen | offen |
 
@@ -91,6 +91,37 @@ byte-identisch. Verifikation: **net10 1407/0, net472 1415/0** (3 explizite Skips
   **Referenzen** auf die Choice (`--> Choice_Retry`) bekommen den Sprung **gratis**: `VisitNodeReferenceSymbol`
   ruft bereits `Visit(nodeReferenceSymbol.Declaration)` und hängt dessen Provider an
   (`GoToSymbolBuilder.cs:100`).
+
+**B umgesetzt.** `ChoiceCodeInfo` (`CodeGen/Shared/CodeInfo/`, Spiegel `TaskExitCodeInfo`):
+`ContainingTask` + `ChoiceLogicMethodName = {choiceNode.Name.ToPascalcase()}{ContainingTask.Facts.LogicMethodSuffix}`
+— **versionsrichtig** aus dem Nav-Symbol (`TaskCodeInfo.FromTaskDefinition` → Facts aus der Sprach-Version),
+deckt sich mit der Emitter-Ableitung in `ChoiceCallContextCodeModel.FromChoice`.
+`LocationFinder.FindChoiceLogicDeclarationLocationAsync` ist die exakte Mechanik von
+`FindTaskExitDeclarationLocationAsync`: vom `{Task}WFSBase` (via `FullyQualifiedWfsBaseName`,
+`GetTypeByMetadataName`) zu den abgeleiteten Benutzer-Klassen absteigen, `GetMembers(ChoiceLogicMethodName)`
+→ die **Override im Nutzer-Code** (nicht die abstrakte Deklaration im generierten File). VS:
+`GoToSymbolBuilder.VisitChoiceNodeSymbol` + `ChoiceLogicDeclarationLocationInfoProvider` (Spiegel
+`TaskExitDeclarationLocationInfoProvider`, DisplayName `{Wfs}.{ChoiceLogic}`). **Fallstrick (erledigt):** die
+Shared-Project-Dateiliste `Nav.Language.ExtensionShared.projitems` listet Dateien **explizit** (kein Glob) →
+der neue Provider musste dort eingetragen werden, sonst `CS0246` im `_wpftmp`-Teilprojekt.
+
+**V1-Weiche (Nachtrag).** Anders als Trigger/Exit (deren Logic in *jeder* Version existiert, ihr „not found"
+also nur transient „C# noch nicht gebaut" ist) faltet **V1** Choices platt → es entsteht **nie** eine
+`{Choice}Logic`. Da `NavLanguageVersion.Default => Version1` ist, böte ein bedingungsloser Tag auf *jeder*
+versionslosen `.nav` einen Choice-GoTo an, der beim Klick garantiert fehlschlägt. Deshalb gated
+`VisitChoiceNodeSymbol` das Angebot: unter `LanguageVersion < NavLanguageVersion.Version2` → `DefaultVisit`
+(kein Tag), analog zum `Alias`-Rückfall in `VisitInitNodeSymbol` und exakt dem Versions-Idiom aus
+`Nav0124GeneratedMember0CollidesWithAnotherMember` (`< Version2 → yield break`). Die Choice-**Referenzen**
+erben die Weiche gratis (`VisitNodeReferenceSymbol` → `Visit(declaration)`). Bewusst **kein** Fähigkeits-Flag
+auf `ICodeGenFacts` (dessen Charta ist „nur Namen"; Gestalt-/Fähigkeits-Unterschiede bleiben laut Doku im
+Emitter bzw. am direkten Versionsvergleich). Engine/`ChoiceCodeInfo` bleiben versions-agnostisch — nur die
+*Angebots*-Entscheidung sitzt im Visitor. In V2 wirft der Finder weiterhin `LocationNotFoundException`
+(→ `FromError`), wenn der Sprung transient nicht auflösbar ist (Code noch nicht gebaut / WFS-Klasse fehlt) —
+wie bei Trigger/Exit.
+
+Verifikation: **`nav build` grün** (inkl. VS-Extension), **net472 1415/0** (3 Skips), **net10 1407/0** (der
+Guard betrifft nur die nicht-test-abgedeckte VS-Extension; die Engine ist gegenüber dem grünen Testlauf
+unverändert).
 
 ### C — C# → Nav (`{Choice}Logic` → Choice-Knoten)
 

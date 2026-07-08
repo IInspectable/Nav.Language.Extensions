@@ -492,6 +492,38 @@ public static class LocationFinder {
 
     #endregion
 
+    #region FindChoiceLogicDeclarationLocationAsync
+
+    /// <exception cref="LocationNotFoundException"/>
+    public static Task<Location> FindChoiceLogicDeclarationLocationAsync(Project project, ChoiceCodeInfo codegenInfo, CancellationToken cancellationToken) {
+
+        var task = Task.Run(async () => {
+
+            (var wfsBaseSymbol, project) = await GetTypeByMetadataNameWithSharedProjectsAsync(project, codegenInfo.ContainingTask.FullyQualifiedWfsBaseName, cancellationToken).ConfigureAwait(false);
+            if (wfsBaseSymbol == null) {
+                throw new LocationNotFoundException(String.Format(MsgUnableToFind0, codegenInfo.ContainingTask.FullyQualifiedWfsBaseName));
+            }
+
+            // Wir kennen de facto nur den Basisklassen Namespace + Namen, da die abgeleiteten Klassen theoretisch in einem
+            // anderen Namespace liegen können. Deshalb steigen wir von der Basisklasse zu den abgeleiteten Klassen ab.
+            var derived        = await SymbolFinder.FindDerivedClassesAsync(wfsBaseSymbol, project.Solution, ToImmutableSet(project), cancellationToken);
+            var memberSymbol   = derived.SelectMany(d => d.GetMembers(codegenInfo.ChoiceLogicMethodName)).FirstOrDefault();
+            var memberLocation = memberSymbol?.Locations.FirstOrDefault();
+
+            var location = ToLocation(memberLocation);
+            if (location == null) {
+                throw new LocationNotFoundException(MsgUnableToGetMemberLoation);
+            }
+
+            return location;
+
+        }, cancellationToken);
+
+        return task;
+    }
+
+    #endregion
+
     static async Task<(INamedTypeSymbol Symbol, Project Project)> GetTypeByMetadataNameWithSharedProjectsAsync(Project project, string fullyQualifiedMetadataName, CancellationToken cancellationToken) {
 
         var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);

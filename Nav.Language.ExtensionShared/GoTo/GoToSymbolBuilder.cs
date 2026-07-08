@@ -155,6 +155,22 @@ sealed class GoToSymbolBuilder : SymbolVisitor<TagSpan<GoToTag>> {
         return CreateTagSpan(signalTriggerSymbol.Location, provider);
     }
 
+    public override TagSpan<GoToTag> VisitChoiceNodeSymbol(IChoiceNodeSymbol choiceNodeSymbol) {
+
+        // Erst ab Version 2 erhält eine Choice eine eigene {Choice}Logic; unter #version 1 wird sie beim
+        // Codegen platt-gefaltet und hätte gar kein Sprungziel. Ohne diese Weiche böte der GoTo — da
+        // Version 1 der Default ist — in der Praxis überwiegend einen Sprung an, der stets ins Leere liefe.
+        var version = choiceNodeSymbol.ContainingTask.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default;
+        if (version < NavLanguageVersion.Version2) {
+            return DefaultVisit(choiceNodeSymbol);
+        }
+
+        var codeModel = ChoiceCodeInfo.FromChoiceNode(choiceNodeSymbol);
+        var provider  = new ChoiceLogicDeclarationLocationInfoProvider(_textBuffer, codeModel);
+
+        return CreateTagSpan(choiceNodeSymbol.Location, provider);
+    }
+
     // Nav→Nav-Sprungziel aus dem geteilten Engine-Kern (NavGoToService/GoToTargetResolver). Für die hier
     // behandelten Symbole liefert der Kern höchstens ein Ziel; null bedeutet "kein Nav→Nav-Sprung".
     static Location ResolveNavTarget(ISymbol symbol) {
