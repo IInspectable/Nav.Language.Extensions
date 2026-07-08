@@ -17,10 +17,10 @@
 
 Quelle: `doc/nav-pragmas-versioning-status.md` (Roadmap), `doc/nav-directive-subparser.md`.
 
-- [ ] **Erstes echtes v2-Feature einziehen** — Wert in `NavLanguageFeature`, Mindestversion in
-  `NavLanguageFeatures.RequiredVersion`, `ReportIfUnavailable(...)` im Semantik-Lauf. Erst damit wird
-  `Nav5000` (Feature nicht verfügbar) real ausgelöst; die ganze Versions-Gate-Maschinerie ist sonst
-  ungenutzt.
+- [x] **Erstes echtes v2-Feature einziehen** — **erledigt (V2-Codegen S4a):** `Continuation` und
+  `ChoiceParameters` in `NavLanguageFeature` + `NavLanguageFeatures.RequiredVersion`; `Nav5000` wird real
+  über den Analyzer `Nav5000FeatureRequiresNavLanguageVersion` ausgelöst (nicht über einen Semantik-Lauf-
+  Aufruf — die Analyzer-Pipeline yieldet Diagnosen). Die Versions-Gate-Maschinerie ist damit in Gebrauch.
 - [ ] **`#pragma warning disable <NavXXXX>`** (heißer Kandidat) — `WarningDirectiveSyntax` (analog
   `VersionDirectiveSyntax`) + Diagnose-Filterschicht als Cross-Run-Pass + Ebene-2-Lexing-Entscheidung
   (Komma/Zweitwörter als eigene Token vs. Text-Matching).

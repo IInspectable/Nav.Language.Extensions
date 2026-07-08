@@ -764,8 +764,8 @@ zulässt. Sonst böte die Completion Konstrukte an, die sofort **Nav5000** werfe
 
 **Dieselbe Autorität wie das Gate, kein dupliziertes Versionswissen.** Die Mindestversion je Feature
 lebt in **einer** Quelle: dem `NavLanguageFeature`/`NavLanguageFeatures`-Gate
-(`NavLanguageFeatures.RequiredVersion`/`IsAvailable`), das auch **Nav5000** (`ReportIfUnavailable`)
-speist (§4, Versions-Gate). Die Completion ruft dieselbe
+(`NavLanguageFeatures.RequiredVersion`/`IsAvailable`), das auch **Nav5000** (den Analyzer
+`Nav5000FeatureRequiresNavLanguageVersion`) speist (§4, Versions-Gate). Die Completion ruft dieselbe
 `IsAvailable(feature, unit.LanguageVersion)`-Abfrage, bevor sie einen gateten Vorschlag aufnimmt:
 `VisibleEdgeKeywordItems` gatet `--^`/`o-^`, die Choice-Vorschläge gaten `[params]`. Das spiegelt
 den **bereits bestehenden** Präzedenzfall — die Completion zieht für den `#version`-Werte-Slot schon

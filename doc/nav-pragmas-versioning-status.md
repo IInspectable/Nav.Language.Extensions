@@ -143,9 +143,12 @@ Für Pragmas sind **neue Kontext-Arten** nötig:
 
 ## Weitere offene Punkte / Roadmap
 
-- **Erstes echtes v2-Feature einziehen:** Wert in `NavLanguageFeature` ergänzen, Mindestversion in
-  `NavLanguageFeatures.RequiredVersion` eintragen, `ReportIfUnavailable(...)` im Semantik-Lauf aufrufen
-  (Parser bleibt permissiv). `Nav5000` wird damit erstmals real ausgelöst.
+- **Erstes echtes v2-Feature einziehen — erledigt (V2-Codegen S4a):** Die Features `Continuation`
+  (`o-^`/`--^`) und `ChoiceParameters` (`choice X [params …]`) sind in `NavLanguageFeature` samt
+  Mindestversion in `NavLanguageFeatures.RequiredVersion` eingetragen; das Gate feuert real über den
+  auto-discoverten Analyzer `Nav5000FeatureRequiresNavLanguageVersion` (der die Diagnose per privatem
+  `Gate(...)` je Continuation-Kante/Choice-`[params]`-Klausel **yieldet** — die Analyzer-Pipeline reicht
+  keinen Diagnose-Builder herein, daher return- statt append-Form). Der Parser bleibt permissiv.
 - **Editor-Klassifikation verfeinern — erledigt (C#-treu, im Lexer):** `#`, `pragma` **und** `version` sind
   `PreprocessorKeyword`, die Versionszahl ist ein numerisches Literal (`TextClassification.NumberLiteral`).
   Umsetzung wie Roslyns Directive-Mode: das `#` schaltet `ScanPreprocessor` in den Präprozessor-Modus, der den

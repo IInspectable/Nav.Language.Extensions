@@ -490,7 +490,7 @@ Reihenfolge so gewählt, dass jeder Schritt für sich baubar/testbar ist und V1-
 | 4 | **ST-Migration (Variante B), isolierter Schritt — Artefakt für Artefakt:** CodeBuilder-Grundgerüst (`CodeGen/CodeBuilder/`), dann je Template-Familie ein Sub-Step (IBeginWFS ✓, IWFS ✓, WFSBase ✓, WFSOneShot ✓ — byte-identisch migriert; **TO ✗ nicht migriert, sondern ganz entfernt**, s.u.); zum Schluss ST-Sonderweg entfernt (`.stg`, `Resources.cs`, Facts-Export inkl. `CustomBuild.targets`/`GenerateCodeGenFacts.cs`/`CodeGenFacts.generated.cs`, `StringTemplate4`) — `CodeGenFacts` ist jetzt handgeschriebenes C#. **ABGESCHLOSSEN.** | Byte-Identität je WFS-Sub-Step bewiesen; **TO-Entfernung bewusst nicht byte-identisch** (Korpus-Parity `NormChanged=0`, `Added=0`, `Removed=1431` = ausschließlich `*TO.generated.cs`); Perf Kandidat 30,2 s vs. Ref 36,3 s; net10 1346/0, net472 1354/0 |
 | 5 | Dispatcher `VersionDispatchingCodeGenerator` als `CodeGeneratorProvider.Default`; bisheriger Generator wird `CodeGeneratorV1`. **ABGESCHLOSSEN (2026-07-06).** | Pipeline-Verhalten für V1 unverändert (Korpus-Parity wie Step-4-Baseline: `NormChanged=0`, `Added=0`, `Removed=1431` = nur `*TO.generated.cs`); net472 1354/0, net10 1347/0, kein Snapshot-Drift |
 | 6 | V2-Inhalte: Facts V2, CodeModel-/Emitter-Schnitt, `PathProvider`-V2, **keine TO-Stubs mehr** — **Interfaces `I{Task}WFS`/`IBegin{Task}WFS` identisch zu V1 emittiert** (geteilte Emitter-Bausteine); **Version 2 in `SupportedVersions` freischalten** | neue Snapshot-Fixtures `Regression/Tests-V2/`; `nav snapshot` beherrscht beide; Interface-Identitäts-Test V1↔V2 |
-| 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung. **Voranalyse + `NavInitCall`-Reparatur erledigt (s.u.); VS-Smoke offen.** |
+| 7 | Navigation end-to-end für V2: falls der V2-Schnitt das V1-Suchverfahren bricht (kein Anker-Typ + Derived-Descent), Such-Strategie-Schnittstelle einziehen (Baustein 6, „Option B"); dann verifizieren (GoTo Nav→C#, C#→Nav via Annotations, Rename, FindReferences, Cross-Version-`taskref`) | VS-Smoke + Testabdeckung. **ABGESCHLOSSEN — Voranalyse + `NavInitCall`-Reparatur (s.u.); VS-Smoke bestätigt: Navigation funktioniert.** |
 
 Nach jedem Step: Code-Review + `nav test` (net472 **und** net10.0), Commit-Message liefern —
 Commit macht der Nutzer (Arbeitsweise siehe `CLAUDE.md`).
@@ -526,8 +526,10 @@ Nutzer-Logic-Code, unannotiert). Zwei lokale Änderungen schließen die Lücke:
 abgesichert (reine `<NavInitCall>`-Additionen, V1 byte-identisch). Der Reader-Zweig (MemberAccess) hat
 bewusst **kein** automatisiertes Test — ein Roslyn-Auslesetest wäre gegen die net472-only
 `Nav.Language.CodeAnalysis` gepinnt und dupliziert nur, was die Goldens (Annotation *wird* geschrieben)
-schon zeigen; er wird per **VS-Smoke** verifiziert. **Offen:** VS-Smoke (GoTo aus V2-Logic-Code auf die
-Sub-Task-Begin-Logic) sowie die restliche End-to-End-Verifikation (Rename/FindReferences/Cross-Version-`taskref`).
+schon zeigen; er wird per **VS-Smoke** verifiziert. **Erledigt (2026-07-08):** Der VS-Smoke ist
+durch — die V2-Navigation (GoTo aus V2-Logic-Code auf die Sub-Task-Begin-Logic sowie die restliche
+End-to-End-Richtung Rename/FindReferences/Cross-Version-`taskref`) funktioniert. Damit ist Step 7
+abgeschlossen.
 
 Verifikation: `nav build` + beide TFMs grün (**net472 1414/0, net10 1406/0** — je 3 Explicit-Skips);
 fünf V2-Goldens um `<NavInitCall>` ergänzt (`nav snapshot`), V1- und übrige V2-Regression unverändert.

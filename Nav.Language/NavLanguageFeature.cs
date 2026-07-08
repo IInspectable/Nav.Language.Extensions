@@ -1,6 +1,4 @@
-﻿using System.Collections.Immutable;
-
-namespace Pharmatechnik.Nav.Language;
+﻿namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Ein versionsgebundenes Sprach- oder Codegen-Feature der Nav-Sprache. Jeder Wert ist über
@@ -51,27 +49,6 @@ public static class NavLanguageFeatures {
     /// </summary>
     public static bool IsAvailable(NavLanguageFeature feature, NavLanguageVersion languageVersion) {
         return languageVersion >= RequiredVersion(feature);
-    }
-
-    /// <summary>
-    /// Prüft die Verfügbarkeit von <paramref name="feature"/> unter <paramref name="languageVersion"/> und
-    /// meldet — falls die Version zu niedrig ist — eine <c>Nav5000</c>-Diagnose an <paramref name="location"/>
-    /// in <paramref name="diagnostics"/>. Liefert <c>true</c>, wenn das Feature verfügbar ist.
-    /// </summary>
-    public static bool ReportIfUnavailable(NavLanguageFeature feature,
-                                           NavLanguageVersion languageVersion,
-                                           Location location,
-                                           ImmutableArray<Diagnostic>.Builder diagnostics) {
-
-        var required = RequiredVersion(feature);
-        if (languageVersion >= required) {
-            return true;
-        }
-
-        diagnostics.Add(new Diagnostic(location,
-                                       DiagnosticDescriptors.Semantic.Nav5000Feature0RequiresNavLanguageVersion1,
-                                       feature, required));
-        return false;
     }
 
 }
