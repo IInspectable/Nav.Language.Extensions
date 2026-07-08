@@ -15,6 +15,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   oder bearbeitet werden — `.cs`, `.md`, sowie Projekt-/Build-Dateien (`.csproj`, `.props`, `.targets`
   und sonstige MSBuild-Files, `.slnx`/`.sln` etc.). Neue Dateien immer als UTF-8 mit BOM anlegen;
   bestehende Dateien beim Bearbeiten in dieser Kodierung belassen.
+- **Windows-1252-Altlasten nie bloß mit BOM „reparieren".** Manche Quelldateien sind trotz der
+  UTF-8-mit-BOM-Regel noch Windows-1252-kodiert. Beim Edit/Write-Round-Trip liest das Tooling sie als
+  UTF-8 → die Umlaut-Bytes (`0xF6`=ö, `0xE4`=ä, `0xFC`=ü, `0xDF`=ß) werden **verlustbehaftet zu `U+FFFD`
+  (`�`)** und sind aus den Bytes nicht mehr rekonstruierbar; ein bloßes „BOM davorsetzen" macht das
+  **nicht** rückgängig. Vor dem Bearbeiten einer Umlaut-Datei die Kodierung prüfen
+  (`iconv -f UTF-8 -t UTF-8 <file>` schlägt bei Win-1252 fehl; alternativ auf rohe Bytes `0xF6/0xE4/0xFC/0xDF`
+  schauen). Ist die Datei Win-1252 (oder schon zu `U+FFFD` zerschossen): `git checkout HEAD -- <file>`,
+  dann **`nav fixenc`** (liest Nicht-UTF-8 als Win-1252, schreibt UTF-8-mit-BOM, idempotent) — **danach**
+  erst die inhaltlichen Edits erneut anwenden.
 - **In der Quellcode-Dokumentation (Code-Kommentare, XML-Doku) nicht auf „Steps" eines Plans
   verweisen.** Plan-Steps sind ein temporäres Arbeits-Artefakt und haben im dauerhaften Code keinen
   Platz — Doku beschreibt den Code, nicht den Weg dorthin.
@@ -172,6 +181,12 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 - `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — u.a. für Raw-String-Literale in den
   CodeBuilder-Codegen-Emittern (reines Compiler-Feature, trägt auf net472/netstandard2.0). NuGet via
   Central Package Management (`Directory.Packages.props`, transitives Pinning aktiv).
+- **String-Properties bestmöglich non-null:** Wo „abwesend" und „leer" dasselbe bedeuten, liefert eine
+  String-Property `string` (nie `null`) und normalisiert im Zweifel auf `String.Empty`. `null` bleibt nur,
+  wenn es einen **eigenen, ausgewerteten Zustand** kodiert — dann sitzt der `""`-Fallback am
+  DTO-/Serialisierungs-Rand, nicht im Domänenmodell (z.B. `Location.FilePath` bleibt bewusst `string?`).
+  Erspart Konsumenten Null-Checks und umgeht die netstandard2.0-Falle, dass `String.IsNullOrEmpty` die
+  Nullability nicht verengt (→ CS8602). Playbook-Regel 4a in `doc/nav-nullable-status.md`.
 - **String-Literale: Raw-Strings (`"""…"""`) sind der Grundzustand — kein `@"…"`-Verbatim.** Gilt für
   Produktiv- **und** Testcode (z.B. mehrzeilige `.nav`-Inhalte in Fixtures). Den Raw-String sauber auf
   Code-Ebene einrücken; die schließende `"""`-Zeile entfernt die Basis-Einrückung, die *relative*
