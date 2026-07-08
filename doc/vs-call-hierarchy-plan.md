@@ -1,4 +1,4 @@
-# Call Hierarchy für Visual Studio — Implementierungsanleitung
+﻿# Call Hierarchy für Visual Studio — Implementierungsanleitung
 
 > **Zweck dieses Dokuments:** Die Aufrufhierarchie (Call Hierarchy) gibt es bereits im LSP-Server.
 > Sie soll zusätzlich in der **VS-2026-Extension** verfügbar werden — über VS' eingebautes

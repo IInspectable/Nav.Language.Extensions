@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Dispatcher für die Nav-Repo-Commands — Alias `nav`.
 

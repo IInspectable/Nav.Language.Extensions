@@ -1,4 +1,4 @@
-# Nav Language
+﻿# Nav Language
 
 Sprachunterstützung für **Nav**-Dateien (`.nav`) in Visual Studio Code. Die Extension bringt einen
 eingebetteten Sprachserver mit (kein separates Setup, keine Laufzeit-Installation) und stellt die

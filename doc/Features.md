@@ -1,4 +1,4 @@
-# Visual-Studio-Features der Nav Language Extension
+﻿# Visual-Studio-Features der Nav Language Extension
 
 Diese Übersicht fasst zusammen, was die **Nav Language Extension** im Visual-Studio-Editor
 beim Arbeiten mit `.nav`-Dateien bietet — aus Anwendersicht.

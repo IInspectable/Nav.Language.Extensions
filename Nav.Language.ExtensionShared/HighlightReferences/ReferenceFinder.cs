@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +8,7 @@ using Pharmatechnik.Nav.Language.Extension.Options;
 
 namespace Pharmatechnik.Nav.Language.Extension.HighlightReferences; 
 
-// Das erste zur�ckgeliferte Symbol hat immer den Charakter der "Definition", alle weiteren
+// Das erste zurückgeliferte Symbol hat immer den Charakter der "Definition", alle weiteren
 // stellen die Referenzen auf diese Definition dar
 sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
 

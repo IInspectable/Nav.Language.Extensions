@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installiert die VS-2026-Extension (VSIX) in Visual Studio.
 

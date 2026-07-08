@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Ermittelt den Repo-/Worktree-Root für die Nav-Commands.
 

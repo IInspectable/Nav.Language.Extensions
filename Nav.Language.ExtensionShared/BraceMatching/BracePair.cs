@@ -1,4 +1,4 @@
-namespace Pharmatechnik.Nav.Language.Extension.BraceMatching; 
+﻿namespace Pharmatechnik.Nav.Language.Extension.BraceMatching; 
 
 sealed class BracePair<T> {
         

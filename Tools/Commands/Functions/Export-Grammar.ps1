@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Interner Helfer: exportiert die EBNF-Grammatik der Nav-Sprache nach deploy\Build Tools\NavGrammar.ebnf.
 

@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using Microsoft.VisualStudio.Language.CallHierarchy;
 using Microsoft.VisualStudio.Shell;

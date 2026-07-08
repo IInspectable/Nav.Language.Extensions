@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using JetBrains.Annotations;
@@ -30,7 +30,7 @@ public partial class NavTaskAnnotation {
 
     /// <summary>
     /// Liefert die Klasse, in der das Tag definiert wurde. Das kann und wird
-    /// in vielen F�llen die Basisklasse "WFSBase" sein.
+    /// in vielen Fällen die Basisklasse "WFSBase" sein.
     /// </summary>
     [NotNull]
     public ClassDeclarationSyntax DeclaringClassDeclarationSyntax { get; }

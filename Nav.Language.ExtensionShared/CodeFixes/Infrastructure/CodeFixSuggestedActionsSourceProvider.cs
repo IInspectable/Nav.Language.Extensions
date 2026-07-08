@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.ComponentModel.Composition;
 
@@ -31,7 +31,7 @@ internal class CodeFixSuggestedActionsSourceProvider: ISuggestedActionsSourcePro
             return null;
         }
 
-        // TODO nur einzelne Textbuffer unterst�tzen?
+        // TODO nur einzelne Textbuffer unterstützen?
         return new CodeFixSuggestedActionsSource(textBuffer,
                                                  _suggestedActionCategoryRegistryService,
                                                  _codeFixSuggestedActionProviderService,

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Baut die Solution (Debug) und stellt alle Deliverables unter deploy\ bereit: Build Tools,
     VS-Code-Extension (mit eingebettetem LSP) und MCP-Server als Single-File.

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Einziger Einstiegspunkt für die Nav-Commands — per Dot-Sourcing aus dem
     PowerShell-Profil laden.

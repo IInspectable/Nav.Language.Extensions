@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Verwirft alle lokalen Änderungen und bereinigt das Arbeitsverzeichnis.
 

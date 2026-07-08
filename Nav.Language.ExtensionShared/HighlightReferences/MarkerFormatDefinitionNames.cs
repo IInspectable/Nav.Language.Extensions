@@ -1,4 +1,4 @@
-namespace Pharmatechnik.Nav.Language.Extension.HighlightReferences; 
+﻿namespace Pharmatechnik.Nav.Language.Extension.HighlightReferences; 
 
 static class MarkerFormatDefinitionNames {
 

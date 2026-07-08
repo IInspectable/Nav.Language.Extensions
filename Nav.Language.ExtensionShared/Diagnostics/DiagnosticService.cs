@@ -1,4 +1,4 @@
-#region Using Directives
+ï»¿#region Using Directives
 
 using System;
 using System.Linq;
@@ -156,7 +156,7 @@ sealed class DiagnosticService : IDisposable {
 
         var caretPos = _textView.Caret.Position.BufferPosition;
             
-        // TODO noch optimieren / überprüfen
+        // TODO noch optimieren / Ã¼berprÃ¼fen
         foreach(var tagSpan in GetDiagnosticsWithSeverity(severity)
                    .Select(mappingTagSpan => _textView.MapToSingleSnapshotSpan(mappingTagSpan))) {
 

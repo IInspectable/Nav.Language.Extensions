@@ -1,4 +1,4 @@
----
+﻿---
 name: grill-me
 description: Verwenden, wenn ein Plan, Entwurf oder Konzept VOR der Umsetzung kritisch durchgegrillt/stressgetestet werden soll — Trigger 'grill me', 'challenge me'. Führt ein striktes Einzelfrage-Interview entlang des Entscheidungsbaums, mit Empfehlung je Frage. 
 disable-model-invocation: true

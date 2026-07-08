@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     In den Root eines (gewählten) Worktrees wechseln.
 

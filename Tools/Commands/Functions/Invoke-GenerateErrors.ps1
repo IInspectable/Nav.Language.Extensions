@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Erzeugt die Markdown-Tabelle der Diagnose-Fehler (Syntax + Semantic + DeadCode).
 

@@ -1,4 +1,4 @@
-# Nav Language — Entwicklung & Paketierung
+﻿# Nav Language — Entwicklung & Paketierung
 
 Entwickler-Doku für die VS-Code-Extension (`vscode-nav-lsp`) und den Nav-LSP-Server (`nav.lsp`). Die
 nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Status des LSP-Projekts in
