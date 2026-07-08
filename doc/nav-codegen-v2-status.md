@@ -40,7 +40,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | **erledigt** — s.u. |
 | **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | **erledigt** — `--^` **sofort ausgeliefert** (Gating-Entscheidung §8.1 zugunsten des Design-Defaults); s.u. |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | **erledigt** — s.u. |
-| **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | offen |
+| **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | **erledigt** — inkl. `[donotinject]`-Codegen (war im V2 noch nicht umgesetzt), s.u. |
 
 ### S0-Anmerkung: vorläufiger Harness-Skip des `V2\`-Teilbaums
 
@@ -381,6 +381,44 @@ V1 und die V2-Grundform/-Continuation byte-identisch):
 Verifikation S7: `nav build` + beide TFMs grün (**net10 1393/0, net472 1401/0** — 3 Explicit-Skips);
 V1-, V2-Grundform- **und** V2-Continuation-Regression byte-identisch.
 
+### S8-Anmerkung: die isolierten Sonderform-Fixtures (+ nachgezogener `[donotinject]`-Codegen)
+
+Umgesetzt (zwei Ein-Konzept-Goldens unter `Regression\Tests\V2\`, je mit distinktem Task-Namen **und**
+`[namespaceprefix]`, §7-Port-Caveat; V1 und die bestehenden V2-Goldens byte-identisch):
+
+- **`NotImplementedFlow.nav`** (`[notimplemented]`): der Ziel-Task-Wrapper bleibt begin-bar —
+  `Begin{Node}(…)` existiert samt Init-Parameter —, sein Thunk ist aber ein reiner
+  `throw new NotImplementedException("Task {Task} is specified as [notimplemented]")` (V1-Timing, feuert
+  beim `Unwrap()`-Aufruf). Für einen `[notimplemented]`-Task wird **keine** `After{Node}`-Maschinerie
+  erzeugt (die Exit-Auswahl filtert `CodeNotImplemented`); die deklarierte `exit`-Kante ist nur da, damit
+  **Nav0025** (unverbundener Exit, Severity **Error**) schweigt. Dieser Pfad stand im V2-Codegen bereits
+  (S5/S6 in `CallContextCodeModel.BuildTaskBegins`), das Fixture zieht nur das isolierte Golden nach.
+- **`DoNotInjectFlow.nav`** (`[donotinject]`): **neuer Codegen** — der Fall war im V2 zuvor **nicht**
+  umgesetzt (`BuildTaskBegins` referenzierte hart `_wfs._{task}`, obwohl für `[donotinject]`-Tasks
+  **kein** Feld injiziert wird → hätte auf ein nicht existentes Feld verwiesen). Jetzt nimmt
+  `Begin{Node}` den Wrapper als **expliziten ersten Parameter** (`IBegin{Task}WFS wfs`, Parametername
+  `wfs` = V1-`CodeGenFacts.TaskBeginParameterName`) entgegen und ruft `wfs.Begin(…)`; die Init-Parameter
+  folgen dahinter. Der originalgetreue V1-Port (dort das `BeginDoSomething(IBegin…WFS wfs)`-Hilfsmethoden-
+  Muster). Anders als `[notimplemented]` wird der Knoten **nicht** aus den Exit-Transitionen gefiltert →
+  `After{Node}` bleibt regulär.
+
+Die Änderung sitzt lokal in `CallContextCodeModel.BuildTaskBegins` (ein `doNotInject`-Zweig: Empfänger =
+Parameter statt `_wfs`-Feld, plus vorangestellter Wrapper-Parameter); sie ist **V1-neutral** (V1 hat eine
+eigene Emitter-Schicht) und für die bestehenden V2-Goldens neutral (`doNotInject` ist dort immer `false`
+→ unveränderter `_wfs._{field}`-Pfad, Regression byte-identisch bestätigt).
+
+Neben den Goldens je ein **CompileTest** (`CodeGenTests.CompileTest`, self-contained, Roslyn in-memory
+gegen die Stubs — kein Laufzeit-Test): `[notimplemented]` (throw-Thunk kompiliert als `Func<INavCommand>`)
+und `[donotinject]` (der explizite `IBegin{Task}WFS wfs`-Parameter + `wfs.Begin(id)` kompiliert gegen die
+lokal erzeugte `IBegin{Task}WFS`-Fläche).
+
+Verifikation S8: beide TFMs grün (**net10 1406/0, net472 1414/0** — je 3 Explicit-Skips); je vier neue
+`.expected.cs` pro Fixture (`nav snapshot`) + zwei neue Compile-Tests. V1- **und** alle bestehenden
+V2-Goldens (BasicFlow/Continuation/Choice) byte-identisch.
+
+**Damit sind S0–S8 abgeschlossen** — der V2-Codegen (CallContext, Continuation, Choices, Sonderformen)
+steht vollständig hinter dem `VersionDispatchingCodeGenerator`.
+
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),
 ggf. mit der versionierten Such-Strategie-Schnittstelle.
@@ -395,9 +433,9 @@ ggf. mit der versionierten Such-Strategie-Schnittstelle.
    die Laufzeit-Korrektheit ist quellcode-verifiziert (§3.8/⑥) und Framework-Domäne. Ein späteres
    Gaten bliebe eine separate Entscheidung, falls der Framework-Smoke-Test etwas aufdeckt.
 2. **Golden-`.nav`-Fixtures (§8.2) — vollständig erledigt.** Grundform (`BasicFlow`, S5), Continuation
-   (`ContinuationFlow`, S6) **und** Choice-mit-3-Quellen (`ChoiceFlow`, S7) liegen als Golden vor. Der
-   Backbone der drei gestaffelten Goldens (§7) steht; offen ist nur noch S8 (die isolierten
-   Sonderform-Fixtures `[notimplemented]`/`[donotinject]`).
+   (`ContinuationFlow`, S6), Choice-mit-3-Quellen (`ChoiceFlow`, S7) **und** die isolierten Sonderformen
+   (`NotImplementedFlow`/`DoNotInjectFlow`, S8) liegen als Golden vor. Der Backbone der gestaffelten
+   Goldens (§7) steht komplett; nichts mehr offen.
 
 ## Verifikation (Wiederholrezept)
 

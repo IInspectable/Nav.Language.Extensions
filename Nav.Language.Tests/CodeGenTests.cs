@@ -393,6 +393,91 @@ public class CodeGenTests {
             }
         }) {
             TestName = "V2 Choices in C# (3 sources, union, choice->choice, multi-exit) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("NotImplementedCompile.nav"),
+                    // V2-Sonderform [notimplemented] (§3.4): Begin{Node} existiert weiter (inkl.
+                    // Init-Parameter), sein Thunk ist aber ein reiner throw-Ausdruck — es wird KEINE
+                    // After{Node}-Maschinerie erzeugt. Der throw-Thunk muss als Func<INavCommand> gegen die
+                    // Stubs kompilieren. Self-contained: der [notimplemented]-Task ist ein taskref [result bool]
+                    // (kein externer Result-Typ nötig, sein Wrapper wird nie referenziert).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.NotImplementedCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              taskref Stub [namespaceprefix NS.NI]
+                                           [notimplemented]
+                                           [result bool r] {
+                                  init [params string text];
+                                  exit Done;
+                              }
+
+                              task NotImplementedCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  exit Ok;
+                                  task Stub Warn;
+                                  view Home;
+
+                                  Init1 --> Home;
+                                  Home o-> Warn on OnWarn;
+                                  Home --> Ok on OnClose;
+                                  Warn:Done --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 [notimplemented] (throw-thunk) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("DoNotInjectCompile.nav"),
+                    // V2-Sonderform [donotinject] (§3.4): der Ziel-Task-Wrapper wird nicht injiziert, also nimmt
+                    // Begin{Node} ihn als expliziten ERSTEN Parameter (IBegin{Task}WFS wfs) entgegen und ruft
+                    // wfs.Begin(...); die Init-Parameter folgen dahinter. Das muss gegen die generierte
+                    // IBegin{Task}WFS-Fläche kompilieren. Self-contained: der Sub-Task Editor ist lokal
+                    // [result bool] (seine IBeginEditorWFS-Schnittstelle entsteht lokal, wfs.Begin(id) löst auf).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.DoNotInjectCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              task Editor [result bool] {
+                                  init I [params int id];
+                                  exit Closed;
+                                  I --> Closed;
+                              }
+
+                              task DoNotInjectCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  exit Ok;
+                                  task Editor Edit [donotinject];
+                                  view Home;
+
+                                  Init1 --> Home;
+                                  Home o-> Edit on OnEdit;
+                                  Home --> Ok on OnClose;
+                                  Edit:Closed --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 [donotinject] (explicit wrapper parameter) should compile against stubs"
         }
     };
 

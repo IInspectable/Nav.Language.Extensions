@@ -199,6 +199,13 @@ sealed class CallContextCodeModel {
     /// (Task-Kante) wie als <c>.Concat(…)</c>-Argument (Continuation) verwendbar — beide Kontexte tragen
     /// ein <c>_wfs</c>-Feld.
     /// </summary>
+    /// <remarks>
+    /// <c>[donotinject]</c> (§3.4): der Ziel-Task-Wrapper wird <b>nicht</b> als <c>_wfs._x</c>-Feld
+    /// injiziert (das Semantic Model kennt eine Familie konkreter, laufzeit-selektierter
+    /// Implementierungen). Statt über das fehlende Feld nimmt <c>Begin{Node}</c> den Wrapper als
+    /// <b>expliziten ersten Parameter</b> (<c>IBegin{Task}WFS wfs</c>) entgegen und ruft <c>wfs.Begin(…)</c>
+    /// — der originalgetreue V1-Port (dort <c>BeginDoSomething(IBegin…WFS wfs)</c>).
+    /// </remarks>
     static IEnumerable<TaskBeginPiece> BuildTaskBegins(ITaskNodeSymbol task, EdgeMode edgeMode) {
 
         var declaration = task.Declaration;
@@ -208,12 +215,19 @@ sealed class CallContextCodeModel {
 
         var namePascal     = task.Name.ToPascalcase();
         var notImplemented = declaration.CodeNotImplemented;
+        var doNotInject    = task.CodeDoNotInject();
 
         var (engine, generic) = TaskEngineMethod(edgeMode);
         var taskResultType    = ParameterCodeModel.TaskResult(declaration).ParameterType;
-        var fieldName         = $"{CodeGenFacts.FieldPrefix}{ParameterCodeModel.GetTaskBeginAsParameter(declaration).ParameterName}";
+        var wrapper           = ParameterCodeModel.GetTaskBeginAsParameter(declaration);
         var afterMethod       = $"{CodeGenFacts.ExitMethodPrefix}{namePascal}";
         var engineCall        = generic ? $"{engine}<{taskResultType}>" : engine;
+
+        // Empfänger des Begin(…)-Aufrufs: bei [donotinject] der explizite Wrapper-Parameter (kein Feld
+        // injiziert), sonst das injizierte _wfs._{task}-Feld.
+        var beginReceiver = doNotInject
+            ? CodeGenFacts.TaskBeginParameterName
+            : $"{WfsFieldName}.{CodeGenFacts.FieldPrefix}{wrapper.ParameterName}";
 
         // Je Init-Knoten des Ziel-Tasks eine Begin{Node}-Überladung (analog V1-BeginWrapper).
         foreach (var init in declaration.Inits().WhereNotNull()) {
@@ -224,9 +238,17 @@ sealed class CallContextCodeModel {
             var parameterList = String.Join(", ", parameters.Select(p => $"{p.ParameterType} {p.ParameterName}"));
             var argumentList  = String.Join(", ", parameters.Select(p => p.ParameterName));
 
+            // [donotinject]: den expliziten Wrapper-Parameter voranstellen (V1-Port, s. remarks).
+            if (doNotInject) {
+                var wrapperParam = $"{wrapper.ParameterType} {CodeGenFacts.TaskBeginParameterName}";
+                parameterList = parameterList.Length == 0
+                    ? wrapperParam
+                    : $"{wrapperParam}, {parameterList}";
+            }
+
             var boundary = notImplemented
                 ? $"throw new NotImplementedException(\"Task {task.Name} is specified as [notimplemented]\")"
-                : $"{WfsFieldName}.{engineCall}(() => {WfsFieldName}.{fieldName}.{CodeGenFacts.BeginMethodPrefix}({argumentList}), {WfsFieldName}.{afterMethod})";
+                : $"{WfsFieldName}.{engineCall}(() => {beginReceiver}.{CodeGenFacts.BeginMethodPrefix}({argumentList}), {WfsFieldName}.{afterMethod})";
 
             yield return new TaskBeginPiece($"Begin{namePascal}", parameterList, boundary, notImplemented);
         }
