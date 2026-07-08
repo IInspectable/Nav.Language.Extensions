@@ -179,7 +179,42 @@ static class WfsBaseEmitterV2 {
             cb.WriteLine();
 
             foreach (var method in context.Methods) {
-                cb.WriteLine($"public Result {method.Signature} => new(() => {method.ThunkBody});");
+                switch (method) {
+                    case CallableMethodModel simple:
+                        cb.WriteLine($"public Result {simple.Signature} => new(() => {simple.ThunkBody});");
+                        break;
+                    case ShowContinuationCallableModel continuation:
+                        WriteShowContinuation(cb, model, continuation);
+                        break;
+                }
+            }
+        }
+
+        cb.WriteLine();
+    }
+
+    // -- Die Continuation-Aufruffläche einer View-Kante (… o-^ Task / … --^ Task) ----------------------
+
+    static void WriteShowContinuation(CodeBuilder cb, WfsBaseCodeModelV2 model, ShowContinuationCallableModel continuation) {
+
+        // Einstieg auf dem Context: Show{Node} liefert den Continuation-Typ (kein Result).
+        cb.WriteLine($"public {continuation.ContinuationTypeName} {continuation.EntryMethodSignature} => new({CallContextCodeModel.WfsFieldName}, {CallContextCodeModel.ToParameterName});");
+
+        cb.Write($"public sealed class {continuation.ContinuationTypeName} ");
+        using (cb.Block()) {
+
+            cb.WriteLine($"readonly {model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName};");
+            cb.WriteLine($"readonly {continuation.ToParameterType} {CallContextCodeModel.ToFieldName};");
+            cb.WriteLine($"internal {continuation.ContinuationTypeName}({model.WfsBaseTypeName} wfs, {continuation.ToParameterType} {CallContextCodeModel.ToParameterName}) {{ {CallContextCodeModel.WfsFieldName} = wfs; {CallContextCodeModel.ToFieldName} = {CallContextCodeModel.ToParameterName}; }}");
+            cb.WriteLine();
+
+            // plain-Schwesterkante vorhanden → impliziter Result-Operator (§3.6).
+            if (continuation.PlainThunkBody != null) {
+                cb.WriteLine($"public static implicit operator Result({continuation.ContinuationTypeName} v) => new(() => {continuation.PlainThunkBody});");
+            }
+
+            foreach (var begin in continuation.Begins) {
+                cb.WriteLine($"public Result {begin.Signature} => new(() => {begin.ThunkBody});");
             }
         }
 

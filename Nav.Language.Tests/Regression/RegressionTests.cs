@@ -76,11 +76,11 @@ public class RegressionTests {
         return dirFileSpecs;
     }
 
-    // Continuation- und Choice-Fixtures des V2-Korpus (unter Regression\Tests\V2\) brauchen den
-    // V2-Continuation- bzw. -Choice-Codegen (S6/S7), der noch fehlt; bis dahin bleiben sie reine
-    // Referenz-Eingaben und werden hier übersprungen, damit die Regression grün bleibt. BasicFlow
-    // (CallContext-Grundform) generiert dagegen ab dem V2-Gerüst (S5) und hat seine .expected.cs.
-    static readonly string[] PendingVersion2Fixtures = { "ContinuationFlow", "ChoiceFlow" };
+    // Das Choice-Fixture des V2-Korpus (unter Regression\Tests\V2\) braucht den V2-Choice-Codegen (S7),
+    // der noch fehlt; bis dahin bleibt es eine reine Referenz-Eingabe und wird hier übersprungen, damit
+    // die Regression grün bleibt. BasicFlow (CallContext-Grundform, S5) und ContinuationFlow
+    // (Continuation, S6) generieren dagegen und haben ihre .expected.cs.
+    static readonly string[] PendingVersion2Fixtures = { "ChoiceFlow" };
 
     static bool IsPendingVersion2Corpus(string rootDirectory, string filePath) {
 

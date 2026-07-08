@@ -38,7 +38,7 @@ Commit-Message — der Commit macht der Nutzer.
 | **S3** | **Struktur-Analyzer:** Nav0120 (Continuation-Quelle = GUI/View-Knoten), Nav0121 (Ziel = Task), Nav0122 (verschiedene Views unzulässig) + Diagnostics-Fixtures (`//==>>`) | §6.3 (Teil B), §4 | Diagnostics-Fixtures grün | **erledigt** — s.u. (Nav0124 → S4 verschoben) |
 | **S4** | **Versions-Gate + Completion + Nav0124:** `NavLanguageFeature` (`Continuation`/`ChoiceParameters`, `RequiredVersion = Version2`) → **Nav5000**; **versionsbewusste Completion** (§4.1: `VisibleEdgeKeywordItems`/Choice-`[params]` hinter `NavLanguageFeatures.IsAvailable`); **Nav0124** (generische Member-Kollision, **versions-gated** — daher hierher gezogen) | §6.3 (Teil C), §4, §4.1 | `--^`/`o-^`/`[params]` in `#version 1` **nicht**, ab `#version 2` **doch** vorgeschlagen; Nav5000- + Nav0124-Fixtures | **S4a erledigt** (Gate + Nav5000 + Completion), **S4b offen** (Nav0124) — s.u. |
 | **S5** | **`CodeGen/V2/`-Gerüst:** CallContext-Grundform (Voll-Fabrik + opaker `Result`, Maschinerie = `Unwrap()`-Aufruf), **alle** Transitionen — **ohne** Continuation/Choice; über Dispatcher geschaltet | §6.4 | Golden gegen Grundform; **V1 byte-identisch** | **erledigt** — s.u. |
-| **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | offen — **gated?** (§Gating) |
+| **S6** | **V2 Continuation:** `Show`/`Continuation` mit inline `.Concat(…)`, **`o-^` UND `--^`** (Builder wählt `OpenModalTask`/`GotoTask`); **`FrameworkStubs.cs`** um `.Concat`-Typfläche erweitern | §6.5 | Golden `o-^`+`--^` kompiliert gegen Stubs (kein Laufzeit-Test) | **erledigt** — `--^` **sofort ausgeliefert** (Gating-Entscheidung §8.1 zugunsten des Design-Defaults); s.u. |
 | **S7** | **V2 Choices in C#:** Choice-Context + `Choice_XLogic` + Forward aus den Quellen (kein Dispatch), inkl. Choice→Choice, Union, Multi-Exit | §6.6 | Golden gegen 3-Quellen-Fall (§3.1) | offen |
 | **S8** | **Isolierte Sonderform-Fixtures:** `[notimplemented]` (throw-Thunk) und `[donotinject]` (expliziter Wrapper-Parameter) je als Ein-Konzept-Golden | §7 | je isoliertes Minimal-Golden | offen |
 
@@ -248,21 +248,66 @@ Umgesetzt (CallContext-Grundform für **alle** Transitionen, **ohne** Continuati
 Verifikation S5: `nav build` + beide TFMs grün (**net10 1383/0, net472 1391/0** — je 3 explizite
 Skips); vier neue BasicFlow-`.expected.cs` (`nav snapshot`); V1-Regression byte-identisch.
 
+### S6-Anmerkung: was der V2-Continuation-Codegen umfasst
+
+Umgesetzt (Continuation `o-^` **und** `--^`, aufbauend auf dem S5-Gerüst; V1 und die V2-Grundform
+byte-identisch):
+
+- **Continuation-Callable (`CallContextCodeModel`):** GUI-Kanten werden jetzt **pro Ziel-Knoten
+  gebündelt** (`GroupBy` über den View-Namen, §3.4-Union). Trägt keine Kante der Gruppe eine
+  Continuation, bleibt es die schlichte `Show{Node}(ViewTO) => Result`-Grundform (S5, unverändert).
+  Trägt **mindestens eine** Kante eine Continuation (`Call.ContinuationCall != null`), liefert
+  `Show{Node}` statt `Result` einen geschachtelten **`Show{Node}Continuation`**-Typ mit je einer
+  `Begin{Task}(…)`-Fortsetzung. Neue Modelltypen: abstrakte Basis `CallableModel`, konkret
+  `CallableMethodModel` (schlicht, wie bisher) und `ShowContinuationCallableModel` (Continuation).
+- **`.Concat`-Lowering:** `Begin{Task}(…)` baut deferred
+  `_wfs.{GuiEngine}(_to).Concat({Boundary})` — `GuiEngine` ist der **Trägerkanten**-Modus (im Korpus
+  `GotoGUI`), `Boundary` der Ziel-Task-Aufruf je **Continuations**-Modus: `o-^` → `OpenModalTask<T>`,
+  `--^` → `GotoTask<T>` (dieselbe `TaskEngineMethod`-Weiche wie Plain-Task-Kanten). Der Boundary-
+  Ausdruck ist über den neuen Helfer **`BuildTaskBegins`** mit der Plain-`Begin{Node}`-Fabrik geteilt
+  (wortgleich, da beide Kontexte ein `_wfs`-Feld tragen).
+- **Impliziter `Result`-Operator nur bei plain-Schwesterkante (§3.6):** existiert zusätzlich eine
+  plain-Kante zur selben View, emittiert der Continuation-Typ `static implicit operator Result(…)`
+  (Felder über den Operanden `v` referenziert); **fehlt** die plain-Schwester (erzwungene
+  Continuation), fehlt der Operator → `return ctx.Show{Node}(to);` ist ein Compile-Fehler, der Autor
+  **muss** `.Begin{Task}(…)` anhängen. Das `ContinuationFlow`-Golden ist bewusst continuation-only
+  (kein impliziter Operator); die Union plain+Continuation zeigt der Choice-Golden (S7).
+- **`FrameworkStubs.cs` erweitert (§3.8/①/②):** Tagging-Interfaces `ITASK_BOUNDARY`/
+  `INOT_A_TASK_BOUNDARY`; `GOTO_TASK`/`START_MODAL_TASK` sind nun `ITASK_BOUNDARY`; `GOTO_GUI.Concat`
+  in zwei Überladungen (`ITASK_BOUNDARY` → `TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY`,
+  `INOT_A_TASK_BOUNDARY` → `TWO_STEP_IINIT_TASK`, beide `IINIT_TASK`); `Cancel()`/`EndNonModal()`/
+  `StartNonModalTask` + `END`; **`InternalTaskResult<T>` liefert jetzt `TASK_RESULT<T>`** (vereint
+  `INavCommandBody` für V1 **und** `IINIT_TASK, ITASK_BOUNDARY` für V2 → castfrei, §3.8/②) — die
+  vorher fehlende V2-Kommandofläche, die S5 nie compile-getestet hatte.
+- **Fixtures:** `ContinuationFlow.nav` un-skippt (nur noch `ChoiceFlow` in `PendingVersion2Fixtures`),
+  vier neue `.expected.cs`. **Neuer Compile-Test** (`CodeGenTests.CompileTest`, jetzt
+  versionsbewusst — V2-Units über `CodeGeneratorV2`): ein self-contained `#version 2`-Nav mit `o-^`
+  **und** `--^` kompiliert gegen die erweiterten Stubs (Roslyn in-memory, **kein** Laufzeit-Test).
+
+**Fallstrick (bestätigt):** `nav snapshot` **generiert nicht** — es kopiert nur vorhandene `.cs` →
+`.expected.cs`. Für ein neu un-skipptes Fixture erst die Regression-Generierung anstoßen
+(`dotnet test … --filter RegressionTests` bzw. der Explicit-Test `RegressionTests.GenerateFiles`),
+**dann** `nav snapshot`.
+
+Verifikation S6: `nav build` + beide TFMs grün (**net10 1388/0, net472 1396/0** — 3 Explicit-Skips);
+V1- **und** V2-Grundform-Regression byte-identisch.
+
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),
 ggf. mit der versionierten Such-Strategie-Schnittstelle.
 
 ## Offene Gating-Entscheidungen (§8 des Design-Docs)
 
-Zwei Team-Entscheidungen, **nicht** Teil der Spezifikation, die die Umsetzung berühren:
-
-1. **`--^`-Laufzeitverifikation ist verwaist (§8.1).** Der exakte
-   `GotoGUI(view).Concat(GotoTask(…))`-TWO_STEP-Pfad ist am Framework un-exerziert; der zugehörige
-   Ctor trägt einen Framework-Autor-TODO. Der Laufzeit-Smoke-Test läge im **Framework-Repo**, nicht
-   hier. **Entscheidung offen:** `--^`-Codegen in **S6** sofort ausliefern **oder** bis zum
-   Framework-Smoke-Test gaten.
-2. **Golden-`.nav`-Fixtures für Grundform + Continuation fehlen (§8.2).** Nur der Choice-Fall (§3.1)
-   liegt konkret vor → das ist genau der Inhalt von **S0**.
+1. **`--^`-Laufzeitverifikation (§8.1) — entschieden: sofort ausgeliefert.** Der exakte
+   `GotoGUI(view).Concat(GotoTask(…))`-TWO_STEP-Pfad ist am Framework un-exerziert (Framework-Autor-
+   TODO im `TWO_STEP…`-Ctor); der Laufzeit-Smoke-Test läge im **Framework-Repo**, nicht hier. **In S6
+   entschieden**, `--^` dem Design-Default folgend **sofort** auszuliefern (nicht zu gaten): das
+   Nav-Repo verifiziert ohnehin nur bis Codegen (Compile-gegen-Stubs deckt `o-^` **und** `--^` ab),
+   die Laufzeit-Korrektheit ist quellcode-verifiziert (§3.8/⑥) und Framework-Domäne. Ein späteres
+   Gaten bliebe eine separate Entscheidung, falls der Framework-Smoke-Test etwas aufdeckt.
+2. **Golden-`.nav`-Fixtures für Grundform + Continuation fehlten (§8.2) — erledigt.** Grundform
+   (`BasicFlow`, S5) und Continuation (`ContinuationFlow`, S6) liegen als Golden vor; offen nur noch
+   der Choice-Fall (`ChoiceFlow`, S7, bereits als Input geschrieben).
 
 ## Verifikation (Wiederholrezept)
 

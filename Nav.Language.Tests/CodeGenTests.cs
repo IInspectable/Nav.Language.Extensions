@@ -277,6 +277,53 @@ public class CodeGenTests {
             }
         }) {
             TestName = "Complex Task w/o namespaceprefix"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("ContinuationCompile.nav"),
+                    // V2-Continuation: deckt BEIDE Modi ab — o-^ (→ OpenModalTask) und --^ (→ GotoTask).
+                    // Der generierte Code muss gegen die erweiterte .Concat-Typfläche der Stubs
+                    // kompilieren (kein Laufzeit-Test, §3.8/⑥). Self-contained: der Folge-Task Msg ist
+                    // lokal definiert und [result bool] (kein externer Result-Typ nötig).
+                    Content = @"#version 2
+
+[namespaceprefix Nav.Language.Tests.V2.ContinuationCompile]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+task Msg [result bool] {
+    init I [params string text];
+    exit Done;
+    I --> Done;
+}
+
+task ContinuationCompile [base StandardWFS : IWFServiceBase]
+    [result bool]
+{
+    init Init1;
+    view Home;
+    task Msg Warn;
+    task Msg Drill;
+    exit Ok;
+
+    Init1 --> Home;
+
+    // o-^ : Home zeigen, dann modal Warn obendrauf → GotoGUI(to).Concat(OpenModalTask(...))
+    Home --> Home o-^ Warn on OnShowWarn;
+
+    // --^ : Home zeigen, per Goto in Drill → GotoGUI(to).Concat(GotoTask(...))
+    Home --> Home --^ Drill on OnDrillDown;
+
+    Warn:Done  --> Home;
+    Drill:Done --> Home;
+    Home --> Ok on OnClose;
+}"
+                }
+            }
+        }) {
+            TestName = "V2 Continuation (o-^ and --^) should compile against stubs"
         }
     };
 
@@ -304,11 +351,13 @@ public class CodeGenTests {
             var codeGenerationUnit = semenaticModelProvider.GetSemanticModel(codeGenerationUnitSyntax);
             AssertNoDiagnosticErrors(codeGenerationUnit.Diagnostics, codeGenerationUnitSyntax.SyntaxTree.SourceText);
 
-            var options       = GenerationOptions.Default;
-            var codeGenerator = new CodeGeneratorV1(options);
+            var options = GenerationOptions.Default;
 
-            // 3. Code aus Semantic Model erstellen
-            var codeGenerationResults = codeGenerator.Generate(codeGenerationUnit);
+            // 3. Code aus Semantic Model erstellen — versionsbewusst (V2-Units über den CallContext-Codegen,
+            //    sonst V1). Entspricht der Dispatcher-Weiche, ohne den internen Dispatcher zu benötigen.
+            var codeGenerationResults = codeGenerationUnit.LanguageVersion == NavLanguageVersion.Version2
+                ? new CodeGeneratorV2(options).Generate(codeGenerationUnit)
+                : new CodeGeneratorV1(options).Generate(codeGenerationUnit);
 
             foreach (var codeGenerationResult in codeGenerationResults) {
 

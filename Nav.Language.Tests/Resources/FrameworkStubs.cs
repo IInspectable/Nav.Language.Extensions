@@ -70,14 +70,36 @@ namespace Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL {
     public interface TASK_RESULT : IINIT_TASK, INavCommand {
     }
 
+    // Continuation (V2): Tagging-Interfaces, die die .Concat-Überladung wählen (§3.8/①).
+    public interface INOT_A_TASK_BOUNDARY : INavCommand {
+    }
+
+    public interface ITASK_BOUNDARY : INavCommand {
+    }
+
+    // Konkretes, einwertiges Task-Result: vereint die Body-Welt (INavCommandBody) mit der Kommando-Welt
+    // (IINIT_TASK, ITASK_BOUNDARY) — daher castfrei als ctx.Exit-Fabrik und als V1-TaskResult (§3.8/②).
+    public class TASK_RESULT<TResult> : TASK_RESULT, INavCommandBody, ITASK_BOUNDARY {
+    }
+
     public delegate IINIT_TASK BeginTaskWrapper();
     public delegate IINIT_TASK<TResult> BeginTaskWrapper<TResult>();
     public delegate INavCommand AfterDelegate1<ResultType>(ResultType result);
     public delegate INavCommand AfterDelegate2<ResultType, P1>(ResultType result, P1 p1);
 
-    public class GOTO_TASK : IINIT_TASK { }
+    public class GOTO_TASK : IINIT_TASK, ITASK_BOUNDARY { }
 
     public class GOTO_GUI : IINIT_TASK {
+
+        // Continuation: „View zeigen, dann in einen Folge-Task fortsetzen". Die einzige neue
+        // Framework-API (§3.8/①). GotoGUI(to).Concat(OpenModalTask/GotoTask(…)) → TWO_STEP … IINIT_TASK.
+        public TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY Concat(ITASK_BOUNDARY boundary) {
+            return null;
+        }
+
+        public TWO_STEP_IINIT_TASK Concat(INOT_A_TASK_BOUNDARY body) {
+            return null;
+        }
 
     }
 
@@ -87,7 +109,17 @@ namespace Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL {
     public class START_NONMODAL_TASK : INavCommand {
     }
 
-    public class START_MODAL_TASK : INavCommand {
+    public class START_MODAL_TASK : INavCommand, ITASK_BOUNDARY {
+    }
+
+    public class END : INavCommand, ITASK_BOUNDARY, INavCommandBody {
+    }
+
+    // Ergebnis von GOTO_GUI.Concat(…): ist selbst wieder IINIT_TASK (init-legal, §3.8/①).
+    public class TWO_STEP_IINIT_TASK_TO_TASK_BOUNDARY : IINIT_TASK {
+    }
+
+    public class TWO_STEP_IINIT_TASK : IINIT_TASK {
     }
 
     public interface INavCommandBody {
@@ -110,7 +142,9 @@ namespace Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL {
 
     public abstract class BaseWFService : IWFService {
 
-        public INavCommandBody InternalTaskResult<TResult>(TResult result) {
+        // V2 typisiert die ctx.Exit-Fabrik konkret als TASK_RESULT<T> (castfrei); V1 nutzt es als
+        // INavCommandBody (TASK_RESULT<T> ist beides, §3.8/②).
+        public TASK_RESULT<TResult> InternalTaskResult<TResult>(TResult result) {
             return null;
         }
 
@@ -130,12 +164,24 @@ namespace Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL {
             return null;
         }
 
+        public START_NONMODAL_TASK StartNonModalTask<TResult>(BeginTaskWrapper wrapped, AfterDelegate1<TResult> after) {
+            return null;
+        }
 
         public GOTO_TASK GotoTask<TResult>(BeginTaskWrapper wrapped, AfterDelegate1<TResult> after) {
             return null;
         }
 
         public GOTO_TASK GotoTask<TResult>(BeginTaskWrapper<TResult> wrapped, AfterDelegate1<TResult> after) {
+            return null;
+        }
+
+        // V2: ctx.Cancel()/ctx.End() rufen diese Fabriken direkt (V1 reicht die Marker durch den Switch).
+        public CANCEL Cancel() {
+            return null;
+        }
+
+        public END EndNonModal() {
             return null;
         }
     }

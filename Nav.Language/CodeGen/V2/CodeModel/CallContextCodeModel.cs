@@ -21,16 +21,24 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// Init-Transitionen und <c>INavCommand</c> für Trigger/Exit.
 /// </summary>
 /// <remarks>
-/// S5-Gerüst: <b>ohne</b> Continuation (<c>o-^</c>/<c>--^</c>) und <b>ohne</b> Choice-Forward — diese
-/// kommen in S6/S7 als weitere Callable-Arten hinzu. Die Reachability faltet Choices heute noch
-/// V1-artig auf (relevant erst, wenn Choice-Korpus generiert wird).
+/// Trägt eine View-Kante eine Continuation (<c>… o-^ Task</c> / <c>… --^ Task</c>), liefert die
+/// <c>Show{Node}</c>-Methode keinen <c>Result</c> mehr, sondern einen geschachtelten
+/// <c>Show{Node}Continuation</c>-Typ mit je einer <c>Begin{Task}(…)</c>-Fortsetzung (baut
+/// <c>GotoGUI(to).Concat(…)</c>) und — sofern eine plain-Schwesterkante zur selben View existiert —
+/// einem impliziten <c>Result</c>-Operator (§3.4/§3.6). Der Choice-Forward folgt in S7.
 /// </remarks>
 sealed class CallContextCodeModel {
 
     /// <summary>Der Name des context-lokalen Backing-Felds auf die tragende <c>{Task}WFSBase</c>.</summary>
     public const string WfsFieldName = "_wfs";
 
-    CallContextCodeModel(string contextTypeName, string commandType, ImmutableList<CallableMethodModel> methods) {
+    /// <summary>Der Name des <c>ViewTO</c>-Backing-Felds im geschachtelten Continuation-Typ.</summary>
+    public const string ToFieldName = "_to";
+
+    /// <summary>Der Parametername der <c>Show{Node}</c>-Methode (und des Continuation-Konstruktors).</summary>
+    public const string ToParameterName = "to";
+
+    CallContextCodeModel(string contextTypeName, string commandType, ImmutableList<CallableModel> methods) {
         ContextTypeName = contextTypeName;
         CommandType     = commandType;
         Methods         = methods;
@@ -42,8 +50,8 @@ sealed class CallContextCodeModel {
     /// <summary>Der vom <c>Result.Unwrap()</c> gelieferte Framework-Kommandotyp (<c>IINIT_TASK</c>/<c>INavCommand</c>).</summary>
     public string CommandType { get; }
 
-    /// <summary>Die Callable-Methoden des Contexts, in stabiler Reihenfolge (inkl. <c>Cancel</c>).</summary>
-    public ImmutableList<CallableMethodModel> Methods { get; }
+    /// <summary>Die Callables des Contexts, in stabiler Reihenfolge (inkl. <c>Cancel</c>).</summary>
+    public ImmutableList<CallableModel> Methods { get; }
 
     /// <summary>
     /// Baut die Aufruffläche aus den erreichbaren Aufrufen einer Quelle. <paramref name="reachableCalls"/>
@@ -61,10 +69,19 @@ sealed class CallContextCodeModel {
 
         var entries = new List<Entry>();
 
+        // GUI-Kanten werden pro Ziel-Knoten gebündelt (§3.4-Union): eine Quelle mit plain- UND
+        // Continuation-Kante zur selben View bekommt EINE Show{Node}-Methode.
+        var guiGroups = distinct.Where(call => call.Node is IGuiNodeSymbol)
+                                .GroupBy(call => call.Node.Name, StringComparer.Ordinal);
+
+        foreach (var guiGroup in guiGroups) {
+            entries.Add(BuildShowGui(guiGroup.ToList()));
+        }
+
         foreach (var call in distinct) {
             switch (call.Node) {
-                case IGuiNodeSymbol gui:
-                    entries.Add(BuildShowGui(gui, call.EdgeMode.EdgeMode));
+                case IGuiNodeSymbol:
+                    // bereits über guiGroups behandelt
                     break;
                 case ITaskNodeSymbol task:
                     entries.AddRange(BuildBeginTask(task, call.EdgeMode.EdgeMode));
@@ -93,21 +110,91 @@ sealed class CallContextCodeModel {
 
     // -- Callable-Fabriken je Kanten-Art --------------------------------------------------------------
 
-    static Entry BuildShowGui(IGuiNodeSymbol gui, EdgeMode edgeMode) {
+    /// <summary>
+    /// Baut die <c>Show{Node}</c>-Aufruffläche für alle Kanten einer Quelle zur selben GUI-View
+    /// (<paramref name="calls"/>). Trägt keine Kante eine Continuation, ist es die schlichte
+    /// <c>Show{Node}(ViewTO) =&gt; Result</c>-Fabrik (Grundform); trägt mindestens eine Kante eine
+    /// Continuation, entsteht der <c>Show{Node}Continuation</c>-Typ (§3.4/§3.6).
+    /// </summary>
+    static Entry BuildShowGui(IReadOnlyList<Call> calls) {
 
+        var gui        = (IGuiNodeSymbol) calls[0].Node;
         var namePascal = gui.Name.ToPascalcase();
         var toType     = $"{namePascal}{CodeGenInvariants.ToClassNameSuffix}";
-        var engine     = GuiEngineMethod(edgeMode);
+        var showName   = $"Show{namePascal}";
+
+        var plainCalls        = calls.Where(call => call.ContinuationCall == null).ToList();
+        var continuationCalls = calls.Where(call => call.ContinuationCall != null).ToList();
+
+        if (continuationCalls.Count == 0) {
+            // Grundform: mode-freie Show-Fabrik. Der Anzeige-Modus steckt in der Engine-Methode.
+            var engine = GuiEngineMethod(plainCalls[0].EdgeMode.EdgeMode);
+            return new Entry(
+                SortOrderGui,
+                showName,
+                new CallableMethodModel(
+                    signature: $"{showName}({toType} {ToParameterName})",
+                    thunkBody: $"{WfsFieldName}.{engine}({ToParameterName})"));
+        }
+
+        // Continuation: Show{Node} liefert den Continuation-Typ. Ein plain-Operator wird nur emittiert,
+        // wenn zusätzlich eine plain-Schwesterkante existiert (§3.6 — sonst „erzwungene Continuation").
+        string? plainThunk = null;
+        if (plainCalls.Count > 0) {
+            var plainEngine = GuiEngineMethod(plainCalls[0].EdgeMode.EdgeMode);
+            plainThunk = $"v.{WfsFieldName}.{plainEngine}(v.{ToFieldName})";
+        }
+
+        var begins = new List<CallableMethodModel>();
+        foreach (var call in continuationCalls) {
+
+            var carrierEngine  = GuiEngineMethod(call.EdgeMode.EdgeMode);
+            var continuation   = call.ContinuationCall!;
+            var continuationTask = (ITaskNodeSymbol) continuation.Node;
+
+            foreach (var piece in BuildTaskBegins(continuationTask, continuation.EdgeMode.EdgeMode)) {
+
+                // [notimplemented]: der Concat-Boundary wäre ein throw-Ausdruck, der nicht als Argument
+                // stehen kann → der ganze Thunk ist dann der throw (V1-Timing, feuert beim Unwrap()).
+                var thunkBody = piece.NotImplemented
+                    ? piece.BoundaryExpression
+                    : $"{WfsFieldName}.{carrierEngine}({ToFieldName}).Concat({piece.BoundaryExpression})";
+
+                begins.Add(new CallableMethodModel($"{piece.Name}({piece.ParameterList})", thunkBody));
+            }
+        }
 
         return new Entry(
             SortOrderGui,
-            $"Show{namePascal}",
-            new CallableMethodModel(
-                signature: $"Show{namePascal}({toType} to)",
-                thunkBody: $"{WfsFieldName}.{engine}(to)"));
+            showName,
+            new ShowContinuationCallableModel(
+                entryMethodSignature: $"{showName}({toType} {ToParameterName})",
+                continuationTypeName: $"{showName}{ContinuationTypeSuffix}",
+                toParameterType     : toType,
+                plainThunkBody      : plainThunk,
+                begins              : begins.ToImmutableList()));
     }
 
     static IEnumerable<Entry> BuildBeginTask(ITaskNodeSymbol task, EdgeMode edgeMode) {
+        foreach (var piece in BuildTaskBegins(task, edgeMode)) {
+            yield return new Entry(
+                SortOrderTask,
+                piece.Name,
+                new CallableMethodModel(
+                    signature: $"{piece.Name}({piece.ParameterList})",
+                    thunkBody: piece.BoundaryExpression));
+        }
+    }
+
+    /// <summary>
+    /// Berechnet je Init-Knoten des Ziel-Tasks die Bausteine einer <c>Begin{Node}</c>-Fortsetzung: den
+    /// Methodennamen, die Parameterliste und den <b>Boundary-Ausdruck</b> — das Framework-Kommando
+    /// <c>{engine}(() =&gt; _wfs._x.Begin(args), _wfs.After{Node})</c> (bzw. den <c>throw</c> bei
+    /// <c>[notimplemented]</c>). Der Ausdruck ist wortgleich als eigenständiger <c>Begin{Node}</c>-Thunk
+    /// (Task-Kante) wie als <c>.Concat(…)</c>-Argument (Continuation) verwendbar — beide Kontexte tragen
+    /// ein <c>_wfs</c>-Feld.
+    /// </summary>
+    static IEnumerable<TaskBeginPiece> BuildTaskBegins(ITaskNodeSymbol task, EdgeMode edgeMode) {
 
         var declaration = task.Declaration;
         if (declaration == null) {
@@ -132,20 +219,11 @@ sealed class CallContextCodeModel {
             var parameterList = String.Join(", ", parameters.Select(p => $"{p.ParameterType} {p.ParameterName}"));
             var argumentList  = String.Join(", ", parameters.Select(p => p.ParameterName));
 
-            string thunkBody;
-            if (notImplemented) {
-                // [notimplemented]: begin-bar, scheitert aber beim Unwrap()-Aufruf — V1-Timing im Thunk.
-                thunkBody = $"throw new NotImplementedException(\"Task {task.Name} is specified as [notimplemented]\")";
-            } else {
-                thunkBody = $"{WfsFieldName}.{engineCall}(() => {WfsFieldName}.{fieldName}.{CodeGenFacts.BeginMethodPrefix}({argumentList}), {WfsFieldName}.{afterMethod})";
-            }
+            var boundary = notImplemented
+                ? $"throw new NotImplementedException(\"Task {task.Name} is specified as [notimplemented]\")"
+                : $"{WfsFieldName}.{engineCall}(() => {WfsFieldName}.{fieldName}.{CodeGenFacts.BeginMethodPrefix}({argumentList}), {WfsFieldName}.{afterMethod})";
 
-            yield return new Entry(
-                SortOrderTask,
-                $"Begin{namePascal}",
-                new CallableMethodModel(
-                    signature: $"Begin{namePascal}({parameterList})",
-                    thunkBody: thunkBody));
+            yield return new TaskBeginPiece($"Begin{namePascal}", parameterList, boundary, notImplemented);
         }
     }
 
@@ -183,6 +261,8 @@ sealed class CallContextCodeModel {
         };
     }
 
+    const string ContinuationTypeSuffix = "Continuation";
+
     // Reihenfolge-Kategorien (an V1s CallCodeModel.SortOrder angelehnt): Task, Gui, Exit, End, Cancel.
     const int SortOrderTask   = 1;
     const int SortOrderGui    = 2;
@@ -192,26 +272,53 @@ sealed class CallContextCodeModel {
 
     readonly struct Entry {
 
-        public Entry(int sortOrder, string name, CallableMethodModel method) {
+        public Entry(int sortOrder, string name, CallableModel method) {
             SortOrder = sortOrder;
             Name      = name;
             Method    = method;
         }
 
-        public int                 SortOrder { get; }
-        public string              Name      { get; }
-        public CallableMethodModel Method    { get; }
+        public int           SortOrder { get; }
+        public string        Name      { get; }
+        public CallableModel Method    { get; }
+
+    }
+
+    /// <summary>Die pro Init berechneten Bausteine einer <c>Begin{Node}</c>-Fortsetzung (siehe <see cref="BuildTaskBegins"/>).</summary>
+    readonly struct TaskBeginPiece {
+
+        public TaskBeginPiece(string name, string parameterList, string boundaryExpression, bool notImplemented) {
+            Name               = name;
+            ParameterList      = parameterList;
+            BoundaryExpression = boundaryExpression;
+            NotImplemented     = notImplemented;
+        }
+
+        /// <summary>Der Methodenname <c>Begin{Node}</c>.</summary>
+        public string Name               { get; }
+        /// <summary>Die Parameterliste des Init-Knotens (<c>{Typ} {Name}</c>, kommasepariert).</summary>
+        public string ParameterList      { get; }
+        /// <summary>Das Framework-Kommando (Boundary) bzw. der <c>throw</c> bei <c>[notimplemented]</c>.</summary>
+        public string BoundaryExpression { get; }
+        /// <summary>Ob der Ziel-Task <c>[notimplemented]</c> ist (<see cref="BoundaryExpression"/> ist dann ein <c>throw</c>).</summary>
+        public bool   NotImplemented     { get; }
 
     }
 
 }
 
+/// <summary>Gemeinsame Basis der Callables eines <see cref="CallContextCodeModel"/> (siehe konkrete Ableitungen).</summary>
+abstract class CallableModel {
+}
+
 /// <summary>
-/// Eine einzelne Callable-Methode eines <see cref="CallContextCodeModel"/>: ihre Signatur und der
+/// Eine schlichte Callable-Methode eines <see cref="CallContextCodeModel"/>: ihre Signatur und der
 /// Ausdruck, den der deferred <c>Func&lt;…&gt;</c>-Thunk beim <c>Unwrap()</c>-Aufruf auswertet. Der
 /// Emitter schreibt daraus uniform <c>public Result {Signature} =&gt; new(() =&gt; {ThunkBody});</c>.
+/// Verwendet für plain <c>Show{Node}</c>, <c>Begin{Node}</c>, <c>Exit</c>, <c>End</c>, <c>Cancel</c>
+/// sowie die <c>Begin{Task}(…)</c>-Fortsetzungen eines <see cref="ShowContinuationCallableModel"/>.
 /// </summary>
-sealed class CallableMethodModel {
+sealed class CallableMethodModel: CallableModel {
 
     public CallableMethodModel(string signature, string thunkBody) {
         Signature = signature;
@@ -220,5 +327,48 @@ sealed class CallableMethodModel {
 
     public string Signature { get; }
     public string ThunkBody { get; }
+
+}
+
+/// <summary>
+/// Die Continuation-Aufruffläche einer View-Kante (<c>… o-^ Task</c> / <c>… --^ Task</c>): die
+/// <c>Show{Node}</c>-Methode liefert statt eines <c>Result</c> einen geschachtelten
+/// <c>Show{Node}Continuation</c>-Typ. Dieser trägt je Continuation-Kante eine
+/// <c>Begin{Task}(…)</c>-Fortsetzung (<see cref="Begins"/>, baut <c>GotoGUI(to).Concat(…)</c>) und —
+/// sofern eine plain-Schwesterkante zur selben View existiert (<see cref="PlainThunkBody"/> ≠ null) —
+/// einen impliziten <c>Result</c>-Operator (§3.4/§3.6).
+/// </summary>
+sealed class ShowContinuationCallableModel: CallableModel {
+
+    public ShowContinuationCallableModel(string entryMethodSignature,
+                                         string continuationTypeName,
+                                         string toParameterType,
+                                         string? plainThunkBody,
+                                         ImmutableList<CallableMethodModel> begins) {
+        EntryMethodSignature = entryMethodSignature;
+        ContinuationTypeName = continuationTypeName;
+        ToParameterType      = toParameterType;
+        PlainThunkBody       = plainThunkBody;
+        Begins               = begins;
+    }
+
+    /// <summary>Signatur der Einstiegsmethode auf dem Context (z.B. <c>ShowHome(HomeTO to)</c>).</summary>
+    public string EntryMethodSignature { get; }
+
+    /// <summary>Name des geschachtelten Continuation-Typs (z.B. <c>ShowHomeContinuation</c>).</summary>
+    public string ContinuationTypeName { get; }
+
+    /// <summary>Typ des <c>ViewTO</c>-Felds/-Parameters (z.B. <c>HomeTO</c>).</summary>
+    public string ToParameterType { get; }
+
+    /// <summary>
+    /// Der Thunk-Rumpf des impliziten <c>Result</c>-Operators (plain-Kante, referenziert die Felder über
+    /// den Operanden <c>v</c>) — <c>null</c>, wenn keine plain-Schwesterkante existiert (erzwungene
+    /// Continuation, kein impliziter Operator).
+    /// </summary>
+    public string? PlainThunkBody { get; }
+
+    /// <summary>Die <c>Begin{Task}(…)</c>-Fortsetzungen (je Continuation-Kante bzw. Ziel-Init eine).</summary>
+    public ImmutableList<CallableMethodModel> Begins { get; }
 
 }
