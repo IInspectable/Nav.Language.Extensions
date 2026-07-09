@@ -71,7 +71,7 @@ jobs:
           dotnet test Nav.Language.BuildTasks.Tests\Nav.Language.BuildTasks.Tests.csproj -c Debug
 
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: Nav.Language.Extension-${{ steps.version.outputs.version }}
           path: deploy/Vsix
@@ -82,7 +82,7 @@ jobs:
           compression-level: 0
 
       - name: Upload Build Tools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: Nav.Language.BuildTools-${{ steps.version.outputs.version }}
           path: deploy/Build Tools
