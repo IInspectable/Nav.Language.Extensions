@@ -184,33 +184,17 @@ public static class NavCompletionService {
     // sich unverändert auf den Host-Wortersatz.
     static IReadOnlyList<NavCompletionItem> WithOperatorReplacements(IReadOnlyList<NavCompletionItem> items, SyntaxTree tree, int position) {
 
-        // Der Bereich hängt nur an Baum + Position, nicht am Item — höchstens einmal berechnen.
-        TextExtent?                extent = null;
-        List<NavCompletionItem>?   result = null;
-
-        for (var i = 0; i < items.Count; i++) {
-            var item = items[i];
-
-            if (item.ReplacementExtent == null && IsOperatorInsertText(item.InsertText)) {
-                extent ??= OperatorReplacementExtent(tree, position);
-                item     = item.WithReplacementExtent(extent.Value);
-            }
-
-            // Erst kopieren, wenn tatsächlich ein Item verändert wurde (der Normalfall — reine Wort-Listen —
-            // gibt die Eingabeliste unverändert zurück).
-            if (result != null) {
-                result.Add(item);
-            } else if (!ReferenceEquals(item, items[i])) {
-                result = new List<NavCompletionItem>(items.Count);
-                for (var j = 0; j < i; j++) {
-                    result.Add(items[j]);
-                }
-
-                result.Add(item);
-            }
+        if (items.Count == 0) {
+            return items;
         }
 
-        return result ?? items;
+        // Der Ersetzungsbereich hängt nur an Baum + Position (nicht am einzelnen Item) und ist für alle
+        // Operator-Items derselbe — einmal berechnen und an jeden Treffer anhängen.
+        var extent = OperatorReplacementExtent(tree, position);
+
+        return items.ReplaceIf(
+            item => item.ReplacementExtent == null && IsOperatorInsertText(item.InsertText),
+            item => item.WithReplacementExtent(extent));
     }
 
     // Ein „operator-artiger" Einfügetext — Spiegelbild von NavCompletionContext.IsWordToken: nicht-leer und

@@ -16,6 +16,22 @@ static class EnumerableExtensions {
         return result;
     }
 
+    /// <summary>
+    /// Liefert eine neue Liste, in der jedes Element, für das <paramref name="predicate"/> zutrifft, durch
+    /// <paramref name="replacement"/> ersetzt ist; alle übrigen Elemente werden unverändert übernommen.
+    /// Ersetzt NICHT in-place — die Eingabeliste bleibt unangetastet (der einzig gangbare Weg für
+    /// immutable Elemente, die man nur durch eine veränderte Kopie „bearbeiten" kann).
+    /// </summary>
+    public static IReadOnlyList<T> ReplaceIf<T>(this IReadOnlyList<T> source, Func<T, bool> predicate, Func<T, T> replacement) {
+        var result = new T[source.Count];
+        for (var i = 0; i < source.Count; i++) {
+            var item  = source[i];
+            result[i] = predicate(item) ? replacement(item) : item;
+        }
+
+        return result;
+    }
+
     public static IEnumerable<T> DistinctBy<T, TKey>(this IEnumerable<T> source, Func<T, TKey> selector) {
         return source.GroupBy(selector).Select(x => x.First());
     }
