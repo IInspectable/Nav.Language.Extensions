@@ -10,8 +10,10 @@ namespace Pharmatechnik.Nav.Language.BuildTasks;
 internal enum CodeGenerationOptions {
 
     None        = 0x00,
+    ToClasses   = 0x01,
     WflClasses  = 0x02,
     IwflClasses = 0x04,
+    // TO-Klassen sind bewusst opt-in und NICHT Teil von All (siehe GenerationOptions.GenerateToClasses).
     All         = WflClasses | IwflClasses,
 
 }

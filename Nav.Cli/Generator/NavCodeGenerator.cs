@@ -81,6 +81,7 @@ class NavCodeGenerator {
         var options = new GenerationOptions {
             Force                = cl.Force,
             Strict               = cl.Strict,
+            GenerateToClasses    = (cl.GenerationOptions & CodeGenerationOptions.ToClasses)   != 0,
             GenerateWflClasses   = (cl.GenerationOptions & CodeGenerationOptions.WflClasses)  != 0,
             GenerateIwflClasses  = (cl.GenerationOptions & CodeGenerationOptions.IwflClasses) != 0,
             NullableContext      = cl.NullableContext,

@@ -19,12 +19,14 @@ namespace Pharmatechnik.Nav.Language.BuildTasks {
 
         public ITaskItem[] Sources { get; set; }
 
+        public bool GenerateToClasses   { get; set; }
         public bool GenerateWflClasses  { get; set; }
         public bool GenerateIwflClasses { get; set; }
 
         IEnumerable<CodeGenerationOptions> GetCodeGenerationOptions() {
 
             var options = new (Func<bool> IsOn, CodeGenerationOptions EnumValue)[] {
+                (() => GenerateToClasses,   CodeGenerationOptions.ToClasses),
                 (() => GenerateWflClasses,  CodeGenerationOptions.WflClasses),
                 (() => GenerateIwflClasses, CodeGenerationOptions.IwflClasses),
             };

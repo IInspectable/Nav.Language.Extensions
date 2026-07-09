@@ -80,6 +80,10 @@ public class PathProvider: IPathProvider {
     public virtual string IWfsFileName      => CombinePath(IwflGeneratedDirectory,            $"{CodeGenInvariants.InterfacePrefix}{TaskName}{CodeGenInvariants.InterfaceSuffix}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
     public virtual string IBeginWfsFileName => CombinePath(_beginInterfaceGeneratedDirectory, $"{CodeGenInvariants.BeginInterfacePrefix}{TaskName}{CodeGenInvariants.InterfaceSuffix}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
 
+    public string GetToFileName(string toClassName) {
+        return CombinePath(IwflGeneratedDirectory, $"{toClassName}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
+    }
+
     public string GetRelativePath(string fromPath, string toPath) {
         return PathHelper.GetRelativePath(fromPath, toPath);
     }

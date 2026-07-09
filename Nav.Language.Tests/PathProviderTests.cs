@@ -47,6 +47,8 @@ public class PathProviderTests {
             
         Assert.That(pathProvider.IwflGeneratedDirectory, Is.EqualTo(@"n:\av\IWFL\generated"));
         Assert.That(pathProvider.IWfsFileName          , Is.EqualTo(@"n:\av\IWFL\generated\ITestWFS.generated.cs"));
+
+        Assert.That(pathProvider.GetToFileName("MyTo") , Is.EqualTo(@"n:\av\IWFL\generated\MyTo.generated.cs"));
     }
 
     [Test]
@@ -99,6 +101,8 @@ public class PathProviderTests {
         Assert.That(pathProvider.IwflGeneratedDirectory, Is.EqualTo(@"c:\shared\feature\IWFL\generated"));
         Assert.That(pathProvider.IWfsFileName          , Is.EqualTo(@"c:\shared\feature\IWFL\generated\ITestWFS.generated.cs"));
 
+        Assert.That(pathProvider.GetToFileName("MyTo") , Is.EqualTo(@"c:\shared\feature\IWFL\generated\MyTo.generated.cs"));
+
     }
 
     [Test]
@@ -143,6 +147,8 @@ public class PathProviderTests {
             
         Assert.That(pathProvider.IwflGeneratedDirectory, Is.EqualTo(@"n:\av\feature\IWFL\generated"));
         Assert.That(pathProvider.IWfsFileName          , Is.EqualTo(@"n:\av\feature\IWFL\generated\ITestWFS.generated.cs"));
+
+        Assert.That(pathProvider.GetToFileName("MyTo") , Is.EqualTo(@"n:\av\feature\IWFL\generated\MyTo.generated.cs"));
 
     }
 

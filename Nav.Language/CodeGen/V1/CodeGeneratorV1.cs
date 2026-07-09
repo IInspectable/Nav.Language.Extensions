@@ -66,7 +66,8 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
             beginWfsCodeModel: Options.GenerateWflClasses ? IBeginWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
             iwfsCodeModel: Options.GenerateIwflClasses ? IWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
             wfsBaseCodeModel: Options.GenerateWflClasses ? WfsBaseCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
-            wfsCodeModel: Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null
+            wfsCodeModel: Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
+            toCodeModels: Options.GenerateToClasses ? TOCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null
         );
 
         return codeModelResult;
@@ -79,7 +80,7 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         var context = new CodeGeneratorContext(Options, codeModelResult.TaskDefinition.CodeGenerationUnit!.LanguageVersion);
 
         // Reihenfolge wie beim bisherigen FileGenerator (nur log-/statistikrelevant, nicht
-        // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs. Leere Specs (ausgeschaltete
+        // inhaltsrelevant): IWfs, IBeginWfs, WfsBase, Wfs, TOs. Leere Specs (ausgeschaltete
         // Options-Flags) werden schon beim Bau herausgefiltert — die Liste enthält nur die
         // tatsächlich zu schreibenden Artefakte.
         var specs = new[] {
@@ -87,7 +88,8 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
                 GenerateIBeginWfsCodeSpec(codeModelResult.IBeginWfsCodeModel, context),
                 GenerateWfsBaseCodeSpec(codeModelResult.WfsBaseCodeModel, context),
                 GenerateWfsCodeSpec(codeModelResult.WfsCodeModel, context)
-            }.Where(spec => !spec.IsEmpty)
+            }.Concat(GenerateToCodeSpecs(codeModelResult.TOCodeModels, context))
+             .Where(spec => !spec.IsEmpty)
              .ToImmutableArray();
 
         return new CodeGenerationResult(codeModelResult.TaskDefinition, specs);
@@ -136,6 +138,18 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
 
         // Benutzer-Datei: nur einmalig anlegen, danach nie überschreiben.
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
+    }
+
+    static IEnumerable<CodeGenerationSpec> GenerateToCodeSpecs(IEnumerable<TOCodeModel> models, CodeGeneratorContext context) {
+        return models.Select(model => GenerateToCodeSpec(model, context));
+
+        static CodeGenerationSpec GenerateToCodeSpec(TOCodeModel model, CodeGeneratorContext context) {
+
+            var content = TOEmitter.Emit(model, context);
+
+            // TO-Stub: nur einmalig anlegen; den Inhalt pflegt der externe GUI-Generator.
+            return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
+        }
     }
 
 }

@@ -37,6 +37,15 @@ public record GenerationOptions {
     public bool Strict { get; init; }
 
     /// <summary>
+    /// Erzeugt die TO-Klassen (Task-Objekte): je referenziertem View-Knoten einen einmaligen
+    /// <c>partial class {View}TO : TO</c>-Platzhalter, dessen Inhalt der externe GUI-Generator besitzt.
+    /// Bewusst <b>opt-in</b>, Default <c>false</c> — nur die wenigen Projekte, die den Stub brauchen,
+    /// schalten ihn ein (MSBuild: <c>&lt;NavGenerateToClasses&gt;true&lt;/…&gt;</c>). Nur in Sprach-Generation 1
+    /// (V1) wirksam; der V2-Codegenerator erzeugt keine TO-Stubs.
+    /// </summary>
+    public bool GenerateToClasses { get; init; }
+
+    /// <summary>
     /// Erzeugt die WFL-Klassen (Workflow-Logik: Basis- und abgeleitete Klasse). Default: <c>true</c>.
     /// </summary>
     public bool GenerateWflClasses { get; init; }
