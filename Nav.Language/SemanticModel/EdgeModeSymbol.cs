@@ -22,7 +22,7 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     /// gewöhnlichen Transition. Die <see cref="Language.EdgeMode"/>-Werte selbst sind identisch
     /// (Modal/Goto) — erst die tragende Kante unterscheidet Continuation von regulärer Transition.
     /// </summary>
-    bool IsContinuation => Edge is IContinuationTransition;
+    public bool IsContinuation => Edge is IContinuationTransition;
 
     /// <summary>
     /// Menschenlesbare Kanten-Art (z.B. „Modal Edge" bzw. „Modal Continuation") — Kopfzeile der QuickInfo.

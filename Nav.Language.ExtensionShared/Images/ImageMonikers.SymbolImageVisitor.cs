@@ -34,12 +34,14 @@ public static partial class ImageMonikers {
         public override ImageMoniker VisitEdgeModeSymbol(IEdgeModeSymbol edgeModeSymbol) {
             switch (edgeModeSymbol.EdgeMode) {
 
+                // Modal/Goto gibt es je als reguläre Kante (->/-->) und als Continuation (o-^/--^) mit
+                // eigenem Icon. Eine NonModal-Continuation existiert sprachlich nicht (==> ist stets regulär).
                 case EdgeMode.Modal:
-                    return ModalEdge;
+                    return edgeModeSymbol.IsContinuation ? ModalContinuation : ModalEdge;
                 case EdgeMode.NonModal:
                     return NonModalEdge;
                 case EdgeMode.Goto:
-                    return GoToEdge;
+                    return edgeModeSymbol.IsContinuation ? GoToContinuation : GoToEdge;
                 default:
                     return Edge;
             }

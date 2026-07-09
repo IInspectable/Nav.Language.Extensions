@@ -67,6 +67,29 @@ public class ContinuationSemanticTests {
     }
 
     [Test]
+    public void IsContinuationDistinguishesContinuationFromRegularEdge() {
+
+        var task = ParseModel(SampleNav).TryFindTaskDefinition("Sample");
+
+        // Reguläre Kante (Choice_Retry --> View, ohne Anhang): kein Continuation-Modus.
+        var plainEdge = task.ChoiceTransitions.Single(t => t.TargetReference.Name    == "View" &&
+                                                           t.ContinuationTransition == null);
+        Assert.That(plainEdge.EdgeMode.IsContinuation, Is.False, "--> ist eine reguläre Kante.");
+
+        // o-^ und --^ tragen denselben EdgeMode (Modal/Goto) wie reguläre Kanten — erst IsContinuation
+        // unterscheidet sie. Genau daran hängt die Icon-Auswahl (Modal/GoTo Continuation statt Edge).
+        var modalContinuation = task.ChoiceTransitions.Single(t => t.ContinuationTransition != null)
+                                    .ContinuationTransition.EdgeMode;
+        Assert.That(modalContinuation.EdgeMode,       Is.EqualTo(EdgeMode.Modal));
+        Assert.That(modalContinuation.IsContinuation, Is.True, "o-^ ist eine Continuation.");
+
+        var gotoContinuation = task.ExitTransitions.Single(t => t.ContinuationTransition != null)
+                                   .ContinuationTransition.EdgeMode;
+        Assert.That(gotoContinuation.EdgeMode,       Is.EqualTo(EdgeMode.Goto));
+        Assert.That(gotoContinuation.IsContinuation, Is.True, "--^ ist eine Continuation.");
+    }
+
+    [Test]
     public void ReachableContinuationCallsSurfaceTheFollowUpTask() {
 
         var task      = ParseModel(SampleNav).TryFindTaskDefinition("Sample");

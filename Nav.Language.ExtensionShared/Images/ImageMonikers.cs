@@ -96,6 +96,8 @@ public static partial class ImageMonikers {
     public static ImageMoniker ModalEdge           => new() {Guid = CustomMonikerGuid, Id = 1};
     public static ImageMoniker NonModalEdge        => new() {Guid = CustomMonikerGuid, Id = 2};
     public static ImageMoniker GoToEdge            => new() {Guid = CustomMonikerGuid, Id = 3};
+    public static ImageMoniker ModalContinuation   => new() {Guid = CustomMonikerGuid, Id = 4};
+    public static ImageMoniker GoToContinuation    => new() {Guid = CustomMonikerGuid, Id = 5};
 
     public static ImageMoniker FromSymbol(ISymbol symbol) {
         return SymbolImageVisitor.FindImageMoniker(symbol);
