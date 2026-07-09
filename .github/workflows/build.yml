@@ -13,6 +13,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Volle Historie + Tags, damit ComputeGitVersion (git describe) die echte
+          # Version liefert statt in den 0.0.<Commit-Anzahl>-Fallback zu fallen.
+          fetch-depth: 0
 
       # net10-Teil (Engine/LSP/MCP/CLI/Tests) braucht das .NET-10-SDK.
       # Der net472-/VSIX-Teil baut über die auf dem Runner vorinstallierte VS-2022-MSBuild.exe.
@@ -20,6 +24,19 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+
+      # Git-abgeleitete Produktversion ermitteln (eine Quelle der Wahrheit: MSBuild-Target
+      # ComputeGitVersion, gelesen per Get-ProductVersion). Wird für die Artifact-Namen genutzt.
+      - name: Produktversion ermitteln
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . "$env:GITHUB_WORKSPACE\Tools\Commands\Import-NavCommands.ps1"
+          $version = (Get-ProductVersion -Root $env:GITHUB_WORKSPACE).Version
+          if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
+          Write-Host "Produktversion: $version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       # Baut die gesamte Solution via Full-Framework-MSBuild.exe (Restore + Build, Debug).
       # Wiederverwendung der bestehenden n-Command-Logik (löst MSBuild via vswhere und den
@@ -51,13 +68,17 @@ jobs:
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v5
         with:
-          name: Nav.Language.Extension
+          name: Nav.Language.Extension-${{ steps.version.outputs.version }}
           path: deploy/Vsix
           if-no-files-found: error
+          # Ein VSIX ist selbst schon ein Zip (OPC-Container) — erneutes Komprimieren
+          # bringt nichts. Der Artifact-Zip-Wrapper ist bei GitHub Actions unvermeidbar,
+          # also wenigstens ohne Recompression speichern.
+          compression-level: 0
 
       - name: Upload Build Tools artifact
         uses: actions/upload-artifact@v5
         with:
-          name: Nav.Language.BuildTools
+          name: Nav.Language.BuildTools-${{ steps.version.outputs.version }}
           path: deploy/Build Tools
           if-no-files-found: error
