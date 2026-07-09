@@ -74,7 +74,7 @@ Unter der Haube (gekürzt): `dotnet publish …Nav.Language.Lsp.csproj -r win-x6
 -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
 -p:SatelliteResourceLanguages=en -p:DebugType=embedded -o …\vscode-nav-lsp\server`.
 
-Ergebnis: `deploy\vscode\nav-language-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
+Ergebnis: `deploy\vscode\nav-language-vscode-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
 kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` ermittelt das Skript
 git-abgeleitet (`Get-ProductVersion`, aus `git describe`) — eine Quelle der Wahrheit; `package.json`
 wird beim Paketieren nicht verändert. Voraussetzung: **Node/npm im PATH**.

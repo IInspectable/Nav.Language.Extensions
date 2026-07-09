@@ -45,7 +45,7 @@ function Publish-VsCode {
     #    MSBuild-Target ComputeGitVersion (einzige Autorität); Get-ProductVersion liest sie nur.
     $version = (Get-ProductVersion -Root $root).Version
     if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
-    $vsixName = "nav-language-$version-win32-x64.vsix"
+    $vsixName = "nav-language-vscode-$version-win32-x64.vsix"
 
     # 2) Server frisch self-contained als Single-File direkt in die Extension publizieren.
     #    Zielverzeichnis vorher leeren — der self-contained Publish räumt Altbestand nicht selbst auf.

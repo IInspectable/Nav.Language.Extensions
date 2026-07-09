@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Nimmt das publizierte VSIX aus dem Deploy-Verzeichnis
-    (deploy\Vsix\Pharmatechnik.Nav.Language.Extension.2026-<ProductVersion>.vsix) und startet den
+    (deploy\Vsix\Nav.Language.Extension.2026-<ProductVersion>.vsix) und startet den
     VSIXInstaller von Visual Studio (über vswhere ermittelt). Die Version wird git-abgeleitet
     ermittelt (Get-ProductVersion, eine Quelle der Wahrheit), der Repo-Root wird zur Aufruf-Zeit
     aufgelöst (Resolve-Root).
@@ -33,7 +33,7 @@ function Install-Extension {
     $version = (Get-ProductVersion -Root $root).Version
     if (-not $version) { throw "Konnte Produktversion nicht ermitteln." }
 
-    $vsix = Join-Path $root "deploy\Vsix\Pharmatechnik.Nav.Language.Extension.2026-$version.vsix"
+    $vsix = Join-Path $root "deploy\Vsix\Nav.Language.Extension.2026-$version.vsix"
     if (-not (Test-Path $vsix)) {
         Write-Host "VSIX nicht gefunden: '$vsix'" -ForegroundColor Red
         Write-Host "  Zuerst bauen oder publizieren ('nav build' bzw. 'nav publish') — das befüllt deploy\Vsix." -ForegroundColor Yellow

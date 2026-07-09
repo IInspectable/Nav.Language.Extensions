@@ -18,7 +18,7 @@
          deploy\vscode.
       3. MCP-Server self-contained als Single-File nach deploy\mcp publizieren (Publish-Mcp).
 
-    Ergebnis unter deploy\: Build Tools, vscode\nav-language-<Version>-win32-x64.vsix, mcp\nav.mcp.exe.
+    Ergebnis unter deploy\: Build Tools, vscode\nav-language-vscode-<Version>-win32-x64.vsix, mcp\nav.mcp.exe.
 
 .PARAMETER Configuration
     Build-/Publish-Konfiguration. Default: Debug (projektweit wird ausschließlich Debug gebaut —

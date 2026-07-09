@@ -321,7 +321,7 @@ diesen Kern auf und ergänzen nur UI/Codegen; der LSP-Server nutzt ihn direkt f�
 - ~~**VS-Code-Paketierung (installierbares VSIX):**~~ **erledigt.** `nav publish` erzeugt ein fertiges,
   self-contained VSIX: publiziert den Server frisch direkt als
   `vscode-nav-lsp\server\nav.lsp.exe` in die Extension (relativ zu `__dirname` aufgelöst) und paketiert plattform-spezifisch via
-  `npx @vscode/vsce package <version> --no-update-package-json --no-git-tag-version --skip-license --target win32-x64 --out deploy\vscode\nav-language-<version>-win32-x64.vsix`.
+  `npx @vscode/vsce package <version> --no-update-package-json --no-git-tag-version --skip-license --target win32-x64 --out deploy\vscode\nav-language-vscode-<version>-win32-x64.vsix`.
   Die `<version>` wird git-abgeleitet ermittelt (`Get-ProductVersion`, aus `git describe`) — eine Quelle
   der Wahrheit; `package.json` wird beim Paketieren nicht angefasst.
   `extension.js#resolveServer`: neue Reihenfolge **konfigurierter Pfad → eingebettet `./server` → Repo

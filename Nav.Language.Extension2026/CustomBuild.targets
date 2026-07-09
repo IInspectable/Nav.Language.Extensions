@@ -120,7 +120,7 @@
     <Message Text="Copy files to directory '$([System.IO.Path]::GetFullPath('$(DeployDirectory)'))'" Importance="high" />
     <Delete Files="@(_FilesToDelete)" />
     <Copy SourceFiles="$(TargetVsixContainer)"
-          DestinationFiles="$(DeployDirectory)\Pharmatechnik.Nav.Language.Extension.2026-$(ProductVersion).vsix" />
+          DestinationFiles="$(DeployDirectory)\Nav.Language.Extension.2026-$(ProductVersion).vsix" />
   </Target>
 
   <!-- Microsoft.VisualStudio.SDK.EmbedInteropTypes sets a bunch of EmbedInteropTypes attributes, but Roslyn is somewhat special
