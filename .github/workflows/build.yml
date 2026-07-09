@@ -32,9 +32,9 @@ jobs:
 
       # nav publish paketiert die VS-Code-Extension (npm install + npx @vscode/vsce) — dafür Node/npm.
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Git-abgeleitete Produktversion ermitteln (eine Quelle der Wahrheit: MSBuild-Target
       # ComputeGitVersion, gelesen per Get-ProductVersion). Wird für die Artifact-Namen genutzt.
