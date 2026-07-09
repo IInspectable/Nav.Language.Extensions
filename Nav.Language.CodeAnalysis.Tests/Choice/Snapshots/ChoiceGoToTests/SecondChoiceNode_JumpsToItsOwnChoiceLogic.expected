@@ -1,0 +1,5 @@
+﻿// Nav → C#
+// F12 auf den zweiten Knoten `choice Choice_Escalate` springt auf dessen eigene Choice_EscalateLogic.
+
+<ChoiceFlowWFS.cs> (42,62)-(42,82)  "Choice_EscalateLogic"
+    protected override Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,

@@ -15,15 +15,20 @@ namespace Nav.Language.CodeAnalysis.Tests;
 /// Datei-basierte Golden-Snapshot-Prüfung für die Navigationstests — Muster wie
 /// <c>SyntaxGoldenTests</c> (Nav.Language.Tests) und <c>SnapshotAssert</c> der SourceGenerator-Tests.
 /// <para>
-/// Die Erwartung liegt als <c>&lt;Szenario&gt;.approved</c> neben dem aufrufenden Test unter
+/// Die Erwartung liegt als <c>&lt;Szenario&gt;.expected</c> neben dem aufrufenden Test unter
 /// <c>Snapshots\&lt;TestKlasse&gt;\</c> (Verzeichnis über <see cref="CallerFilePathAttribute"/> aufgelöst).
-/// Bei Abweichung <i>oder</i> fehlender Golden-Datei wird das Ist-Ergebnis als <c>.received</c> daneben
+/// Bei Abweichung <i>oder</i> fehlender Golden-Datei wird das Ist-Ergebnis als <c>.actual</c> daneben
 /// geschrieben (für den Diff) und der Test schlägt fehl.
+/// </para>
+/// <para>
+/// Jede Golden-Datei trägt einen selbstdokumentierenden Kopf aus <c>//</c>-Zeilen: die
+/// Navigationsrichtung (<see cref="NavigationDirection"/>, z.B. <c>Nav → C#</c>) plus die
+/// Testbeschreibung. So ist beim Diff ohne Blick in den Testcode ersichtlich, was der Snapshot prüft.
 /// </para>
 /// <para>
 /// <b>Regenerieren</b> (nur nach bewusster Prüfung der Sprungziele): den Testlauf mit gesetzter
 /// Umgebungsvariable <c>NAV_UPDATE_GOLDEN=1</c> starten — dann schreibt jeder Aufruf seine
-/// <c>.approved</c> neu (und räumt ein evtl. vorhandenes <c>.received</c> weg), statt zu vergleichen.
+/// <c>.expected</c> neu (und räumt ein evtl. vorhandenes <c>.actual</c> weg), statt zu vergleichen.
 /// </para>
 /// </summary>
 static class GoldenAssert {
@@ -36,9 +41,14 @@ static class GoldenAssert {
         Environment.GetEnvironmentVariable(UpdateEnvironmentVariable) == "1";
 
     /// <summary>
-    /// Vergleicht <paramref name="actual"/> gegen die Golden-Datei <paramref name="scenario"/>.approved.
+    /// Vergleicht <paramref name="actual"/> gegen die Golden-Datei <paramref name="scenario"/>.expected.
+    /// Der Datei wird ein Kopf aus <paramref name="direction"/> und <paramref name="description"/>
+    /// vorangestellt (siehe Klassen-Doku).
     /// </summary>
-    public static void Match(string actual, string scenario, [CallerFilePath] string callerFilePath = "") {
+    public static void Match(string actual, string scenario, NavigationDirection direction, string description,
+                             [CallerFilePath] string callerFilePath = "") {
+
+        var content = BuildContent(actual, direction, description);
 
         var directory = Path.Combine(
             Path.GetDirectoryName(callerFilePath)!,
@@ -47,34 +57,59 @@ static class GoldenAssert {
 
         Directory.CreateDirectory(directory);
 
-        var approvedPath = Path.Combine(directory, scenario + ".approved");
-        var receivedPath = Path.Combine(directory, scenario + ".received");
+        var expectedPath = Path.Combine(directory, scenario + ".expected");
+        var actualPath   = Path.Combine(directory, scenario + ".actual");
 
         if (UpdateRequested) {
-            File.WriteAllText(approvedPath, actual, Utf8Bom);
-            DeleteIfExists(receivedPath);
-            Assert.Pass($"Golden aktualisiert (NAV_UPDATE_GOLDEN=1): {approvedPath}");
+            File.WriteAllText(expectedPath, content, Utf8Bom);
+            DeleteIfExists(actualPath);
+            Assert.Pass($"Golden aktualisiert (NAV_UPDATE_GOLDEN=1): {expectedPath}");
             return;
         }
 
-        if (!File.Exists(approvedPath)) {
-            File.WriteAllText(receivedPath, actual, Utf8Bom);
-            Assert.Fail($"Golden-Datei fehlt: {approvedPath}\n"                                     +
-                        $"Ist-Ergebnis geschrieben nach: {receivedPath}\n"                          +
+        if (!File.Exists(expectedPath)) {
+            File.WriteAllText(actualPath, content, Utf8Bom);
+            Assert.Fail($"Golden-Datei fehlt: {expectedPath}\n"                                     +
+                        $"Ist-Ergebnis geschrieben nach: {actualPath}\n"                            +
                         $"Regenerieren (nach Prüfung): den Testlauf mit {UpdateEnvironmentVariable}=1 starten.");
             return;
         }
 
-        var expected = Normalize(File.ReadAllText(approvedPath));
+        var expected = Normalize(File.ReadAllText(expectedPath));
 
-        if (Normalize(actual) == expected) {
-            DeleteIfExists(receivedPath);
+        if (Normalize(content) == expected) {
+            DeleteIfExists(actualPath);
             return;
         }
 
-        File.WriteAllText(receivedPath, actual, Utf8Bom);
-        Assert.That(Normalize(actual), Is.EqualTo(expected),
-                    $"Golden-Abweichung gegenüber {approvedPath}.\nIst-Ergebnis: {receivedPath}");
+        File.WriteAllText(actualPath, content, Utf8Bom);
+        Assert.That(Normalize(content), Is.EqualTo(expected),
+                    $"Golden-Abweichung gegenüber {expectedPath}.\nIst-Ergebnis: {actualPath}");
+    }
+
+    /// <summary>
+    /// Stellt der Payload den <c>//</c>-Kopf voran: eine Zeile Richtungs-Pfeil, dann die
+    /// (ggf. mehrzeilige) Beschreibung, eine Leerzeile, dann <paramref name="actual"/>.
+    /// </summary>
+    static string BuildContent(string actual, NavigationDirection direction, string description) {
+
+        var sb = new StringBuilder();
+
+        AppendCommentLine(sb, direction.ToArrowLabel());
+
+        foreach (var line in description.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')) {
+            AppendCommentLine(sb, line.TrimEnd());
+        }
+
+        sb.Append('\n');
+        sb.Append(actual);
+
+        return sb.ToString();
+    }
+
+    static void AppendCommentLine(StringBuilder sb, string text) {
+        sb.Append(text.Length == 0 ? "//" : "// " + text);
+        sb.Append('\n');
     }
 
     static void DeleteIfExists(string path) {

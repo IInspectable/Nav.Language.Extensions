@@ -41,9 +41,12 @@ public class ChoiceGoToTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        // F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS —
-        // der Golden pinnt Datei + exakten Span (nicht nur „irgendwo steht Choice_RetryLogic").
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceNode_JumpsToChoiceLogicOverride));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceNode_JumpsToChoiceLogicOverride),
+                           NavigationDirection.NavToCSharp,
+                           """
+                           F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS —
+                           der Golden pinnt Datei + exakten Span (nicht nur „irgendwo steht Choice_RetryLogic").
+                           """);
     }
 
     [Test]
@@ -55,7 +58,9 @@ public class ChoiceGoToTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Escalate"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceNode_JumpsToItsOwnChoiceLogic));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceNode_JumpsToItsOwnChoiceLogic),
+                           NavigationDirection.NavToCSharp,
+                           "F12 auf den zweiten Knoten `choice Choice_Escalate` springt auf dessen eigene Choice_EscalateLogic.");
     }
 
     [Test]
@@ -63,11 +68,12 @@ public class ChoiceGoToTests {
 
         var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
 
-        // Annotationsgetriebener C#→C#-Pfad: von der Aufrufstelle next.Choice_Retry(…) auf die Logic.
         var location = LocationFinder.FindCallChoiceLogicDeclarationLocationAsync(
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallSite_JumpsToChoiceLogic));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallSite_JumpsToChoiceLogic),
+                           NavigationDirection.CSharpToCSharp,
+                           "Annotationsgetriebener Pfad: von der Aufrufstelle next.Choice_Retry(…) auf die Choice_RetryLogic.");
     }
 }

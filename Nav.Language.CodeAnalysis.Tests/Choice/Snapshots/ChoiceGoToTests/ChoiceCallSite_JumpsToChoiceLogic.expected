@@ -1,0 +1,5 @@
+﻿// C# → C#
+// Annotationsgetriebener Pfad: von der Aufrufstelle next.Choice_Retry(…) auf die Choice_RetryLogic.
+
+<ChoiceFlowWFS.cs> (37,59)-(37,76)  "Choice_RetryLogic"
+    protected override Choice_RetryCallContext.Result Choice_RetryLogic(string reason,

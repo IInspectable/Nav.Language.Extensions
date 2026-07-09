@@ -1,0 +1,6 @@
+﻿// C# → Nav
+// Rücksprung von Choice_RetryLogic landet auf der `choice Choice_Retry`-Deklaration im .nav —
+// der Golden pinnt den exakten Span, nicht bloß irgendein Choice_Retry-Vorkommen.
+
+<nav> (34,12)-(34,24)  "Choice_Retry"
+    choice Choice_Retry    [params string reason];

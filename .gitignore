@@ -73,5 +73,5 @@ TestResult.xml
 
 .roslyn-mcp
 
-# Golden-Snapshot-Ist-Ergebnisse der Navigationstests (nur .approved wird eingecheckt)
-*.received
+# Golden-Snapshot-Ist-Ergebnisse der Navigationstests (nur .expected wird eingecheckt)
+*.actual

@@ -1,2 +1,0 @@
-﻿<nav> (34,12)-(34,24)  "Choice_Retry"
-    choice Choice_Retry    [params string reason];

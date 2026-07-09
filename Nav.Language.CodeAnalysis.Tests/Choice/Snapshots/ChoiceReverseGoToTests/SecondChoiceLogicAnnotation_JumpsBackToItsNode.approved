@@ -1,2 +1,0 @@
-﻿<nav> (35,12)-(35,27)  "Choice_Escalate"
-    choice Choice_Escalate [params int level];

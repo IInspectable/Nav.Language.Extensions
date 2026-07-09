@@ -30,9 +30,12 @@ public class ChoiceReverseGoToTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        // Rücksprung von Choice_RetryLogic landet auf der `choice Choice_Retry`-Deklaration im .nav —
-        // der Golden pinnt den exakten Span, nicht bloß irgendein Choice_Retry-Vorkommen.
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceLogicAnnotation_JumpsBackToChoiceNode));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceLogicAnnotation_JumpsBackToChoiceNode),
+                           NavigationDirection.CSharpToNav,
+                           """
+                           Rücksprung von Choice_RetryLogic landet auf der `choice Choice_Retry`-Deklaration im .nav —
+                           der Golden pinnt den exakten Span, nicht bloß irgendein Choice_Retry-Vorkommen.
+                           """);
     }
 
     [Test]
@@ -46,8 +49,9 @@ public class ChoiceReverseGoToTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        // GoTo direkt auf next.Choice_Retry(…) landet ebenfalls auf dem Choice-Knoten.
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallAnnotation_JumpsBackToChoiceNode));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallAnnotation_JumpsBackToChoiceNode),
+                           NavigationDirection.CSharpToNav,
+                           "GoTo direkt auf next.Choice_Retry(…) landet ebenfalls auf dem `choice Choice_Retry`-Knoten.");
     }
 
     [Test]
@@ -61,6 +65,8 @@ public class ChoiceReverseGoToTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceLogicAnnotation_JumpsBackToItsNode));
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceLogicAnnotation_JumpsBackToItsNode),
+                           NavigationDirection.CSharpToNav,
+                           "Rücksprung von Choice_EscalateLogic landet auf dem eigenen `choice Choice_Escalate`-Knoten.");
     }
 }
