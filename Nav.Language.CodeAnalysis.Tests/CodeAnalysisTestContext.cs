@@ -231,6 +231,29 @@ public sealed class CodeAnalysisTestContext {
                                 .First(a => a.BeginItfFullyQualifiedName.EndsWith("." + beginInterfaceSimpleName));
     }
 
+    /// <summary>
+    /// Der (erste) Exit-Verbindungspunkt-Verweis eines Task-Knotens (<c>{TaskNode}:{Exit}</c>). Anker für
+    /// den Nav→C#-Sprung auf die <c>After{TaskNode}Logic</c> — die <b>pro Task-Knoten</b> existiert und
+    /// daher aus C#-Sicht auf mehrere Exit-Punkte mehrdeutig zurückweist.
+    /// </summary>
+    public IExitConnectionPointReferenceSymbol ExitConnectionPointReference(string taskNodeName) {
+        return Unit.TaskDefinitions
+                   .SelectMany(t => t.ExitTransitions)
+                   .Where(et => et.SourceReference?.Name == taskNodeName)
+                   .Select(et => et.ExitConnectionPointReference)
+                   .First(reference => reference != null);
+    }
+
+    /// <summary>Die <see cref="TaskExitCodeInfo"/> zum Exit eines Task-Knotens (Nav→C#-Anker: die <c>After{TaskNode}Logic</c>).</summary>
+    public TaskExitCodeInfo ExitInfo(string taskNodeName) {
+        return TaskExitCodeInfo.FromConnectionPointReference(ExitConnectionPointReference(taskNodeName));
+    }
+
+    /// <summary>Die <c>&lt;NavExit&gt;</c>-Annotation der <c>After{TaskNode}Logic</c> mit dem angegebenen Task-Knoten-Namen.</summary>
+    public NavExitAnnotation ExitAnnotation(string exitTaskName) {
+        return ReadAnnotations().OfType<NavExitAnnotation>().First(a => a.ExitTaskName == exitTaskName);
+    }
+
     /// <summary>Der Choice-Knoten mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
     public IChoiceNodeSymbol Choice(string name) {
         return Unit.TaskDefinitions

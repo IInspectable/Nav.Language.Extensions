@@ -1,0 +1,8 @@
+﻿// C# → Nav
+// Rücksprung von AfterSubLogic ist mehrdeutig und landet auf BEIDEN Exit-Punkten
+// Sub:E1 und Sub:E2 — der Golden pinnt beide Spans inkl. [ambiguous:<Name>].
+
+<nav> (28,9)-(28,11)  "E1"  [ambiguous:E1]
+    Sub:E1 --> Home;
+<nav> (29,9)-(29,11)  "E2"  [ambiguous:E2]
+    Sub:E2 --> Done;
