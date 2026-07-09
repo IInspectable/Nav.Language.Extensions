@@ -181,14 +181,95 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 
 ---
 
+## Zweiter Review-Durchlauf (offen)
+
+> Frischer Durchlauf, nachdem A1–A4/B1–B4 abgearbeitet waren (Inventur: 12 öffentliche
+> `LocationFinder`-Finder, das Testprojekt, 18 VS-Provider). **Gesamturteil: die Navigation ist im Kern
+> konsistent** — 11 der 12 Finder sind direkt getestet, Provider→Finder ist 1:1, die Namens-Asymmetrie
+> ist seit B1 per Guard abgesichert, die Duplikate sind entdoppelt (B2/B3). Es bleiben eine echte
+> Restlücke (zugleich der letzte „eine Engine"-Bruch) plus kleinere Symmetrie-/Hygiene-Punkte.
+
+### A5 — Init-Call-Site „After-Methode" ungetestet (abhängig von B5)
+
+`NavInitCallLocationInfoProvider` liefert bei F12 auf `next.Begin{Sub}()` **zwei** Ziele: `BeginLogic`
+(über `FindCallBeginLogicDeclarationLocationsAsync`, **getestet**) **und** — wenn eine `NavExitAnnotation`
+mitgegeben ist — die umgebende **„After"-Methode**. Das zweite Ziel wird in
+`NavInitCallLocationInfoProvider.cs:59-67` **inline** aus `_exitAnnotation.MethodDeclarationSyntax`
+gebaut (nur über den Helfer `LocationFinder.ToLocation`) und ist **ungetestet**.
+
+**How to:** wie beim früheren Choice-Caller entweder (a) sofort den vereinfachten Kern in
+`Init/InitGoToCSharpTests.cs` pinnen (Fixture liefert `InitCallAnnotation` + `NavExitAnnotation`, beide
+Spans golden) oder (b) sauberer **nach B5**: den zweiten Zielpfad in die Engine heben und beide Ziele in
+einem Aufruf golden pinnen. Vorbild: B3→A2.
+
+### A6 — Init: zweiter Init-Knoten Nav→C# fehlt (Symmetrie)
+
+Task/Trigger/Choice haben je einen `Second…`-Nav→C#-Test (zweites Geschwister-Konstrukt landet auf
+seinem *eigenen* Ziel). Init nur einseitig: `InitNode_JumpsToBeginLogic` deckt einen Knoten, der zweite
+Init ist nur C#→Nav (`ChildInitAnnotation_JumpsBackToChildInitNode`).
+
+**How to:** in `Init/InitGoToCSharpTests.cs` ein `SecondInitNode_JumpsToItsOwnBeginLogic` ergänzen (die
+Fixture hat mit `Child` bereits einen zweiten Init) — schließt die Reihe symmetrisch.
+
+### A7 — `FindCallerLocations` „keine Aufrufer" (leere Liste) ungetestet
+
+`FindCallerLocations` wirft **nie** `LocationNotFoundException`, sondern gibt eine leere Liste zurück —
+bewusst anderer Contract als die werfenden Finder. Weder Choice noch Exit pinnen diesen Nicht-Wirf-Pfad.
+
+**How to:** ein `…_NoCallers_ReturnsEmpty` (z.B. in `Exit/ExitGoToCSharpTests.cs`, Klassen-Symbol ohne
+passende Annotation) fixiert den Contract explizit — Ergänzung zur B4-Doku-Linie (Contract dokumentieren,
+kein Golden nötig).
+
+### B5 — Init-Call „After-Methode" lebt noch im VS-Layer (letzter „eine Engine"-Bruch; entblockt A5)
+
+Die einzige verbliebene Instanz des Musters, das B3 überall sonst beseitigt hat: genuine
+Navigationslogik (die „After"-Methoden-Auflösung, `NavInitCallLocationInfoProvider.cs:59-67`) sitzt im
+VS-Host statt in `LocationFinder` und ist damit VS-frei nicht testbar.
+
+**Ziel:** das zweite Ziel in die Engine heben (z.B. ein Finder, der beide Locations liefert), Provider
+ruft nur noch die Engine. Byte-identische Locations wahren (wie B3 bei der Caller-Suche), dann A5 echt
+testen.
+
+### B6 — `FindTriggerMethodSymbol` öffentlich ohne lebenden Aufrufer
+
+`LocationFinder.FindTriggerMethodSymbol` (`LocationFinder.cs:494`) ist die einzige öffentliche
+Finder-Methode ohne direkten Test und die einzige, die ein rohes `ISymbol` statt einer `Location`
+zurückgibt; nur indirekt über `FindTriggerDeclarationLocationsAsync` gedeckt. Einziger externer Aufrufer
+(`Commands/RenameCommandHandler.cs:75`) ist **auskommentiert**.
+
+**Empfehlung:** Entscheidung erzwingen — direkter Test (falls für ein künftiges Rename gebraucht) **oder**
+Sichtbarkeit auf `internal` reduzieren, damit die öffentliche Fläche nur Konsumiertes anbietet. Reine
+Hygiene, kein Verhaltensrisiko.
+
+### B7 — Keine V1-generierte Navigations-Fixture — **kein Handlungsbedarf**
+
+Alle Fixtures sind `#version 2`; der Harness kann V1. Die versionsrichtigen Nav→C#-Pfade
+(`FindTaskBeginDeclarationLocationAsync`, `FindChoiceLogicDeclarationLocationAsync`) werden dadurch nur
+dort geübt, wo V2-Namen == Default-Namen. Wert gering: `CallSiteVersionAssumptionTests` (B1) hält die
+Namensgleichheit bereits als Invariante fest, Choice-Logik ist ohnehin V2-only. Konsistent mit B1: erst
+bei echter Namens-Divergenz relevant — dann bricht der Guard laut. Wie B4 nur zur Dokumentation, damit
+es nicht erneut als Lücke gemeldet wird.
+
+---
+
 ## Reihenfolge-Empfehlung
+
+Erster Durchlauf (abgeschlossen):
 
 1. ~~**A1** (echte Feature-Lücke, isoliert, hoher Wert).~~ ✅ erledigt.
 2. ~~**B2** (trivialer DRY-Fix, warm-up).~~ ✅ erledigt.
 3. ~~**B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).~~ ✅ erledigt.
 4. ~~**A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).~~ ✅ erledigt.
-5. ~~**B1** (Doku/Assert; voll erst mit „Option B").~~ ✅ erledigt — Backlog damit **abgearbeitet**
+5. ~~**B1** (Doku/Assert; voll erst mit „Option B").~~ ✅ erledigt
    (offen bleibt nur der optionale „Option B"-Umbau, erst bei echter Namens-Divergenz).
+
+Zweiter Durchlauf (offen, session-weise abzuarbeiten):
+
+6. **B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).
+7. **A6** (trivialer Symmetrie-Test, warm-up).
+8. **A7** (Contract-Pinning der leeren Aufrufer-Liste).
+9. **B6** (Sichtbarkeits-/Hygiene-Entscheid).
+10. **B7** ist bereits als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
 
 ## Referenz-Dateien
 
