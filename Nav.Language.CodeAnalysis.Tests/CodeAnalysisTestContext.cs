@@ -181,9 +181,18 @@ public sealed class CodeAnalysisTestContext {
         return ReadAnnotations().OfType<NavChoiceAnnotation>().First(a => a.ChoiceName == choiceName);
     }
 
+    /// <summary>
+    /// Alle <c>&lt;NavChoiceCall&gt;</c>-Annotationen der <c>{Choice}(…)</c>-Forwards
+    /// (<c>next.{Choice}(…)</c>) mit dem angegebenen Choice-Namen — je C#-Aufrufstelle eine. Speist die
+    /// <c>{Choice}Logic</c>→Aufrufer-Navigation (Gegenstück zum Aufrufstellen-Sprung).
+    /// </summary>
+    public IReadOnlyList<NavChoiceCallAnnotation> ChoiceCallAnnotations(string choiceName) {
+        return ReadAnnotations().OfType<NavChoiceCallAnnotation>().Where(a => a.ChoiceName == choiceName).ToList();
+    }
+
     /// <summary>Die erste <c>&lt;NavChoiceCall&gt;</c>-Annotation eines <c>{Choice}(…)</c>-Forwards mit dem angegebenen Choice-Namen.</summary>
     public NavChoiceCallAnnotation ChoiceCallAnnotation(string choiceName) {
-        return ReadAnnotations().OfType<NavChoiceCallAnnotation>().First(a => a.ChoiceName == choiceName);
+        return ChoiceCallAnnotations(choiceName).First();
     }
 
     #endregion

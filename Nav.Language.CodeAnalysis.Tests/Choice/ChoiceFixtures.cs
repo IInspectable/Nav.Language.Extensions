@@ -64,15 +64,20 @@ static class ChoiceFixtures {
         }
         """;
 
-    // Nutzerseitiger Logic-Code, der einen Choice-Forward aufruft: next.Choice_Retry(…). Erst dadurch
-    // entsteht eine Aufrufstelle, an der die <NavChoiceCall>-Annotation greift (die generierten
-    // Override-Stubs rufen die Forwards nicht auf). Namespace = {namespaceprefix}.WFL des Fixtures.
+    // Nutzerseitiger Logic-Code, der den Choice-Forward next.Choice_Retry(…) aufruft — hier bewusst an
+    // ZWEI Aufrufstellen (in getrennten Methoden), damit die „{Choice}Logic → Aufrufer"-Navigation
+    // mehrere Treffer klassenweit findet. Erst durch solche Aufrufe entsteht überhaupt eine Stelle, an der
+    // die <NavChoiceCall>-Annotation greift (die generierten Override-Stubs rufen die Forwards nicht auf).
+    // Namespace = {namespaceprefix}.WFL des Fixtures.
     public const string ChoiceFlowUserCode =
         """
         namespace Nav.Language.CodeAnalysis.Tests.V2.Choice.WFL {
             partial class ChoiceFlowWFS {
                 void CallForwards(Init1CallContext next) {
                     next.Choice_Retry("warn");
+                }
+                void CallForwardsAgain(Init1CallContext next) {
+                    next.Choice_Retry("retry");
                 }
             }
         }

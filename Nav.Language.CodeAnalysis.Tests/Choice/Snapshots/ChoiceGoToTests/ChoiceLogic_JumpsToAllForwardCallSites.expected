@@ -1,0 +1,8 @@
+﻿// C# → C#
+// Rücksprung von Choice_RetryLogic auf ALLE next.Choice_Retry(…)-Aufrufstellen
+// (klassenweit, inkl. partial) — der Golden pinnt beide Aufrufer-Spans.
+
+<UserCode.cs> (4,18)-(4,30)  "Choice_Retry"
+    next.Choice_Retry("warn");
+<UserCode.cs> (7,18)-(7,30)  "Choice_Retry"
+    next.Choice_Retry("retry");

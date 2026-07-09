@@ -1,5 +1,6 @@
 ﻿#region Using Directives
 
+using System.Linq;
 using System.Threading;
 
 using NUnit.Framework;
@@ -75,5 +76,29 @@ public class ChoiceGoToTests {
         GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallSite_JumpsToChoiceLogic),
                            NavigationDirection.CSharpToCSharp,
                            "Annotationsgetriebener Pfad: von der Aufrufstelle next.Choice_Retry(…) auf die Choice_RetryLogic.");
+    }
+
+    [Test]
+    public void ChoiceLogic_JumpsToAllForwardCallSites() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
+
+        // Gegenrichtung zum Aufrufstellen-Sprung (analog After→BeginXY-Aufrufer): von der {Choice}Logic
+        // klassenweit auf ALLE next.Choice_Retry(…)-Aufrufstellen. Dieselbe VS-freie Annotationssuche, die
+        // der NavChoiceCallerLocationInfoProvider (VS) im Kern nutzt.
+        var locations = ctx.ChoiceCallAnnotations("Choice_Retry")
+                           .Select(call => LocationFinder.ToLocation(call.Identifier.GetLocation()))
+                           .Where(location => location != null)
+                           .ToList();
+
+        Assert.That(locations, Has.Count.EqualTo(2),
+                    "Erwartet: beide next.Choice_Retry(…)-Aufrufstellen im Nutzer-Code.");
+
+        GoldenAssert.Match(NavigationSnapshot.Serialize(locations, ctx), nameof(ChoiceLogic_JumpsToAllForwardCallSites),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Rücksprung von Choice_RetryLogic auf ALLE next.Choice_Retry(…)-Aufrufstellen
+                           (klassenweit, inkl. partial) — der Golden pinnt beide Aufrufer-Spans.
+                           """);
     }
 }
