@@ -9,9 +9,6 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.RegularExpressions;
-
-using Pharmatechnik.Nav.Language.CodeGen;
 
 #endregion
 
@@ -143,8 +140,6 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
-    static readonly Regex BeginMethodRegex = new(pattern: $"^{CodeGenFacts.BeginMethodPrefix}", options: RegexOptions.Singleline | RegexOptions.Compiled);
-
     public override ITagSpan<IntraTextGoToTag> VisitNavInitCallAnnotation(NavInitCallAnnotation navInitCallAnnotation) {
 
         var start  = navInitCallAnnotation.Identifier.Span.Start;
@@ -152,15 +147,13 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
 
         var snapshotSpan = new SnapshotSpan(_textSnapshot, start, length);
 
-        var exitTaskName = BeginMethodRegex.Replace(input: navInitCallAnnotation.Identifier.Identifier.Text, replacement: "");
-
-        var navExitAnnotation = _allAnnotations.OfType<NavExitAnnotation>()
-                                               .FirstOrDefault(a => a.ExitTaskName == exitTaskName);
-
+        // Neben der BeginLogic-Implementierung auch die zugehörige After{Node}-Rücksprungmethode anbieten;
+        // die Zuordnung (Begin-Prefix abstreifen, passende <NavExit>-Annotation wählen) übernimmt der
+        // LocationFinder — hier nur die Kandidaten aus dem aktuellen Dokument durchreichen.
         var provider = new NavInitCallLocationInfoProvider(
-            sourceBuffer  : _textSnapshot.TextBuffer, 
-            callAnnotation: navInitCallAnnotation, 
-            exitAnnotation: navExitAnnotation);
+            sourceBuffer   : _textSnapshot.TextBuffer,
+            callAnnotation : navInitCallAnnotation,
+            exitAnnotations: _allAnnotations.OfType<NavExitAnnotation>());
 
         var tag = new IntraTextGoToTag(
             provider      : provider,

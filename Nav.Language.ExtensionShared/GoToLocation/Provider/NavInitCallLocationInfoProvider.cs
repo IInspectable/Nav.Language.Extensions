@@ -12,24 +12,20 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
+namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider;
 
 class NavInitCallLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
-    readonly NavInitCallAnnotation _callAnnotation;
-
-    [CanBeNull]
-    readonly NavExitAnnotation _exitAnnotation;
+    readonly NavInitCallAnnotation          _callAnnotation;
+    readonly IEnumerable<NavExitAnnotation> _exitAnnotations;
 
     public NavInitCallLocationInfoProvider(ITextBuffer sourceBuffer,
                                            NavInitCallAnnotation callAnnotation,
-                                           [CanBeNull] NavExitAnnotation exitAnnotation): base(sourceBuffer) {
-        _callAnnotation = callAnnotation;
-        _exitAnnotation = exitAnnotation;
+                                           IEnumerable<NavExitAnnotation> exitAnnotations): base(sourceBuffer) {
+        _callAnnotation  = callAnnotation;
+        _exitAnnotations = exitAnnotations;
     }
 
     static ImageMoniker ImageMoniker => ImageMonikers.GoToMethodPublic;
@@ -52,16 +48,17 @@ class NavInitCallLocationInfoProvider: CodeAnalysisLocationInfoProvider {
             beginLocationInfo = LocationInfo.FromError(ex, ImageMoniker);
         }
 
-        if (_exitAnnotation == null) {
+        // Zweites Ziel: die zugehörige After{Node}-Rücksprungmethode. Die Zuordnung (Begin-Prefix
+        // abstreifen, passende <NavExit>-Annotation suchen) macht der LocationFinder VS-frei; fehlt sie,
+        // bleibt es beim BeginLogic-Ziel.
+        var afterLocation = LocationFinder.FindInitCallAfterLocation(_callAnnotation, _exitAnnotations);
+        if (afterLocation == null) {
             return ToEnumerable(beginLocationInfo);
         }
 
-        var memberLocation = _exitAnnotation.MethodDeclarationSyntax.Identifier.GetLocation();
-        var afterLocation  = LocationFinder.ToLocation(memberLocation);
-
         var afterLocationInfo = LocationInfo.FromLocation(
             location    : afterLocation,
-            displayName : _exitAnnotation.MethodDeclarationSyntax.Identifier.Text,
+            displayName : afterLocation.CallerName,
             imageMoniker: ImageMoniker);
 
         return new[] {beginLocationInfo, afterLocationInfo};

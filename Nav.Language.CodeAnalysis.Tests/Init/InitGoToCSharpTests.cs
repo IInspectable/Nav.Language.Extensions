@@ -1,9 +1,11 @@
 ﻿#region Using Directives
 
+using System.Linq;
 using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -17,7 +19,9 @@ namespace Nav.Language.CodeAnalysis.Tests.Init;
 ///         (<see cref="LocationFinder.FindTaskBeginDeclarationLocationAsync"/>);</item>
 ///   <item>C# → C#: von der Aufrufstelle <c>next.Begin{Child}()</c> eines geöffneten Sub-Tasks auf dessen
 ///         <c>{Child}</c>-<c>BeginLogic</c>
-///         (<see cref="LocationFinder.FindCallBeginLogicDeclarationLocationsAsync"/>).</item>
+///         (<see cref="LocationFinder.FindCallBeginLogicDeclarationLocationsAsync"/>);</item>
+///   <item>C# → C#: von derselben Aufrufstelle auf die zugehörige <c>After{Child}</c>-Rücksprungmethode
+///         (<see cref="LocationFinder.FindInitCallAfterLocation"/>).</item>
 /// </list>
 /// </summary>
 [TestFixture]
@@ -71,6 +75,42 @@ public class InitGoToCSharpTests {
         GoldenAssert.Match(location, ctx, nameof(InitCallSite_JumpsToChildBeginLogic),
                            NavigationDirection.CSharpToCSharp,
                            "Von der Aufrufstelle next.BeginChild() auf die BeginLogic der geöffneten ChildWFS (lokal definierter Sub-Task).");
+    }
+
+    [Test]
+    public void InitCallSite_JumpsToAfterMethod() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);
+
+        // Zweites Ziel der Aufrufstelle next.BeginChild(): die zugehörige After{Node}-Rücksprungmethode.
+        // Der Begin-Prefix wird abgestreift (BeginChild → Child) und die <NavExit>-Annotation mit
+        // passendem ExitTaskName + Task/Datei-Verankerung gesucht — VS-freie Suchlogik im LocationFinder,
+        // dieselbe, die der NavInitCallLocationInfoProvider (VS) für sein zweites Ziel nutzt.
+        var location = LocationFinder.FindInitCallAfterLocation(
+            ctx.InitCallAnnotation("IBeginChildWFS"),
+            ctx.ReadAnnotations().OfType<NavExitAnnotation>());
+
+        Assert.That(location, Is.Not.Null);
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_JumpsToAfterMethod),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle next.BeginChild() auf die zugehörige After{Node}-Rücksprungmethode —
+                           der Golden pinnt Datei + exakten Span (Anzeigename = Methoden-Bezeichner).
+                           """);
+    }
+
+    [Test]
+    public void InitCallSite_NoMatchingExit_ReturnsNull() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);
+
+        // Ohne passende Exit-Annotation gibt es kein zweites Ziel: FindInitCallAfterLocation liefert null
+        // (der Host bietet dann nur das BeginLogic-Ziel an) — bewusst KEINE LocationNotFoundException.
+        var location = LocationFinder.FindInitCallAfterLocation(
+            ctx.InitCallAnnotation("IBeginChildWFS"),
+            Enumerable.Empty<NavExitAnnotation>());
+
+        Assert.That(location, Is.Null);
     }
 
     [Test]

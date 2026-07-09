@@ -7,11 +7,15 @@ using JetBrains.Annotations;
 namespace Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 /// <summary>
-/// Eine C#-Aufrufstelle (<see cref="Location"/>) samt dem Text des dort aufgerufenen Identifiers
-/// (z.B. <c>Choice_Retry</c> für <c>next.Choice_Retry(…)</c> oder <c>BeginChild</c> für einen
-/// <c>Begin{Node}(…)</c>-Wrapper) — Ergebnis der VS-freien Aufrufer-Suche
-/// <see cref="LocationFinder.FindCallerLocations"/>. Der Identifier-Text trägt keine Navigation, er
-/// dient dem Host als Anzeigename der Aufrufstelle.
+/// Eine benannte C#-<see cref="Location"/>: die Stelle plus der Text ihres Bezeichners, der dem Host
+/// als Anzeigename dient (er trägt selbst keine Navigation). Genutzt für
+/// <list type="bullet">
+///   <item>Aufrufstellen der VS-freien Aufrufer-Suche <see cref="LocationFinder.FindCallerLocations"/>
+///         (z.B. <c>Choice_Retry</c> für <c>next.Choice_Retry(…)</c> oder <c>BeginChild</c> für einen
+///         <c>Begin{Node}(…)</c>-Wrapper);</item>
+///   <item>das <c>After{Node}</c>-Rücksprungziel aus <see cref="LocationFinder.FindInitCallAfterLocation"/>
+///         (Anzeigename = Methoden-Bezeichner).</item>
+/// </list>
 /// </summary>
 public class CallerLocation: Location {
 

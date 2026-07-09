@@ -62,6 +62,12 @@ public static class LocationFinder {
     // (FindCallChoiceLogicDeclarationLocationAsync), der kein Nav-Symbol und damit keine Sprach-Version hat.
     static readonly string DefaultLogicMethodSuffix = NavCodeGenFacts.For(NavLanguageVersion.Default).LogicMethodSuffix;
 
+    // Prefix der generierten Begin-Wrapper (Begin{Node}) der Default-Generation — für den Rücksprung von
+    // einer <NavInitCall>-Aufrufstelle auf die zugehörige After{Node}-Methode (FindInitCallAfterLocation).
+    // Wie die übrigen annotationsgetriebenen Call-Site-Pfade kennt er keine Sprach-Version; die
+    // Namensgleichheit über alle Versionen ist in CallSiteVersionAssumptionTests als Invariante gepinnt.
+    static readonly string DefaultBeginMethodPrefix = NavCodeGenFacts.For(NavLanguageVersion.Default).BeginMethodPrefix;
+
     #region FindNavLocationsAsync
 
     /// <exception cref="LocationNotFoundException"/>
@@ -364,6 +370,62 @@ public static class LocationFinder {
             matchCount++;
         }
         return matchCount;
+    }
+
+    #endregion
+
+    #region FindInitCallAfterLocation
+
+    /// <summary>
+    /// C#→C#: von der Aufrufstelle <c>next.Begin{Node}()</c> eines modal geöffneten Sub-Tasks auf die
+    /// zugehörige <c>After{Node}</c>-Rücksprungmethode desselben Tasks. Der Begin-Prefix der
+    /// Default-Generation wird abgestreift (<c>Begin{Node}</c> → <c>{Node}</c>) und darüber die
+    /// <see cref="NavExitAnnotation"/> mit passendem <see cref="NavExitAnnotation.ExitTaskName"/> (bei
+    /// gleicher Task-/Datei-Verankerung) gesucht. Wie
+    /// <see cref="FindCallBeginLogicDeclarationLocationsAsync"/> kennt dieser annotationsgetriebene Pfad
+    /// keine Sprach-Version (Default-Generation, in <c>CallSiteVersionAssumptionTests</c> gepinnt).
+    /// </summary>
+    /// <returns>
+    /// Das <c>After{Node}</c>-Ziel als benannte Location (Anzeigename = Methoden-Bezeichner) oder
+    /// <c>null</c>, wenn es zu dieser Aufrufstelle keine passende Exit-Annotation gibt — dann bietet der
+    /// Host nur das <c>BeginLogic</c>-Ziel an. Wirft also bewusst keine <see cref="LocationNotFoundException"/>.
+    /// </returns>
+    [CanBeNull]
+    public static CallerLocation FindInitCallAfterLocation(
+        NavInitCallAnnotation initCallAnnotation,
+        IEnumerable<NavExitAnnotation> exitAnnotations) {
+
+        if (initCallAnnotation == null) {
+            throw new ArgumentNullException(nameof(initCallAnnotation));
+        }
+
+        if (exitAnnotations == null) {
+            throw new ArgumentNullException(nameof(exitAnnotations));
+        }
+
+        var beginIdentifier = initCallAnnotation.Identifier.Identifier.Text;
+        if (!beginIdentifier.StartsWith(DefaultBeginMethodPrefix, StringComparison.Ordinal)) {
+            return null;
+        }
+
+        var exitTaskName = beginIdentifier.Substring(DefaultBeginMethodPrefix.Length);
+
+        var exitAnnotation = exitAnnotations.FirstOrDefault(
+            a => a.ExitTaskName == exitTaskName                &&
+                 a.TaskName     == initCallAnnotation.TaskName &&
+                 a.NavFileName  == initCallAnnotation.NavFileName);
+
+        if (exitAnnotation == null) {
+            return null;
+        }
+
+        var identifier = exitAnnotation.MethodDeclarationSyntax.Identifier;
+        var location   = ToLocation(identifier.GetLocation());
+        if (location == null) {
+            return null;
+        }
+
+        return new CallerLocation(location, identifier.Text);
     }
 
     #endregion

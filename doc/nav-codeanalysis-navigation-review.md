@@ -189,18 +189,17 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 > ist seit B1 per Guard abgesichert, die Duplikate sind entdoppelt (B2/B3). Es bleiben eine echte
 > Restlücke (zugleich der letzte „eine Engine"-Bruch) plus kleinere Symmetrie-/Hygiene-Punkte.
 
-### A5 — Init-Call-Site „After-Methode" ungetestet (abhängig von B5)
+### A5 — Init-Call-Site „After-Methode" ungetestet (abhängig von B5)  ✅ (erledigt)
 
-`NavInitCallLocationInfoProvider` liefert bei F12 auf `next.Begin{Sub}()` **zwei** Ziele: `BeginLogic`
-(über `FindCallBeginLogicDeclarationLocationsAsync`, **getestet**) **und** — wenn eine `NavExitAnnotation`
-mitgegeben ist — die umgebende **„After"-Methode**. Das zweite Ziel wird in
-`NavInitCallLocationInfoProvider.cs:59-67` **inline** aus `_exitAnnotation.MethodDeclarationSyntax`
-gebaut (nur über den Helfer `LocationFinder.ToLocation`) und ist **ungetestet**.
+**Erledigt** (mit B5): `Init/InitGoToCSharpTests.InitCallSite_JumpsToAfterMethod` pinnt golden das zweite
+Ziel der Aufrufstelle `next.BeginChild()` — die `After{Node}`-Rücksprungmethode (`AfterChild` in
+`InitFlowWFSBase.generated.cs`) — über die neue VS-freie `LocationFinder.FindInitCallAfterLocation`. Dazu
+`InitCallSite_NoMatchingExit_ReturnsNull`, das den bewussten Nicht-Wirf-Contract pinnt (ohne passende
+Exit-Annotation → `null`, dann bietet der Host nur `BeginLogic` an). Der Weg (b) wurde umgesetzt.
 
-**How to:** wie beim früheren Choice-Caller entweder (a) sofort den vereinfachten Kern in
-`Init/InitGoToCSharpTests.cs` pinnen (Fixture liefert `InitCallAnnotation` + `NavExitAnnotation`, beide
-Spans golden) oder (b) sauberer **nach B5**: den zweiten Zielpfad in die Engine heben und beide Ziele in
-einem Aufruf golden pinnen. Vorbild: B3→A2.
+**Ursprünglich:** `NavInitCallLocationInfoProvider` liefert bei F12 auf `next.Begin{Sub}()` **zwei** Ziele:
+`BeginLogic` (getestet) **und** die umgebende „After"-Methode, die zuvor inline im Provider (nur über
+`LocationFinder.ToLocation`) gebaut und **nicht** getestet war.
 
 ### A6 — Init: zweiter Init-Knoten Nav→C# fehlt (Symmetrie)
 
@@ -220,15 +219,16 @@ bewusst anderer Contract als die werfenden Finder. Weder Choice noch Exit pinnen
 passende Annotation) fixiert den Contract explizit — Ergänzung zur B4-Doku-Linie (Contract dokumentieren,
 kein Golden nötig).
 
-### B5 — Init-Call „After-Methode" lebt noch im VS-Layer (letzter „eine Engine"-Bruch; entblockt A5)
+### B5 — Init-Call „After-Methode" lebt noch im VS-Layer (letzter „eine Engine"-Bruch; entblockt A5)  ✅ (erledigt)
 
-Die einzige verbliebene Instanz des Musters, das B3 überall sonst beseitigt hat: genuine
-Navigationslogik (die „After"-Methoden-Auflösung, `NavInitCallLocationInfoProvider.cs:59-67`) sitzt im
-VS-Host statt in `LocationFinder` und ist damit VS-frei nicht testbar.
-
-**Ziel:** das zweite Ziel in die Engine heben (z.B. ein Finder, der beide Locations liefert), Provider
-ruft nur noch die Engine. Byte-identische Locations wahren (wie B3 bei der Caller-Suche), dann A5 echt
-testen.
+**Erledigt**: Die genuine Navigationslogik (Begin-Prefix abstreifen + passende `NavExitAnnotation` wählen +
+`ToLocation`) sitzt jetzt VS-frei in `LocationFinder.FindInitCallAfterLocation(initCallAnnotation,
+exitAnnotations)` (liefert die `After{Node}`-Stelle als benannte `CallerLocation` oder `null`). Der
+`NavInitCallLocationInfoProvider` reicht nur noch die Exit-Annotations-Kandidaten durch und ruft die
+Engine; `IntraTextGoToTagSpanBuilder` entfällt das inline `BeginMethodRegex`-Matching. Der Match ist
+zusätzlich um Task-/Datei-Verankerung gehärtet (vorher nur `ExitTaskName` im Einzeldokument). Der
+Begin-Prefix läuft — wie die übrigen Call-Site-Pfade — auf der Default-Generation (durch B1 gepinnt). Damit
+ist der letzte Rest genuiner Navigationslogik aus dem VS-Layer in die Engine gehoben.
 
 ### B6 — `FindTriggerMethodSymbol` öffentlich ohne lebenden Aufrufer
 
@@ -263,9 +263,9 @@ Erster Durchlauf (abgeschlossen):
 5. ~~**B1** (Doku/Assert; voll erst mit „Option B").~~ ✅ erledigt
    (offen bleibt nur der optionale „Option B"-Umbau, erst bei echter Namens-Divergenz).
 
-Zweiter Durchlauf (offen, session-weise abzuarbeiten):
+Zweiter Durchlauf (session-weise abzuarbeiten):
 
-6. **B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).
+6. ~~**B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).~~ ✅ erledigt.
 7. **A6** (trivialer Symmetrie-Test, warm-up).
 8. **A7** (Contract-Pinning der leeren Aufrufer-Liste).
 9. **B6** (Sichtbarkeits-/Hygiene-Entscheid).
