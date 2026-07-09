@@ -87,6 +87,7 @@
     <None Include="Additional.VsixItems.targets" />
     <Content Include="Icons.imagemanifest">
       <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
