@@ -40,12 +40,12 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     /// </summary>
     public string Description => EdgeMode switch {
         EdgeMode.Modal => IsContinuation
-            ? "Zeigt den tragenden GUI-Knoten modal an und setzt anschließend im Ziel-Task fort."
-            : "Zeigt das Ziel modal (blockierend) an.",
-        EdgeMode.NonModal => "Zeigt das Ziel nicht-modal (nebenläufig) an.",
+            ? "Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."
+            : "Ruft das Ziel modal auf.",
+        EdgeMode.NonModal => "Ruft das Ziel nicht-modal auf.",
         EdgeMode.Goto => IsContinuation
-            ? "Setzt vom tragenden GUI-Knoten in den Ziel-Task fort (ohne Rückkehr)."
-            : "Kontrollfluss zum Ziel — ohne Rückkehr.",
+            ? "Zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal)."
+            : "Ruft das Ziel auf (nicht modal).",
         _ => ""
     };
 

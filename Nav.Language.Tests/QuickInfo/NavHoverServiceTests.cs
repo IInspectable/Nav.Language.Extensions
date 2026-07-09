@@ -143,7 +143,7 @@ public class NavHoverServiceTests {
         // Der Fan-out der erreichbaren Knoten bleibt der Choice vorbehalten (Hover_OnChoiceNode_...).
         Assert.That(Signature(info),     Is.EqualTo("GoTo Edge"));
         Assert.That(info.Calls,          Is.Empty);
-        Assert.That(info.Documentation,  Is.EqualTo("Kontrollfluss zum Ziel — ohne Rückkehr."));
+        Assert.That(info.Documentation,  Is.EqualTo("Ruft das Ziel auf (nicht modal)."));
     }
 
     //   |goto:|      Pfeil '-->'  (GoTo Edge)
@@ -178,7 +178,7 @@ public class NavHoverServiceTests {
 
         Assert.That(info,               Is.Not.Null);
         Assert.That(Signature(info),    Is.EqualTo("GoTo Edge"));
-        Assert.That(info.Documentation, Is.EqualTo("Kontrollfluss zum Ziel — ohne Rückkehr."));
+        Assert.That(info.Documentation, Is.EqualTo("Ruft das Ziel auf (nicht modal)."));
         Assert.That(info.Calls,         Is.Empty);
     }
 
@@ -190,7 +190,7 @@ public class NavHoverServiceTests {
 
         Assert.That(info,               Is.Not.Null);
         Assert.That(Signature(info),    Is.EqualTo("Modal Edge"));
-        Assert.That(info.Documentation, Is.EqualTo("Zeigt das Ziel modal (blockierend) an."));
+        Assert.That(info.Documentation, Is.EqualTo("Ruft das Ziel modal auf."));
         Assert.That(info.Calls,         Is.Empty);
     }
 
@@ -202,7 +202,7 @@ public class NavHoverServiceTests {
 
         Assert.That(info,               Is.Not.Null);
         Assert.That(Signature(info),    Is.EqualTo("NonModal Edge"));
-        Assert.That(info.Documentation, Is.EqualTo("Zeigt das Ziel nicht-modal (nebenläufig) an."));
+        Assert.That(info.Documentation, Is.EqualTo("Ruft das Ziel nicht-modal auf."));
         Assert.That(info.Calls,         Is.Empty);
     }
 
@@ -214,8 +214,9 @@ public class NavHoverServiceTests {
 
         Assert.That(info,               Is.Not.Null);
         // o-^ ist eine Continuation, KEINE gewöhnliche Modal-Kante — und zeigt nicht mehr den Folge-Task.
+        // Die Modalität betrifft den Folge-Task-Aufruf, nicht die Anzeige der GUI (die läuft per Goto).
         Assert.That(Signature(info),    Is.EqualTo("Modal Continuation"));
-        Assert.That(info.Documentation, Is.EqualTo("Zeigt den tragenden GUI-Knoten modal an und setzt anschließend im Ziel-Task fort."));
+        Assert.That(info.Documentation, Is.EqualTo("Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."));
         Assert.That(info.Calls,         Is.Empty);
     }
 
@@ -227,7 +228,7 @@ public class NavHoverServiceTests {
 
         Assert.That(info,               Is.Not.Null);
         Assert.That(Signature(info),    Is.EqualTo("GoTo Continuation"));
-        Assert.That(info.Documentation, Is.EqualTo("Setzt vom tragenden GUI-Knoten in den Ziel-Task fort (ohne Rückkehr)."));
+        Assert.That(info.Documentation, Is.EqualTo("Zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal)."));
         Assert.That(info.Calls,         Is.Empty);
     }
 

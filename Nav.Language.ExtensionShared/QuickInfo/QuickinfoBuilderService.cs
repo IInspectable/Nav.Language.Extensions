@@ -107,7 +107,7 @@ sealed partial class QuickinfoBuilderService {
                 textBlock.Inlines.Add(new LineBreak());
             }
 
-            textBlock.Inlines.Add(ToInline(lines[i], TextClassification.Comment, ClassificationFormatMap));
+            textBlock.Inlines.Add(ToInline(lines[i], TextClassification.Text, ClassificationFormatMap));
         }
 
         return textBlock;
