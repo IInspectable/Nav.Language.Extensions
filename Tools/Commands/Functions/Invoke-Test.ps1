@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Ruft den gebündelten NUnit-Console-Runner (Build\nunit.consolerunner\3.8.0\tools\
-    nunit3-console.exe) auf die Test-Assemblies von Nav.Language.Tests und
-    Nav.Language.Extension.Tests (`<Projekt>\bin\<Configuration>\<Projekt>.dll`). Nur
+    nunit3-console.exe) auf die Test-Assemblies von Nav.Language.Tests,
+    Nav.Language.CodeAnalysis.Tests und Nav.Language.Extension.Tests
+    (`<Projekt>\bin\<Configuration>\<Projekt>.dll`). Nur
     tatsächlich vorhandene DLLs werden übergeben — fehlt eine, gibt es einen Hinweis (z. B.
     weil sie noch nicht gebaut wurde). Der Repo-Root wird zur Aufruf-Zeit aufgelöst
     (Resolve-Root).
@@ -43,7 +44,7 @@ function Invoke-Test {
         throw "NUnit-Console-Runner nicht gefunden: '$runner'."
     }
 
-    $projects = 'Nav.Language.Tests', 'Nav.Language.Extension.Tests'
+    $projects = 'Nav.Language.Tests', 'Nav.Language.CodeAnalysis.Tests', 'Nav.Language.Extension.Tests'
     $assemblies = foreach ($p in $projects) {
         $dll = Join-Path $root "$p\bin\$Configuration\$p.dll"
         if (Test-Path $dll) { $dll }
