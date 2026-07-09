@@ -7,8 +7,8 @@ on:
 
 jobs:
   build:
-    name: Build & Test (Windows / VS 2022)
-    runs-on: windows-2022
+    name: Build & Test (Windows / VS 2026)
+    runs-on: windows-2025-vs2026
 
     # Der Release-Schritt (nur bei v*-Tags) braucht Schreibrechte auf Releases;
     # der eingebaute GITHUB_TOKEN reicht damit aus.
@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       # net10-Teil (Engine/LSP/MCP/CLI/Tests) braucht das .NET-10-SDK.
-      # Der net472-/VSIX-Teil baut über die auf dem Runner vorinstallierte VS-2022-MSBuild.exe.
+      # Der net472-/VSIX-Teil baut über die auf dem Runner vorinstallierte VS-2026-MSBuild.exe.
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v5
         with:

@@ -13,13 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- NETSDK1233: "Targeting .NET 10.0 or higher in Visual Studio 2022 17.14 is not supported."
-         Die net10-Projekte (LSP/MCP/Tests) werden bewusst mit der VS-2022-MSBuild.exe mitgebaut,
-         weil die gesamte Solution (wegen der VSIX-Extension) nur über Full-Framework-MSBuild.exe
-         baut. Der eigentliche Compile läuft über das installierte .NET-10-SDK; die Warnung ist reine
-         "IDE zu alt"-Info und trifft in VS 2026 ohnehin nicht mehr zu. Bis GitHub-hosted Runner mit
-         VS 2026 verfügbar sind, hier stummgeschaltet. -->
-    <NoWarn>$(NoWarn);NU1507;NETSDK1233</NoWarn>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
   </PropertyGroup>
 
   <!-- JetBrains-Annotationen projektübergreifend. Rein design-time (siehe Directory.Packages.props);
