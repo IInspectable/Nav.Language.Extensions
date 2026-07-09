@@ -63,4 +63,69 @@ static class InitFixtures {
             }
         }
         """;
+
+    // V1-Fixture für die Overload-Auflösung des annotationsgetriebenen C#→C#-Init-Call-Pfads
+    // (FindCallBeginLogicDeclarationLocationsAsync → FindBestBeginLogicOverload/GetParameterMatchCount).
+    // Der aufgerufene Sub-Task OverChild hat ZWEI parametrische init-Knoten mit unterschiedlichen
+    // Signaturen → die generierte OverChildWFS trägt zwei BeginLogic-Overloads. Der Parent OverloadFlow
+    // öffnet OverChild modal (Home o-> OverChild on OnGo) → je Sub-Init ein Begin{Node}-Wrapper mit
+    // <NavInitCall>…IBeginOverChildWFS. Nur in V1 trägt der Wrapper den führenden IBegin-Parameter, den
+    // der Finder per Skip(1) abzieht, bevor er die Rest-Parameter gegen die BeginLogic-Overloads matcht —
+    // in V2 fällt dieser Match trivial aus (kein führender Parameter). Daher bewusst #version 1.
+    public const string OverloadFlow =
+        """
+        #version 1
+
+        [namespaceprefix Nav.Language.CodeAnalysis.Tests.V1.InitNav]
+
+        [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+        [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+        task OverChild [base StandardWFS : IWFServiceBase]
+            [params]
+            [result bool]
+        {
+
+            init One [params string text];
+            init Two [params string text, bool flag];
+            exit Ok;
+            view Panel;
+
+            One --> Panel;
+            Two --> Panel;
+            Panel --> Ok on OnDone;
+        }
+
+        task OverloadFlow [base StandardWFS : IWFServiceBase]
+            [params]
+            [result bool]
+        {
+
+            init Start;
+            exit Done;
+            task OverChild;
+            view Home;
+
+            Start        --> Home;
+            Home         o-> OverChild on OnGo;
+            OverChild:Ok --> Home;
+            Home         --> Done on OnClose;
+        }
+        """;
+
+    // Nutzer-Code (V1), der die beiden generierten Begin{Node}-Wrapper-Overloads aufruft — erst dadurch
+    // entstehen die <NavInitCall>-Aufrufstellen (die generierten Stubs rufen die Wrapper nicht auf). Der
+    // 3-Parameter-Aufruf (wfs, text, flag) und der 2-Parameter-Aufruf (wfs, text) unterscheiden die
+    // Aufrufstellen, deren gesuchte BeginLogic-Overloads die Overload-Auflösung erst nötig machen.
+    public const string OverloadFlowUserCode =
+        """
+        using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
+
+        namespace Nav.Language.CodeAnalysis.Tests.V1.InitNav.WFL {
+            partial class OverloadFlowWFS {
+                INavCommandBody CallWithFlag(IBeginOverChildWFS wfs) => BeginOverChild(wfs, "hi", true);
+                INavCommandBody CallTextOnly(IBeginOverChildWFS wfs) => BeginOverChild(wfs, "hi");
+            }
+        }
+        """;
 }

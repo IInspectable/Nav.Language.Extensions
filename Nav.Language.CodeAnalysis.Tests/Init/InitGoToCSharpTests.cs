@@ -131,6 +131,61 @@ public class InitGoToCSharpTests {
     }
 
     [Test]
+    public void InitCallSite_ResolvesBeginLogicOverloadByParameters() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.OverloadFlow, InitFixtures.OverloadFlowUserCode);
+
+        // Overload-Auflösung (V1): Der Sub-Task OverChild hat zwei parametrische init-Knoten → zwei
+        // BeginLogic-Overloads (BeginLogic(string) / BeginLogic(string, bool)). Die Aufrufstelle
+        // BeginOverChild(wfs, "hi", true) trägt drei Parameter; der Finder streift den führenden
+        // IBegin-Parameter ab (Skip(1) → [string, bool]) und muss den passenden BeginLogic-Overload wählen.
+        // Das übt FindBestBeginLogicOverload/GetParameterMatchCount ECHT aus (in V2 fiele der Match trivial
+        // aus, weil der Wrapper dort keinen führenden IBegin-Parameter trägt): der 2-Parameter-Overload
+        // BeginLogic(string) wird als zu kurz per MatchCount -1 verworfen, BeginLogic(string, bool) gewinnt
+        // mit MatchCount 2.
+        var callWithFlag = ctx.ReadAnnotations()
+                              .OfType<NavInitCallAnnotation>()
+                              .Single(a => a.Parameter.Count == 3);
+
+        var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
+                                          ctx.Project, callWithFlag, CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_ResolvesBeginLogicOverloadByParameters),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle BeginOverChild(wfs, "hi", true) auf den passenden Overload
+                           BeginLogic(string, bool) — der Golden pinnt den Span des ZWEI-Parameter-Overloads,
+                           nicht des einparametrigen BeginLogic(string).
+                           """);
+    }
+
+    [Test]
+    public void InitCallSite_AmbiguousOverload_PicksFewestParameters() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.OverloadFlow, InitFixtures.OverloadFlowUserCode);
+
+        // Tiebreak-Zweig der Overload-Auflösung: Die Aufrufstelle BeginOverChild(wfs, "hi") hat nach dem
+        // Abstreifen des IBegin-Parameters nur [string]. Damit passen BEIDE BeginLogic-Overloads mit
+        // demselben MatchCount 1 (BeginLogic(string) exakt, BeginLogic(string, bool) im gemeinsamen Präfix).
+        // Der Tiebreak .ThenBy(ParameterCount) muss dann den kürzeren Overload BeginLogic(string) wählen.
+        var callTextOnly = ctx.ReadAnnotations()
+                              .OfType<NavInitCallAnnotation>()
+                              .Single(a => a.Parameter.Count == 2);
+
+        var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
+                                          ctx.Project, callTextOnly, CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_AmbiguousOverload_PicksFewestParameters),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle BeginOverChild(wfs, "hi") auf den kürzeren Overload
+                           BeginLogic(string) — bei gleichem MatchCount entscheidet der ParameterCount-Tiebreak.
+                           """);
+    }
+
+    [Test]
     public void MissingWfs_ThrowsLocationNotFound() {
 
         // Negativpfad: Der Init-Anker stammt aus InitFlow, die Roslyn-Bühne aber aus einem fremden Task
