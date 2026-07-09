@@ -16,7 +16,7 @@ namespace Nav.Language.CodeAnalysis.Tests.Choice;
 /// <c>{Choice}Logic</c>-Implementierung.
 /// </summary>
 [TestFixture]
-public class ChoiceGoToTests {
+public class ChoiceGoToCSharpTests {
 
     [Test]
     public void GeneratedStage_ResolvesWfsBaseWithChoiceLogic() {

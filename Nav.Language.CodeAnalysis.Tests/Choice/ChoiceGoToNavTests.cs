@@ -17,7 +17,7 @@ namespace Nav.Language.CodeAnalysis.Tests.Choice;
 /// Annotation wird dabei über den echten <c>AnnotationReader</c> aus dem generierten Code gelesen.
 /// </summary>
 [TestFixture]
-public class ChoiceReverseGoToTests {
+public class ChoiceGoToNavTests {
 
     [Test]
     public void ChoiceLogicAnnotation_JumpsBackToChoiceNode() {
