@@ -69,4 +69,20 @@ public class ChoiceGoToNavTests {
                            NavigationDirection.CSharpToNav,
                            "Rücksprung von Choice_EscalateLogic landet auf dem eigenen `choice Choice_Escalate`-Knoten.");
     }
+
+    [Test]
+    public void EscalateCallAnnotation_JumpsBackToChoiceNode() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
+
+        var annotation = ctx.ChoiceCallAnnotation("Choice_Escalate");
+
+        var location = LocationFinder.FindNavLocationsAsync(ctx.NavSource, annotation, CancellationToken.None)
+                                     .GetAwaiter().GetResult()
+                                     .Single();
+
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(EscalateCallAnnotation_JumpsBackToChoiceNode),
+                           NavigationDirection.CSharpToNav,
+                           "GoTo direkt auf next.Choice_Escalate(…) (Choice→Choice) landet auf dem `choice Choice_Escalate`-Knoten.");
+    }
 }

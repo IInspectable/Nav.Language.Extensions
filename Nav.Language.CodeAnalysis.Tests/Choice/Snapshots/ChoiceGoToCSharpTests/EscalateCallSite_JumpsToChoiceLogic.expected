@@ -1,0 +1,5 @@
+﻿// C# → C#
+// Choice→Choice: von der Aufrufstelle next.Choice_Escalate(…) (im Choice_Retry-Kontext) auf die Choice_EscalateLogic.
+
+<ChoiceFlowWFS.cs> (42,62)-(42,82)  "Choice_EscalateLogic"
+    protected override Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,

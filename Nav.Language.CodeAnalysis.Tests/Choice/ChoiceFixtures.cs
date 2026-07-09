@@ -64,11 +64,14 @@ static class ChoiceFixtures {
         }
         """;
 
-    // Nutzerseitiger Logic-Code, der den Choice-Forward next.Choice_Retry(…) aufruft — hier bewusst an
-    // ZWEI Aufrufstellen (in getrennten Methoden), damit die „{Choice}Logic → Aufrufer"-Navigation
-    // mehrere Treffer klassenweit findet. Erst durch solche Aufrufe entsteht überhaupt eine Stelle, an der
-    // die <NavChoiceCall>-Annotation greift (die generierten Override-Stubs rufen die Forwards nicht auf).
-    // Namespace = {namespaceprefix}.WFL des Fixtures.
+    // Nutzerseitiger Logic-Code, der die Choice-Forwards aufruft. Erst durch solche Aufrufe entsteht
+    // überhaupt eine Stelle, an der die <NavChoiceCall>-Annotation greift (die generierten Override-Stubs
+    // rufen die Forwards nicht auf). Namespace = {namespaceprefix}.WFL des Fixtures.
+    //   • next.Choice_Retry(…) bewusst an ZWEI Aufrufstellen (getrennte Methoden), damit die
+    //     „{Choice}Logic → Aufrufer"-Navigation mehrere Treffer klassenweit findet.
+    //   • next.Choice_Escalate(…) im Choice_RetryCallContext — der Choice→Choice-Sprung
+    //     (Choice_Retry --> Choice_Escalate), der historisch fragile Fall. Der CallContext-Typ ist ein
+    //     protected-verschachtelter Typ der {Task}WFSBase, aus der abgeleiteten WFS unqualifiziert erreichbar.
     public const string ChoiceFlowUserCode =
         """
         namespace Nav.Language.CodeAnalysis.Tests.V2.Choice.WFL {
@@ -79,7 +82,33 @@ static class ChoiceFixtures {
                 void CallForwardsAgain(Init1CallContext next) {
                     next.Choice_Retry("retry");
                 }
+                void CallEscalateFromRetry(Choice_RetryCallContext next) {
+                    next.Choice_Escalate(1);
+                }
             }
+        }
+        """;
+
+    // Minimaler, von ChoiceFlow unabhängiger Task (anderer {Task}WFSBase) für den Negativpfad: eine
+    // Roslyn-Bühne, in der die ChoiceFlow-WFSBase bewusst FEHLT — damit die Ziel-Auflösung des
+    // LocationFinder ins Leere läuft und als LocationNotFoundException gemeldet werden muss.
+    public const string UnrelatedFlow =
+        """
+        #version 2
+
+        [namespaceprefix NS.Unrelated]
+
+        task Unrelated [base StandardWFS : IWFServiceBase]
+            [params]
+            [result bool]
+        {
+
+            init Start;
+            exit Done;
+            view Home;
+
+            Start --> Home;
+            Home  --> Done on OnClose;
         }
         """;
 }

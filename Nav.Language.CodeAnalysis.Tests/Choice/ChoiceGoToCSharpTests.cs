@@ -101,4 +101,56 @@ public class ChoiceGoToCSharpTests {
                            (klassenweit, inkl. partial) — der Golden pinnt beide Aufrufer-Spans.
                            """);
     }
+
+    [Test]
+    public void EscalateCallSite_JumpsToChoiceLogic() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
+
+        // Choice→Choice als Aufrufstelle: next.Choice_Escalate(…) sitzt im Choice_RetryCallContext
+        // (Choice_Retry --> Choice_Escalate). Sprung auf die Choice_EscalateLogic — der historisch fragile Fall.
+        var location = LocationFinder.FindCallChoiceLogicDeclarationLocationAsync(
+                                          ctx.Project, ctx.ChoiceCallAnnotation("Choice_Escalate"), CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(EscalateCallSite_JumpsToChoiceLogic),
+                           NavigationDirection.CSharpToCSharp,
+                           "Choice→Choice: von der Aufrufstelle next.Choice_Escalate(…) (im Choice_Retry-Kontext) auf die Choice_EscalateLogic.");
+    }
+
+    [Test]
+    public void EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
+
+        var locations = ctx.ChoiceCallAnnotations("Choice_Escalate")
+                           .Select(call => LocationFinder.ToLocation(call.Identifier.GetLocation()))
+                           .Where(location => location != null)
+                           .ToList();
+
+        Assert.That(locations, Has.Count.EqualTo(1),
+                    "Erwartet: die eine next.Choice_Escalate(…)-Aufrufstelle (Choice→Choice) im Nutzer-Code.");
+
+        GoldenAssert.Match(NavigationSnapshot.Serialize(locations, ctx), nameof(EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Rücksprung von Choice_EscalateLogic auf die Choice→Choice-Aufrufstelle
+                           next.Choice_Escalate(…) (aus dem Choice_Retry-Kontext) — der historisch fragile Fall.
+                           """);
+    }
+
+    [Test]
+    public void MissingChoiceLogic_ThrowsLocationNotFound() {
+
+        // Negativpfad: Der Choice-Anker stammt aus ChoiceFlow, die Roslyn-Bühne aber aus einem fremden
+        // Task OHNE dessen {Task}WFSBase. Der LocationFinder darf dann NICHT still null bzw. eine falsche
+        // Stelle liefern, sondern muss die fehlende Zielklasse als LocationNotFoundException melden.
+        var choiceInfo     = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow).ChoiceInfo("Choice_Retry");
+        var foreignProject = CodeAnalysisTestContext.FromNav(ChoiceFixtures.UnrelatedFlow).Project;
+
+        Assert.That(
+            () => LocationFinder.FindChoiceLogicDeclarationLocationAsync(foreignProject, choiceInfo, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
+    }
 }
