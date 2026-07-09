@@ -117,17 +117,27 @@ ohne die `{Task}WFSBase` → `LocationNotFoundException`. Damit haben nun beide 
 
 ## B. Konsistenz / Implementierung
 
-### B1 — Versions-Asymmetrie nur implizit abgesichert  ⬜ (Doku/Assert, klein)
+### B1 — Versions-Asymmetrie nur implizit abgesichert  ✅ (erledigt)
 
-Call-Site-Pfade laufen auf der **Default-Generation** (`DefaultBeginLogicMethodName` `:54`,
-`DefaultLogicMethodSuffix` `:63`), die genuinen Nav→C#-Pfade versionsrichtig aus `*CodeInfo`. Dokumentiert
-(„Option B" offen, `LocationFinder.cs:46-63`). Die V2-Fixtures fangen die Gefahr **zufällig** ab (V2-Namen
-== Default-Namen → Tests grün), aber **keine Assertion hält fest, dass das so ist**. Sobald eine
-Sprach-Version die Namen divergieren lässt, brechen `InitCallSite_*`/`ChoiceCallSite_*` still.
+**Erledigt**: Die zuvor nur *zufällig* erfüllte Annahme des annotationsgetriebenen Call-Site-Pfads ist jetzt
+eine **ausführbare, golden-unabhängige Invariante** — `CallSiteVersionAssumptionTests.
+CallSitePath_AssumesDefaultLogicNamesHoldForEverySupportedVersion` behauptet, dass die
+Default-Generations-Namensbausteine (`BeginMethodPrefix`, `LogicMethodSuffix`), aus denen die Call-Site-Pfade
+`BeginLogic`/`{Choice}Logic` bauen, für **jede** `NavLanguageVersion.SupportedVersions` gelten. Der Assert
+schlägt mit einer Meldung fehl, die den fälligen Umbau benennt („Option B": Sprach-Version in die
+Call-Annotation einbetten). Zusätzlich tragen die drei betroffenen Call-Site-Tests (`InitCallSite_*`,
+`ChoiceCallSite_*`, `EscalateCallSite_*`) je einen Querverweis-Kommentar auf diesen Guard.
 
-**How to:** einen expliziten Kommentar/Assert an den Call-Site-Tests, der festhält „dieser Pfad verlässt
-sich auf Default==V2-Namen"; ideal ein späterer Test mit einer Version, in der die Namen abweichen (erst
-sinnvoll, wenn „Option B" — versionierte Nav→C#-Such-Strategie — angegangen wird).
+Wesentliche Klärung dabei: Die betroffenen Bausteine sind **implementierungs-intern** (abstrakte
+Logic-Methoden der `{Task}WFSBase`) und damit **nicht** von der Cross-Version-Invariante der
+`IBegin{Task}WFS`-Schnittstellen gedeckt (die nur interface-seitige Namen bindet) — eine künftige Generation
+darf sie also divergieren lassen. Der volle Umbau („Option B", versionsbewusster Call-Site-Pfad) bleibt
+bewusst **offen**: Nutzen erst bei echter Divergenz; der Guard bricht dann laut und lokalisiert.
+
+**Ursprüngliche Analyse (zur Nachvollziehbarkeit):** Call-Site-Pfade laufen auf der **Default-Generation**
+(`DefaultBeginLogicMethodName` `:54`, `DefaultLogicMethodSuffix` `:63`), die genuinen Nav→C#-Pfade
+versionsrichtig aus `*CodeInfo` (dokumentiert, `LocationFinder.cs:46-63`). Die V2-Fixtures fingen die Gefahr
+**zufällig** ab (V2-Namen == Default-Namen → Tests grün), ohne dass eine Assertion das festhielt.
 
 ### B2 — `GetChoiceLocations` == `GetChoiceCallLocations` (Duplikat)  ✅ (erledigt)
 
@@ -177,7 +187,8 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 2. ~~**B2** (trivialer DRY-Fix, warm-up).~~ ✅ erledigt.
 3. ~~**B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).~~ ✅ erledigt.
 4. ~~**A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).~~ ✅ erledigt.
-5. **B1** (Doku/Assert; voll erst mit „Option B"). ← **als Nächstes** (einziger offener Punkt)
+5. ~~**B1** (Doku/Assert; voll erst mit „Option B").~~ ✅ erledigt — Backlog damit **abgearbeitet**
+   (offen bleibt nur der optionale „Option B"-Umbau, erst bei echter Namens-Divergenz).
 
 ## Referenz-Dateien
 

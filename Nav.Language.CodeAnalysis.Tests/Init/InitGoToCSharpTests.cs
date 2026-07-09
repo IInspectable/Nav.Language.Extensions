@@ -61,6 +61,9 @@ public class InitGoToCSharpTests {
 
         // Annotationsgetriebener Pfad: von der Aufrufstelle next.BeginChild() über die IBeginChildWFS-
         // Schnittstelle auf die BeginLogic der lokal definierten ChildWFS.
+        // Versions-Annahme: dieser Pfad kennt keine Sprach-Version und sucht die BeginLogic der
+        // Default-Generation; grün gegen die #version-2-Fixture nur, weil V2 == V1 in diesen Namen — als
+        // ausführbare Invariante gepinnt in CallSiteVersionAssumptionTests.
         var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
                                           ctx.Project, ctx.InitCallAnnotation("IBeginChildWFS"), CancellationToken.None)
                                      .GetAwaiter().GetResult();

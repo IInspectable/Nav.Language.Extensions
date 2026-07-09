@@ -69,6 +69,9 @@ public class ChoiceGoToCSharpTests {
 
         var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
 
+        // Versions-Annahme: dieser Pfad kennt keine Sprach-Version und baut {Choice}Logic aus der
+        // Default-Generation; grün gegen die #version-2-Fixture nur, weil V2 == V1 in diesen Namen — als
+        // ausführbare Invariante gepinnt in CallSiteVersionAssumptionTests.
         var location = LocationFinder.FindCallChoiceLogicDeclarationLocationAsync(
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
@@ -117,6 +120,8 @@ public class ChoiceGoToCSharpTests {
 
         // Choice→Choice als Aufrufstelle: next.Choice_Escalate(…) sitzt im Choice_RetryCallContext
         // (Choice_Retry --> Choice_Escalate). Sprung auf die Choice_EscalateLogic — der historisch fragile Fall.
+        // Versions-Annahme wie bei ChoiceCallSite_JumpsToChoiceLogic (Default-Generation), gepinnt in
+        // CallSiteVersionAssumptionTests.
         var location = LocationFinder.FindCallChoiceLogicDeclarationLocationAsync(
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Escalate"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
