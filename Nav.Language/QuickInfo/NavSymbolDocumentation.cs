@@ -8,22 +8,29 @@ using System.Text;
 namespace Pharmatechnik.Nav.Language.QuickInfo;
 
 /// <summary>
-/// Gewinnt die „Dokumentation" eines Symbols aus den Quelltext-Kommentaren unmittelbar über seiner
-/// Deklaration — das Nav-Pendant zu Roslyns Doc-Comments. Maßgeblich ist allein der zusammenhängende
-/// Kommentarblock direkt vor dem Knoten; eine Leerzeile trennt ihn ab, weiter oben stehende Kommentare
-/// gehören nicht mehr dazu. Grundlage sind die Leading-Trivia des Deklarations-Knotens (echtes
-/// Roslyn-Trivia-Modell). Protokoll-frei und damit gemeinsam von VS-QuickInfo und LSP-Hover nutzbar
-/// („eine Engine").
+/// Gewinnt die „Dokumentation" eines Symbols — die Erläuterungszeile der QuickInfo. Für Deklarationen ist
+/// das der Quelltext-Kommentar unmittelbar über dem Knoten (das Nav-Pendant zu Roslyns Doc-Comments):
+/// maßgeblich ist allein der zusammenhängende Kommentarblock direkt vor dem Knoten; eine Leerzeile trennt
+/// ihn ab, weiter oben stehende Kommentare gehören nicht mehr dazu (Grundlage sind die Leading-Trivia des
+/// Deklarations-Knotens, echtes Roslyn-Trivia-Modell). Kanten (<see cref="IEdgeModeSymbol"/>) tragen keinen
+/// solchen Kommentar, sondern ihre eingebaute Bedeutung (<see cref="IEdgeModeSymbol.Description"/>).
+/// Protokoll-frei und damit gemeinsam von VS-QuickInfo und LSP-Hover nutzbar („eine Engine").
 /// </summary>
 public static class NavSymbolDocumentation {
 
     /// <summary>
-    /// Liefert den aufbereiteten Kommentartext über der Deklaration des <paramref name="symbol"/>
-    /// (Kommentar-Marker entfernt, je Quellzeile eine Zeile) — oder <c>null</c>, wenn dort kein
-    /// Kommentar steht bzw. das Symbol keine im Speicher gehaltene Deklaration besitzt (z.B. aus einer
-    /// inkludierten Datei stammende TaskDeclarations). Referenzen lösen auf ihre Deklaration auf.
+    /// Liefert die Doku-Zeile zum <paramref name="symbol"/>: für eine Kante ihre eingebaute Bedeutung, sonst
+    /// den aufbereiteten Kommentartext über der Deklaration (Kommentar-Marker entfernt, je Quellzeile eine
+    /// Zeile). <c>null</c>, wenn dort kein Kommentar steht bzw. das Symbol keine im Speicher gehaltene
+    /// Deklaration besitzt (z.B. aus einer inkludierten Datei stammende TaskDeclarations). Referenzen lösen
+    /// auf ihre Deklaration auf.
     /// </summary>
     public static string? GetDocumentation(ISymbol symbol) {
+
+        // Eine Kante hat keine Quelltext-Doku, sondern erklärt ihre Bedeutung (Modal/Goto, Edge/Continuation).
+        if (symbol is IEdgeModeSymbol edgeMode) {
+            return edgeMode.Description;
+        }
 
         var syntax = GetDeclarationSyntax(symbol);
         if (syntax == null) {

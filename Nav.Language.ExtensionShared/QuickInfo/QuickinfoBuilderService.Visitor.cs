@@ -88,24 +88,10 @@ partial class QuickinfoBuilderService {
             return base.VisitChoiceNodeReferenceSymbol(choiceNodeReferenceSymbol);
         }
 
-        public override UIElement VisitEdgeModeSymbol(IEdgeModeSymbol edgeModeSymbol) {
-
-            var edgeViewModel = new EdgeViewModel(
-                moniker: ImageMonikers.Edge,
-                calls: edgeModeSymbol.Edge
-                                     .GetReachableCalls()
-                                     .OrderBy(call => call.Node.Name)
-                                     .Select(call => new CallViewModel(
-                                                 edgeModeMoniker: ImageMonikers.FromSymbol(call.EdgeMode),
-                                                 node: Visit(call.Node)
-                                             )));
-
-            var control = new EdgeQuickInfoControl {
-                DataContext = edgeViewModel
-            };
-
-            return control;
-        }
+        // Für eine Kante (Pfeil) zeigt die QuickInfo — wie der LSP-Hover — ihre Art und Bedeutung
+        // (Signatur via DisplayParts + Beschreibung via AppendDocumentation), nicht mehr die erreichbaren
+        // Ziele: die stehen bereits sichtbar neben dem Pfeil. Der Fan-out bleibt der Choice vorbehalten
+        // (siehe VisitChoiceNodeSymbol). Daher genügt hier der Default-Pfad — kein eigener Override nötig.
 
     }
 

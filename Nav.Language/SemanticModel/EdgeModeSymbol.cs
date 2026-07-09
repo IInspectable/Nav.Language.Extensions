@@ -17,37 +17,36 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     // der Null-Fall nicht auftreten.
     public IEdge Edge { get; internal set; } = null!;
 
-    public string DisplayName {
-        get {
-            // TODO Evtl. Strings wo anders hinpacken
-            switch (EdgeMode) {
-                case EdgeMode.Modal:
-                    return "Modal Edge";
-                case EdgeMode.NonModal:
-                    return "NonModal Edge";
-                case EdgeMode.Goto:
-                    return "GoTo Edge";
-                default:
-                    return Name;
-            }
-        }
-    }
+    /// <summary>
+    /// Ob dieser Kantenmodus zu einer Continuation (<c>o-^</c>/<c>--^</c>) gehört statt zu einer
+    /// gewöhnlichen Transition. Die <see cref="Language.EdgeMode"/>-Werte selbst sind identisch
+    /// (Modal/Goto) — erst die tragende Kante unterscheidet Continuation von regulärer Transition.
+    /// </summary>
+    bool IsContinuation => Edge is IContinuationTransition;
 
-    public string Verb {
-        get {
-            // TODO Evtl. Strings wo anders hinpacken
-            switch (EdgeMode) {
+    /// <summary>
+    /// Menschenlesbare Kanten-Art (z.B. „Modal Edge" bzw. „Modal Continuation") — Kopfzeile der QuickInfo.
+    /// Ein Non-Modal-Continuation gibt es in der Sprache nicht (<c>==></c> ist stets eine reguläre Kante).
+    /// </summary>
+    public string DisplayName => EdgeMode switch {
+        EdgeMode.Modal    => IsContinuation ? "Modal Continuation" : "Modal Edge",
+        EdgeMode.NonModal => "NonModal Edge",
+        EdgeMode.Goto     => IsContinuation ? "GoTo Continuation" : "GoTo Edge",
+        _                 => Name
+    };
 
-                case EdgeMode.Modal:
-                    return "modal";
-                case EdgeMode.NonModal:
-                    return "non-modal";
-                case EdgeMode.Goto:
-                    return "go to";
-                default:
-                    return "";
-            }
-        }
-    }
+    /// <summary>
+    /// Ein Satz, der die Bedeutung des Kantenmodus erklärt — die Erläuterungszeile der QuickInfo (Doku-Stil).
+    /// </summary>
+    public string Description => EdgeMode switch {
+        EdgeMode.Modal => IsContinuation
+            ? "Zeigt den tragenden GUI-Knoten modal an und setzt anschließend im Ziel-Task fort."
+            : "Zeigt das Ziel modal (blockierend) an.",
+        EdgeMode.NonModal => "Zeigt das Ziel nicht-modal (nebenläufig) an.",
+        EdgeMode.Goto => IsContinuation
+            ? "Setzt vom tragenden GUI-Knoten in den Ziel-Task fort (ohne Rückkehr)."
+            : "Kontrollfluss zum Ziel — ohne Rückkehr.",
+        _ => ""
+    };
 
 }

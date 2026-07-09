@@ -131,7 +131,7 @@ public class NavHoverServiceTests {
     }
 
     [Test]
-    public void Hover_OnEdgeToChoice_ResolvesReachableNodes() {
+    public void Hover_OnEdgeToChoice_ShowsEdgeMeaningNotFanOut() {
 
         var unit  = ParseModel(ChoiceM.Source, @"n:\av\c.nav");
         var caret = ChoiceM.Position("edge"); // auf dem Pfeil zur Choice
@@ -139,9 +139,96 @@ public class NavHoverServiceTests {
         var info = NavHoverService.GetHover(unit, caret);
 
         Assert.That(info, Is.Not.Null);
-        // Edge-Mode trägt keine eigene Signatur — nur die durch die Choice erreichbaren Knoten.
-        Assert.That(Signature(info), Is.Empty);
-        Assert.That(info.Calls.Select(c => c.Node.Name).ToList(), Is.EquivalentTo(new[] { "A", "B" }));
+        // Auch wenn die Kante auf eine Choice zeigt: sie erklärt ihre eigene Bedeutung, NICHT den Fan-out.
+        // Der Fan-out der erreichbaren Knoten bleibt der Choice vorbehalten (Hover_OnChoiceNode_...).
+        Assert.That(Signature(info),     Is.EqualTo("GoTo Edge"));
+        Assert.That(info.Calls,          Is.Empty);
+        Assert.That(info.Documentation,  Is.EqualTo("Kontrollfluss zum Ziel — ohne Rückkehr."));
+    }
+
+    //   |goto:|      Pfeil '-->'  (GoTo Edge)
+    //   |modal:|     Pfeil 'o->'  (Modal Edge)
+    //   |nonmodal:|  Pfeil '==>'  (NonModal Edge)
+    //   |cont:|      Pfeil 'o-^'  (Modal Continuation)
+    //   |gcont:|     Pfeil '--^'  (GoTo Continuation)
+    static readonly NavMarkup EdgeM = NavMarkup.Parse(
+        """
+        task Sample
+        {
+            init Init1;
+            exit Exit;
+            task Msg;
+            view View;
+            choice Choice_Retry;
+
+            Init1        |goto:|--> Choice_Retry;
+            Choice_Retry --> View |cont:|o-^ Msg;
+            Msg:Exit     --> View |gcont:|--^ Msg;
+            View         |modal:|o-> Msg on OnA;
+            View         |nonmodal:|==> Msg on OnB;
+        }
+
+        """);
+
+    [Test]
+    public void Hover_OnGoToEdge_ShowsMeaning() {
+
+        var unit = ParseModel(EdgeM.Source, @"n:\av\e.nav");
+        var info = NavHoverService.GetHover(unit, EdgeM.Position("goto"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("GoTo Edge"));
+        Assert.That(info.Documentation, Is.EqualTo("Kontrollfluss zum Ziel — ohne Rückkehr."));
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnModalEdge_ShowsMeaning() {
+
+        var unit = ParseModel(EdgeM.Source, @"n:\av\e.nav");
+        var info = NavHoverService.GetHover(unit, EdgeM.Position("modal"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("Modal Edge"));
+        Assert.That(info.Documentation, Is.EqualTo("Zeigt das Ziel modal (blockierend) an."));
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnNonModalEdge_ShowsMeaning() {
+
+        var unit = ParseModel(EdgeM.Source, @"n:\av\e.nav");
+        var info = NavHoverService.GetHover(unit, EdgeM.Position("nonmodal"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("NonModal Edge"));
+        Assert.That(info.Documentation, Is.EqualTo("Zeigt das Ziel nicht-modal (nebenläufig) an."));
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnModalContinuation_ShowsContinuationMeaning() {
+
+        var unit = ParseModel(EdgeM.Source, @"n:\av\e.nav");
+        var info = NavHoverService.GetHover(unit, EdgeM.Position("cont"));
+
+        Assert.That(info,               Is.Not.Null);
+        // o-^ ist eine Continuation, KEINE gewöhnliche Modal-Kante — und zeigt nicht mehr den Folge-Task.
+        Assert.That(Signature(info),    Is.EqualTo("Modal Continuation"));
+        Assert.That(info.Documentation, Is.EqualTo("Zeigt den tragenden GUI-Knoten modal an und setzt anschließend im Ziel-Task fort."));
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnGoToContinuation_ShowsContinuationMeaning() {
+
+        var unit = ParseModel(EdgeM.Source, @"n:\av\e.nav");
+        var info = NavHoverService.GetHover(unit, EdgeM.Position("gcont"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("GoTo Continuation"));
+        Assert.That(info.Documentation, Is.EqualTo("Setzt vom tragenden GUI-Knoten in den Ziel-Task fort (ohne Rückkehr)."));
+        Assert.That(info.Calls,         Is.Empty);
     }
 
     [Test]

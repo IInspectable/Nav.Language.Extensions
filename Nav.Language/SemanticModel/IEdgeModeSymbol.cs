@@ -7,6 +7,6 @@ public interface IEdgeModeSymbol: ISymbol {
     IEdge Edge { get; }
 
     string DisplayName { get; }
-    string Verb        { get; }
+    string Description { get; }
 
 }

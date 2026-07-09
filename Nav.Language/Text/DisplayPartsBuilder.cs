@@ -196,7 +196,7 @@ class DisplayPartsBuilder: SymbolVisitor<ImmutableArray<ClassifiedText>> {
 
     public override ImmutableArray<ClassifiedText> VisitEdgeModeSymbol(IEdgeModeSymbol edgeModeSymbol) {
         return CreateClassifiedText(
-            ClassifiedTexts.Keyword(edgeModeSymbol.Verb)
+            ClassifiedTexts.Keyword(edgeModeSymbol.DisplayName)
         );
     }
 

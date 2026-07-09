@@ -50,12 +50,6 @@ public static class NavHoverService {
 
     static ImmutableArray<ClassifiedText> GetDisplayParts(ISymbol symbol) {
 
-        // Beim Edge-Mode (Pfeil/Verb) zeigt auch die VS-QuickInfo keine eigene Signatur, sondern nur
-        // die Liste der erreichbaren Knoten (siehe Calls).
-        if (symbol is IEdgeModeSymbol) {
-            return ImmutableArray<ClassifiedText>.Empty;
-        }
-
         // Eine Choice-Referenz selbst hat keine eigene Signatur — wie in VS zeigen wir die ihrer Deklaration.
         if (symbol is IChoiceNodeReferenceSymbol { Declaration: { } choiceDecl }) {
             return choiceDecl.ToDisplayParts();
@@ -65,16 +59,17 @@ public static class NavHoverService {
     }
 
     /// <summary>
-    /// Die von der Position aus erreichbaren Knoten — wie die VS-QuickInfo sie für Choices und Edges
-    /// anzeigt: Choices werden transitiv aufgelöst, sodass nur die tatsächlich erreichbaren Zielknoten
-    /// (mit ihrem Edge-Mode) erscheinen. Für alle anderen Symbole leer. Sortiert nach Knotennamen (wie VS).
+    /// Die von der Position aus erreichbaren Knoten — nur an einer <b>Choice</b> anzeigbar: die Choice wird
+    /// transitiv aufgelöst, sodass ihr Fan-out auf die tatsächlich erreichbaren Zielknoten (mit ihrem
+    /// Edge-Mode) sichtbar wird. Für alle anderen Symbole — insbesondere gewöhnliche Kanten — leer: dort
+    /// steht das Ziel bereits sichtbar neben dem Pfeil, die Kante selbst erklärt statt dessen ihre Bedeutung
+    /// (siehe <see cref="NavSymbolDocumentation"/>). Sortiert nach Knotennamen (wie VS).
     /// </summary>
     static IReadOnlyList<Call> GetReachableCalls(ISymbol symbol) {
 
         var calls = symbol switch {
             IChoiceNodeSymbol choiceNode                         => choiceNode.ExpandCalls(),
             IChoiceNodeReferenceSymbol { Declaration: { } decl } => decl.ExpandCalls(),
-            IEdgeModeSymbol edgeMode                             => edgeMode.Edge.GetReachableCalls(),
             _                                                    => Enumerable.Empty<Call>()
         };
 
