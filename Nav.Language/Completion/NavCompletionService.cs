@@ -94,12 +94,24 @@ public static class NavCompletionService {
 
         // Pfad-Vervollständigung läuft INNERHALB von "…" nach `taskref` — die normale Unterdrückung in
         // Zeichenketten greift hier also bewusst nicht. Liefert null, wenn kein taskref-String-Kontext.
+        // Pfad-Items tragen ihren Ersetzungsbereich (String-Inhalt) selbst und laufen daher an der
+        // zentralen Operator-Normalisierung vorbei.
         var pathItems = GetPathCompletions(source, position, solution);
         if (pathItems != null) {
             return pathItems;
         }
 
         var context = NavCompletionContext.Classify(unit, position);
+        var items   = BuildItems(context, unit);
+
+        // Einzige Stelle, an der die Operator-Invariante durchgesetzt wird: operator-artige Vorschläge
+        // (Edge-/Continuation-Keywords) bekommen ihren Ersetzungsbereich kategorie-übergreifend hier.
+        return WithOperatorReplacements(items, unit.Syntax.SyntaxTree, position);
+    }
+
+    // Die zur grammatischen Situation passende Vorschlagsmenge — noch OHNE die operator-spezifischen
+    // Ersetzungsbereiche (die hängt WithOperatorReplacements zentral an, damit keine Kategorie sie vergessen kann).
+    static IReadOnlyList<NavCompletionItem> BuildItems(NavCompletionContext context, CodeGenerationUnit unit) {
 
         switch (context.Kind) {
 
@@ -134,7 +146,7 @@ public static class NavCompletionService {
                 return ExitConnectionPointItems(context);
 
             case NavCompletionContextKind.EdgeSlot:
-                return VisibleEdgeKeywordItems(EdgeReplacementExtent(unit.Syntax.SyntaxTree, position));
+                return VisibleEdgeKeywordItems();
 
             case NavCompletionContextKind.TargetSlot:
                 return TargetItems(context);
@@ -159,8 +171,53 @@ public static class NavCompletionService {
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
             default:
-                return FallbackItems(context, unit.Syntax.SyntaxTree, position);
+                return FallbackItems(context);
         }
+    }
+
+    // Die Operator-Invariante: Ein Vorschlag, dessen Einfügetext NICHT rein aus Bezeichner-Zeichen besteht
+    // (die Edge-/Continuation-Keywords `-->`, `o->`, `--^`, `o-^` …), kann vom wort-basierten Ersetzungsbereich
+    // des Hosts nicht abgedeckt werden — der reicht nur über Bezeichner-Zeichen. Ohne eigenen Bereich bliebe
+    // ein bereits getipptes Operator-Zeichen beim Commit stehen (`-` + `--^` → `---^`). Deshalb bekommt hier
+    // JEDES solche Item — kategorie-übergreifend und damit unvergesslich — den Operator-Ersetzungsbereich,
+    // sofern es nicht schon einen eigenen trägt. Reine Wort-Items (Keywords, Namen, Versionswerte) verlassen
+    // sich unverändert auf den Host-Wortersatz.
+    static IReadOnlyList<NavCompletionItem> WithOperatorReplacements(IReadOnlyList<NavCompletionItem> items, SyntaxTree tree, int position) {
+
+        // Der Bereich hängt nur an Baum + Position, nicht am Item — höchstens einmal berechnen.
+        TextExtent?                extent = null;
+        List<NavCompletionItem>?   result = null;
+
+        for (var i = 0; i < items.Count; i++) {
+            var item = items[i];
+
+            if (item.ReplacementExtent == null && IsOperatorInsertText(item.InsertText)) {
+                extent ??= OperatorReplacementExtent(tree, position);
+                item     = item.WithReplacementExtent(extent.Value);
+            }
+
+            // Erst kopieren, wenn tatsächlich ein Item verändert wurde (der Normalfall — reine Wort-Listen —
+            // gibt die Eingabeliste unverändert zurück).
+            if (result != null) {
+                result.Add(item);
+            } else if (!ReferenceEquals(item, items[i])) {
+                result = new List<NavCompletionItem>(items.Count);
+                for (var j = 0; j < i; j++) {
+                    result.Add(items[j]);
+                }
+
+                result.Add(item);
+            }
+        }
+
+        return result ?? items;
+    }
+
+    // Ein „operator-artiger" Einfügetext — Spiegelbild von NavCompletionContext.IsWordToken: nicht-leer und
+    // NICHT vollständig aus Bezeichner-Zeichen. Erfasst `o->`/`o-^` korrekt (beginnen mit dem Bezeichner-Zeichen
+    // `o`, sind aber keine Wörter) und lässt reine Wörter (`on`, `end`, Knotennamen, Versionswerte wie `2`) außen vor.
+    static bool IsOperatorInsertText(string text) {
+        return text.Length > 0 && !text.All(SyntaxFacts.IsIdentifierCharacter);
     }
 
     #region Kategorien
@@ -263,7 +320,8 @@ public static class NavCompletionService {
 
     // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
     // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
-    static List<NavCompletionItem> FallbackItems(NavCompletionContext context, SyntaxTree tree, int position) {
+    // Den Ersetzungsbereich der Edge-Keywords hängt WithOperatorReplacements zentral an.
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task);
 
@@ -273,7 +331,7 @@ public static class NavCompletionService {
             items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
-        items.AddRange(VisibleEdgeKeywordItems(EdgeReplacementExtent(tree, position)));
+        items.AddRange(VisibleEdgeKeywordItems());
         return items;
     }
 
@@ -327,36 +385,35 @@ public static class NavCompletionService {
         return KeywordItems(keywords.ToArray());
     }
 
-    // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Jedes Item trägt denselben Ersetzungsbereich
-    // (<paramref name="replacement"/>) — die bereits getippten Edge-Zeichen —, damit der Host beim Commit
-    // die angefangene Edge komplett ersetzt (Edge-Keywords bestehen aus Nicht-Bezeichner-Zeichen, die der
-    // Standard-Wortersatz des Clients nicht abdeckt).
-    static List<NavCompletionItem> VisibleEdgeKeywordItems(TextExtent replacement) {
+    // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Den Ersetzungsbereich (bereits getippte Edge-Zeichen)
+    // hängt WithOperatorReplacements zentral an — hier werden nur die reinen Keyword-Items erzeugt.
+    static List<NavCompletionItem> VisibleEdgeKeywordItems() {
         var items = new List<NavCompletionItem>();
         foreach (var keyword in SyntaxFacts.EdgeKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword, replacementExtent: replacement));
+            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
         return items;
     }
 
-    // Der Ersetzungsbereich einer Edge um die Cursor-Position — er umfasst zwei Anteile:
+    // Der Ersetzungsbereich eines edge-artigen Operators (reguläre Edge ODER Continuation-Kante) um die
+    // Cursor-Position — er umfasst zwei Anteile:
     //
     //  • Rückwärts: der Lauf über die bereits getippten Edge-Zeichen bis zum Zeilenanfang (Port des
     //    VS-`GetStartOfEdge`) — deckt die gerade von links getippte (Teil-)Edge ab, damit ihr Commit die
-    //    Zeichen ersetzt statt zu verdoppeln (`i o|` → `o->` statt `oo->`).
+    //    Zeichen ersetzt statt zu verdoppeln (`i o|` → `o->` statt `oo->`; `V -|` → `--^` statt `---^`).
     //
-    //  • Vorwärts: NUR eine bereits VOLLSTÄNDIGE Edge (Lexer-Token, `IsEdgeKeyword`), die der Cursor berührt.
-    //    Das behebt den Fall, dass der Cursor VOR einer vorhandenen Edge steht (`i |--> Sub`): ohne diesen
-    //    Anteil fügte der Commit eine zweite Edge ein (`i -->--> Sub`); mit ihm wird die vorhandene ersetzt.
-    //    Bewusst KEIN roher Zeichen-Vorlauf wie beim Rückwärtslauf: `o`/`*`/`=`/`-` können auch einen
+    //  • Vorwärts: NUR ein bereits VOLLSTÄNDIGES Edge-/Continuation-Keyword (Lexer-Token), das der Cursor
+    //    berührt. Das behebt den Fall, dass der Cursor VOR einer vorhandenen Kante steht (`i |--> Sub`): ohne
+    //    diesen Anteil fügte der Commit eine zweite Kante ein (`i -->--> Sub`); mit ihm wird die vorhandene
+    //    ersetzt. Bewusst KEIN roher Zeichen-Vorlauf wie beim Rückwärtslauf: `o`/`*`/`=`/`-` können auch einen
     //    Zielknoten beginnen (`-->order`), ein Zeichen-Vorlauf fräse ins Ziel. Die Token-Grenze des Lexers
     //    (`-->` ist ein Token, `order` das nächste) ist hier die einzige verlässliche Autorität.
     //
-    // Berührt der Cursor keine Edge, ist der Bereich leer (Start == End == position) → reines Einfügen.
-    static TextExtent EdgeReplacementExtent(SyntaxTree tree, int position) {
+    // Berührt der Cursor keine Kante, ist der Bereich leer (Start == End == position) → reines Einfügen.
+    static TextExtent OperatorReplacementExtent(SyntaxTree tree, int position) {
         var source = tree.SourceText;
         var line   = source.GetTextLineAtPosition(position);
 
@@ -367,7 +424,7 @@ public static class NavCompletionService {
 
         var end   = position;
         var token = tree.Tokens.FindAtPosition(position);
-        if (SyntaxFacts.IsEdgeKeyword(token.Type)) {
+        if (SyntaxFacts.IsEdgeKeyword(token.Type) || SyntaxFacts.IsContinuationEdgeKeyword(token.Type)) {
             end = token.End;
         }
 

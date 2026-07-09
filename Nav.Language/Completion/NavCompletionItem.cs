@@ -58,4 +58,13 @@ public sealed class NavCompletionItem {
     /// </summary>
     public ISymbol? Symbol { get; }
 
+    /// <summary>
+    /// Eine Kopie dieses Vorschlags mit gesetztem <see cref="ReplacementExtent"/> (alle übrigen Werte
+    /// unverändert). Trägt den zentral bestimmten Operator-Ersetzungsbereich nachträglich an — siehe
+    /// <c>NavCompletionService.WithOperatorReplacements</c>.
+    /// </summary>
+    public NavCompletionItem WithReplacementExtent(TextExtent extent) {
+        return new NavCompletionItem(Label, Kind, InsertText, extent, Detail, Symbol);
+    }
+
 }

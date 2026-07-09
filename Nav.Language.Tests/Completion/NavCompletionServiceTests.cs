@@ -529,6 +529,70 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void AfterTarget_ContinuationEdge_ReplacementExtentCoversTypedDash() {
+
+        // Regression zu „---^": Hinter dem Ziel `V` hat der Nutzer ein `-` getippt (Beginn von `--^`). Wie die
+        // regulären Edges MUSS auch die Continuation-Kante das getippte `-` in ihren Ersetzungsbereich nehmen,
+        // damit der Commit es durch das vollständige Keyword ersetzt (statt `-` + `--^` = `---^` zu erzeugen).
+        // Caret (|) direkt hinter dem getippten `-`.
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                i --> V -|;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\continuation-dash.nav");
+        var caret = m.Caret;
+
+        var items = NavCompletionService.GetCompletions(unit, caret);
+
+        foreach (var keyword in new[] { SyntaxFacts.ContinuationGoToEdgeKeyword, SyntaxFacts.ContinuationModalEdgeKeyword }) {
+            var edge = items.Single(i => i.Label == keyword);
+            Assert.That(edge.ReplacementExtent, Is.Not.Null, $"{keyword} trägt keinen Ersetzungsbereich");
+            Assert.That(edge.ReplacementExtent!.Value.End,   Is.EqualTo(caret));
+            Assert.That(edge.ReplacementExtent!.Value.Start, Is.EqualTo(caret - 1)); // das getippte `-`
+        }
+    }
+
+    [Test]
+    public void AfterTarget_ContinuationEdge_ReplacementExtentReplacesExistingEdge_NoDuplicate() {
+
+        // Caret (|) VOR einer bereits vorhandenen Continuation-Kante `--^`. Der Ersetzungsbereich MUSS die
+        // vorhandene Kante komplett abdecken, damit der Commit sie ersetzt statt sie zu `--^--^` zu verdoppeln —
+        // der Vorwärts-Anteil des Bereichs deckt jetzt auch Continuation-Token ab (nicht nur reguläre Edges).
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                task T;
+                i --> V |--^ T;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\continuation-existing.nav");
+        var caret = m.Caret;
+
+        var edge = NavCompletionService.GetCompletions(unit, caret)
+                                       .Single(i => i.Label == SyntaxFacts.ContinuationGoToEdgeKeyword);
+
+        var extent = edge.ReplacementExtent!.Value;
+        Assert.That(extent.Start, Is.EqualTo(caret));                                                  // vor `--^`
+        Assert.That(extent.End,   Is.EqualTo(caret + SyntaxFacts.ContinuationGoToEdgeKeyword.Length)); // deckt `--^` ab
+    }
+
+    [Test]
     public void AfterTrigger_OffersConditionClausesAndDo() {
 
         // Vollständiger (spontaner) Trigger: der Kontext-Anker ist das Trigger-Keyword selbst (Parent
