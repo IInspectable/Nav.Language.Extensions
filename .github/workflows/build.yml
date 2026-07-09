@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # net10-Teil (Engine/LSP/MCP/CLI/Tests) braucht das .NET-10-SDK.
       # Der net472-/VSIX-Teil baut über die auf dem Runner vorinstallierte VS-2022-MSBuild.exe.
       - name: Setup .NET 10 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -49,14 +49,14 @@ jobs:
           dotnet test Nav.Language.BuildTasks.Tests\Nav.Language.BuildTasks.Tests.csproj -c Debug
 
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Nav.Language.Extension
           path: deploy/Vsix
           if-no-files-found: error
 
       - name: Upload Build Tools artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Nav.Language.BuildTools
           path: deploy/Build Tools
