@@ -10,6 +10,11 @@ jobs:
     name: Build & Test (Windows / VS 2022)
     runs-on: windows-2022
 
+    # Der Release-Schritt (nur bei v*-Tags) braucht Schreibrechte auf Releases;
+    # der eingebaute GITHUB_TOKEN reicht damit aus.
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -82,3 +87,32 @@ jobs:
           name: Nav.Language.BuildTools-${{ steps.version.outputs.version }}
           path: deploy/Build Tools
           if-no-files-found: error
+
+      # ---- Release (nur bei v*-Tags) -------------------------------------------------
+      # Bei euch ist die Version tag-gesteuert (nav incminor/incmajor → git tag vX.Y.0,
+      # Push). Ein Tag-Push triggert diesen Workflow; die folgenden Schritte laufen NUR
+      # dann und veröffentlichen die gebauten Deliverables als Release-Assets (rohe
+      # Einzeldateien, kein Actions-Zip-Wrapper).
+
+      # Die Build Tools sind ein Ordner mit vielen Dateien — Release-Assets sind aber
+      # Einzeldateien, also zu einem Zip bündeln. Das VSIX ist bereits eine Einzeldatei
+      # und wird unverpackt angehängt.
+      - name: Build Tools für Release zippen
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ steps.version.outputs.version }}'
+          Compress-Archive -Path 'deploy/Build Tools/*' `
+            -DestinationPath "deploy/Nav.Language.BuildTools-$version.zip" -Force
+
+      - name: GitHub Release erstellen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          # tag_name/Name werden aus dem gepushten Tag abgeleitet; Notes aus Commits/PRs
+          # seit dem letzten Release generiert.
+          generate_release_notes: true
+          files: |
+            deploy/Vsix/*.vsix
+            deploy/Nav.Language.BuildTools-${{ steps.version.outputs.version }}.zip
