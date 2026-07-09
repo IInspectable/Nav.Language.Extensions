@@ -164,6 +164,27 @@ public sealed class CodeAnalysisTestContext {
 
     #region Symbol-/Annotation-Zugriff
 
+    /// <summary>Die Task-Definition mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
+    public ITaskDefinitionSymbol TaskDefinition(string name) {
+        return Unit.TaskDefinitions.Single(t => t.Name == name);
+    }
+
+    /// <summary>
+    /// Die <see cref="TaskCodeInfo"/> zur Task-Definition (Nav→C#-Anker: von der generierten
+    /// <c>{Task}WFSBase</c> auf die konkreten, abgeleiteten <c>{Task}WFS</c>).
+    /// </summary>
+    public TaskCodeInfo TaskInfo(string name) {
+        return TaskCodeInfo.FromTaskDefinition(TaskDefinition(name));
+    }
+
+    /// <summary>
+    /// Die <c>&lt;NavTask&gt;</c>-Annotation (nur der reine Task-Anker, nicht die davon abgeleiteten
+    /// Method-/Invocation-Annotationen) mit dem angegebenen Task-Namen.
+    /// </summary>
+    public NavTaskAnnotation TaskAnnotation(string taskName) {
+        return ReadAnnotations().First(a => a.GetType() == typeof(NavTaskAnnotation) && a.TaskName == taskName);
+    }
+
     /// <summary>Der Choice-Knoten mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
     public IChoiceNodeSymbol Choice(string name) {
         return Unit.TaskDefinitions
