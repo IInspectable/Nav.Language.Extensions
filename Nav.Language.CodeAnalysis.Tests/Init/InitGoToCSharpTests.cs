@@ -59,6 +59,23 @@ public class InitGoToCSharpTests {
     }
 
     [Test]
+    public void SecondInitNode_JumpsToItsOwnBeginLogic() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow);
+
+        // Symmetrie zu SecondTaskDeclaration_*/SecondTrigger_*: der zweite init-Knoten (init Begin im
+        // Sub-Task Child) muss zielgenau auf die BeginLogic der ChildWFS landen — nicht auf die des
+        // umgebenden InitFlow.
+        var location = LocationFinder.FindTaskBeginDeclarationLocationAsync(
+                                          ctx.Project, ctx.InitInfo("Begin"), CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(SecondInitNode_JumpsToItsOwnBeginLogic),
+                           NavigationDirection.NavToCSharp,
+                           "F12 auf den zweiten `init Begin`-Knoten springt zielgenau auf die BeginLogic der ChildWFS (nicht InitFlowWFS).");
+    }
+
+    [Test]
     public void InitCallSite_JumpsToChildBeginLogic() {
 
         var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);

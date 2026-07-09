@@ -31,7 +31,7 @@
 | Task | ✅ Decl→WFS (+2. Task) | ✅ WFS→Decl (+2.) | — | ✅ Nav→C# (MissingWfs) + C#→Nav (task==null) |
 | **Task → IBegin-Interface** | ✅ Decl→IBegin (+2. Task) | — | — | ✅ MissingItf |
 | Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ Nav→C# + C#→Nav (trigger fehlt) |
-| Init | ✅ Node→BeginLogic | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ Nav→C# + C#→Nav (init fehlt) + Call-Site |
+| Init | ✅ Node→BeginLogic (+2. Init) | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ Nav→C# + C#→Nav (init fehlt) + Call-Site |
 | Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ✅ After→Begin-Caller | ✅ Nav→C# + C#→Nav (Knoten fehlt) |
 | Choice | ✅ (+2.) | ✅ Logic+CallSite (+Escalate) | ✅ CallSite→Logic + Logic→Aufrufer (beidseitig) | ✅ Nav→C# + C#→Nav (choice fehlt) + Call-Site |
 
@@ -201,14 +201,16 @@ Exit-Annotation → `null`, dann bietet der Host nur `BeginLogic` an). Der Weg (
 `BeginLogic` (getestet) **und** die umgebende „After"-Methode, die zuvor inline im Provider (nur über
 `LocationFinder.ToLocation`) gebaut und **nicht** getestet war.
 
-### A6 — Init: zweiter Init-Knoten Nav→C# fehlt (Symmetrie)
+### A6 — Init: zweiter Init-Knoten Nav→C# fehlt (Symmetrie)  ✅ (erledigt)
 
-Task/Trigger/Choice haben je einen `Second…`-Nav→C#-Test (zweites Geschwister-Konstrukt landet auf
-seinem *eigenen* Ziel). Init nur einseitig: `InitNode_JumpsToBeginLogic` deckt einen Knoten, der zweite
-Init ist nur C#→Nav (`ChildInitAnnotation_JumpsBackToChildInitNode`).
+**Erledigt**: `Init/InitGoToCSharpTests.SecondInitNode_JumpsToItsOwnBeginLogic` — F12 auf den zweiten
+`init Begin`-Knoten (im Sub-Task `Child`) landet golden-gepinnt auf der `BeginLogic` der `ChildWFS.cs`
+(nicht der umgebenden `InitFlowWFS`), über `LocationFinder.FindTaskBeginDeclarationLocationAsync` mit
+`ctx.InitInfo("Begin")`. Damit hat Init nun dieselbe `Second…`-Nav→C#-Symmetrie wie Task/Trigger/Choice.
 
-**How to:** in `Init/InitGoToCSharpTests.cs` ein `SecondInitNode_JumpsToItsOwnBeginLogic` ergänzen (die
-Fixture hat mit `Child` bereits einen zweiten Init) — schließt die Reihe symmetrisch.
+**Ursprünglich:** Task/Trigger/Choice haben je einen `Second…`-Nav→C#-Test (zweites Geschwister-Konstrukt
+landet auf seinem *eigenen* Ziel). Init war nur einseitig: `InitNode_JumpsToBeginLogic` deckte einen
+Knoten, der zweite Init war nur C#→Nav (`ChildInitAnnotation_JumpsBackToChildInitNode`).
 
 ### A7 — `FindCallerLocations` „keine Aufrufer" (leere Liste) ungetestet
 
@@ -266,7 +268,7 @@ Erster Durchlauf (abgeschlossen):
 Zweiter Durchlauf (session-weise abzuarbeiten):
 
 6. ~~**B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).~~ ✅ erledigt.
-7. **A6** (trivialer Symmetrie-Test, warm-up).
+7. ~~**A6** (trivialer Symmetrie-Test, warm-up).~~ ✅ erledigt.
 8. **A7** (Contract-Pinning der leeren Aufrufer-Liste).
 9. **B6** (Sichtbarkeits-/Hygiene-Entscheid).
 10. **B7** ist bereits als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
