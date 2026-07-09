@@ -84,6 +84,31 @@ public class ExitGoToCSharpTests {
     }
 
     [Test]
+    public void AfterLogic_NoCallers_ReturnsEmpty() {
+
+        // Nicht-Wirf-Contract von FindCallerLocations (bewusst anders als die werfenden Finder): ohne
+        // ExitFlowUserCode existiert KEINE next.BeginSub()-Aufrufstelle. Derselbe realistische Filter wie in
+        // AfterLogic_JumpsToAllBeginCallSites muss dann eine LEERE Liste liefern — nicht null und keine
+        // LocationNotFoundException. Der Host bietet in diesem Fall schlicht keine Aufrufer-Navigation an.
+        var ctx = CodeAnalysisTestContext.FromNav(ExitFixtures.ExitFlow);
+
+        var exitAnnotation = ctx.ExitAnnotation("Sub");
+        var wfsSymbol      = ctx.ResolveGeneratedType(ctx.TaskInfo("ExitFlow").FullyQualifiedWfsName);
+        var beginPrefix    = CodeGenFacts.BeginMethodPrefix;
+
+        var callers = LocationFinder.FindCallerLocations(
+                                        ctx.Project, wfsSymbol,
+                                        call => call is NavInitCallAnnotation                        &&
+                                                call.TaskName    == exitAnnotation.TaskName          &&
+                                                call.NavFileName == exitAnnotation.NavFileName        &&
+                                                call.Identifier.Identifier.Text == beginPrefix + exitAnnotation.ExitTaskName,
+                                        CancellationToken.None)
+                                   .GetAwaiter().GetResult();
+
+        Assert.That(callers, Is.Not.Null.And.Empty);
+    }
+
+    [Test]
     public void MissingWfs_ThrowsLocationNotFound() {
 
         // Negativpfad: Der Exit-Anker stammt aus ExitFlow, die Roslyn-Bühne aber aus einem fremden Task

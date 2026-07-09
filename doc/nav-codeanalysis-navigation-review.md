@@ -212,14 +212,16 @@ Exit-Annotation → `null`, dann bietet der Host nur `BeginLogic` an). Der Weg (
 landet auf seinem *eigenen* Ziel). Init war nur einseitig: `InitNode_JumpsToBeginLogic` deckte einen
 Knoten, der zweite Init war nur C#→Nav (`ChildInitAnnotation_JumpsBackToChildInitNode`).
 
-### A7 — `FindCallerLocations` „keine Aufrufer" (leere Liste) ungetestet
+### A7 — `FindCallerLocations` „keine Aufrufer" (leere Liste) ungetestet  ✅ (erledigt)
 
-`FindCallerLocations` wirft **nie** `LocationNotFoundException`, sondern gibt eine leere Liste zurück —
-bewusst anderer Contract als die werfenden Finder. Weder Choice noch Exit pinnen diesen Nicht-Wirf-Pfad.
+**Erledigt**: `Exit/ExitGoToCSharpTests.AfterLogic_NoCallers_ReturnsEmpty` pinnt den Nicht-Wirf-Contract.
+Bühne ist `ExitFlow` **ohne** `ExitFlowUserCode` — es existiert also gar keine `next.BeginSub()`-Aufrufstelle;
+mit demselben realistischen Filter wie `AfterLogic_JumpsToAllBeginCallSites` liefert `FindCallerLocations`
+dann `Is.Not.Null.And.Empty` (keine `LocationNotFoundException`, kein `null`). Kein Golden.
 
-**How to:** ein `…_NoCallers_ReturnsEmpty` (z.B. in `Exit/ExitGoToCSharpTests.cs`, Klassen-Symbol ohne
-passende Annotation) fixiert den Contract explizit — Ergänzung zur B4-Doku-Linie (Contract dokumentieren,
-kein Golden nötig).
+**Ursprünglich:** `FindCallerLocations` wirft **nie** `LocationNotFoundException`, sondern gibt eine leere
+Liste zurück — bewusst anderer Contract als die werfenden Finder. Weder Choice noch Exit pinnten diesen
+Nicht-Wirf-Pfad.
 
 ### B5 — Init-Call „After-Methode" lebt noch im VS-Layer (letzter „eine Engine"-Bruch; entblockt A5)  ✅ (erledigt)
 
@@ -269,7 +271,7 @@ Zweiter Durchlauf (session-weise abzuarbeiten):
 
 6. ~~**B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).~~ ✅ erledigt.
 7. ~~**A6** (trivialer Symmetrie-Test, warm-up).~~ ✅ erledigt.
-8. **A7** (Contract-Pinning der leeren Aufrufer-Liste).
+8. ~~**A7** (Contract-Pinning der leeren Aufrufer-Liste).~~ ✅ erledigt.
 9. **B6** (Sichtbarkeits-/Hygiene-Entscheid).
 10. **B7** ist bereits als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
 
