@@ -31,7 +31,7 @@
 | Task | ✅ Decl→WFS (+2. Task) | ✅ WFS→Decl (+2.) | — | ✅ Nav→C# (MissingWfs) + C#→Nav (task==null) |
 | **Task → IBegin-Interface** | ✅ Decl→IBegin (+2. Task) | — | — | ✅ MissingItf |
 | Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ Nav→C# + C#→Nav (trigger fehlt) |
-| Init | ✅ Node→BeginLogic (+2. Init) | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ Nav→C# + C#→Nav (init fehlt) + Call-Site |
+| Init | ✅ Node→BeginLogic (+2. Init) | ✅ (+Child) | ✅ CallSite→ChildBeginLogic (+Overload-Auflösung, V1) | ✅ Nav→C# + C#→Nav (init fehlt) + Call-Site |
 | Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ✅ After→Begin-Caller | ✅ Nav→C# + C#→Nav (Knoten fehlt) |
 | Choice | ✅ (+2.) | ✅ Logic+CallSite (+Escalate) | ✅ CallSite→Logic + Logic→Aufrufer (beidseitig) | ✅ Nav→C# + C#→Nav (choice fehlt) + Call-Site |
 
@@ -264,6 +264,57 @@ es nicht erneut als Lücke gemeldet wird.
 
 ---
 
+## Dritter Review-Durchlauf (abgeschlossen)
+
+> Frischer, unabhängiger Durchlauf, nachdem der erste und zweite Durchlauf standen. **Gesamturteil: die
+> Navigation ist konsistent und schlüssig, die Abdeckung ist auf Finder-/Richtungs-Ebene vollständig** —
+> jeder öffentliche `LocationFinder`-Finder ist direkt getestet, Provider→Finder ist 1:1, jede
+> Konstrukt/Richtungs-Kombination hat Positiv-, Zweit-Knoten- und Negativpfad. Es blieb genau **eine**
+> substanzielle Lücke (unten, jetzt geschlossen) plus zwei kosmetische Konsistenzpunkte ohne
+> Handlungsbedarf. **Backlog damit geschlossen.**
+
+### C1 — Overload-Auflösung des Init-Call-Pfads ungetestet (V1)  ✅ (erledigt)
+
+**Erledigt**: `InitGoToCSharpTests.InitCallSite_ResolvesBeginLogicOverloadByParameters` +
+`InitCallSite_AmbiguousOverload_PicksFewestParameters` üben `FindBestBeginLogicOverload`/
+`GetParameterMatchCount` (`LocationFinder.cs:342–373`) jetzt echt aus. **Kernbefund**: die Overload-Auflösung
+ist ein **V1-Mechanismus** — nur in V1 trägt der `Begin{Node}`-Wrapper den führenden `IBegin`-Parameter, den
+der Finder per `Skip(1)` abzieht, bevor er die Rest-Parameter gegen die `BeginLogic`-Overloads matcht; in V2
+fehlt dieser führende Parameter, sodass der Match trivial zu `MatchCount 0` kollabiert. Daher eine bewusste
+`#version 1`-Fixture (`InitFixtures.OverloadFlow`): der Sub-Task `OverChild` hat zwei parametrische
+init-Knoten (`init One [params string text]`, `init Two [params string text, bool flag]`) → zwei
+`BeginLogic`-Overloads; der Parent öffnet ihn modal, was zwei `BeginOverChild`-Wrapper-Overloads erzeugt
+(`OverloadFlowUserCode` ruft beide auf). Die beiden Tests decken zusammen alle Zweige ab:
+- **MatchCount-Ranking + `-1`-Ausschluss**: der 3-Parameter-Call (`wfs, text, flag`) → `Skip(1)` = `[string,
+  bool]` → `BeginLogic(string, bool)` (MatchCount 2); der einparametrige Overload wird als zu kurz per
+  `MatchCount -1` verworfen.
+- **ParameterCount-Tiebreak**: der 2-Parameter-Call (`wfs, text`) → `Skip(1)` = `[string]` → beide Overloads
+  MatchCount 1 → `.ThenBy(ParameterCount)` wählt den kürzeren `BeginLogic(string)`.
+
+Die Goldens pinnen die **unterschiedlichen** Overload-Spans (`OverChildWFS.cs` Zeile 16 vs. 12) und belegen
+damit die korrekte Disambiguierung. Zugleich die erste **V1-generierte** Navigations-Fixture (vgl. B7) —
+hier aber nicht wegen Namens-Divergenz, sondern weil die Wrapper-Form (führender `IBegin`-Parameter) V1-only
+ist. `CodeAnalysis.Tests` 52/0 (net472).
+
+### C2 — Zwei Autoritäten für den Begin-Prefix — **kein Handlungsbedarf**
+
+`NavExitBeginCallerLocationInfoProvider` (`:44`) und der zugehörige Test greifen auf die rohe V1-Konstante
+`CodeGenFacts.BeginMethodPrefix`, während das Schwester-Verfahren `LocationFinder.FindInitCallAfterLocation`
+die versionierte Fassade `NavCodeGenFacts.For(Default).BeginMethodPrefix` nutzt. Da `NavCodeGenFacts`
+`BeginMethodPrefix` für **jede** Version an dieselbe eine Konstante durchreicht (`NavCodeGenFacts.cs:48,68`),
+sind die Werte konstruktionsbedingt identisch — **kein Bug**, nur zwei Quellen für ein Konzept. Nur zur
+Dokumentation, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
+
+### C3 — `CallSiteVersionAssumptionTests`-Guard strukturell schwächer als er wirkt — **kein Handlungsbedarf**
+
+Der Guard behauptet `NavCodeGenFacts.For(v).{BeginMethodPrefix,LogicMethodSuffix} == For(Default)…`. Weil V1
+**und** V2 diese Properties an dieselbe eine `CodeGenFacts`-Konstante delegieren, kann der Guard nur auslösen,
+wenn eine künftige Version das Delegieren *aufgibt* (echtes Override) — genau die beabsichtigte
+Stolperdraht-Semantik. Er sichert also „keine Version überschreibt die geteilte Konstante", nicht „die
+generierten Namen stimmen tatsächlich überein". Korrekt so; der begleitende Doc-Kommentar formuliert es fair.
+
+---
+
 ## Reihenfolge-Empfehlung
 
 Erster Durchlauf (abgeschlossen):
@@ -283,6 +334,15 @@ Zweiter Durchlauf (session-weise abzuarbeiten):
 9. ~~**B6** (Sichtbarkeits-/Hygiene-Entscheid).~~ ✅ erledigt (`FindTriggerMethodSymbol` → `private`,
    toter Rename-Block entfernt).
 10. **B7** ist bereits als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
+
+Dritter Durchlauf (abgeschlossen):
+
+11. ~~**C1** (Overload-Auflösung des Init-Call-Pfads, V1 — einzige substanzielle Rest-Lücke).~~ ✅ erledigt.
+12. **C2/C3** sind als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
+
+**Backlog vollständig abgearbeitet.** Bewusst offen bleibt nur der optionale „Option B"-Umbau
+(versionsbewusster Call-Site-Pfad) — erst bei echter Namens-Divergenz sinnvoll, dann bricht der
+`CallSiteVersionAssumptionTests`-Guard laut.
 
 ## Referenz-Dateien
 
