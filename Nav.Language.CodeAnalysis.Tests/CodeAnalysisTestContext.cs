@@ -178,6 +178,17 @@ public sealed class CodeAnalysisTestContext {
     }
 
     /// <summary>
+    /// Die <see cref="TaskDeclarationCodeInfo"/> zur Task-Definition (Nav→C#-Anker: von der
+    /// <c>task X</c>-Deklaration auf die generierte <c>IBegin{Task}WFS</c>-Interface-Deklaration). Der
+    /// Begin-Interface-Vertrag ist generationsübergreifend invariant, deshalb ist die CodeInfo versionsfrei.
+    /// </summary>
+    public TaskDeclarationCodeInfo TaskDeclarationInfo(string name) {
+        var declaration = TaskDefinition(name).AsTaskDeclaration
+                       ?? throw new InvalidOperationException($"Task '{name}' hat keine Deklaration.");
+        return TaskDeclarationCodeInfo.FromTaskDeclaration(declaration);
+    }
+
+    /// <summary>
     /// Die <c>&lt;NavTask&gt;</c>-Annotation (nur der reine Task-Anker, nicht die davon abgeleiteten
     /// Method-/Invocation-Annotationen) mit dem angegebenen Task-Namen.
     /// </summary>

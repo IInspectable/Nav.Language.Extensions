@@ -29,7 +29,7 @@
 | Konstrukt | Nav→C# | C#→Nav | C#→C# | Negativpfad |
 |---|---|---|---|---|
 | Task | ✅ Decl→WFS (+2. Task) | ✅ WFS→Decl (+2.) | — | ✅ nur Nav→C# |
-| **Task → IBegin-Interface** | ❌ **keiner** | — | — | ❌ |
+| **Task → IBegin-Interface** | ✅ Decl→IBegin (+2. Task) | — | — | ✅ MissingItf |
 | Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ nur Nav→C# |
 | Init | ✅ Node→BeginLogic | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ nur Nav→C#-Node |
 | Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ❌ **After→Begin-Caller** | ✅ nur Nav→C# |
@@ -39,7 +39,15 @@
 
 ## A. Fehlende Testfälle
 
-### A1 — `FindTaskIBeginInterfaceDeclarationLocations` komplett ungetestet  ⬜ (höchste Priorität)
+### A1 — `FindTaskIBeginInterfaceDeclarationLocations` komplett ungetestet  ✅ (erledigt)
+
+**Erledigt** (`TaskGoToCSharpTests`): `TaskDeclaration_JumpsToIBeginInterface` +
+`SecondTaskDeclaration_JumpsToItsOwnIBeginInterface` (Nav→C#, pinnen den `IBegin{Task}WFS`-Identifier-Span
+in `IBegin{Task}WFS.generated.cs`) + `MissingIBeginInterface_ThrowsLocationNotFound` (Negativpfad über
+`ForeignProject()`). Zugang über neuen Harness-Helfer `CodeAnalysisTestContext.TaskDeclarationInfo(name)`
+(→ `TaskDeclarationCodeInfo.FromTaskDeclaration(TaskDefinition(name).AsTaskDeclaration)`).
+
+---
 
 Einzige öffentliche `LocationFinder`-Navigationsmethode mit **null** Abdeckung. Zwei live-verdrahtete
 VS-Provider hängen dran:
@@ -135,8 +143,8 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 
 ## Reihenfolge-Empfehlung
 
-1. **A1** (echte Feature-Lücke, isoliert, hoher Wert).
-2. **B2** (trivialer DRY-Fix, warm-up).
+1. ~~**A1** (echte Feature-Lücke, isoliert, hoher Wert).~~ ✅ erledigt.
+2. **B2** (trivialer DRY-Fix, warm-up). ← **als Nächstes**
 3. **B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).
 4. **A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).
 5. **B1** (Doku/Assert; voll erst mit „Option B").

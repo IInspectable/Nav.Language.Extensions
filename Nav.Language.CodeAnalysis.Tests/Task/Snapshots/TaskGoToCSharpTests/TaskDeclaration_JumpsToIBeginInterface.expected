@@ -1,0 +1,6 @@
+﻿// Nav → C#
+// F12 auf `task TaskFlow` findet die generierte IBeginTaskFlowWFS-Interface-Deklaration —
+// der Golden pinnt Datei (IBegin{Task}WFS.generated.cs) + exakten Span des Interface-Namens.
+
+<IBeginTaskFlowWFS.generated.cs> (26,22)-(26,39)  "IBeginTaskFlowWFS"
+    public interface IBeginTaskFlowWFS: IBeginWFService {
