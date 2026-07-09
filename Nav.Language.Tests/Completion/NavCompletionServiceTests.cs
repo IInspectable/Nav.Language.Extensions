@@ -593,6 +593,118 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void ContinuationTargetSlot_AfterModalContinuation_OffersOnlyTaskNodes() {
+
+        // Der Fall aus dem Screenshot: hinter der modalen Continuation-Kante `o-^` (leeres Ziel) darf NUR ein
+        // Task-Knoten als Continuation-Ziel folgen (Analyzer Nav0121) — kein GUI-Knoten, keine Choice, kein
+        // Connection-Point und keine Deklarations-/Edge-Keywords. Bisher fiel diese Stelle auf den pauschalen
+        // Fallback (alle Knoten + alle Keywords + alle Edge-Keywords) zurück.
+        // Caret (|) hinter `o-^ ` (Whitespace), im Continuation-Ziel-Slot.
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                choice c;
+                task T;
+                i --> V o-^ |;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\continuation-target-modal.nav");
+        var caret = m.Caret;
+
+        var items  = NavCompletionService.GetCompletions(unit, caret);
+        var labels = Labels(items);
+
+        // Nur der Task-Knoten `T` — als Task-Kategorie.
+        Assert.That(labels, Does.Contain("T"));
+        Assert.That(items.Single(i => i.Label == "T").Kind, Is.EqualTo(NavCompletionItemKind.Task));
+        // KEINE Nicht-Task-Ziele: weder GUI-Knoten (view) noch Choice, noch die Connection-Points.
+        Assert.That(labels, Has.None.EqualTo("V"));
+        Assert.That(labels, Has.None.EqualTo("c"));
+        Assert.That(labels, Has.None.EqualTo("e"));
+        Assert.That(labels, Has.None.EqualTo("i"));
+        // Und kein Fallback-Rauschen: kein `end`, keine Edge-Keywords, keine Deklarations-Keywords.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.EndKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ChoiceKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.DialogKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ViewKeyword));
+    }
+
+    [Test]
+    public void ContinuationTargetSlot_AfterGoToContinuation_OffersOnlyTaskNodes() {
+
+        // Wie oben, aber mit der GoTo-Continuation-Kante `--^`. Auch hier gilt: nur Task-Knoten als Ziel.
+        // Caret (|) hinter `--^ ` (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                task T;
+                i --> V --^ |;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\continuation-target-goto.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        Assert.That(labels, Does.Contain("T"));
+        Assert.That(labels, Has.None.EqualTo("V"));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.EndKeyword));
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
+    public void AfterContinuationTarget_OffersClausesButNoFurtherContinuation() {
+
+        // Hinter einem VOLLSTÄNDIGEN Continuation-Ziel (`o-^ T `) folgen die Klauseln on/if/else/do — aber
+        // KEINE weitere Continuation-Kante: eine Continuation ist nicht verkettbar. Ohne den eigenen
+        // AfterContinuationTarget-Zweig böte AfterTarget hier `o-^`/`--^` fälschlich erneut an.
+        // Caret (|) hinter dem gefüllten Continuation-Ziel `T ` (Whitespace).
+        var m = NavMarkup.Parse(
+            """
+            #version 2
+            task A
+            {
+                init i;
+                exit e;
+                view V;
+                task T;
+                i --> V o-^ T |;
+            }
+
+            """);
+
+        var unit  = ParseModel(m.Source, @"n:\av\after-continuation-target.nav");
+        var caret = m.Caret;
+
+        var labels = Labels(NavCompletionService.GetCompletions(unit, caret));
+
+        // Die Folge-Klauseln bleiben...
+        Assert.That(labels, Does.Contain(SyntaxFacts.OnKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.IfKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.ElseKeyword));
+        Assert.That(labels, Does.Contain(SyntaxFacts.DoKeyword));
+        // ...aber KEINE weitere Continuation-Kante (nicht verkettbar) und keine Knoten.
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationModalEdgeKeyword)); // o-^
+        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.ContinuationGoToEdgeKeyword));  // --^
+        Assert.That(labels, Has.None.EqualTo("T"));
+    }
+
+    [Test]
     public void AfterTrigger_OffersConditionClausesAndDo() {
 
         // Vollständiger (spontaner) Trigger: der Kontext-Anker ist das Trigger-Keyword selbst (Parent

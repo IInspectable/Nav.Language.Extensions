@@ -151,6 +151,9 @@ public static class NavCompletionService {
             case NavCompletionContextKind.TargetSlot:
                 return TargetItems(context);
 
+            case NavCompletionContextKind.ContinuationTargetSlot:
+                return ContinuationTargetItems(context);
+
             case NavCompletionContextKind.StatementStart:
                 return StatementStartItems(context);
 
@@ -159,6 +162,11 @@ public static class NavCompletionService {
 
             case NavCompletionContextKind.AfterTarget:
                 return AfterTargetItems(unit.LanguageVersion);
+
+            // Wie AfterTarget, aber ohne die Continuation-Kanten: eine Continuation ist nicht verkettbar.
+            case NavCompletionContextKind.AfterContinuationTarget:
+                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword,
+                                    SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
 
             case NavCompletionContextKind.AfterTrigger:
                 return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
@@ -260,6 +268,16 @@ public static class NavCompletionService {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol and not IEndNodeSymbol);
         items.Add(new NavCompletionItem(SyntaxFacts.EndKeyword, NavCompletionItemKind.Keyword));
+        return items;
+    }
+
+    // Hinter einer Continuation-Kante (o-^/--^): das Ziel MUSS ein Task-Knoten sein (Analyzer Nav0121) —
+    // daher nur ITaskNodeSymbol, weder die übrigen Zielknoten noch das `end`-Keyword. Würde hier ein
+    // Nicht-Task angeboten, schlüge auf dem Commit sofort Nav0121 zu (dieselbe „nichts anbieten, was sofort
+    // einen Fehler wirft"-Philosophie wie beim Versions-Gate der Continuation-Keywords).
+    static List<NavCompletionItem> ContinuationTargetItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ITaskNodeSymbol);
         return items;
     }
 

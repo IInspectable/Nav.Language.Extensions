@@ -75,11 +75,25 @@ enum NavCompletionContextKind {
     /// <summary>Hinter einer Edge: die Knoten (als Ziel) sowie das Ziel-Keyword <c>end</c>.</summary>
     TargetSlot,
 
+    /// <summary>
+    /// Hinter einer Continuation-Kante (<c>o-^</c>/<c>--^</c>): das Continuation-Ziel — ausschließlich die
+    /// Task-Knoten. Anders als beim regulären <see cref="TargetSlot"/> muss das Ziel ein Task sein (Analyzer
+    /// Nav0121), daher weder die übrigen Zielknoten noch das <c>end</c>-Keyword.
+    /// </summary>
+    ContinuationTargetSlot,
+
     /// <summary>Hinter <c>Knoten:</c> einer Exit-Transition: die Exit-Connection-Points des Knotens.</summary>
     ExitConnectionPoint,
 
     /// <summary>Hinter einem vollständigen Ziel: die Folge-Klauseln <c>on</c> / <c>if</c> / <c>else</c> / <c>do</c>.</summary>
     AfterTarget,
+
+    /// <summary>
+    /// Hinter einem vollständigen Continuation-Ziel: die Folge-Klauseln <c>on</c> / <c>if</c> / <c>else</c> /
+    /// <c>do</c> — im Unterschied zu <see cref="AfterTarget"/> OHNE die Continuation-Kanten <c>o-^</c>/<c>--^</c>,
+    /// da eine Continuation nicht verkettbar ist.
+    /// </summary>
+    AfterContinuationTarget,
 
     /// <summary>Innerhalb/hinter einem Trigger (<c>on …</c>): <c>if</c> / <c>else</c> / <c>do</c>.</summary>
     AfterTrigger,
@@ -256,6 +270,12 @@ sealed class NavCompletionContext {
             return Of(NavCompletionContextKind.TargetSlot, task);
         }
 
+        // Hinter einer Continuation-Kante (o-^/--^) → deren Ziel-Position (nur Task, Nav0121).
+        // ContinuationEdgeSyntax leitet sich NICHT von EdgeSyntax ab, daher ein eigener Zweig.
+        if (contextToken.Parent is ContinuationEdgeSyntax) {
+            return Of(NavCompletionContextKind.ContinuationTargetSlot, task);
+        }
+
         // Satzanfang im Body. Der Task-Body ist grammatisch zweigeteilt und geordnet: erst der
         // Knoten-Deklarations-Block, dann der Transitions-Block (siehe NavParser.ParseTaskDefinition).
         // Direkt hinter `{` (Body-Öffnung) stehen wir am Anfang — der Deklarations-Block ist noch offen.
@@ -285,9 +305,12 @@ sealed class NavCompletionContext {
             case ExitTransitionDefinitionSyntax when contextToken.Type == SyntaxTokenType.Identifier:
                 return Of(NavCompletionContextKind.EdgeSlot, task);
 
-            // Zielknoten → danach die Folge-Klauseln.
-            case TargetNodeSyntax:
-                return Of(NavCompletionContextKind.AfterTarget, task);
+            // Zielknoten → danach die Folge-Klauseln. Ein Continuation-Ziel (Ziel einer
+            // ContinuationTransitionSyntax) bietet dieselben Klauseln, aber KEINE weitere Continuation an.
+            case TargetNodeSyntax target:
+                return Of(target.Parent is ContinuationTransitionSyntax
+                              ? NavCompletionContextKind.AfterContinuationTarget
+                              : NavCompletionContextKind.AfterTarget, task);
 
             // Trigger (`on …` / `spontaneous`) — auch mit gefülltem Signal → danach if/else/do.
             case TriggerSyntax:
