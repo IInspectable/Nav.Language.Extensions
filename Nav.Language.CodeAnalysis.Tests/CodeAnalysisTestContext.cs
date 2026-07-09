@@ -204,6 +204,33 @@ public sealed class CodeAnalysisTestContext {
         return ReadAnnotations().OfType<NavTriggerAnnotation>().First(a => a.TriggerName == triggerName);
     }
 
+    /// <summary>Der Init-Knoten (<c>init X</c>) mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
+    public IInitNodeSymbol Init(string name) {
+        return Unit.TaskDefinitions
+                   .SelectMany(t => t.NodeDeclarations.OfType<IInitNodeSymbol>())
+                   .Single(n => n.Name == name);
+    }
+
+    /// <summary>Die <see cref="TaskInitCodeInfo"/> zum Init-Knoten (Nav→C#-Anker: die <c>{Begin}Logic</c> des eigenen Tasks).</summary>
+    public TaskInitCodeInfo InitInfo(string name) {
+        return TaskInitCodeInfo.FromInitNode(Init(name));
+    }
+
+    /// <summary>Die <c>&lt;NavInit&gt;</c>-Annotation der <c>{Begin}Logic</c> mit dem angegebenen Init-Namen.</summary>
+    public NavInitAnnotation InitAnnotation(string initName) {
+        return ReadAnnotations().OfType<NavInitAnnotation>().First(a => a.InitName == initName);
+    }
+
+    /// <summary>
+    /// Die <c>&lt;NavInitCall&gt;</c>-Annotation des <c>Begin{Node}(…)</c>-Wrappers, dessen Ziel-Interface
+    /// (<c>IBegin{Child}WFS</c>) auf den angegebenen einfachen Namen endet. Anker des annotationsgetriebenen
+    /// C#→C#-Sprungs auf die <c>{Child}</c>-<c>BeginLogic</c>.
+    /// </summary>
+    public NavInitCallAnnotation InitCallAnnotation(string beginInterfaceSimpleName) {
+        return ReadAnnotations().OfType<NavInitCallAnnotation>()
+                                .First(a => a.BeginItfFullyQualifiedName.EndsWith("." + beginInterfaceSimpleName));
+    }
+
     /// <summary>Der Choice-Knoten mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
     public IChoiceNodeSymbol Choice(string name) {
         return Unit.TaskDefinitions

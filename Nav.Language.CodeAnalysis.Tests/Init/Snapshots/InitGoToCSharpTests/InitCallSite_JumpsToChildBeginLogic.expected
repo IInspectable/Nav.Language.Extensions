@@ -1,0 +1,5 @@
+﻿// C# → C#
+// Von der Aufrufstelle next.BeginChild() auf die BeginLogic der geöffneten ChildWFS (lokal definierter Sub-Task).
+
+<ChildWFS.cs> (12,52)-(12,62)  "BeginLogic"
+    protected override BeginCallContext.Result BeginLogic(BeginCallContext next) {
