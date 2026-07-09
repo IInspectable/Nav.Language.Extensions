@@ -41,9 +41,9 @@ public class ChoiceGoToTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        // F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS.
-        Assert.That(ctx.TextAt(location),        Is.EqualTo("Choice_RetryLogic"));
-        Assert.That(ctx.IsInConcreteWfs(location), Is.True);
+        // F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS —
+        // der Golden pinnt Datei + exakten Span (nicht nur „irgendwo steht Choice_RetryLogic").
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceNode_JumpsToChoiceLogicOverride));
     }
 
     [Test]
@@ -55,8 +55,7 @@ public class ChoiceGoToTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Escalate"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        Assert.That(ctx.TextAt(location),          Is.EqualTo("Choice_EscalateLogic"));
-        Assert.That(ctx.IsInConcreteWfs(location), Is.True);
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceNode_JumpsToItsOwnChoiceLogic));
     }
 
     [Test]
@@ -69,7 +68,6 @@ public class ChoiceGoToTests {
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        Assert.That(ctx.TextAt(location),          Is.EqualTo("Choice_RetryLogic"));
-        Assert.That(ctx.IsInConcreteWfs(location), Is.True);
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallSite_JumpsToChoiceLogic));
     }
 }

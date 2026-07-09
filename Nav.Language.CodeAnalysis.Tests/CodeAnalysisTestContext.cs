@@ -42,8 +42,8 @@ namespace Nav.Language.CodeAnalysis.Tests;
 public sealed class CodeAnalysisTestContext {
 
     // Fake-Pfade (kein Dateisystemzugriff) — analog zum @"n:\av\…"-Pun der übrigen Engine-Tests.
-    const string NavPath = @"n:\av\a.nav";
-    const string GenDir  = @"n:\av\gen";
+    public const string NavPath = @"n:\av\a.nav";
+    const  string GenDir  = @"n:\av\gen";
 
     readonly Dictionary<string, string> _generatedTextByPath;
 
@@ -218,11 +218,33 @@ public sealed class CodeAnalysisTestContext {
             throw new ArgumentNullException(nameof(location));
         }
 
-        var source = location.FilePath != null && _generatedTextByPath.TryGetValue(location.FilePath, out var generated)
-            ? generated
-            : NavSource;
+        return SourceFor(location).Substring(location.Start, location.Length);
+    }
 
-        return source.Substring(location.Start, location.Length);
+    /// <summary>Die getrimmte Quellzeile, in der die Location beginnt — Kontext für die Snapshots.</summary>
+    public string SourceLineAt(Location location) {
+        if (location == null) {
+            throw new ArgumentNullException(nameof(location));
+        }
+
+        var lines = SourceFor(location).Split('\n');
+        return location.StartLine >= 0 && location.StartLine < lines.Length
+            ? lines[location.StartLine].Trim()
+            : String.Empty;
+    }
+
+    /// <summary>
+    /// Ein maschinenunabhängiger Kurz-Tag für die Datei der Location: <c>&lt;nav&gt;</c> für das
+    /// <c>.nav</c>, sonst der bloße Dateiname (z.B. <c>&lt;ChoiceFlowWFS.cs&gt;</c>) — nie der
+    /// (Fake-)Absolutpfad, damit die Snapshots reproduzierbar bleiben.
+    /// </summary>
+    public string FileTag(Location location) {
+        var path = location?.FilePath;
+        if (path == null) {
+            return "<null>";
+        }
+
+        return NavSolution.HasNavExtension(path) ? "<nav>" : $"<{Path.GetFileName(path)}>";
     }
 
     /// <summary>Die Location zeigt in generierten C#-Code.</summary>
@@ -230,8 +252,31 @@ public sealed class CodeAnalysisTestContext {
         return location?.FilePath != null && _generatedTextByPath.ContainsKey(location.FilePath);
     }
 
-    /// <summary>Die Location zeigt zurück ins <c>.nav</c>.</summary>
-    public bool IsInNav(Location location) => !IsInGeneratedCSharp(location);
+    /// <summary>Die Location zeigt zurück ins <c>.nav</c> (echte Endungs-/Pfadprüfung, nicht bloß „nicht C#").</summary>
+    public bool IsInNav(Location location) {
+        return location?.FilePath != null && NavSolution.HasNavExtension(location.FilePath);
+    }
+
+    /// <summary>
+    /// Der Quelltext, in den die Location zeigt — generierter C#-Code (per Pfad) oder das <c>.nav</c>.
+    /// Ein Pfad, der weder ein generiertes Dokument noch eine <c>.nav</c>-Datei ist (inkl. <c>null</c>),
+    /// lässt den Test hart fehlschlagen — statt still auf den Nav-Quelltext zu matchen und damit ein
+    /// falsches Sprungziel zu verschleiern.
+    /// </summary>
+    string SourceFor(Location location) {
+        var path = location.FilePath;
+        if (path != null && _generatedTextByPath.TryGetValue(path, out var generated)) {
+            return generated;
+        }
+
+        if (path != null && NavSolution.HasNavExtension(path)) {
+            return NavSource;
+        }
+
+        throw new AssertionException(
+            $"Location zeigt auf einen unerwarteten Pfad '{path ?? "<null>"}' — weder ein generiertes " +
+            $"Dokument noch das .nav ({NavPath}).");
+    }
 
     /// <summary>Die Location zeigt in die konkrete, nutzerseitige <c>{Task}WFS</c> (nicht die generierte Basis).</summary>
     public bool IsInConcreteWfs(Location location) {

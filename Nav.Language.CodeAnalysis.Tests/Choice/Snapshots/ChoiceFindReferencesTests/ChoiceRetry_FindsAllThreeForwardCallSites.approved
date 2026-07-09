@@ -1,0 +1,8 @@
+﻿<ChoiceFlowWFSBase.generated.cs> (70,73)-(70,90)  "Choice_RetryLogic"
+    public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+<ChoiceFlowWFSBase.generated.cs> (101,73)-(101,90)  "Choice_RetryLogic"
+    public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+<ChoiceFlowWFSBase.generated.cs> (160,73)-(160,90)  "Choice_RetryLogic"
+    public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+<ChoiceFlowWFSBase.generated.cs> (210,80)-(210,97)  "Choice_RetryLogic"
+    internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));

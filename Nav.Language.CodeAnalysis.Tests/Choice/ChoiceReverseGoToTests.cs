@@ -30,9 +30,9 @@ public class ChoiceReverseGoToTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        // Intra-Text-GoTo auf Choice_RetryLogic landet auf `choice Choice_Retry` im .nav.
-        Assert.That(ctx.TextAt(location), Is.EqualTo("Choice_Retry"));
-        Assert.That(ctx.IsInNav(location), Is.True);
+        // Rücksprung von Choice_RetryLogic landet auf der `choice Choice_Retry`-Deklaration im .nav —
+        // der Golden pinnt den exakten Span, nicht bloß irgendein Choice_Retry-Vorkommen.
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceLogicAnnotation_JumpsBackToChoiceNode));
     }
 
     [Test]
@@ -47,8 +47,7 @@ public class ChoiceReverseGoToTests {
                                      .Single();
 
         // GoTo direkt auf next.Choice_Retry(…) landet ebenfalls auf dem Choice-Knoten.
-        Assert.That(ctx.TextAt(location),  Is.EqualTo("Choice_Retry"));
-        Assert.That(ctx.IsInNav(location), Is.True);
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallAnnotation_JumpsBackToChoiceNode));
     }
 
     [Test]
@@ -62,7 +61,6 @@ public class ChoiceReverseGoToTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        Assert.That(ctx.TextAt(location),  Is.EqualTo("Choice_Escalate"));
-        Assert.That(ctx.IsInNav(location), Is.True);
+        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceLogicAnnotation_JumpsBackToItsNode));
     }
 }

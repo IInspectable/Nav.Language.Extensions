@@ -1,0 +1,4 @@
+﻿<ChoiceFlowWFSBase.generated.cs> (228,72)-(228,92)  "Choice_EscalateLogic"
+    public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());
+<ChoiceFlowWFSBase.generated.cs> (246,80)-(246,100)  "Choice_EscalateLogic"
+    internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_EscalateLogic));
