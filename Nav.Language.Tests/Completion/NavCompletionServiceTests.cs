@@ -955,229 +955,229 @@ public class NavCompletionServiceTests {
 
     #endregion
 
-    #region Ersetzungsbereiche (Edge-/Continuation-Spans — eigene Suite, siehe Step 3)
+    #region Ersetzungsbereiche (Edge-/Continuation-Spans über den Commit-Effekt)
+
+    // Diese Suite prüft die Operator-Ersetzungsbereiche NICHT mehr über Offset-Arithmetik am
+    // ReplacementExtent, sondern über den sichtbaren Commit-Effekt: `.Commit(keyword).Produces(text)`
+    // wendet den Einfügetext des Vorschlags über seinen Ersetzungsbereich an und vergleicht das Resultat.
+    // So steht im Test, was der Nutzer nach dem Commit im Editor sieht — Verdopplungen (`--->`, `--^--^`)
+    // und Übergriffe in den Zielknoten fallen als falscher Ergebnistext auf.
 
     [Test]
-    public void EdgeSlot_EdgeItemsCarryReplacementExtent() {
+    public void EdgeSlot_CommitBeforeExistingEdge_ReplacesItWithoutDuplicating() {
 
-        // Caret (|) hinter dem Quellknoten `i`, VOR der bereits vorhandenen Edge `-->`.
-        var m = NavMarkup.Parse(
-            """
-            task A
-            {
-                init i;
-                exit e;
-                task Sub;
-                i |--> Sub;
-            }
+        // Caret (|) hinter dem Quellknoten `i`, VOR der bereits vorhandenen Edge `-->`. Der Commit desselben
+        // Keywords ersetzt die vorhandene Edge, statt sie zu einer zweiten `-->` zu verdoppeln — der Text
+        // bleibt unverändert.
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               task Sub;
+               i |--> Sub;
+           }
 
-            """);
+           """)
+            .Commit(SyntaxFacts.GoToEdgeKeyword)
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          task Sub;
+                          i --> Sub;
+                      }
 
-        var unit  = ParseModel(m.Source, @"n:\av\a.nav");
-        var caret = m.Caret;
-
-        var edgeItem = NavCompletionService.GetCompletions(unit, caret)
-                                           .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
-
-        // Jedes Edge-Item trägt seinen eigenen Ersetzungsbereich (Edge-Keywords bestehen aus Nicht-Bezeichner-
-        // Zeichen; der Host ersetzt darüber die angefangene bzw. vorhandene Edge). Hier steht der Caret VOR der
-        // bereits vorhandenen `-->` → der Bereich MUSS diese Edge umfassen, damit der Commit sie ersetzt statt
-        // sie zu einer zweiten `-->` zu verdoppeln.
-        Assert.That(edgeItem.ReplacementExtent, Is.Not.Null);
-        Assert.That(edgeItem.ReplacementExtent!.Value.Start, Is.EqualTo(caret));
-        Assert.That(edgeItem.ReplacementExtent!.Value.End,   Is.EqualTo(caret + SyntaxFacts.GoToEdgeKeyword.Length));
+                      """);
     }
 
     [Test]
-    public void EdgeSlot_ReplacementExtentReplacesExistingEdge_NoDuplicate() {
+    public void EdgeSlot_CommitReplacesExistingModalEdge_NoDuplicate() {
 
-        // Regression zu „i -->--> Sub": Caret VOR einer vorhandenen modalen Edge `o->`. Der Ersetzungsbereich
-        // deckt die vorhandene Edge komplett ab (auch die Zeichen HINTER dem Caret), damit der Commit eines
-        // Edge-Keywords sie ersetzt statt eine zweite Edge einzufügen.
-        // Vollständige modale Edge `o->`; Caret (|) direkt vor dem `o->`.
-        var m = NavMarkup.Parse(
-            """
-            task A
-            {
-                init i;
-                exit e;
-                i |o-> e;
-            }
+        // Regression zu „i -->--> e": Caret (|) direkt VOR einer vorhandenen modalen Edge `o->`. Der Commit
+        // von `-->` ersetzt die komplette vorhandene Edge (auch die Zeichen HINTER dem Caret), statt eine
+        // zweite Edge einzufügen.
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               i |o-> e;
+           }
 
-            """);
+           """)
+            .Commit(SyntaxFacts.GoToEdgeKeyword)
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          i --> e;
+                      }
 
-        var unit      = ParseModel(m.Source, @"n:\av\before-edge.nav");
-        var edgeStart = m.Caret;
-
-        var edge = NavCompletionService.GetCompletions(unit, edgeStart)
-                                       .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
-
-        var extent = edge.ReplacementExtent!.Value;
-        Assert.That(extent.Start, Is.EqualTo(edgeStart));                                     // vor der Edge
-        Assert.That(extent.End,   Is.EqualTo(edgeStart + SyntaxFacts.ModalEdgeKeyword.Length)); // deckt `o->` ab
+                      """);
     }
 
     [Test]
-    public void EdgeSlot_ReplacementExtentStopsAtTargetToken() {
+    public void EdgeSlot_CommitStopsAtAdjacentTargetToken() {
 
         // Sicherheitsnetz gegen einen rohen Zeichen-Vorlauf: die Edge grenzt OHNE Leerzeichen an einen
-        // Zielknoten, der mit einem Edge-Zeichen beginnt (`o1`). Der Ersetzungsbereich darf NUR die Edge (das
-        // Lexer-Token `-->`) umfassen, nicht in das Ziel `o1` hineinfressen.
-        // Edge direkt am Ziel, Ziel beginnt mit `o`; Caret (|) hinter der Quelle `i `, vor `-->`.
-        var m = NavMarkup.Parse(
-            """
-            task A
-            {
-                init i;
-                view o1;
-                i |-->o1;
-            }
+        // Zielknoten, der mit einem Edge-Zeichen beginnt (`o1`). Der Commit von `-->` ersetzt NUR die Edge (das
+        // Lexer-Token `-->`) und frisst sich nicht in das Ziel `o1` hinein — `o1` bleibt erhalten.
+        At("""
+           task A
+           {
+               init i;
+               view o1;
+               i |-->o1;
+           }
 
-            """);
+           """)
+            .Commit(SyntaxFacts.GoToEdgeKeyword)
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          view o1;
+                          i -->o1;
+                      }
 
-        var unit      = ParseModel(m.Source, @"n:\av\adjacent-target.nav");
-        var edgeStart = m.Caret;
-
-        var edge = NavCompletionService.GetCompletions(unit, edgeStart)
-                                       .Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
-
-        var extent = edge.ReplacementExtent!.Value;
-        Assert.That(extent.Start, Is.EqualTo(edgeStart));                                    // vor `-->`
-        Assert.That(extent.End,   Is.EqualTo(edgeStart + SyntaxFacts.GoToEdgeKeyword.Length)); // deckt `-->`, NICHT `o1` ab
+                      """);
     }
 
     [Test]
-    public void EdgeSlot_ReplacementExtentCoversTypedEdgeCharacters() {
+    public void EdgeSlot_CommitReplacesTypedEdgePrefix() {
 
         // Angefangene modale Edge (`o` getippt, Beginn von `o->`) hinter dem Quellknoten: das `o` ist zugleich
         // Bezeichner- und Edge-Zeichen und wird als Wort-Präfix behandelt (Kontext bleibt der Quellknoten →
-        // EdgeSlot). Der Ersetzungsbereich MUSS das getippte `o` einschließen, damit der Commit es durch das
-        // vollständige Keyword ersetzt (statt `oo->` zu erzeugen).
-        // Angefangene Edge — Caret (|) direkt hinter dem getippten `o`.
-        var m = NavMarkup.Parse(
-            """
-            task A
-            {
-                init i;
-                exit e;
-                i o|
-            }
+        // EdgeSlot). Der Commit ersetzt das getippte `o` durch das vollständige Keyword (statt `oo->` zu erzeugen).
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               i o|
+           }
 
-            """);
+           """)
+            .Commit(SyntaxFacts.ModalEdgeKeyword) // o->
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          i o->
+                      }
 
-        var unit  = ParseModel(m.Source, @"n:\av\partial.nav");
-        var caret = m.Caret;
-
-        var edge = NavCompletionService.GetCompletions(unit, caret)
-                                       .Single(i => i.Label == SyntaxFacts.ModalEdgeKeyword); // o->
-
-        var extent = edge.ReplacementExtent!.Value;
-        Assert.That(extent.End,   Is.EqualTo(caret));
-        Assert.That(extent.Start, Is.EqualTo(caret - 1)); // das getippte `o`
+                      """);
     }
 
     [Test]
-    public void PartialEdge_AfterSourceNode_OffersEdgeKeywords() {
+    public void PartialEdge_AfterSourceNode_OffersEdgeKeywordsAndCommitReplacesTypedDash() {
 
         // Angefangene Edge: der Nutzer hat hinter dem Quellknoten ein `-` getippt (Beginn von `-->`). Das
         // einzelne `-` ist kein gültiges Edge-Keyword und bleibt als unbekanntes, an die Wurzel gehängtes
-        // Token übrig — trotzdem MUSS hier (wie beim `o` von `o->`) der Quellknoten-Kontext greifen und die
-        // Edge-Keywords anbieten, statt auf die Member-Ebene (task/taskref) zurückzufallen.
-        // Angefangene Edge — Caret (|) direkt hinter dem getippten `-`.
-        var m = NavMarkup.Parse(
-            """
-            task A
-            {
-                init i;
-                exit e;
-                i -|
-            }
+        // Token übrig — trotzdem MUSS hier (wie beim `o` von `o->`) der Quellknoten-Kontext greifen und exakt
+        // die sichtbaren Edge-Keywords anbieten (nicht die Member-Ebene task/taskref, keine Knoten). Der Commit
+        // ersetzt das getippte `-` durch das vollständige Keyword (statt `--->` zu erzeugen).
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               i -|
+           }
 
-            """);
+           """)
+            .Offers(Keyword(SyntaxFacts.GoToEdgeKeyword), Keyword(SyntaxFacts.ModalEdgeKeyword))
+            .Commit(SyntaxFacts.GoToEdgeKeyword)
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          i -->
+                      }
 
-        var unit  = ParseModel(m.Source, @"n:\av\partial-dash.nav");
-        var caret = m.Caret;
-
-        var items  = NavCompletionService.GetCompletions(unit, caret);
-        var labels = Labels(items);
-
-        // Die sichtbaren Edge-Keywords werden angeboten...
-        Assert.That(labels, Does.Contain(SyntaxFacts.GoToEdgeKeyword)); // -->
-        Assert.That(labels, Does.Contain(SyntaxFacts.ModalEdgeKeyword)); // o->
-        // ...aber KEINE Member-Ebenen-Keywords und keine Knoten.
-        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskKeyword));
-        Assert.That(labels, Has.None.EqualTo(SyntaxFacts.TaskrefKeyword));
-        Assert.That(labels, Has.None.EqualTo("i"));
-
-        // Das getippte `-` gehört zum Ersetzungsbereich, damit der Commit es durch das vollständige Keyword
-        // ersetzt (statt `--->` zu erzeugen).
-        var edge = items.Single(i => i.Label == SyntaxFacts.GoToEdgeKeyword);
-        Assert.That(edge.ReplacementExtent!.Value.End,   Is.EqualTo(caret));
-        Assert.That(edge.ReplacementExtent!.Value.Start, Is.EqualTo(caret - 1)); // das getippte `-`
+                      """);
     }
 
     [Test]
-    public void AfterTarget_ContinuationEdge_ReplacementExtentCoversTypedDash() {
+    public void AfterTarget_CommitContinuationEdge_ReplacesTypedDash() {
 
         // Regression zu „---^": Hinter dem Ziel `V` hat der Nutzer ein `-` getippt (Beginn von `--^`). Wie die
-        // regulären Edges MUSS auch die Continuation-Kante das getippte `-` in ihren Ersetzungsbereich nehmen,
-        // damit der Commit es durch das vollständige Keyword ersetzt (statt `-` + `--^` = `---^` zu erzeugen).
-        // Caret (|) direkt hinter dem getippten `-`.
-        var m = NavMarkup.Parse(
-            """
-            #version 2
-            task A
-            {
-                init i;
-                exit e;
-                view V;
-                i --> V -|;
-            }
+        // regulären Edges ersetzt auch die Continuation-Kante das getippte `-`, statt `-` + `--^` = `---^` zu
+        // erzeugen — für BEIDE Continuation-Keywords (`--^` und `o-^`).
+        var r = At("""
+                   #version 2
+                   task A
+                   {
+                       init i;
+                       exit e;
+                       view V;
+                       i --> V -|;
+                   }
 
-            """);
+                   """);
 
-        var unit  = ParseModel(m.Source, @"n:\av\continuation-dash.nav");
-        var caret = m.Caret;
+        r.Commit(SyntaxFacts.ContinuationGoToEdgeKeyword) // --^
+         .Produces("""
+                   #version 2
+                   task A
+                   {
+                       init i;
+                       exit e;
+                       view V;
+                       i --> V --^;
+                   }
 
-        var items = NavCompletionService.GetCompletions(unit, caret);
+                   """);
 
-        foreach (var keyword in new[] { SyntaxFacts.ContinuationGoToEdgeKeyword, SyntaxFacts.ContinuationModalEdgeKeyword }) {
-            var edge = items.Single(i => i.Label == keyword);
-            Assert.That(edge.ReplacementExtent, Is.Not.Null, $"{keyword} trägt keinen Ersetzungsbereich");
-            Assert.That(edge.ReplacementExtent!.Value.End,   Is.EqualTo(caret));
-            Assert.That(edge.ReplacementExtent!.Value.Start, Is.EqualTo(caret - 1)); // das getippte `-`
-        }
+        r.Commit(SyntaxFacts.ContinuationModalEdgeKeyword) // o-^
+         .Produces("""
+                   #version 2
+                   task A
+                   {
+                       init i;
+                       exit e;
+                       view V;
+                       i --> V o-^;
+                   }
+
+                   """);
     }
 
     [Test]
-    public void AfterTarget_ContinuationEdge_ReplacementExtentReplacesExistingEdge_NoDuplicate() {
+    public void AfterTarget_CommitContinuationEdge_ReplacesExistingEdge_NoDuplicate() {
 
-        // Caret (|) VOR einer bereits vorhandenen Continuation-Kante `--^`. Der Ersetzungsbereich MUSS die
-        // vorhandene Kante komplett abdecken, damit der Commit sie ersetzt statt sie zu `--^--^` zu verdoppeln —
-        // der Vorwärts-Anteil des Bereichs deckt jetzt auch Continuation-Token ab (nicht nur reguläre Edges).
-        var m = NavMarkup.Parse(
-            """
-            #version 2
-            task A
-            {
-                init i;
-                exit e;
-                view V;
-                task T;
-                i --> V |--^ T;
-            }
+        // Caret (|) VOR einer bereits vorhandenen Continuation-Kante `--^`. Der Commit ersetzt die vorhandene
+        // Kante komplett, statt sie zu `--^--^` zu verdoppeln — der Ergebnistext bleibt unverändert.
+        At("""
+           #version 2
+           task A
+           {
+               init i;
+               exit e;
+               view V;
+               task T;
+               i --> V |--^ T;
+           }
 
-            """);
+           """)
+            .Commit(SyntaxFacts.ContinuationGoToEdgeKeyword)
+            .Produces("""
+                      #version 2
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          view V;
+                          task T;
+                          i --> V --^ T;
+                      }
 
-        var unit  = ParseModel(m.Source, @"n:\av\continuation-existing.nav");
-        var caret = m.Caret;
-
-        var edge = NavCompletionService.GetCompletions(unit, caret)
-                                       .Single(i => i.Label == SyntaxFacts.ContinuationGoToEdgeKeyword);
-
-        var extent = edge.ReplacementExtent!.Value;
-        Assert.That(extent.Start, Is.EqualTo(caret));                                                  // vor `--^`
-        Assert.That(extent.End,   Is.EqualTo(caret + SyntaxFacts.ContinuationGoToEdgeKeyword.Length)); // deckt `--^` ab
+                      """);
     }
 
     #endregion
@@ -1221,19 +1221,6 @@ public class NavCompletionServiceTests {
         Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('.'));
         Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('/'));
         Assert.That(NavCompletionService.CommitCharacters, Has.None.EqualTo('\\'));
-    }
-
-    #endregion
-
-    #region Helpers
-
-    static string[] Labels(System.Collections.Generic.IReadOnlyList<NavCompletionItem> items) {
-        return items.Select(i => i.Label).ToArray();
-    }
-
-    static CodeGenerationUnit ParseModel(string source, string filePath) {
-        var syntax = Syntax.ParseCodeGenerationUnit(text: source, filePath: filePath);
-        return CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);
     }
 
     #endregion
