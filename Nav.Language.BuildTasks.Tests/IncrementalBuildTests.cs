@@ -12,12 +12,14 @@ using NUnit.Framework;
 namespace Pharmatechnik.Nav.Language.BuildTasks.Tests;
 
 /// <summary>
-/// MSBuild-Integrationstests fuer den inkrementellen Nav-Build (<c>Pharmatechnik.Nav.Language.targets</c>).
-/// Gebaut wird gegen das versandfertige Tool-Layout in <c>deploy\Build Tools</c> (echte, self-contained
-/// <c>nav.exe</c>) via Full-Framework-MSBuild.exe. Fehlt das Layout oder MSBuild, werden die Tests
-/// als <c>Ignored</c> markiert (Hinweis: zuerst `n publish`).
+/// MSBuild-Integrationstests für den inkrementellen Nav-Build (<c>Pharmatechnik.Nav.Language.targets</c>).
+/// Gebaut wird gegen ein Tool-Layout, das <see cref="BuildEnvironment"/> in einem Temp-Verzeichnis aus den
+/// normalen Build-Outputs zusammenstellt (framework-abhängige <c>nav.exe</c> aus <c>Nav.Cli\bin</c>, Targets +
+/// Task-DLL aus <c>Nav.Language.BuildTasks\bin</c>) — also immer gegen die AKTUELLEN Sourcen, nicht gegen ein
+/// evtl. veraltetes Publish. Voraussetzung ist nur, dass die Solution gebaut wurde (kein `n publish` nötig).
+/// Fehlen die Build-Outputs oder MSBuild.exe, werden die Tests als <c>Ignored</c> markiert (nie rot).
 ///
-/// Primaere Signale sind dateibasiert und damit sprach-/verbositaetsunabhaengig:
+/// Primäre Signale sind dateibasiert und damit sprach-/verbositätsunabhängig:
 ///   * Run-Marker (obj\nav.ran.marker) existiert ⇒ der GenerateNavCode-Body lief (Regen/Erstlauf),
 ///   * Manifest (obj\nav.outputs.txt) Existenz + Zeitstempel,
 ///   * Existenz der generierten .cs.

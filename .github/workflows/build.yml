@@ -30,6 +30,12 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # nav publish paketiert die VS-Code-Extension (npm install + npx @vscode/vsce) — dafür Node/npm.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       # Git-abgeleitete Produktversion ermitteln (eine Quelle der Wahrheit: MSBuild-Target
       # ComputeGitVersion, gelesen per Get-ProductVersion). Wird für die Artifact-Namen genutzt.
       - name: Produktversion ermitteln
@@ -43,15 +49,19 @@ jobs:
           Write-Host "Produktversion: $version"
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      # Baut die gesamte Solution via Full-Framework-MSBuild.exe (Restore + Build, Debug).
-      # Wiederverwendung der bestehenden n-Command-Logik (löst MSBuild via vswhere und den
-      # Repo-Root via git selbst auf). Die DeployFiles-Targets befüllen dabei deploy\.
-      - name: Build (MSBuild via n build)
+      # Baut die gesamte Solution (Full-Framework-MSBuild.exe, Restore + Build, Debug) UND stellt
+      # alle Deliverables unter deploy\ bereit: Build Tools (inkl. self-contained nav.exe + Grammatik),
+      # VS-2026-VSIX, VS-Code-Extension (mit eingebettetem LSP) und MCP-Single-File. Ein Befehl,
+      # identisch zum lokalen `nav publish` — eine Quelle der Wahrheit für die Deliverable-Sequenz.
+      # Die anschließenden Tests hängen NICHT an deploy\, sondern nur am Solution-Build (bin\), den
+      # Invoke-Publish intern (Invoke-Build) miterledigt; die Reihenfolge Publish→Test ist daher
+      # unkritisch (ein roter Test überspringt Upload/Release ohnehin).
+      - name: Publish (MSBuild + Deliverables via n publish)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           . "$env:GITHUB_WORKSPACE\Tools\Commands\Import-NavCommands.ps1"
-          Invoke-Build -Configuration Debug
+          Invoke-Publish -Configuration Debug
 
       # net472-Tests über den im Repo eingecheckten NUnit-Console-Runner
       # (Nav.Language.Tests + Nav.Language.Extension.Tests).
@@ -88,6 +98,22 @@ jobs:
           path: deploy/Build Tools
           if-no-files-found: error
 
+      - name: Upload VS Code extension artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Nav.Language.VsCode-${{ steps.version.outputs.version }}
+          path: deploy/vscode
+          if-no-files-found: error
+          # Ein VSIX ist selbst schon ein Zip (OPC-Container) — nicht erneut komprimieren.
+          compression-level: 0
+
+      - name: Upload MCP server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Nav.Language.Mcp-${{ steps.version.outputs.version }}
+          path: deploy/mcp
+          if-no-files-found: error
+
       # ---- Release (nur bei v*-Tags) -------------------------------------------------
       # Bei euch ist die Version tag-gesteuert (nav incminor/incmajor → git tag vX.Y.0,
       # Push). Ein Tag-Push triggert diesen Workflow; die folgenden Schritte laufen NUR
@@ -115,4 +141,6 @@ jobs:
           generate_release_notes: true
           files: |
             deploy/Vsix/*.vsix
+            deploy/vscode/*.vsix
+            deploy/mcp/nav.mcp.exe
             deploy/Nav.Language.BuildTools-${{ steps.version.outputs.version }}.zip
