@@ -5,6 +5,7 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -52,5 +53,22 @@ public class InitGoToNavTests {
         GoldenAssert.Match(location, ctx, nameof(ChildInitAnnotation_JumpsBackToChildInitNode),
                            NavigationDirection.CSharpToNav,
                            "Rücksprung von der BeginLogic des Sub-Tasks landet auf dessen eigenem `init Begin`-Knoten.");
+    }
+
+    [Test]
+    public void MissingInitAnnotation_ThrowsLocationNotFound() {
+
+        // Negativpfad C#→Nav (innerer „initNode == null"-Zweig): der Task InitFlow existiert im .nav, der
+        // annotierte Init-Name aber nicht. Der LocationFinder muss den fehlenden Init-Knoten als
+        // LocationNotFoundException melden.
+        var ctx  = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow);
+        var real = ctx.InitAnnotation("Init1");
+
+        var missing = new NavInitAnnotation(real, real.MethodDeclarationSyntax, initName: "GhostInit");
+
+        Assert.That(
+            () => LocationFinder.FindNavLocationsAsync(ctx.NavSource, missing, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
     }
 }

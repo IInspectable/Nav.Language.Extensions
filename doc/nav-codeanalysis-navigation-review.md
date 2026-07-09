@@ -28,12 +28,12 @@
 
 | Konstrukt | Nav→C# | C#→Nav | C#→C# | Negativpfad |
 |---|---|---|---|---|
-| Task | ✅ Decl→WFS (+2. Task) | ✅ WFS→Decl (+2.) | — | ✅ nur Nav→C# |
+| Task | ✅ Decl→WFS (+2. Task) | ✅ WFS→Decl (+2.) | — | ✅ Nav→C# (MissingWfs) + C#→Nav (task==null) |
 | **Task → IBegin-Interface** | ✅ Decl→IBegin (+2. Task) | — | — | ✅ MissingItf |
-| Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ nur Nav→C# |
-| Init | ✅ Node→BeginLogic | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ nur Nav→C#-Node |
-| Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ✅ After→Begin-Caller | ✅ nur Nav→C# |
-| Choice | ✅ (+2.) | ✅ Logic+CallSite (+Escalate) | ✅ CallSite→Logic + Logic→Aufrufer (beidseitig) | ✅ nur Nav→C# |
+| Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ Nav→C# + C#→Nav (trigger fehlt) |
+| Init | ✅ Node→BeginLogic | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ Nav→C# + C#→Nav (init fehlt) + Call-Site |
+| Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ✅ After→Begin-Caller | ✅ Nav→C# + C#→Nav (Knoten fehlt) |
+| Choice | ✅ (+2.) | ✅ Logic+CallSite (+Escalate) | ✅ CallSite→Logic + Logic→Aufrufer (beidseitig) | ✅ Nav→C# + C#→Nav (choice fehlt) + Call-Site |
 
 ---
 
@@ -86,26 +86,32 @@ echt testen. Alternativ sofort den vereinfachten Kern-Test in `Exit/ExitGoToCSha
 `NavInitCallAnnotation`-Aufrufstellen der `Begin{Node}` und mappt `ToLocation`) — dann braucht die
 Exit-Fixture Nutzer-Code, der `next.BeginSub()` aufruft (vgl. `InitFixtures.InitFlowUserCode`).
 
-### A3 — C#→Nav-„nicht gefunden"-Negativpfade fehlen durchgängig  ⬜
+### A3 — C#→Nav-„nicht gefunden"-Negativpfade fehlen durchgängig  ✅ (erledigt)
 
-Alle `GetXxxLocations` in `LocationFinder` werfen `LocationNotFoundException`, wenn das benannte Symbol
-nicht im `.nav` liegt — **kein** Test übt diese Zweige:
-- `GetTaskLocations`/Task-Lookup (`LocationFinder.cs:120`, `:131`) — Annotation mit Task-Name, der nicht
-  im `.nav` steht.
-- `GetTriggerLocations` (`:142`), `GetChoiceLocations` (`:157`), `GetInitLocations` (`:183`),
-  `GetExitLocations` (`:200`).
+**Erledigt**: je Konstrukt ein `Missing{K}Annotation_ThrowsLocationNotFound` in `…GoToNavTests.cs`. Umgesetzt
+über die im How-to genannte zweite Variante — **eine echte Annotation an eine gefälschte Symbol-Name-Fassung
+umhängen**: aus dem jeweiligen Fixture die reale Annotation lesen, dann eine gleichnamige `NavXxxAnnotation`
+mit **derselben Task-/Datei-/Method-Verankerung**, aber einem unbekannten Sub-Namen konstruieren
+(`new NavTriggerAnnotation(real, real.MethodDeclarationSyntax, "OnGhost")` usw.) und gegen die **eigene**
+`ctx.NavSource` laufen lassen. So trifft der Test punktgenau den **inneren** „nicht gefunden"-Zweig je
+Konstrukt, ohne ein Sibling-`.nav` zu brauchen:
+- Trigger `trigger == null` (`GetTriggerLocations`), Choice `choiceNode == null` (`GetChoiceLocationByName`),
+  Init `initNode == null` (`GetInitLocations`), Exit „keine Exit-Transitions" (`GetExitLocations`).
+- Task: der **äußere** `task == null`-Zweig des generischen `FindNavLocationsAsync<…>` — hier eine
+  `NavTaskAnnotation` mit unbekanntem Task-Namen (`ClassDeclarationSyntax`/`NavFileName` der echten
+  wiederverwendet), da `GetTaskLocations` selbst nie wirft.
 
-**How to:** je Konstrukt in `…GoToNavTests.cs` ein `…Annotation_Missing_ThrowsLocationNotFound`. Annotation
-mit gefälschtem Namen bauen (entweder eine echte Annotation gegen einen ohne das Symbol generierten Kontext
-laufen lassen, oder eine `NavXxxAnnotation` mit unbekanntem Namen konstruieren — den einfachsten Weg im
-`AnnotationReader`/Annotation-Konstruktor prüfen). Assertion: `Throws.TypeOf<LocationNotFoundException>()`.
+Assertion überall `Throws.TypeOf<LocationNotFoundException>()` (kein Golden nötig).
 
-### A4 — Call-Site-Negativpfade fehlen  ⬜
+### A4 — Call-Site-Negativpfade fehlen  ✅ (erledigt)
 
-`FindCallBeginLogicDeclarationLocationsAsync` (`:218`) und `FindCallChoiceLogicDeclarationLocationAsync`
-(`:558`) haben keinen `MissingWfs`-Negativpfad (nur die genuinen Nav→C#-Pfade haben ihn). Je einen Test
-über `ForeignProject()` bzw. eine Bühne ohne Ziel-`WFSBase` ergänzen (`Init/…CSharpTests`,
-`Choice/…CSharpTests`).
+**Erledigt**: `FindCallBeginLogicDeclarationLocationsAsync` (`Init/InitGoToCSharpTests` →
+`MissingCallBeginLogic_ThrowsLocationNotFound`) und `FindCallChoiceLogicDeclarationLocationAsync`
+(`Choice/ChoiceGoToCSharpTests` → `MissingCallChoiceLogic_ThrowsLocationNotFound`) laufen jetzt je über
+`ForeignProject()`: die echte `<NavInitCall>`- bzw. `<NavChoiceCall>`-Aufrufstelle stammt aus dem
+Feature-Fixture, die Roslyn-Bühne aber aus dem fremden Task ohne das Ziel-Interface `IBeginChildWFS` bzw.
+ohne die `{Task}WFSBase` → `LocationNotFoundException`. Damit haben nun beide Call-Site-Pfade denselben
+`MissingWfs`-Negativpfad wie die genuinen Nav→C#-Pfade.
 
 ---
 
@@ -170,8 +176,8 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 1. ~~**A1** (echte Feature-Lücke, isoliert, hoher Wert).~~ ✅ erledigt.
 2. ~~**B2** (trivialer DRY-Fix, warm-up).~~ ✅ erledigt.
 3. ~~**B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).~~ ✅ erledigt.
-4. **A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte). ← **als Nächstes**
-5. **B1** (Doku/Assert; voll erst mit „Option B").
+4. ~~**A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).~~ ✅ erledigt.
+5. **B1** (Doku/Assert; voll erst mit „Option B"). ← **als Nächstes** (einziger offener Punkt)
 
 ## Referenz-Dateien
 

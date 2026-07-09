@@ -84,4 +84,20 @@ public class InitGoToCSharpTests {
                                 .GetAwaiter().GetResult(),
             Throws.TypeOf<LocationNotFoundException>());
     }
+
+    [Test]
+    public void MissingCallBeginLogic_ThrowsLocationNotFound() {
+
+        // Negativpfad des annotationsgetriebenen C#→C#-Sprungs: die <NavInitCall>-Aufrufstelle stammt aus
+        // InitFlow, die Roslyn-Bühne aber aus einem fremden Task OHNE das Ziel-Interface IBeginChildWFS. Der
+        // LocationFinder muss das fehlende Begin-Interface als LocationNotFoundException melden.
+        var initCall       = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode)
+                                                    .InitCallAnnotation("IBeginChildWFS");
+        var foreignProject = CodeAnalysisTestContext.ForeignProject();
+
+        Assert.That(
+            () => LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(foreignProject, initCall, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
+    }
 }

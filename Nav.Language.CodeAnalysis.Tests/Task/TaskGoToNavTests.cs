@@ -5,6 +5,7 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -52,5 +53,25 @@ public class TaskGoToNavTests {
         GoldenAssert.Match(location, ctx, nameof(SecondTaskAnnotation_JumpsBackToItsDeclaration),
                            NavigationDirection.CSharpToNav,
                            "Rücksprung aus der HelperWFS landet auf der eigenen `task Helper`-Deklaration.");
+    }
+
+    [Test]
+    public void MissingTaskAnnotation_ThrowsLocationNotFound() {
+
+        // Negativpfad C#→Nav: gleiche Klassen-/Datei-Verankerung wie eine echte <NavTask>-Annotation, aber
+        // ein Task-Name, den es im .nav nicht gibt. Der LocationFinder muss den fehlenden Task als
+        // LocationNotFoundException melden, statt still ins Leere zu navigieren.
+        var ctx  = CodeAnalysisTestContext.FromNav(TaskFixtures.TaskFlow);
+        var real = ctx.TaskAnnotation("TaskFlow");
+
+        var missing = new NavTaskAnnotation(real.ClassDeclarationSyntax,
+                                            real.DeclaringClassDeclarationSyntax,
+                                            taskName   : "GhostTask",
+                                            navFileName: real.NavFileName);
+
+        Assert.That(
+            () => LocationFinder.FindNavLocationsAsync(ctx.NavSource, missing, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
     }
 }

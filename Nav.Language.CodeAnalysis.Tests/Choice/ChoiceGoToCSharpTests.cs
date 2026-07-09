@@ -167,4 +167,20 @@ public class ChoiceGoToCSharpTests {
                                 .GetAwaiter().GetResult(),
             Throws.TypeOf<LocationNotFoundException>());
     }
+
+    [Test]
+    public void MissingCallChoiceLogic_ThrowsLocationNotFound() {
+
+        // Negativpfad des annotationsgetriebenen C#→C#-Sprungs: die <NavChoiceCall>-Aufrufstelle stammt aus
+        // ChoiceFlow, die Roslyn-Bühne aber aus einem fremden Task OHNE dessen {Task}WFSBase. Der
+        // LocationFinder muss die fehlende Zielklasse als LocationNotFoundException melden.
+        var choiceCall     = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode)
+                                                    .ChoiceCallAnnotation("Choice_Retry");
+        var foreignProject = CodeAnalysisTestContext.ForeignProject();
+
+        Assert.That(
+            () => LocationFinder.FindCallChoiceLogicDeclarationLocationAsync(foreignProject, choiceCall, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
+    }
 }

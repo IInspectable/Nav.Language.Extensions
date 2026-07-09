@@ -5,6 +5,7 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -40,5 +41,22 @@ public class ExitGoToNavTests {
                            Rücksprung von AfterSubLogic ist mehrdeutig und landet auf BEIDEN Exit-Punkten
                            Sub:E1 und Sub:E2 — der Golden pinnt beide Spans inkl. [ambiguous:<Name>].
                            """);
+    }
+
+    [Test]
+    public void MissingExitAnnotation_ThrowsLocationNotFound() {
+
+        // Negativpfad C#→Nav (innerer „keine Exit-Transitions"-Zweig): der Task ExitFlow existiert im .nav,
+        // aber kein Task-Knoten mit dem annotierten Namen — es gibt also keine passenden Exit-Transitions.
+        // Der LocationFinder muss das als LocationNotFoundException melden.
+        var ctx  = CodeAnalysisTestContext.FromNav(ExitFixtures.ExitFlow);
+        var real = ctx.ExitAnnotation("Sub");
+
+        var missing = new NavExitAnnotation(real, real.MethodDeclarationSyntax, exitTaskName: "GhostNode");
+
+        Assert.That(
+            () => LocationFinder.FindNavLocationsAsync(ctx.NavSource, missing, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
     }
 }

@@ -5,6 +5,7 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -84,5 +85,22 @@ public class ChoiceGoToNavTests {
         GoldenAssert.Match(location, ctx, nameof(EscalateCallAnnotation_JumpsBackToChoiceNode),
                            NavigationDirection.CSharpToNav,
                            "GoTo direkt auf next.Choice_Escalate(…) (Choice→Choice) landet auf dem `choice Choice_Escalate`-Knoten.");
+    }
+
+    [Test]
+    public void MissingChoiceAnnotation_ThrowsLocationNotFound() {
+
+        // Negativpfad C#→Nav (innerer „choiceNode == null"-Zweig): der Task ChoiceFlow existiert im .nav, der
+        // annotierte Choice-Name aber nicht. Der LocationFinder muss den fehlenden Choice-Knoten als
+        // LocationNotFoundException melden.
+        var ctx  = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow);
+        var real = ctx.ChoiceAnnotation("Choice_Retry");
+
+        var missing = new NavChoiceAnnotation(real, real.MethodDeclarationSyntax, choiceName: "Choice_Ghost");
+
+        Assert.That(
+            () => LocationFinder.FindNavLocationsAsync(ctx.NavSource, missing, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
     }
 }
