@@ -88,27 +88,4 @@ static class ChoiceFixtures {
             }
         }
         """;
-
-    // Minimaler, von ChoiceFlow unabhängiger Task (anderer {Task}WFSBase) für den Negativpfad: eine
-    // Roslyn-Bühne, in der die ChoiceFlow-WFSBase bewusst FEHLT — damit die Ziel-Auflösung des
-    // LocationFinder ins Leere läuft und als LocationNotFoundException gemeldet werden muss.
-    public const string UnrelatedFlow =
-        """
-        #version 2
-
-        [namespaceprefix NS.Unrelated]
-
-        task Unrelated [base StandardWFS : IWFServiceBase]
-            [params]
-            [result bool]
-        {
-
-            init Start;
-            exit Done;
-            view Home;
-
-            Start --> Home;
-            Home  --> Done on OnClose;
-        }
-        """;
 }

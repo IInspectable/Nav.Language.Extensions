@@ -7,6 +7,7 @@ using System.Text;
 
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.FindReferences;
+using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 using Location = Pharmatechnik.Nav.Language.Location;
 
@@ -62,7 +63,18 @@ static class NavigationSnapshot {
         sb.Append($"({location.StartLine + 1},{location.StartCharacter + 1})-({location.EndLine + 1},{location.EndCharacter + 1})");
         sb.Append("  \"");
         sb.Append(context.TextAt(location));
-        sb.Append("\"\n");
+        sb.Append('"');
+
+        // Mehrdeutige Sprungziele (Exit: eine {Exit}Logic ↦ mehrere Exit-Verbindungspunkte) tragen den
+        // Namen des konkreten Verbindungspunkts — im Snapshot sichtbar machen, sonst wäre die Mehrdeutigkeit
+        // nur an gleichen Ziel-Spans mit unterschiedlichen Quell-Spans erkennbar.
+        if (location is AmbiguousLocation { Name.Length: > 0 } ambiguous) {
+            sb.Append("  [ambiguous:");
+            sb.Append(ambiguous.Name);
+            sb.Append(']');
+        }
+
+        sb.Append('\n');
 
         sb.Append("    ");
         sb.Append(context.SourceLineAt(location));

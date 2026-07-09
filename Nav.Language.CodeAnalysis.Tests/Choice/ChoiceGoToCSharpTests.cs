@@ -42,7 +42,7 @@ public class ChoiceGoToCSharpTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceNode_JumpsToChoiceLogicOverride),
+        GoldenAssert.Match(location, ctx, nameof(ChoiceNode_JumpsToChoiceLogicOverride),
                            NavigationDirection.NavToCSharp,
                            """
                            F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS —
@@ -59,7 +59,7 @@ public class ChoiceGoToCSharpTests {
                                           ctx.Project, ctx.ChoiceInfo("Choice_Escalate"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceNode_JumpsToItsOwnChoiceLogic),
+        GoldenAssert.Match(location, ctx, nameof(SecondChoiceNode_JumpsToItsOwnChoiceLogic),
                            NavigationDirection.NavToCSharp,
                            "F12 auf den zweiten Knoten `choice Choice_Escalate` springt auf dessen eigene Choice_EscalateLogic.");
     }
@@ -73,7 +73,7 @@ public class ChoiceGoToCSharpTests {
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Retry"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallSite_JumpsToChoiceLogic),
+        GoldenAssert.Match(location, ctx, nameof(ChoiceCallSite_JumpsToChoiceLogic),
                            NavigationDirection.CSharpToCSharp,
                            "Annotationsgetriebener Pfad: von der Aufrufstelle next.Choice_Retry(…) auf die Choice_RetryLogic.");
     }
@@ -94,7 +94,7 @@ public class ChoiceGoToCSharpTests {
         Assert.That(locations, Has.Count.EqualTo(2),
                     "Erwartet: beide next.Choice_Retry(…)-Aufrufstellen im Nutzer-Code.");
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(locations, ctx), nameof(ChoiceLogic_JumpsToAllForwardCallSites),
+        GoldenAssert.Match(locations, ctx, nameof(ChoiceLogic_JumpsToAllForwardCallSites),
                            NavigationDirection.CSharpToCSharp,
                            """
                            Rücksprung von Choice_RetryLogic auf ALLE next.Choice_Retry(…)-Aufrufstellen
@@ -113,7 +113,7 @@ public class ChoiceGoToCSharpTests {
                                           ctx.Project, ctx.ChoiceCallAnnotation("Choice_Escalate"), CancellationToken.None)
                                      .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(EscalateCallSite_JumpsToChoiceLogic),
+        GoldenAssert.Match(location, ctx, nameof(EscalateCallSite_JumpsToChoiceLogic),
                            NavigationDirection.CSharpToCSharp,
                            "Choice→Choice: von der Aufrufstelle next.Choice_Escalate(…) (im Choice_Retry-Kontext) auf die Choice_EscalateLogic.");
     }
@@ -131,7 +131,7 @@ public class ChoiceGoToCSharpTests {
         Assert.That(locations, Has.Count.EqualTo(1),
                     "Erwartet: die eine next.Choice_Escalate(…)-Aufrufstelle (Choice→Choice) im Nutzer-Code.");
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(locations, ctx), nameof(EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite),
+        GoldenAssert.Match(locations, ctx, nameof(EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite),
                            NavigationDirection.CSharpToCSharp,
                            """
                            Rücksprung von Choice_EscalateLogic auf die Choice→Choice-Aufrufstelle
@@ -146,7 +146,7 @@ public class ChoiceGoToCSharpTests {
         // Task OHNE dessen {Task}WFSBase. Der LocationFinder darf dann NICHT still null bzw. eine falsche
         // Stelle liefern, sondern muss die fehlende Zielklasse als LocationNotFoundException melden.
         var choiceInfo     = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow).ChoiceInfo("Choice_Retry");
-        var foreignProject = CodeAnalysisTestContext.FromNav(ChoiceFixtures.UnrelatedFlow).Project;
+        var foreignProject = CodeAnalysisTestContext.ForeignProject();
 
         Assert.That(
             () => LocationFinder.FindChoiceLogicDeclarationLocationAsync(foreignProject, choiceInfo, CancellationToken.None)

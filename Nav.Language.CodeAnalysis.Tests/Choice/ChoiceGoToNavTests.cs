@@ -30,7 +30,7 @@ public class ChoiceGoToNavTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceLogicAnnotation_JumpsBackToChoiceNode),
+        GoldenAssert.Match(location, ctx, nameof(ChoiceLogicAnnotation_JumpsBackToChoiceNode),
                            NavigationDirection.CSharpToNav,
                            """
                            Rücksprung von Choice_RetryLogic landet auf der `choice Choice_Retry`-Deklaration im .nav —
@@ -49,7 +49,7 @@ public class ChoiceGoToNavTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(ChoiceCallAnnotation_JumpsBackToChoiceNode),
+        GoldenAssert.Match(location, ctx, nameof(ChoiceCallAnnotation_JumpsBackToChoiceNode),
                            NavigationDirection.CSharpToNav,
                            "GoTo direkt auf next.Choice_Retry(…) landet ebenfalls auf dem `choice Choice_Retry`-Knoten.");
     }
@@ -65,7 +65,7 @@ public class ChoiceGoToNavTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(SecondChoiceLogicAnnotation_JumpsBackToItsNode),
+        GoldenAssert.Match(location, ctx, nameof(SecondChoiceLogicAnnotation_JumpsBackToItsNode),
                            NavigationDirection.CSharpToNav,
                            "Rücksprung von Choice_EscalateLogic landet auf dem eigenen `choice Choice_Escalate`-Knoten.");
     }
@@ -81,7 +81,7 @@ public class ChoiceGoToNavTests {
                                      .GetAwaiter().GetResult()
                                      .Single();
 
-        GoldenAssert.Match(NavigationSnapshot.Serialize(location, ctx), nameof(EscalateCallAnnotation_JumpsBackToChoiceNode),
+        GoldenAssert.Match(location, ctx, nameof(EscalateCallAnnotation_JumpsBackToChoiceNode),
                            NavigationDirection.CSharpToNav,
                            "GoTo direkt auf next.Choice_Escalate(…) (Choice→Choice) landet auf dem `choice Choice_Escalate`-Knoten.");
     }

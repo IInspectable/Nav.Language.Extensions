@@ -150,6 +150,16 @@ public sealed class CodeAnalysisTestContext {
         return new CodeAnalysisTestContext(unit, navSource, workspace, project, generatedTextByPath);
     }
 
+    /// <summary>
+    /// Ein <see cref="Project"/> aus einem konstrukt-neutralen Fremd-Task
+    /// (<see cref="CommonFixtures.UnrelatedFlow"/>), dem die von den Feature-Tests gesuchte
+    /// <c>{Task}WFSBase</c> bewusst fehlt — die gemeinsame Bühne aller Negativpfade
+    /// (<c>LocationNotFoundException</c>).
+    /// </summary>
+    public static Project ForeignProject() {
+        return FromNav(CommonFixtures.UnrelatedFlow).Project;
+    }
+
     #endregion
 
     #region Symbol-/Annotation-Zugriff

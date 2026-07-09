@@ -1,11 +1,14 @@
 ﻿#region Using Directives
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 
 using NUnit.Framework;
+
+using Location = Pharmatechnik.Nav.Language.Location;
 
 #endregion
 
@@ -39,6 +42,28 @@ static class GoldenAssert {
 
     static bool UpdateRequested =>
         Environment.GetEnvironmentVariable(UpdateEnvironmentVariable) == "1";
+
+    /// <summary>
+    /// Bequem-Overload: serialisiert ein einzelnes Navigationsziel über <see cref="NavigationSnapshot"/>
+    /// und vergleicht es gegen die Golden-Datei. Nimmt den Tests das manuelle
+    /// <c>NavigationSnapshot.Serialize(…)</c>-Einwickeln ab; <see cref="CallerFilePathAttribute"/> wird
+    /// durchgereicht, damit die Golden weiterhin im <c>Snapshots\&lt;Testklasse&gt;\</c> des <b>Testfiles</b> landet.
+    /// </summary>
+    public static void Match(Location location, CodeAnalysisTestContext context, string scenario,
+                             NavigationDirection direction, string description,
+                             [CallerFilePath] string callerFilePath = "") {
+        Match(NavigationSnapshot.Serialize(location, context), scenario, direction, description, callerFilePath);
+    }
+
+    /// <summary>
+    /// Bequem-Overload für eine Menge von Navigationszielen (z.B. alle Aufrufstellen oder die mehrdeutigen
+    /// Exit-Punkte) — siehe die Einzel-Location-Überladung.
+    /// </summary>
+    public static void Match(IEnumerable<Location> locations, CodeAnalysisTestContext context, string scenario,
+                             NavigationDirection direction, string description,
+                             [CallerFilePath] string callerFilePath = "") {
+        Match(NavigationSnapshot.Serialize(locations, context), scenario, direction, description, callerFilePath);
+    }
 
     /// <summary>
     /// Vergleicht <paramref name="actual"/> gegen die Golden-Datei <paramref name="scenario"/>.expected.
