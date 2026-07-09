@@ -234,16 +234,24 @@ zusätzlich um Task-/Datei-Verankerung gehärtet (vorher nur `ExitTaskName` im E
 Begin-Prefix läuft — wie die übrigen Call-Site-Pfade — auf der Default-Generation (durch B1 gepinnt). Damit
 ist der letzte Rest genuiner Navigationslogik aus dem VS-Layer in die Engine gehoben.
 
-### B6 — `FindTriggerMethodSymbol` öffentlich ohne lebenden Aufrufer
+### B6 — `FindTriggerMethodSymbol` öffentlich ohne lebenden Aufrufer  ✅ (erledigt)
 
-`LocationFinder.FindTriggerMethodSymbol` (`LocationFinder.cs:494`) ist die einzige öffentliche
-Finder-Methode ohne direkten Test und die einzige, die ein rohes `ISymbol` statt einer `Location`
-zurückgibt; nur indirekt über `FindTriggerDeclarationLocationsAsync` gedeckt. Einziger externer Aufrufer
-(`Commands/RenameCommandHandler.cs:75`) ist **auskommentiert**.
+**Erledigt**: Sichtbarkeit auf **`private`** reduziert (nicht nur `internal`) und der tote Rename-Block in
+`RenameCommandHandler.cs` entfernt. Hintergrund geklärt: Beides — öffentliche Sichtbarkeit **und** roher
+`ISymbol`-Rückgabetyp — stammt aus **einem** Commit (`de75d2eb` „Renaming Fun", 2018) und diente einem
+Rename-Spike: `public`, weil der geplante Konsument im VS-Extension-Assembly lag (cross-assembly); `ISymbol`,
+weil Roslyns `Renamer.RenameSymbolAsync` ein Symbol (keine `Location`) braucht. Der Aufrufer war von Geburt
+an auskommentiert und ist heute zusätzlich **überholt** — der aktive Rename-Pfad im selben Handler läuft über
+`RenameCodeFixProvider.SuggestCodeFixes` (engine-eigenes Rename), nie über Roslyns `Renamer`. Es gab also
+keinen lebenden Grund für die öffentliche Fläche mehr; der einzige echte Aufrufer ist
+`FindTriggerDeclarationLocationsAsync` in derselben Klasse (indirekte Abdeckung durch die 7 Trigger-Tests).
+`Nav.Language.CodeAnalysis.Tests` hat ohnehin kein `InternalsVisibleTo` (nur `Nav.Language.Extension.Tests`),
+ein `internal` hätte also keinen Testzugang gebracht — daher `private`.
 
-**Empfehlung:** Entscheidung erzwingen — direkter Test (falls für ein künftiges Rename gebraucht) **oder**
-Sichtbarkeit auf `internal` reduzieren, damit die öffentliche Fläche nur Konsumiertes anbietet. Reine
-Hygiene, kein Verhaltensrisiko.
+**Ursprünglich:** `LocationFinder.FindTriggerMethodSymbol` war die einzige öffentliche Finder-Methode ohne
+direkten Test und die einzige, die ein rohes `ISymbol` statt einer `Location` zurückgab; nur indirekt über
+`FindTriggerDeclarationLocationsAsync` gedeckt. Einziger externer Aufrufer (`Commands/RenameCommandHandler.cs`)
+war **auskommentiert**.
 
 ### B7 — Keine V1-generierte Navigations-Fixture — **kein Handlungsbedarf**
 
@@ -272,7 +280,8 @@ Zweiter Durchlauf (session-weise abzuarbeiten):
 6. ~~**B5** → dadurch **A5** (Extraktion entblockt den Test; höchster Wert, letzter „eine Engine"-Bruch).~~ ✅ erledigt.
 7. ~~**A6** (trivialer Symmetrie-Test, warm-up).~~ ✅ erledigt.
 8. ~~**A7** (Contract-Pinning der leeren Aufrufer-Liste).~~ ✅ erledigt.
-9. **B6** (Sichtbarkeits-/Hygiene-Entscheid).
+9. ~~**B6** (Sichtbarkeits-/Hygiene-Entscheid).~~ ✅ erledigt (`FindTriggerMethodSymbol` → `private`,
+   toter Rename-Block entfernt).
 10. **B7** ist bereits als „kein Handlungsbedarf" dokumentiert — nichts zu tun.
 
 ## Referenz-Dateien

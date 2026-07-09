@@ -64,27 +64,6 @@ class RenameCommandHandler: ICommandHandler<RenameCommandArgs> {
             return false;
         }
 
-        //if (symbol is ISignalTriggerSymbol signaltrigger) {
-
-        //    var project = args.TextView.TextBuffer.GetContainingProject();
-        //    if (project == null) {
-        //        return;
-        //    }
-
-        //    var codeGenInfo   = SignalTriggerCodeInfo.FromSignalTrigger(signaltrigger);
-        //    var triggerMethod = await LocationFinder.FindTriggerMethodSymbol(project, codeGenInfo, CancellationToken.None);
-
-        //    var originalSolution = project.Solution;
-        //    var workspace        = originalSolution.Workspace;
-        //    var optionSet        = workspace.Options;
-
-        //    var solution = await Renamer.RenameSymbolAsync(originalSolution, triggerMethod, "OnFoo", optionSet, CancellationToken.None);
-
-        //    workspace.TryApplyChanges(solution);
-
-        //    return;
-        //}
-
         var codeFixContext = new CodeFixContext(
             symbol.Location.Extent,
             codeGenerationUnitAndSnapshot.CodeGenerationUnit,
