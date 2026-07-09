@@ -41,4 +41,20 @@ static class ExitFixtures {
             Sub:E2 --> Done;
         }
         """;
+
+    // Nutzerseitiger Logic-Code, der den generierten Begin-Wrapper des modal geöffneten Sub-Tasks aufruft.
+    // Erst durch den Aufruf next.BeginSub() entsteht die <NavInitCall>-Aufrufstelle, auf die die
+    // „After{TaskNode}Logic → Begin{Node}-Aufrufer"-Navigation (NavExitBeginCaller) zielt — die generierten
+    // Override-Stubs rufen den Wrapper nicht auf. Der Wrapper sitzt im OnStartCallContext des öffnenden
+    // Triggers (Home o-> Sub on OnStart); der Begin-Prefix wird von der Navigation abgestreift (BeginSub → Sub).
+    public const string ExitFlowUserCode =
+        """
+        namespace Nav.Language.CodeAnalysis.Tests.V2.ExitNav.WFL {
+            partial class ExitFlowWFS {
+                void CallBeginSub(OnStartCallContext next) {
+                    next.BeginSub();
+                }
+            }
+        }
+        """;
 }

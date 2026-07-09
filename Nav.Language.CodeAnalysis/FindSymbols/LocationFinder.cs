@@ -206,6 +206,72 @@ public static class LocationFinder {
 
     #endregion
 
+    #region FindCallerLocations
+
+    /// <summary>
+    /// Findet — VS-frei, am Roslyn-Level — die C#-Aufrufstellen innerhalb einer (ggf. partiellen) Klasse:
+    /// alle <see cref="NavInvocationAnnotation"/>en (die <c>next.{Choice}(…)</c>-Forwards bzw. die
+    /// <c>Begin{Node}(…)</c>-Wrapper) über sämtliche Deklarationsdokumente von <paramref name="classSymbol"/>,
+    /// eingegrenzt durch <paramref name="filter"/>. Das ist die gemeinsame Suchlogik der beiden
+    /// VS-Aufrufer-Provider (Choice-Logik→Aufrufer, Exit-After→Begin-Aufrufer): Klasse samt aller
+    /// <c>partial</c>-Deklarationen einsammeln → Annotationen lesen → filtern → auf die Aufrufstelle mappen →
+    /// stabil nach Datei und Position sortieren.
+    /// </summary>
+    public static Task<IList<CallerLocation>> FindCallerLocations(Project project,
+                                                                  INamedTypeSymbol classSymbol,
+                                                                  Func<NavInvocationAnnotation, bool> filter,
+                                                                  CancellationToken cancellationToken) {
+
+        if (project == null) {
+            throw new ArgumentNullException(nameof(project));
+        }
+
+        if (classSymbol == null) {
+            throw new ArgumentNullException(nameof(classSymbol));
+        }
+
+        if (filter == null) {
+            throw new ArgumentNullException(nameof(filter));
+        }
+
+        return Task.Run<IList<CallerLocation>>(() => {
+
+            // Alle Dokumente, in denen die (ggf. partielle) Klasse deklariert ist.
+            var documents = classSymbol.DeclaringSyntaxReferences
+                                       .Select(reference => project.Solution.GetDocument(reference.SyntaxTree))
+                                       .Where(doc => doc != null)
+                                       .GroupBy(doc => doc.Id)
+                                       .Select(group => group.First());
+
+            var callers = new List<CallerLocation>();
+            foreach (var doc in documents) {
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var invocations = AnnotationReader.ReadNavTaskAnnotations(doc)
+                                                  .OfType<NavInvocationAnnotation>()
+                                                  .Where(filter);
+
+                foreach (var invocation in invocations) {
+
+                    var location = ToLocation(invocation.Identifier.GetLocation());
+                    if (location == null) {
+                        continue;
+                    }
+
+                    callers.Add(new CallerLocation(location, invocation.Identifier.Identifier.Text));
+                }
+            }
+
+            return callers.OrderBy(caller => caller.FilePath)
+                          .ThenBy(caller => caller.Start)
+                          .ToList();
+
+        }, cancellationToken);
+    }
+
+    #endregion
+
     #region FindCallBeginLogicDeclarationLocationsAsync
 
     /// <summary>

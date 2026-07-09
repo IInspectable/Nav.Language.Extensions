@@ -4,6 +4,8 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeGen;
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -47,6 +49,37 @@ public class ExitGoToCSharpTests {
                            """
                            F12 auf einen Exit-Punkt von Sub (Sub:E1 / Sub:E2) landet auf der gemeinsamen AfterSubLogic
                            im konkreten WFS — der Golden pinnt Datei + exakten Span.
+                           """);
+    }
+
+    [Test]
+    public void AfterLogic_JumpsToAllBeginCallSites() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(ExitFixtures.ExitFlow, ExitFixtures.ExitFlowUserCode);
+
+        // Gegenrichtung C#→C# (Analogon zum Choice-Aufrufer): von der After{TaskNode}Logic klassenweit auf
+        // ALLE C#-Aufrufstellen des Begin{Node}-Wrappers (next.BeginSub()). Geprüft wird die ECHTE VS-freie
+        // Suchlogik LocationFinder.FindCallerLocations — dieselbe, die der NavExitBeginCallerLocationInfoProvider
+        // (VS) nutzt: über alle (partiellen) Deklarationen der konkreten {Task}WFS (nur sie umspannt den
+        // Nutzer-partial), gefiltert per TaskName/NavFileName + abgestreiftem Begin-Prefix == ExitTaskName.
+        var exitAnnotation = ctx.ExitAnnotation("Sub");
+        var wfsSymbol      = ctx.ResolveGeneratedType(ctx.TaskInfo("ExitFlow").FullyQualifiedWfsName);
+        var beginPrefix    = CodeGenFacts.BeginMethodPrefix;
+
+        var callers = LocationFinder.FindCallerLocations(
+                                        ctx.Project, wfsSymbol,
+                                        call => call is NavInitCallAnnotation                        &&
+                                                call.TaskName    == exitAnnotation.TaskName          &&
+                                                call.NavFileName == exitAnnotation.NavFileName        &&
+                                                call.Identifier.Identifier.Text == beginPrefix + exitAnnotation.ExitTaskName,
+                                        CancellationToken.None)
+                                   .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(callers, ctx, nameof(AfterLogic_JumpsToAllBeginCallSites),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Rücksprung von AfterSubLogic auf die C#-Aufrufstelle next.BeginSub() des Begin-Wrappers
+                           (klassenweit, inkl. partial) — der Golden pinnt den Aufrufer-Span.
                            """);
     }
 

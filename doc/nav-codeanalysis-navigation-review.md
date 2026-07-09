@@ -32,7 +32,7 @@
 | **Task → IBegin-Interface** | ✅ Decl→IBegin (+2. Task) | — | — | ✅ MissingItf |
 | Trigger | ✅ (+2.) | ✅ (+2.) | — | ✅ nur Nav→C# |
 | Init | ✅ Node→BeginLogic | ✅ (+Child) | ✅ CallSite→ChildBeginLogic | ✅ nur Nav→C#-Node |
-| Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ❌ **After→Begin-Caller** | ✅ nur Nav→C# |
+| Exit | ✅ Punkt→AfterLogic | ✅ mehrdeutig (E1/E2) | ✅ After→Begin-Caller | ✅ nur Nav→C# |
 | Choice | ✅ (+2.) | ✅ Logic+CallSite (+Escalate) | ✅ CallSite→Logic + Logic→Aufrufer (beidseitig) | ✅ nur Nav→C# |
 
 ---
@@ -64,7 +64,16 @@ Feature: „F12 auf `task X` → `IBegin{Task}WFS`-Interface-Deklaration". Metho
 Code prüfen). Ziel-Span pinnt die `interface IBeginTaskFlowWFS`-Deklaration. Plus `MissingWfs`-Negativpfad
 über `ForeignProject()`.
 
-### A2 — `NavExitBeginCallerLocationInfoProvider` ungetestet (Exit-Analogon zu Choice-Caller)  ⬜
+### A2 — `NavExitBeginCallerLocationInfoProvider` ungetestet (Exit-Analogon zu Choice-Caller)  ✅ (erledigt)
+
+**Erledigt** (mit B3): `ExitGoToCSharpTests.AfterLogic_JumpsToAllBeginCallSites` prüft die echte
+`LocationFinder.FindCallerLocations`-Suche (C#→C#): von der `AfterSubLogic` klassenweit auf die
+`next.BeginSub()`-Aufrufstelle. Neuer Fixture-Teil `ExitFixtures.ExitFlowUserCode` (ruft den Begin-Wrapper
+auf), Klassen-Anker ist die konkrete `ExitFlowWFS`, Filter = `NavInitCallAnnotation` +
+TaskName/NavFileName + `Begin`-Prefix + `ExitTaskName`. Damit ist die frühere Asymmetrie zum
+getesteten Choice-Caller aufgehoben.
+
+---
 
 Richtung C#→C#: „After-Methode → C#-Aufrufstellen der `Begin{Node}`". Auffälligste **Asymmetrie**: das
 exakte Choice-Analogon (`ChoiceLogic_JumpsToAllForwardCallSites`) ist getestet, die Exit-Seite nicht.
@@ -121,7 +130,21 @@ sinnvoll, wenn „Option B" — versionierte Nav→C#-Such-Strategie — angegan
 `ChoiceName` dorthin weiter. Reiner Refactor, kein Verhaltenswechsel — durch die 17 `Choice`-Tests
 (Logic- und Aufrufstellen-Pfad) abgesichert.
 
-### B3 — Aufrufer-Suche dupliziert im VS-Host (Architektur, „eine Engine")  ⬜ (mittel, entblockt A2)
+### B3 — Aufrufer-Suche dupliziert im VS-Host (Architektur, „eine Engine")  ✅ (erledigt, hat A2 entblockt)
+
+**Erledigt**: Die gemeinsame Aufrufer-Suche liegt jetzt VS-frei in der Engine —
+`LocationFinder.FindCallerLocations(project, classSymbol, filter, ct)` (neuer Ergebnistyp
+`CallerLocation: Location` mit `CallerName`): sammelt alle (partiellen) Deklarationsdokumente der Klasse,
+liest die `NavInvocationAnnotation`en, filtert per Prädikat, mappt auf die Aufrufstelle, sortiert nach
+Datei/Position. Beide VS-Provider (`NavChoiceCallerLocationInfoProvider`,
+`NavExitBeginCallerLocationInfoProvider`) rufen sie nur noch mit ihrem Prädikat auf; die
+buffer-gebundene Klassen-Auflösung wurde in `CodeAnalysisLocationInfoProvider.FindContainingClassSymbolAsync`
+gehoben (einmal statt zweimal). Am Roslyn-Level echt getestet: die Choice-Aufrufer-Tests
+(`ChoiceLogic_JumpsToAllForwardCallSites`, `EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite`) laufen jetzt
+über `FindCallerLocations` mit Klassen-Scoping (Goldens byte-identisch) statt über den früheren
+vereinfachten Kern; A2 (Exit) ist damit gleich mit abgedeckt.
+
+---
 
 `NavChoiceCallerLocationInfoProvider.cs` und `NavExitBeginCallerLocationInfoProvider.cs` enthalten
 ~identische Logik: Klasse im Tree finden → alle partiellen Dokumente sammeln → Annotationen lesen →
@@ -146,8 +169,8 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 
 1. ~~**A1** (echte Feature-Lücke, isoliert, hoher Wert).~~ ✅ erledigt.
 2. ~~**B2** (trivialer DRY-Fix, warm-up).~~ ✅ erledigt.
-3. **B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem). ← **als Nächstes**
-4. **A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).
+3. ~~**B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).~~ ✅ erledigt.
+4. **A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte). ← **als Nächstes**
 5. **B1** (Doku/Assert; voll erst mit „Option B").
 
 ## Referenz-Dateien

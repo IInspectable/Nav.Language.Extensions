@@ -1,10 +1,10 @@
 ﻿#region Using Directives
 
-using System.Linq;
 using System.Threading;
 
 using NUnit.Framework;
 
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
 using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 #endregion
@@ -84,17 +84,25 @@ public class ChoiceGoToCSharpTests {
         var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
 
         // Gegenrichtung zum Aufrufstellen-Sprung (analog After→BeginXY-Aufrufer): von der {Choice}Logic
-        // klassenweit auf ALLE next.Choice_Retry(…)-Aufrufstellen. Dieselbe VS-freie Annotationssuche, die
-        // der NavChoiceCallerLocationInfoProvider (VS) im Kern nutzt.
-        var locations = ctx.ChoiceCallAnnotations("Choice_Retry")
-                           .Select(call => LocationFinder.ToLocation(call.Identifier.GetLocation()))
-                           .Where(location => location != null)
-                           .ToList();
+        // klassenweit auf ALLE next.Choice_Retry(…)-Aufrufstellen. Geprüft wird die ECHTE VS-freie Suchlogik
+        // LocationFinder.FindCallerLocations — dieselbe, die der NavChoiceCallerLocationInfoProvider (VS)
+        // nutzt: über alle (partiellen) Deklarationen der WFS-Klasse (generierter Teil + Nutzer-partial),
+        // gefiltert per TaskName/NavFileName/ChoiceName der {Choice}Logic-Annotation. Als Klassen-Anker dient
+        // die konkrete {Task}WFS (nur sie umspannt den Nutzer-partial mit den Aufrufstellen — im VS-Host
+        // liefert das FindContainingClassSymbolAsync aus dem Buffer, hier die aufgelöste WFS-Klasse).
+        var choiceAnnotation = ctx.ChoiceAnnotation("Choice_Retry");
+        var wfsSymbol        = ctx.ResolveGeneratedType(ctx.TaskInfo("ChoiceFlow").FullyQualifiedWfsName);
 
-        Assert.That(locations, Has.Count.EqualTo(2),
-                    "Erwartet: beide next.Choice_Retry(…)-Aufrufstellen im Nutzer-Code.");
+        var callers = LocationFinder.FindCallerLocations(
+                                        ctx.Project, wfsSymbol,
+                                        call => call is NavChoiceCallAnnotation choiceCall             &&
+                                                choiceCall.TaskName    == choiceAnnotation.TaskName    &&
+                                                choiceCall.NavFileName == choiceAnnotation.NavFileName &&
+                                                choiceCall.ChoiceName  == choiceAnnotation.ChoiceName,
+                                        CancellationToken.None)
+                                   .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(locations, ctx, nameof(ChoiceLogic_JumpsToAllForwardCallSites),
+        GoldenAssert.Match(callers, ctx, nameof(ChoiceLogic_JumpsToAllForwardCallSites),
                            NavigationDirection.CSharpToCSharp,
                            """
                            Rücksprung von Choice_RetryLogic auf ALLE next.Choice_Retry(…)-Aufrufstellen
@@ -123,15 +131,21 @@ public class ChoiceGoToCSharpTests {
 
         var ctx = CodeAnalysisTestContext.FromNav(ChoiceFixtures.ChoiceFlow, ChoiceFixtures.ChoiceFlowUserCode);
 
-        var locations = ctx.ChoiceCallAnnotations("Choice_Escalate")
-                           .Select(call => LocationFinder.ToLocation(call.Identifier.GetLocation()))
-                           .Where(location => location != null)
-                           .ToList();
+        // Choice→Choice-Gegenrichtung über dieselbe echte FindCallerLocations-Suche: von der
+        // Choice_EscalateLogic auf die eine next.Choice_Escalate(…)-Aufrufstelle (im Choice_Retry-Kontext).
+        var choiceAnnotation = ctx.ChoiceAnnotation("Choice_Escalate");
+        var wfsSymbol        = ctx.ResolveGeneratedType(ctx.TaskInfo("ChoiceFlow").FullyQualifiedWfsName);
 
-        Assert.That(locations, Has.Count.EqualTo(1),
-                    "Erwartet: die eine next.Choice_Escalate(…)-Aufrufstelle (Choice→Choice) im Nutzer-Code.");
+        var callers = LocationFinder.FindCallerLocations(
+                                        ctx.Project, wfsSymbol,
+                                        call => call is NavChoiceCallAnnotation choiceCall             &&
+                                                choiceCall.TaskName    == choiceAnnotation.TaskName    &&
+                                                choiceCall.NavFileName == choiceAnnotation.NavFileName &&
+                                                choiceCall.ChoiceName  == choiceAnnotation.ChoiceName,
+                                        CancellationToken.None)
+                                   .GetAwaiter().GetResult();
 
-        GoldenAssert.Match(locations, ctx, nameof(EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite),
+        GoldenAssert.Match(callers, ctx, nameof(EscalateChoiceLogic_JumpsToChoiceToChoiceCallSite),
                            NavigationDirection.CSharpToCSharp,
                            """
                            Rücksprung von Choice_EscalateLogic auf die Choice→Choice-Aufrufstelle
