@@ -114,11 +114,12 @@ Sprach-Version die Namen divergieren lässt, brechen `InitCallSite_*`/`ChoiceCal
 sich auf Default==V2-Namen"; ideal ein späterer Test mit einer Version, in der die Namen abweichen (erst
 sinnvoll, wenn „Option B" — versionierte Nav→C#-Such-Strategie — angegangen wird).
 
-### B2 — `GetChoiceLocations` == `GetChoiceCallLocations` (Duplikat)  ⬜ (klein)
+### B2 — `GetChoiceLocations` == `GetChoiceCallLocations` (Duplikat)  ✅ (erledigt)
 
-`LocationFinder.cs:151` und `:164` sind identisch (Choice-Knoten per Name suchen → dessen `Location`); nur
-der Annotationstyp unterscheidet sich (`NavChoiceAnnotation`/`NavChoiceCallAnnotation`, beide mit
-`ChoiceName`). Eine gemeinsame private Hilfsmethode (`GetChoiceLocationByName(task, choiceName)`) genügt.
+**Erledigt**: gemeinsame private Hilfsmethode `GetChoiceLocationByName(task, choiceName)` in
+`LocationFinder.cs`; `GetChoiceLocations`/`GetChoiceCallLocations` leiten nur noch den jeweiligen
+`ChoiceName` dorthin weiter. Reiner Refactor, kein Verhaltenswechsel — durch die 17 `Choice`-Tests
+(Logic- und Aufrufstellen-Pfad) abgesichert.
 
 ### B3 — Aufrufer-Suche dupliziert im VS-Host (Architektur, „eine Engine")  ⬜ (mittel, entblockt A2)
 
@@ -144,8 +145,8 @@ hier, damit es nicht erneut als „Inkonsistenz" gemeldet wird.
 ## Reihenfolge-Empfehlung
 
 1. ~~**A1** (echte Feature-Lücke, isoliert, hoher Wert).~~ ✅ erledigt.
-2. **B2** (trivialer DRY-Fix, warm-up). ← **als Nächstes**
-3. **B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem).
+2. ~~**B2** (trivialer DRY-Fix, warm-up).~~ ✅ erledigt.
+3. **B3** → dadurch **A2** (Refactor entblockt den Test; erledigt Architektur + Symmetrie in einem). ← **als Nächstes**
 4. **A3 + A4** (Negativpfad-Härtung, gut parallelisierbar über die Konstrukte).
 5. **B1** (Doku/Assert; voll erst mit „Option B").
 

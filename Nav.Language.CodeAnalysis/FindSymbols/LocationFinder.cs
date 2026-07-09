@@ -149,26 +149,24 @@ public static class LocationFinder {
     }
 
     static IEnumerable<Location> GetChoiceLocations(ITaskDefinitionSymbol task, NavChoiceAnnotation choiceAnnotation) {
-
-        var choiceNode = task.NodeDeclarations
-                             .OfType<IChoiceNodeSymbol>()
-                             .FirstOrDefault(n => n.Name == choiceAnnotation.ChoiceName);
-
-        if (choiceNode == null) {
-            throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceAnnotation.ChoiceName, task.Name));
-        }
-
-        return ToEnumerable(choiceNode.Location);
+        return GetChoiceLocationByName(task, choiceAnnotation.ChoiceName);
     }
 
     static IEnumerable<Location> GetChoiceCallLocations(ITaskDefinitionSymbol task, NavChoiceCallAnnotation choiceCallAnnotation) {
+        return GetChoiceLocationByName(task, choiceCallAnnotation.ChoiceName);
+    }
+
+    // Der Choice-Knoten und die Choice-Aufrufstelle adressieren dasselbe Sprungziel — den Choice-Knoten
+    // im .nav. Beide Annotationstypen (NavChoiceAnnotation/NavChoiceCallAnnotation) tragen den ChoiceName,
+    // deshalb teilen sie diese Suche.
+    static IEnumerable<Location> GetChoiceLocationByName(ITaskDefinitionSymbol task, string choiceName) {
 
         var choiceNode = task.NodeDeclarations
                              .OfType<IChoiceNodeSymbol>()
-                             .FirstOrDefault(n => n.Name == choiceCallAnnotation.ChoiceName);
+                             .FirstOrDefault(n => n.Name == choiceName);
 
         if (choiceNode == null) {
-            throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceCallAnnotation.ChoiceName, task.Name));
+            throw new LocationNotFoundException(String.Format(MsgUnableToFindChoice0InTask1, choiceName, task.Name));
         }
 
         return ToEnumerable(choiceNode.Location);
