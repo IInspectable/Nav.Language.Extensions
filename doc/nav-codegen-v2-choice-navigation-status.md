@@ -160,6 +160,18 @@ Visitor-Stelle, bräche die Interface-Implementierung der abstrakten Basisklasse
 
 ### D — FindReferences (`{Choice}Logic` → C#-Forward-Aufrufstellen)
 
+> **Zurückgenommen (später konsistent umzusetzen).** Der hier beschriebene C#-Zweig ist wieder
+> **entfernt** (`WfsReferenceFinder.FindChoiceReferencesAsync`/`FindChoiceLogicMethodAsync` samt
+> Dispatch-Zweig, plus der Testharness-Zugang `FindChoiceReferences` und die beiden
+> `ChoiceFindReferencesTests`). Grund: Find-References lieferte für eine Choice nur generiertes
+> Delegations-Plumbing in der `{Task}WFSBase` (die `_wfs.{Choice}Logic(…)`-Forwards) plus ein
+> `nameof(…)` — für den Nutzer wertlos und semantisch keine „Verwendung". Die nützliche Navigation zur
+> `{Choice}Logic`-**Implementierung** leistet bereits **GoTo/F12** (Step B/C); die Nav-Kanten
+> `… --> Choice_X` liefert der Nav-seitige `FindReferencesVisitor`. Find-References für Nav-Symbole soll
+> später **einheitlich über alle Symbole** (Trigger/Task/Choice → echte `next.X(…)`-Aufrufstellen)
+> gebaut werden statt als Choice-Sonderweg; bis dahin trägt eine Choice keinen C#-FindReferences-Beitrag.
+> Der folgende Abschnitt beschreibt den **entfernten** Stand.
+
 **Bestätigt:** D meint die **C#-Forward-Aufrufstellen** — die `new(() => _wfs.{Choice}Logic(…))`-Rümpfe
 in den Quell-Contexts (`Init1CallContext.Choice_Retry` usw.). Das C#-Pendant zu den Begin-/After-Findern in
 `WfsReferenceFinder`, per Roslyn `FindReferencesAsync` auf das `{Choice}Logic`-Symbol (bzw. die

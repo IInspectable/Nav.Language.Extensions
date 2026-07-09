@@ -6,8 +6,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Microsoft.CodeAnalysis;
 
@@ -17,8 +15,6 @@ using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.CodeGen;
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
-using Pharmatechnik.Nav.Language.CodeAnalysis.FindReferences;
-using Pharmatechnik.Nav.Language.FindReferences;
 
 using Location           = Pharmatechnik.Nav.Language.Location;
 using DiagnosticSeverity = Pharmatechnik.Nav.Language.DiagnosticSeverity;
@@ -190,24 +186,6 @@ public sealed class CodeAnalysisTestContext {
         return ReadAnnotations().OfType<NavChoiceCallAnnotation>().First(a => a.ChoiceName == choiceName);
     }
 
-    /// <summary>
-    /// Die C#-„Referenzen" einer Choice: die <c>{Choice}(…)</c>-Forward-Aufrufstellen im generierten Code,
-    /// wie sie <see cref="WfsReferenceFinder"/> über den Roslyn-Workspace findet.
-    /// </summary>
-    public IReadOnlyList<ReferenceItem> FindChoiceReferences(string choiceName) {
-
-        var context = new CollectingFindReferencesContext();
-        var args    = new FindReferencesArgs(
-            originatingSymbol            : Choice(choiceName),
-            originatingCodeGenerationUnit: Unit,
-            solution                     : NavSolution.Empty,
-            context                      : context);
-
-        WfsReferenceFinder.FindReferencesAsync(Solution, args).GetAwaiter().GetResult();
-
-        return context.References;
-    }
-
     #endregion
 
     #region Assertion-Helfer
@@ -353,25 +331,4 @@ public sealed class CodeAnalysisTestContext {
 
     #endregion
 
-    /// <summary>Sammelt die vom <see cref="WfsReferenceFinder"/> gemeldeten Referenzen (statt sie an eine UI zu reichen).</summary>
-    sealed class CollectingFindReferencesContext: IFindReferencesContext {
-
-        public List<ReferenceItem>   References  { get; } = new();
-        public List<DefinitionItem>  Definitions { get; } = new();
-
-        public CancellationToken CancellationToken => CancellationToken.None;
-
-        public Task SetSearchTitleAsync(string title)   => Task.CompletedTask;
-        public Task ReportMessageAsync(string message)  => Task.CompletedTask;
-
-        public Task OnDefinitionFoundAsync(DefinitionItem definitionItem) {
-            Definitions.Add(definitionItem);
-            return Task.CompletedTask;
-        }
-
-        public Task OnReferenceFoundAsync(ReferenceItem referenceItem) {
-            References.Add(referenceItem);
-            return Task.CompletedTask;
-        }
-    }
 }
