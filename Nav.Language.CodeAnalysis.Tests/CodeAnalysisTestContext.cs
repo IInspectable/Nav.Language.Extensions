@@ -185,6 +185,25 @@ public sealed class CodeAnalysisTestContext {
         return ReadAnnotations().First(a => a.GetType() == typeof(NavTaskAnnotation) && a.TaskName == taskName);
     }
 
+    /// <summary>Der Signal-Trigger (<c>on OnX</c>) mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
+    public ISignalTriggerSymbol SignalTrigger(string triggerName) {
+        return Unit.TaskDefinitions
+                   .SelectMany(t => t.TriggerTransitions)
+                   .SelectMany(tt => tt.Triggers)
+                   .OfType<ISignalTriggerSymbol>()
+                   .Single(t => t.Name == triggerName);
+    }
+
+    /// <summary>Die <see cref="SignalTriggerCodeInfo"/> zum Signal-Trigger (Nav→C#-Anker: die <c>{Trigger}Logic</c>).</summary>
+    public SignalTriggerCodeInfo TriggerInfo(string triggerName) {
+        return SignalTriggerCodeInfo.FromSignalTrigger(SignalTrigger(triggerName));
+    }
+
+    /// <summary>Die <c>&lt;NavTrigger&gt;</c>-Annotation der <c>{Trigger}Logic</c> mit dem angegebenen Trigger-Namen.</summary>
+    public NavTriggerAnnotation TriggerAnnotation(string triggerName) {
+        return ReadAnnotations().OfType<NavTriggerAnnotation>().First(a => a.TriggerName == triggerName);
+    }
+
     /// <summary>Der Choice-Knoten mit dem angegebenen Namen (aus dem Nav-Semantikmodell).</summary>
     public IChoiceNodeSymbol Choice(string name) {
         return Unit.TaskDefinitions
