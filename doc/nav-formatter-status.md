@@ -237,7 +237,8 @@ static readonly IReadOnlyList<IGapRule> Rules = [
     // Alignment
     new ArrowAlignmentRule(),            //  9. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
     new NodeGridAlignmentRule(),         // 10. keyword->node -> AlignedColumn(Node);
-                                         //     node->rest -> AlignedColumn(DeclRest)  (3-Spalten-Raster)
+                                         //     node->[params] -> AlignedColumn(NodeParams) (tight, eigene Spalte);
+                                         //     node->rest -> AlignedColumn(DeclRest)  (Node-Raster)
     // Default
     new DefaultSingleSpaceRule(),        // 11. Catch-all -> SingleSpace
 ];
@@ -385,18 +386,27 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
     node-Spalte (nur Keyword; nimmt an der Ausrichtung nicht teil). Ausgerichtet über die Lücke
     `keyword → node`.
   - **Spalte 3 `rest`** = das **erste Token *nach* dem node-Identifier**, sofern vorhanden. Inhalt je
-    Art: `task` → `IdentifierAlias` **oder** `[donotinject]`/`[abstractmethod]`; `init` → `[params]`/
-    `[abstractmethod]`/`do …`; `choice` → `[params]`. **`view`/`dialog`/`exit` haben nie eine Spalte 3**
-    (Form `keyword Identifier;`), `end` ebenso wenig. **Nur `task`** kann ein zweites Identifier (Alias)
+    Art: `task` → `IdentifierAlias` **oder** `[donotinject]`/`[abstractmethod]`; `init` →
+    `[abstractmethod]`/`do …`; **`view`/`dialog`/`exit` haben nie eine Spalte 3** (Form
+    `keyword Identifier;`), `end` ebenso wenig. **Nur `task`** kann ein zweites Identifier (Alias)
     tragen. Ausgerichtet über die Lücke `node → rest`; **nur der Start**, nie der Inhalt. Fehlt Spalte 3
     (z.B. `choice Decide;`, `view V;`), gibt es **kein Phantom-Padding** (die Lücke `node → ;` ist
     tight via `PunctuationRule`, höherer Tier).
+  - **Eigene Spalte `[params]`** (`ColumnId.NodeParams`) = ein `[params]`-Block direkt hinter dem
+    node-Identifier (`init`/`choice`; an Body-`task`-Knoten gibt es noch kein `[params]`). Bewusst
+    **getrennt** von Spalte 3 `rest`, damit ein langer Alias/Node den schwergewichtigen `[params]`-Block
+    nicht in eine gemeinsame Spalte nach rechts zieht. **Ausrichtung nur bei ≥ 2 params-Teilnehmern je
+    Gruppe** (ein einzelner `init [params …]` bekommt nur ein Leerzeichen — kein Wandern nach rechts);
+    dann **immer tight** (`col = max(node-Ende der params-Teilnehmer) + 1`, **kein** Tab-Stopp, keine
+    `AlignmentColumnPolicy`). Ausgerichtet über dieselbe Lücke `node → rest`, nur mit anderer Spalte —
+    disjunkt zu Spalte 3, weil eine Zeile ihren `[params]`-Block **entweder** als `rest` **oder** gar
+    nicht trägt.
 
-  Beide Identifier-Lücken (`keyword → node`, `node → rest`) sind je ein eigener Token-Paar-Lückentyp →
+  Alle Identifier-Lücken (`keyword → node`, `node → rest`) sind je ein eigener Token-Paar-Lückentyp →
   je ein `AlignedColumn`-Layout, passt bruchlos in „ein Change pro Lücke". Spaltenwerte je Gruppe über
-  `AlignmentColumnPolicy` (Default `NextTabStop`). Das ist ein **fester** 3-Spalten-Raster (tractable,
-  idempotent) — **nicht** die zurückgestellte Mehrspalten-Ausrichtung, die die *variabel vielen*
-  Trailing-Klauseln (`on`/`if`/`do`) an **Transitionen** meint.
+  `AlignmentColumnPolicy` (Default `NextTabStop`) — außer der tighten `[params]`-Spalte. Das ist ein
+  **fester** Raster (tractable, idempotent) — **nicht** die zurückgestellte Mehrspalten-Ausrichtung, die
+  die *variabel vielen* Trailing-Klauseln (`on`/`if`/`do`) an **Transitionen** meint.
 
 Algorithmus je Gruppe: (1) Block in **Gruppen** partitionieren. Trenn-Kriterium ist die **Zeilenanzahl im
 Leading Trivia** des nächsten signifikanten Tokens, nicht „Leerzeile" als solche:
@@ -539,9 +549,11 @@ Gap-Layouts im Überblick (`Id`/`[`/`]`/`,` = signifikante Token des Kopfs):
 Beide Spalten (`TaskHeadBlock`, `ParamsList`) sind reine Funktionen kanonischer Token-Breiten → der
 Idempotenz-Beweis der übrigen Ausrichtung trägt unverändert.
 
-> **Zurückgestellt:** Mehrspalten-Ausrichtung (`on`/`if`/`do`) und `[params]`-Interna **außerhalb** des
-> Task-Kopfs (Node-Wirte `init`/`choice` bleiben grid-einzeilig) — empirisch stark nur die Pfeil-Spalte
-> (~79%) und das Node-Grid; die Kaskade bringt wenig Nutzen bei viel Komplexität.
+> **Zurückgestellt:** Mehrspalten-Ausrichtung (`on`/`if`/`do`) und die *Interna* mehrzeiliger
+> `[params …]` **außerhalb** des Task-Kopfs (Node-Wirte `init`/`choice` bleiben einzeilig; ihr
+> `[params]`-Block als Ganzes nimmt aber an der eigenen `NodeParams`-Spalte teil, s.o.) — empirisch
+> stark nur die Pfeil-Spalte (~79%) und das Node-Grid; die Kaskade bringt wenig Nutzen bei viel
+> Komplexität.
 
 ## Verhalten bei Fehlern / Unknown / Skiped-Token
 
@@ -801,7 +813,7 @@ task Sample
 `Node:Port` bleibt tight; die längste Quelle (`Dialog:Ok`, kanonische Breite 9) ergibt `tightMin` 10,
 `NextTabStop` hebt auf Spalte 12 (nächstes Vielfaches von 4).
 
-**Node-Deklarationen: 3-Spalten-Raster `keyword | node | rest`**
+**Node-Deklarationen: Raster `keyword | node | rest` + eigene `[params]`-Spalte**
 
 ```
 // vorher
@@ -811,15 +823,25 @@ choice Decide;
 task LongerTypeName Alias2;
 // nachher
 task    Foo             Alias1;
-init    Start           [params int x];
+init    Start [params int x];
 choice  Decide;
 task    LongerTypeName  Alias2;
 ```
 
 Spalte `node` (Spalte 2) auf dem nächsten Tab-Stopp hinter dem längsten Keyword (`choice`, 6 → Spalte 8);
-Spalte `rest` (Spalte 3) hinter dem längsten `node` (`LongerTypeName`, endet Spalte 22 → Spalte 24).
-`init`s `[params …]` und `task`s Alias teilen sich Spalte 3 (korpus-treu — ausgerichtet wird der *Start*,
-nicht der Inhalt); `choice Decide;` hat keine Spalte 3 und bekommt kein Phantom-Padding.
+Spalte `rest` (Spalte 3) hinter dem längsten `node` **mit Alias** (`LongerTypeName`, endet Spalte 22 →
+Spalte 24). Der `[params]`-Block von `init Start` nimmt **nicht** an Spalte 3 teil (eigene, tighte
+`NodeParams`-Spalte), und weil er hier der einzige params-Teilnehmer ist, steht er mit nur einem
+Leerzeichen — kein Wandern nach rechts. `choice Decide;` hat keinen Rest und bekommt kein Phantom-Padding.
+
+Erst **mehrere** aufeinanderfolgende `[params]` richten sich untereinander aus (tight, ein Space hinter
+dem längsten node der params-Gruppe):
+
+```
+// nachher
+init    Kalkulation                 [params BORef a, bool b];
+init    KalkulationFromArtikelsuche [params BORef a];
+```
 
 **Task-Kopf: Blöcke stapeln + mehrzeiliges `[params]` ausrichten**
 
@@ -992,8 +1014,10 @@ wird bewusst nicht erzwungen. `IndentStyle`/`IndentSize` kommen je Host aus dem 
 
 **Zurückgestellt (nicht v1):** restliche Host-Anbindung (MCP `nav_format` read-only, CLI `format`-Verb mit
 `--check`/`--write`);
-Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Ausrichtung **außerhalb** des Task-Kopfs (Node-Wirte
-`init`/`choice` bleiben grid-einzeilig — der Task-Kopf ist in S3 enthalten); Format-on-Type/-Paste;
+Mehrspalten-Ausrichtung (`on`/`if`/`do`); die Ausrichtung der **Interna** mehrzeiliger `[params]`
+**außerhalb** des Task-Kopfs (Node-Wirte `init`/`choice` bleiben einzeilig — ihr `[params]`-Block als
+Ganzes hat aber seit dem Node-Raster eine eigene, tighte `NodeParams`-Spalte; der Task-Kopf ist in S3
+enthalten); Format-on-Type/-Paste;
 Reformatierung des **Inneren** von Direktiven (`#pragma`-Spacing — ihr Erhalt auf eigener Zeile ab
 Spalte 0 ist dagegen v1-Pflicht); EOL-Normalisierung im Inneren mehrzeiliger Kommentare.
 

@@ -17,6 +17,14 @@ enum ColumnId {
     /// <summary>Spalte 3 des Node-Deklarations-Rasters: Lücke <c>node</c>-Identifier <c>→ rest</c>.</summary>
     DeclRest,
 
+    /// <summary>
+    /// Eigene Spalte für <c>[params]</c>-Blöcke an Node-Deklarationen (<c>init</c>/<c>choice</c>): Lücke
+    /// <c>node</c>-Identifier <c>→ [</c>. Bewusst getrennt von <see cref="DeclRest"/> (Alias), damit ein
+    /// langer Alias/Node den schwergewichtigen <c>[params]</c>-Block nicht unnötig nach rechts schiebt;
+    /// tight ausgerichtet (kein Tab-Stopp), nur bei ≥ 2 params-Teilnehmern je Gruppe.
+    /// </summary>
+    NodeParams,
+
     /// <summary>Task-Kopf-Block-Stapel: Folgeblöcke linksbündig unter dem <c>[</c> des ersten Blocks.</summary>
     TaskHeadBlock,
 

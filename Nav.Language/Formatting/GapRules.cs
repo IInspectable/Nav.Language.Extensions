@@ -407,10 +407,15 @@ sealed class NodeGridAlignmentRule: IGapRule {
         }
 
         // Spalte 3: node → rest (Next kann einem Kind-Knoten gehören, z.B. [params] oder do-Klausel).
+        // Ein [params]-Block bekommt seine eigene Spalte (NodeParams, tight), der übrige Rest (Alias/
+        // do/[abstractmethod]/[donotinject]) das policy-gesteuerte DeclRest. Beide fallen ohne
+        // Map-Eintrag auf Single-Space zurück.
         if (ctx.Prev.Type == SyntaxTokenType.Identifier && ctx.PrevParent is NodeDeclarationSyntax previousDeclaration &&
             ctx.Prev == NodeIdentifier(previousDeclaration) &&
             ctx.Next.Type != SyntaxTokenType.Semicolon && ctx.Next.Start < previousDeclaration.End) {
-            return new GapLayout.AlignedColumn(ColumnId.DeclRest);
+            return ctx.Next.Type == SyntaxTokenType.OpenBracket && ctx.NextParent is CodeParamsDeclarationSyntax
+                ? new GapLayout.AlignedColumn(ColumnId.NodeParams)
+                : new GapLayout.AlignedColumn(ColumnId.DeclRest);
         }
 
         return null;

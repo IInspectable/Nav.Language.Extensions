@@ -260,6 +260,7 @@ static class AlignmentMapBuilder {
         public SyntaxToken Keyword            { get; set; } = SyntaxToken.Missing;
         public SyntaxToken Node               { get; set; } = SyntaxToken.Missing;
         public SyntaxToken Rest               { get; set; } = SyntaxToken.Missing;
+        public bool        RestIsParams       { get; set; }
         public int         AuthoredNodeColumn { get; set; }
         public int         AuthoredRestColumn { get; set; }
 
@@ -287,18 +288,29 @@ static class AlignmentMapBuilder {
                 spaces[participant.Keyword.End] = nodeCol - participant.Keyword.Length;
             }
 
-            // Spalte 3 (rest): nur Zeilen, die überhaupt einen Rest haben — kein Phantom-Padding;
-            // ausgerichtet wird der Start des Rests, nie sein Inhalt.
-            var restParticipants = nodeParticipants.Where(c => !c.Rest.IsMissing).ToList();
-            if (restParticipants.Count < 2) {
-                continue;
+            // Spalte 3 (Alias-Rest): nur Zeilen mit Rest, aber ohne [params] — kein Phantom-Padding;
+            // ausgerichtet wird der Start des Rests, nie sein Inhalt. Policy-gesteuert (wie Node/Pfeil).
+            var restParticipants = nodeParticipants.Where(c => !c.Rest.IsMissing && !c.RestIsParams).ToList();
+            if (restParticipants.Count >= 2) {
+                var restTightMin = restParticipants.Max(c => nodeCol + c.Node.Length) + 1;
+                var restCol      = ResolveTargetColumn(restTightMin, restParticipants.Select(c => c.AuthoredRestColumn), options);
+
+                foreach (var participant in restParticipants) {
+                    spaces[participant.Node.End] = restCol - (nodeCol + participant.Node.Length);
+                }
             }
 
-            var restTightMin = restParticipants.Max(c => nodeCol + c.Node.Length) + 1;
-            var restCol      = ResolveTargetColumn(restTightMin, restParticipants.Select(c => c.AuthoredRestColumn), options);
+            // Eigene [params]-Spalte: aufeinanderfolgende [params]-Blöcke untereinander, aber immer
+            // TIGHT (ein Space hinter dem längsten Vor-params-Präfix der Gruppe, kein Tab-Stopp/keine
+            // Policy) — der schwergewichtige Block soll minimal, nicht unnötig weit nach rechts sitzen.
+            // Bei nur einem params-Teilnehmer entsteht kein Eintrag → Single-Space (kein Wandern).
+            var paramsParticipants = nodeParticipants.Where(c => c.RestIsParams).ToList();
+            if (paramsParticipants.Count >= 2) {
+                var paramsCol = paramsParticipants.Max(c => nodeCol + c.Node.Length) + 1;
 
-            foreach (var participant in restParticipants) {
-                spaces[participant.Node.End] = restCol - (nodeCol + participant.Node.Length);
+                foreach (var participant in paramsParticipants) {
+                    spaces[participant.Node.End] = paramsCol - (nodeCol + participant.Node.Length);
+                }
             }
         }
     }
@@ -336,7 +348,10 @@ static class AlignmentMapBuilder {
 
         if (tokens[2].Type != SyntaxTokenType.Semicolon &&
             !GapTrivia.Create(tokens[1], tokens[2], syntaxTree.SourceText).HasComment) {
+            // Ein [params]-Block bekommt eine eigene, tight ausgerichtete Spalte (ColumnId.NodeParams),
+            // getrennt vom Alias-Rest — er soll durch einen langen Alias/Node nicht nach rechts wandern.
             candidate.Rest               = tokens[2];
+            candidate.RestIsParams       = tokens[2].Parent is CodeParamsDeclarationSyntax;
             candidate.AuthoredRestColumn = AuthoredColumn(syntaxTree, tokens[0], tokens[2], options);
         }
 

@@ -184,8 +184,10 @@ public class NavFormattingAlignmentGoldenTests {
 
     [Test]
     public void NodeGridAlignsNodeAndRestColumns() {
-        // Spalte node hinter dem längsten Keyword (choice, 6 -> 8); Spalte rest hinter dem längsten
-        // node (LongerTypeName endet auf 22 -> 24). choice hat keine Spalte 3 -> kein Phantom-Padding.
+        // Spalte node hinter dem längsten Keyword (choice, 6 -> 8); Spalte rest (der Alias) hinter dem
+        // längsten node (LongerTypeName endet auf 22 -> 24). choice hat keine Spalte 3 -> kein
+        // Phantom-Padding. Der [params]-Block nimmt NICHT an der Rest-Spalte teil, sondern steht nur mit
+        // einem Space hinter dem node.
         var source = """
         task Sample
         {
@@ -199,7 +201,7 @@ public class NavFormattingAlignmentGoldenTests {
         task Sample
         {
             task    Foo             Alias1;
-            init    Start           [params int x];
+            init    Start [params int x];
             choice  Decide;
             task    LongerTypeName  Alias2;
         }
@@ -247,6 +249,77 @@ public class NavFormattingAlignmentGoldenTests {
         {
             init    I1;
             task    Worker w;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void NodeParamsBlocksAlignAmongThemselves() {
+        // Aufeinanderfolgende [params]-Blöcke werden untereinander ausgerichtet — tight, ein Space hinter
+        // dem längsten node (KalkulationFromArtikelsuche endet auf Spalte 35 -> [params ab Spalte 36).
+        var source = """
+        task Sample
+        {
+            init Kalkulation [params BORef a, bool b];
+            init KalkulationFromArtikelsuche [params BORef a];
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            init    Kalkulation                 [params BORef a, bool b];
+            init    KalkulationFromArtikelsuche [params BORef a];
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleNodeParamsStaysTightAndDoesNotWander() {
+        // Nur ein [params] in der Gruppe -> keine Ausrichtung, nur ein Space (kein Wandern nach rechts),
+        // obwohl die node-Spalte (2 Teilnehmer) ausgerichtet wird.
+        var source = """
+        task Sample
+        {
+            init OnlyOne [params int x];
+            init Other;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            init    OnlyOne [params int x];
+            init    Other;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void NodeParamsColumnIsSeparateFromAliasColumn() {
+        // Der [params]-Block wird NICHT mit einem langen Alias in dieselbe Spalte gezwängt: der Alias
+        // richtet sich in der Rest-Spalte aus, die beiden [params] tight unter sich.
+        var source = """
+        task Sample
+        {
+            task VeryLongTaskType SomeAlias;
+            init A [params int x];
+            choice Bbb [params int y];
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            task    VeryLongTaskType SomeAlias;
+            init    A   [params int x];
+            choice  Bbb [params int y];
         }
 
         """;
