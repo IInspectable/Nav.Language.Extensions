@@ -63,6 +63,15 @@ public class NavFormattingServiceTests {
             exit E;
         }
         """;
+        // S4-Fehler-Toleranz: fehlendes ';'/'}', Skiped im Statement, Streu-Token zwischen Membern, BOM,
+        // Global-Fallback, Hand-gelegt-Delta-Shift, mehrzeiliger Block-Kommentar.
+        yield return "task Sample\r\n{\r\n    init I1;\r\n    exit E;\r\n\r\n    A  -->  B\r\n    B --> E;\r\n}\r\n";
+        yield return "task Good\r\n{\r\ninit I1;\r\nI1 --> E;\r\n}\r\ntask Broken\r\n{\r\n    init   X;\r\n    X  -->  E;\r\n";
+        yield return "[using A]\r\n@@@\r\n[using B]\r\ntask X\r\n{\r\n}\r\n";
+        yield return "﻿task A\r\n{\r\n}\r\n";
+        yield return "@@@ %%% &&&\r\n";
+        yield return "task Sample\r\n{\r\n    init I1;\r\n    exit E;\r\n\r\n  A\r\n      --> E;\r\n}\r\n";
+        yield return "task Sample\r\n{\r\n      /* Zeile1\r\n         Zeile2 */\r\n    init I1;\r\n}\r\n";
         yield return Resources.LargeNav;
     }
 
@@ -109,6 +118,26 @@ public class NavFormattingServiceTests {
 
         Assert.That(after, Is.EqualTo(before),
                     "Bedeutungserhalt: format(x) muss zum identischen signifikanten Token-Strom (Typ + Text) zurück-parsen.");
+    }
+
+    [Test, TestCaseSource(nameof(Fixtures))]
+    public void FormatPreservesDirectiveSequenceAndAddsNoErrors(string text) {
+
+        var formatted = ApplyFormat(text);
+
+        var before = SyntaxTree.ParseText(text);
+        var after  = SyntaxTree.ParseText(formatted);
+
+        Assert.That(after.Directives().Select(d => d.ToString()),
+                    Is.EqualTo(before.Directives().Select(d => d.ToString()).ToList()),
+                    "Achse A: die Direktiv-Sequenz (Typ + Text) muss erhalten bleiben (Direktiven leben in Trivia).");
+
+        Assert.That(ErrorCount(after), Is.LessThanOrEqualTo(ErrorCount(before)),
+                    "Achse A: die Formatierung darf keine neuen Error-Diagnostics einführen.");
+    }
+
+    static int ErrorCount(SyntaxTree syntaxTree) {
+        return syntaxTree.Diagnostics.Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
     }
 
     static IReadOnlyList<(SyntaxTokenType Type, string Text)> SignificantTokens(string text) {

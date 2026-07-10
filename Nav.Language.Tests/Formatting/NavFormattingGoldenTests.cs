@@ -133,9 +133,10 @@ public class NavFormattingGoldenTests {
     }
 
     [Test]
-    public void AuthoredLineBreaksInsideStatementsAreKeptAtBlockIndent() {
+    public void AuthoredLineBreaksInsideStatementsKeepTheirRelativeIndentViaDeltaShift() {
         // Kein Teil-Reflow: eine vom Autor umbrochene Transition wird nie auf eine Zeile gezogen
-        // (Renderer-Schranke); die Fortsetzungszeile landet auf dem Block-Einzug.
+        // (Renderer-Schranke). Die erste Zeile (I1) sitzt bereits auf dem Block-Einzug (Delta 0) — die
+        // Fortsetzungszeile behält daher ihre relative (tiefere) Einrückung (Hand-gelegt-Delta-Shift, S4).
         var source = """
         task Sample
         {
@@ -153,7 +154,7 @@ public class NavFormattingGoldenTests {
             exit    E;
 
             I1
-            --> E;
+                    --> E;
         }
         """ + "\r\n";
 

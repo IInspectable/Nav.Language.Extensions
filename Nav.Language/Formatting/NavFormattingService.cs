@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -56,9 +57,10 @@ public static class NavFormattingService {
         Debug.Assert(tokens[tokens.Count - 1].Type == SyntaxTokenType.EndOfFile,
                      "Der Lexer terminiert den Token-Strom stets mit dem nullbreiten EndOfFile.");
 
-        var changes   = new List<TextChange>();
-        var renderer  = new GapRenderer(syntaxTree.SourceText, settings, options);
-        var alignment = AlignmentMapBuilder.Build(syntaxTree, options); // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
+        var changes     = new List<TextChange>();
+        var renderer    = new GapRenderer(syntaxTree.SourceText, settings, options);
+        var alignment   = AlignmentMapBuilder.Build(syntaxTree, options); // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
+        var suppression = FormatterSuppression.Compute(syntaxTree, options); // Fehler-Toleranz-Vorpass: verbatim vs. hand-gelegt.
 
         // Datei-Anfang: die Leading-Trivia des ersten realen Tokens liegt vor der ersten Paar-Lücke und
         // wird gesondert normalisiert. Skiped-Läufe (insbesondere ein führendes BOM, das als Unknown ->
@@ -76,22 +78,37 @@ public static class NavFormattingService {
         }
 
         // Alle Paare realer Token — das Paar (letztes reales Token, EOF) ist die Final-Lücke und bleibt
-        // ausschließlich RenderFinalGap vorbehalten (siehe Klassen-Doku).
-        for (var i = 0; i < tokens.Count - 2; i++) {
+        // ausschließlich RenderFinalGap vorbehalten (siehe Klassen-Doku). Bei fehlenden brauchbaren
+        // Membern (reiner Müll/leer) übersprungen: nur die zwei konservativen Rand-Lücken (Global-Fallback).
+        if (suppression.HasUsableMembers) {
+            for (var i = 0; i < tokens.Count - 2; i++) {
 
-            var ctx    = CreateContext(syntaxTree, tokens[i], tokens[i + 1], alignment, options);
-            var layout = GapRules.Select(in ctx);
+                var extent = TextExtent.FromBounds(tokens[i].End, tokens[i + 1].Start);
 
-            if (layout is GapLayout.Verbatim) {
-                // Unterdrücken = Weglassen des Changes — über disjunkten Lücken nie ein Overlap.
-                continue;
-            }
+                // Hand-gelegte Anweisung: Inneres verbatim, aber äußerer Einzug per Delta-Shift re-gesetzt.
+                if (suppression.TryGetHandLaidShift(extent.Start, out var delta)) {
+                    var ctx       = CreateContext(syntaxTree, tokens[i], tokens[i + 1], alignment, suppression, options);
+                    var canonical = renderer.RenderRawShifted(in ctx, delta);
+                    if (canonical != syntaxTree.SourceText.Substring(extent)) {
+                        changes.Add(TextChange.NewReplace(extent, canonical));
+                    }
 
-            var extent    = ctx.Extent;
-            var canonical = renderer.Render(in ctx, layout);
+                    continue;
+                }
 
-            if (canonical != syntaxTree.SourceText.Substring(extent)) {
-                changes.Add(TextChange.NewReplace(extent, canonical));
+                var context = CreateContext(syntaxTree, tokens[i], tokens[i + 1], alignment, suppression, options);
+                var layout  = GapRules.Select(in context);
+
+                if (layout is GapLayout.Verbatim) {
+                    // Unterdrücken = Weglassen des Changes — über disjunkten Lücken nie ein Overlap.
+                    continue;
+                }
+
+                var canonicalGap = renderer.Render(in context, layout);
+
+                if (canonicalGap != syntaxTree.SourceText.Substring(extent)) {
+                    changes.Add(TextChange.NewReplace(extent, canonicalGap));
+                }
             }
         }
 
@@ -100,7 +117,7 @@ public static class NavFormattingService {
             changes.Add(finalChange.Value);
         }
 
-        return changes;
+        return Guard(syntaxTree, changes);
     }
 
     /// <summary>
@@ -143,13 +160,67 @@ public static class NavFormattingService {
         return false;
     }
 
-    static GapContext CreateContext(SyntaxTree syntaxTree, SyntaxToken prev, SyntaxToken next, AlignmentMap alignment, NavFormattingOptions options) {
+    static GapContext CreateContext(SyntaxTree syntaxTree, SyntaxToken prev, SyntaxToken next,
+                                    AlignmentMap alignment, FormatterSuppression suppression, NavFormattingOptions options) {
+
+        var extent = TextExtent.FromBounds(prev.End, next.Start);
+
         return new GapContext(prev, next,
                               indentDepth: ComputeIndentDepth(next),
                               trivia: GapTrivia.Create(prev, next, syntaxTree.SourceText),
-                              isSuppressed: false, // Fehler-Unterdrückung (ComputeSuppressedExtents) ist noch nicht angebunden.
+                              isSuppressed: suppression.IsSuppressed(extent),
                               alignment: alignment,
                               options: options);
+    }
+
+    /// <summary>
+    /// Laufzeit-Wächter (Achse A, fail-safe): Da der Formatter nie signifikanten Token-Text anfasst, muss
+    /// <c>format(x)</c> zum identischen signifikanten Token-Strom (Typ + Text) zurück-parsen, mit
+    /// identischer Direktiv-Sequenz und ohne neue Error-Diagnostics. Weicht das ab, ist das <b>immer ein
+    /// Bug</b> (kein legitimer Laufzustand) — in Debug/Test hart <see cref="Debug.Fail(string)"/>, in
+    /// Release werden die Changes verworfen (Eingabe bleibt unverändert) und einmalig auf
+    /// <c>stderr</c> geloggt (konform zur Stdio-Log-Regel).
+    /// </summary>
+    static IReadOnlyList<TextChange> Guard(SyntaxTree syntaxTree, IReadOnlyList<TextChange> changes) {
+
+        if (changes.Count == 0) {
+            return changes;
+        }
+
+        var formatted = new TextChangeWriter().ApplyTextChanges(syntaxTree.SourceText.Text, changes);
+        var after     = SyntaxTree.ParseText(formatted);
+
+        if (MeaningPreserved(syntaxTree, after)) {
+            return changes;
+        }
+
+        Debug.Fail("Formatter-Wächter: Formatierung würde den signifikanten Token-Strom, die Direktiven " +
+                   "oder die Diagnostics verändern (Achse-A-Bruch).");
+
+        Console.Error.WriteLine("nav-format: interner Wächter hat eine bedeutungsverändernde Formatierung " +
+                                "erkannt und verworfen.");
+
+        return Array.Empty<TextChange>();
+    }
+
+    static bool MeaningPreserved(SyntaxTree before, SyntaxTree after) {
+        return SignificantTokens(before).SequenceEqual(SignificantTokens(after)) &&
+               Directives(before).SequenceEqual(Directives(after)) &&
+               ErrorCount(after) <= ErrorCount(before);
+    }
+
+    static IEnumerable<(SyntaxTokenType Type, string Text)> SignificantTokens(SyntaxTree syntaxTree) {
+        return syntaxTree.Tokens
+                         .Where(token => token.Type != SyntaxTokenType.EndOfFile)
+                         .Select(token => (token.Type, token.ToString()));
+    }
+
+    static IEnumerable<string> Directives(SyntaxTree syntaxTree) {
+        return syntaxTree.Directives().Select(directive => directive.ToString());
+    }
+
+    static int ErrorCount(SyntaxTree syntaxTree) {
+        return syntaxTree.Diagnostics.Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
     }
 
     /// <summary>
@@ -161,7 +232,7 @@ public static class NavFormattingService {
     /// Allman). Fehlt die schließende Klammer, gilt der Rest als Body — solche Bodies nimmt die
     /// Fehler-Unterdrückung ohnehin von der Formatierung aus.
     /// </summary>
-    static int ComputeIndentDepth(SyntaxToken token) {
+    internal static int ComputeIndentDepth(SyntaxToken token) {
 
         if (token.Parent == null) {
             return 0;

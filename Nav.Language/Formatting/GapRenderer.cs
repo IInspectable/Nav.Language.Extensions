@@ -254,11 +254,25 @@ sealed class GapRenderer {
             }
 
             if (trivia.IsComment) {
-                sb.Append(sb.Length == 0 ? linePrefix : " ").Append(CommentText(trivia));
+                // Der erste Kommentar der Zeile steht auf dem Zeilen-Präfix; ein mehrzeiliger Block-
+                // Kommentar zieht seine Innenzeilen per Delta-Shift mit (relative Einrückung erhalten).
+                sb.Append(sb.Length == 0
+                              ? linePrefix + OwnLineCommentText(trivia, linePrefix.Length)
+                              : " "        + CommentText(trivia));
             }
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Rendert eine hand-gelegte (mehrzeilige) Anweisung als <b>Ganzes verbatim</b>, aber mit um
+    /// <paramref name="delta"/> Zeichen mitgeschobenen Innenzeilen-Präfixen — der äußere Einzug wird auf
+    /// den Block re-gesetzt (der Delta stammt aus dem Vorpass), das Innere bleibt byte-genau (relative
+    /// Form erhalten). Derselbe Mechanismus wie beim mehrzeiligen Block-Kommentar (<see cref="ShiftInteriorLines"/>).
+    /// </summary>
+    public string RenderRawShifted(in GapContext ctx, int delta) {
+        return ShiftInteriorLines(_sourceText.Substring(ctx.Extent), delta);
     }
 
     /// <summary>
@@ -270,6 +284,91 @@ sealed class GapRenderer {
     string CommentText(in SyntaxTrivia trivia) {
         var text = _sourceText.Substring(trivia.Extent);
         return trivia.Type == SyntaxTokenType.SingleLineComment ? text.TrimEnd() : text;
+    }
+
+    /// <summary>
+    /// Der Text eines auf eigener Zeile stehenden Kommentars, hinter dem Zeilen-Präfix. Ein
+    /// <b>mehrzeiliger</b> <c>/* */</c>-Block-Kommentar wird nicht reflowt, aber seine Folgezeilen werden um
+    /// dasselbe Delta mitgeschoben, um das die erste Zeile beim Neu-Einrücken wandert (Ziel-Präfixlänge
+    /// minus authored Einrückung) — relative Einrückung des Kommentar-Inneren bleibt erhalten. Einzeilige
+    /// Kommentare bleiben unangetastet.
+    /// </summary>
+    string OwnLineCommentText(in SyntaxTrivia trivia, int targetPrefixLength) {
+
+        var text = CommentText(trivia);
+
+        if (trivia.Type != SyntaxTokenType.MultiLineComment || text.IndexOf('\n') < 0) {
+            return text;
+        }
+
+        return ShiftInteriorLines(text, targetPrefixLength - AuthoredIndentChars(trivia.Extent.Start));
+    }
+
+    /// <summary>Die Anzahl der Whitespace-Zeichen unmittelbar vor <paramref name="position"/> (authored Einrückung der Zeile).</summary>
+    int AuthoredIndentChars(int position) {
+
+        var count = 0;
+        for (var i = position - 1; i >= 0 && (_sourceText[i] == ' ' || _sourceText[i] == '\t'); i--) {
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Verschiebt den führenden Whitespace jeder Zeile <b>nach der ersten</b> um <paramref name="delta"/>
+    /// Zeichen — der eine Delta-Shift-Mechanismus für hand-gelegte Anweisungen (äußerer Einzug) und die
+    /// Innenzeilen mehrzeiliger Block-Kommentare. Positiv: <paramref name="delta"/> Leerzeichen voranstellen;
+    /// negativ: bis zu <c>-delta</c> führende Whitespace-Zeichen entfernen (Clamp bei Spalte 0 — nie
+    /// Nicht-Whitespace anfassen). Arbeitet auf den <b>Roh-Whitespace-Präfixen</b> (keine Spaltenarithmetik,
+    /// damit Tabs im Inneren eindeutig bleiben); Leerzeilen bleiben unangetastet (kein neuer
+    /// Trailing-Whitespace). Idempotent, sobald der Aufrufer <c>delta = 0</c> rechnet.
+    /// </summary>
+    static string ShiftInteriorLines(string text, int delta) {
+
+        if (delta == 0 || text.IndexOf('\n') < 0) {
+            return text;
+        }
+
+        var sb          = new StringBuilder(text.Length + (delta > 0 ? delta * 4 : 0));
+        var atLineStart = false; // Die erste Zeile bleibt unangetastet.
+
+        var i = 0;
+        while (i < text.Length) {
+
+            if (atLineStart) {
+                atLineStart = false;
+
+                var wsEnd = i;
+                while (wsEnd < text.Length && (text[wsEnd] == ' ' || text[wsEnd] == '\t')) {
+                    wsEnd++;
+                }
+
+                // Leerzeile = Whitespace, dem ein Zeilenumbruch folgt (nie neuen Trailing-Whitespace
+                // erzeugen). Whitespace am Text-Ende ist dagegen der Einzug VOR dem nächsten Token (die
+                // letzte Zeile der Lücke) und wird sehr wohl mitgeschoben.
+                var isBlankLine = wsEnd < text.Length && (text[wsEnd] == '\n' || text[wsEnd] == '\r');
+                if (isBlankLine) {
+                    // Leerzeile: Präfix verbatim, nie einen neuen Trailing-Whitespace erzeugen.
+                    sb.Append(text, i, wsEnd - i);
+                } else if (delta > 0) {
+                    sb.Append(' ', delta).Append(text, i, wsEnd - i);
+                } else {
+                    var keep = System.Math.Max(0, (wsEnd - i) + delta);
+                    sb.Append(text, wsEnd - keep, keep);
+                }
+
+                i = wsEnd;
+                continue;
+            }
+
+            var c = text[i];
+            sb.Append(c);
+            atLineStart = c == '\n';
+            i++;
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
