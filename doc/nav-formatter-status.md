@@ -17,6 +17,11 @@
 > (`NavFormattingOptions.VerifyResult`, Default aus; nur die Tests schalten ihn ein, weil der Re-Parse Parse
 > und Apply grob verdoppelt, s. „Korrektheits-Modell"). Korpus-Smoke über alle 1913 `.nav` × 2 Einzugsstile:
 > 0 Idempotenz-/Token-/Direktiv-/Fehler-Brüche, 0 Crashes, Wächter feuert nie.
+> **Nachtrag (post-S5): Trailing-`//`-Kommentar-Ausrichtung** — die Zeilenend-Kommentare eines
+> zusammenhängenden Anweisungs-Blocks werden an einer gemeinsamen Spalte ausgerichtet (tight; Option
+> `AlignTrailingComments`, Default `true`). Anders als die übrigen Spalten bricht schon **eine einzelne**
+> Leerzeile/Kommentarzeile den Block; sie wird nicht über ein `GapLayout`, sondern direkt vom
+> `GapRenderer` gesetzt (eigene Tabelle in der `AlignmentMap`). Details s. „Spaltenausrichtung".
 > **Host-Anbindung VS + VS Code erledigt** (VS Format-Document/Selection-Command + Symbolleisten-Schaltfläche;
 > LSP `textDocument/formatting`+`rangeFormatting`, siehe „Zurückgestellt"); offen bleiben nur noch MCP
 > `nav_format` und das CLI-`format`-Verb.
@@ -392,6 +397,23 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
   `[params]`-Spalte `ColumnId.NodeParams`): die nachgestellte Klausel soll minimal sitzen, nicht unnötig
   weit nach rechts; die breiteste Zeile bekommt genau einen Space. Über die Option `AlignConditions`
   schaltbar (Default `true`).
+- **Trailing-`//`-Kommentar-Spalte** (`ColumnId.TrailingComment`) = Lücke zwischen dem **letzten Token**
+  einer Anweisung und ihrem Zeilenend-`//`-Kommentar. Richtet die Trailing-Kommentare eines
+  zusammenhängenden Anweisungs-Blocks an einer gemeinsamen Spalte aus (Option `AlignTrailingComments`,
+  Default `true`). Anders als die übrigen Spalten wird sie **nicht** über ein `GapLayout` nachgeschlagen,
+  sondern direkt vom `GapRenderer` beim Setzen des Trailing-Kommentars (eigene Tabelle
+  `AlignmentMap.TryGetTrailingCommentSpaces`). Besonderheiten: (a) sie ist — wie Condition/`[params]` —
+  **immer tight** (`col = max(kanonische Zeilenbreite) + 1`, kein Tab-Stopp, keine
+  `AlignmentColumnPolicy`); die breiteste Zeile bekommt genau einen Space. (b) Der Block bricht **schon
+  bei einer einzelnen** Leerzeile bzw. eigenen Kommentarzeile (`interruptLines ≥ 1`) — nicht erst bei
+  zwei wie sonst; eine **kommentarlose** Zeile ist dagegen kein Teilnehmer, bricht den Block aber nicht.
+  (c) Node-Deklarationen und Transitionen werden — wie bei Pfeil/Node-Grid — **getrennt** gruppiert (die
+  grammatikalisch erzwungene Leerzeile dazwischen trennt sie ohnehin; die getrennten Sequenzen machen die
+  Gruppierung auch dann idempotent, wenn der Autor keine Leerzeile gesetzt hatte). (d) Die Zeilenbreite
+  wird **kanonisch** gemessen (Token-Texte + regel-/spalten-entschiedene Lücken, also **nach** Pfeil-,
+  Condition- und Node-Grid-Auflösung); eine Zeile mit nicht einzeilig-kanonischer innerer Lücke
+  (Inline-Block-Kommentar) wird aus der Spalte ausgeschlossen (die Spalte darf nie an einer
+  Kommentar-Textlänge hängen), bricht den Block aber nicht. Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe.
 - **Node-Deklarations-Raster (drei virtuelle Spalten `keyword | node | rest`)** — die Node-Arten sind
   verschieden gebaut, aber positionell einheitlich ausrichtbar:
   - **Spalte 1 `keyword`** = `init`/`task`/`choice`/`view`/`dialog`/`exit`/`end` (steht am Zeilenanfang
@@ -625,7 +647,9 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
 ## Kommentare & Direktiven — Regeln
 
 - **Trailing (gleiche Zeile):** `SingleLineComment` in `A.TrailingTrivia` vor dem ersten Newline → auf der
-  Zeile belassen, **genau ein Space** davor.
+  Zeile belassen, **genau ein Space** davor — es sei denn, die **Trailing-Kommentar-Spalte** greift (s.
+  „Spaltenausrichtung"): dann werden die Zeilenend-Kommentare eines zusammenhängenden Anweisungs-Blocks an
+  einer gemeinsamen Spalte ausgerichtet (Option `AlignTrailingComments`, Default `true`).
 - **Eigene Zeile (leading, inkl. Banner `// ----`):** auf eigener Zeile auf **aktuellem Block-Einzug**;
   Kommentar-**Text verbatim** (Banner-Innenleben nie anfassen).
 - **Einzeiliger `/* */`-Block-Kommentar (inline, kein innerer Newline):** verhält sich wie ein
@@ -770,6 +794,9 @@ analog `NavCompletionService.TriggerCharacters`):
 - `AlignTaskHeadBlocks = true` — Task-Kopf-Code-Blöcke stapeln (Block 1 inline, weitere je Zeile
   darunter) **und** mehrzeilige `[params]` unter dem ersten Parameter ausrichten (s. „Task-Kopf-
   Ausrichtung"). Padding immer Spaces.
+- `AlignTrailingComments = true` — Trailing-`//`-Kommentare am Zeilenende eines zusammenhängenden
+  Anweisungs-Blocks an einer gemeinsamen Spalte ausrichten (tight; s. „Spaltenausrichtung"). Bricht
+  bereits bei einer einzelnen Leerzeile/Kommentarzeile. Padding immer Spaces.
 - `AlignmentColumnPolicy` = `NextTabStop` (Default) | `Tight` | `PreserveDominant` — wie die Zielspalte
   aus den Zeilenbreiten folgt (s. „Spaltenausrichtung"). **Ausrichtungs-Padding ist immer Leerzeichen**
   (nie Tabs), unabhängig vom `IndentStyle` des Einzugs — in Stein gemeißelt.
@@ -833,6 +860,29 @@ task Sample
 
 `Node:Port` bleibt tight; die längste Quelle (`Dialog:Ok`, kanonische Breite 9) ergibt `tightMin` 10,
 `NextTabStop` hebt auf Spalte 12 (nächstes Vielfaches von 4).
+
+**Trailing-`//`-Kommentare: an gemeinsamer Spalte ausrichten (tight)**
+
+```
+// vorher
+task Sample
+{
+    init --> A; // erste
+    A --> B; // zweite
+    B --> Exit; // dritte
+}
+// nachher
+task Sample
+{
+    init    --> A;    // erste
+    A       --> B;    // zweite
+    B       --> Exit; // dritte
+}
+```
+
+Die längste Zeile (`B --> Exit;`, kanonische Breite 17) ergibt die Kommentar-Spalte 18 (tight, ein Space
+dahinter); die kürzeren Zeilen füllen bis dorthin auf. Eine einzelne Leerzeile zwischen zwei Zeilen würde
+den Block bereits trennen.
 
 **Node-Deklarationen: Raster `keyword | node | rest` + eigene `[params]`-Spalte**
 

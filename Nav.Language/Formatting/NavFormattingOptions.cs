@@ -44,6 +44,14 @@ public record NavFormattingOptions {
     public bool AlignTaskHeadBlocks { get; init; } = true;
 
     /// <summary>
+    /// Trailing-<c>//</c>-Kommentare am Zeilenende eines zusammenhängenden Anweisungs-Blocks an einer
+    /// gemeinsamen Spalte ausrichten (tight — genau ein Space hinter der längsten Zeile der Gruppe).
+    /// Anders als die übrigen Ausrichtungen bricht hier bereits <b>eine einzelne</b> Leerzeile (bzw. eine
+    /// eigene Kommentarzeile) den Block. Default: <c>true</c>.
+    /// </summary>
+    public bool AlignTrailingComments { get; init; } = true;
+
+    /// <summary>
     /// Wie die Zielspalte einer Ausrichtungsgruppe aus den kanonischen Zeilenbreiten folgt.
     /// Default: <see cref="Formatting.AlignmentColumnPolicy.NextTabStop"/>.
     /// Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs — unabhängig vom <see cref="IndentStyle"/>.

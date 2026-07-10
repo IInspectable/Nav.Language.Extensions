@@ -35,11 +35,13 @@ static class AlignmentMapBuilder {
 
     public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options) {
 
-        if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks && !options.AlignConditions) {
+        if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks &&
+            !options.AlignConditions && !options.AlignTrailingComments) {
             return AlignmentMap.Empty;
         }
 
-        var spaces = new Dictionary<int, int>();
+        var spaces                = new Dictionary<int, int>();
+        var trailingCommentSpaces = new Dictionary<int, int>();
 
         foreach (var task in syntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>()) {
 
@@ -60,6 +62,16 @@ static class AlignmentMapBuilder {
             if (options.AlignConditions) {
                 AddConditionColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
             }
+
+            // Trailing-Kommentare zuletzt: ihre Zeilenbreite baut auf allen bereits aufgelösten Spalten
+            // (Pfeil/Condition/Node-Grid) auf. Node-Deklarationen und Transitionen werden getrennt
+            // gruppiert — die grammatikalisch erzwungene Leerzeile dazwischen (BlankLineBeforeTransitions)
+            // trennt sie ohnehin, aber die getrennten Sequenzen machen die Gruppierung auch dann
+            // idempotent, wenn der Autor keine Leerzeile gesetzt hatte.
+            if (options.AlignTrailingComments) {
+                AddTrailingCommentColumns(syntaxTree, options, task.NodeDeclarationBlock.NodeDeclarations, spaces, trailingCommentSpaces);
+                AddTrailingCommentColumns(syntaxTree, options, Transitions(task.TransitionDefinitionBlock), spaces, trailingCommentSpaces);
+            }
         }
 
         foreach (var taskref in syntaxTree.Root.DescendantNodes<TaskDeclarationSyntax>()) {
@@ -71,9 +83,25 @@ static class AlignmentMapBuilder {
             if (options.AlignNodeGrid) {
                 AddNodeGridColumns(syntaxTree, options, taskref.ConnectionPoints, spaces);
             }
+
+            if (options.AlignTrailingComments) {
+                AddTrailingCommentColumns(syntaxTree, options, taskref.ConnectionPoints, spaces, trailingCommentSpaces);
+            }
         }
 
-        return new AlignmentMap(spaces);
+        return new AlignmentMap(spaces, trailingCommentSpaces);
+    }
+
+    /// <summary>Transitionen und Exit-Transitionen eines Blocks als einheitliche Anweisungs-Sequenz.</summary>
+    static IEnumerable<SyntaxNode> Transitions(TransitionDefinitionBlockSyntax block) {
+
+        foreach (var transition in block.TransitionDefinitions) {
+            yield return transition;
+        }
+
+        foreach (var exitTransition in block.ExitTransitionDefinitions) {
+            yield return exitTransition;
+        }
     }
 
     // ---- Task-Kopf (Blöcke stapeln + mehrzeiliges [params]) -------------------------------------
@@ -431,6 +459,109 @@ static class AlignmentMapBuilder {
         return width;
     }
 
+    // ---- Trailing-//-Kommentar-Spalte -----------------------------------------------------------
+
+    sealed class TrailingCommentCandidate {
+
+        public TrailingCommentCandidate(SyntaxNode statement) {
+            Statement = statement;
+        }
+
+        public SyntaxNode Statement   { get; }
+        public bool       BreaksGroup { get; set; }
+        public bool       IsAligned   { get; set; }
+        public int        GapStart    { get; set; }
+        public int        Width       { get; set; }
+
+    }
+
+    /// <summary>
+    /// Richtet die Trailing-<c>//</c>-Kommentare aufeinanderfolgender Anweisungen an einer gemeinsamen
+    /// Spalte aus — <b>tight</b> (ein Space hinter der längsten Zeile der Gruppe, kein Tab-Stopp/keine
+    /// <see cref="AlignmentColumnPolicy"/>). Anders als die übrigen Spalten bricht die Gruppe bereits bei
+    /// <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>). Nur Zeilen mit
+    /// einem sauberen Trailing-<c>//</c> (nur Whitespace davor) nehmen teil; eine kommentarlose Zeile ist
+    /// kein Teilnehmer, bricht die Gruppe aber nicht. Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe.
+    /// </summary>
+    static void AddTrailingCommentColumns(SyntaxTree syntaxTree, NavFormattingOptions options,
+                                          IEnumerable<SyntaxNode> statements, Dictionary<int, int> spaces,
+                                          Dictionary<int, int> trailingCommentSpaces) {
+
+        var candidates = statements.OrderBy(s => s.Start)
+                                   .Select(s => CreateTrailingCommentCandidate(syntaxTree, options, s, spaces))
+                                   .ToList();
+
+        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
+
+            var participants = group.Where(c => c.IsAligned).ToList();
+            if (participants.Count < 2) {
+                continue;
+            }
+
+            var targetCol = participants.Max(c => c.Width) + 1;
+
+            foreach (var participant in participants) {
+                trailingCommentSpaces[participant.GapStart] = targetCol - participant.Width;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Vermisst eine Anweisung für die Trailing-Kommentar-Spalte: kanonische Zeilenbreite bis zum letzten
+    /// Token (die inneren Lücken kommen aus den bereits aufgelösten Spalten bzw. der Regelentscheidung).
+    /// Hand-gelegt/leer ⇒ bricht die Gruppe; kein sauberer Trailing-<c>//</c> ⇒ kein Teilnehmer (bricht
+    /// nicht); eine nicht einzeilig-kanonische innere Lücke (z.B. Inline-Block-Kommentar) ⇒ aus der Spalte
+    /// ausgeschlossen (die Spaltenbreite darf nie an einer Kommentar-Textlänge hängen).
+    /// </summary>
+    static TrailingCommentCandidate CreateTrailingCommentCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
+                                                                   SyntaxNode statement, Dictionary<int, int> spaces) {
+
+        var candidate = new TrailingCommentCandidate(statement);
+        var tokens    = syntaxTree.Tokens[statement.Extent].ToList();
+
+        if (tokens.Count == 0 || IsHandLaid(syntaxTree, tokens)) {
+            candidate.BreaksGroup = true;
+            return candidate;
+        }
+
+        if (!HasCleanTrailingLineComment(tokens[tokens.Count - 1])) {
+            return candidate;
+        }
+
+        var width = WidthUpToColumn(syntaxTree, options, tokens, int.MaxValue, spaces, out var gapStart);
+        if (width < 0) {
+            return candidate;
+        }
+
+        candidate.IsAligned = true;
+        candidate.GapStart  = gapStart;
+        candidate.Width     = width;
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Ob das Token einen sauberen Trailing-<c>//</c>-Kommentar trägt: die erste nicht-Whitespace-Trivia
+    /// seiner Trailing-Trivia ist ein <see cref="SyntaxTokenType.SingleLineComment"/> (ein vorangestellter
+    /// Block-Kommentar, ein Zeilenende oder eine Direktive schließen aus — die Kommentar-Spalte hinge sonst
+    /// an fremdem Trivia).
+    /// </summary>
+    static bool HasCleanTrailingLineComment(SyntaxToken token) {
+
+        foreach (var trivia in token.TrailingTrivia) {
+            switch (trivia.Type) {
+                case SyntaxTokenType.Whitespace:
+                    continue;
+                case SyntaxTokenType.SingleLineComment:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        return false;
+    }
+
     // ---- Node-Deklarations-Raster (keyword | node | rest) ----------------------------------------
 
     sealed class NodeGridCandidate {
@@ -546,11 +677,15 @@ static class AlignmentMapBuilder {
     // ---- Gemeinsame Bausteine ---------------------------------------------------------------------
 
     /// <summary>
-    /// Partitioniert die Kandidaten in Ausrichtungsgruppen: neue Gruppe bei <c>interruptLines ≥ 2</c>
-    /// oder an einem Gruppen-brechenden Kandidaten (der selbst nie Mitglied wird).
+    /// Partitioniert die Kandidaten in Ausrichtungsgruppen: neue Gruppe bei
+    /// <c>interruptLines ≥ interruptThreshold</c> oder an einem Gruppen-brechenden Kandidaten (der selbst
+    /// nie Mitglied wird). <paramref name="interruptThreshold"/> ist standardmäßig <c>2</c> (eine
+    /// Leerzeile oder Kommentarzeile bricht nicht); die Trailing-Kommentar-Ausrichtung übergibt <c>1</c>
+    /// (bereits eine einzelne Leerzeile bricht den Block).
     /// </summary>
     static IEnumerable<List<T>> GroupCandidates<T>(SyntaxTree syntaxTree, IReadOnlyList<T> candidates,
-                                                   Func<T, SyntaxNode> statementOf, Func<T, bool> breaksGroup) {
+                                                   Func<T, SyntaxNode> statementOf, Func<T, bool> breaksGroup,
+                                                   int interruptThreshold = 2) {
 
         var group = new List<T>();
         SyntaxNode? previous = null;
@@ -569,7 +704,7 @@ static class AlignmentMapBuilder {
                 continue;
             }
 
-            if (previous != null && group.Count > 0 && InterruptLines(syntaxTree, previous, statement) >= 2) {
+            if (previous != null && group.Count > 0 && InterruptLines(syntaxTree, previous, statement) >= interruptThreshold) {
                 yield return group;
                 group = new List<T>();
             }
@@ -616,7 +751,10 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Kanonische Breite einer inneren Lücke — über die Regelentscheidung selbst (<c>Nothing</c> = 0,
     /// <c>SingleSpace</c> = 1), damit Breitenmessung und späteres Rendering nie auseinanderlaufen.
-    /// −1, wenn die Lücke nicht einzeilig-kanonisch ist (Kommentar/Direktive/Skiped bzw. ein
+    /// Eine <see cref="GapLayout.AlignedColumn"/> ohne eigenen Tabellen-Eintrag rendert der
+    /// <see cref="GapRenderer"/> als Single-Space-Fallback (ein Leerzeichen) — dieser Fall wird ohne
+    /// Tabellen-Eintrag erreicht (der Aufrufer schlägt die Tabelle vorher nach) und zählt deshalb hier als
+    /// <c>1</c>. −1, wenn die Lücke nicht einzeilig-kanonisch ist (Kommentar/Direktive/Skiped bzw. ein
     /// Umbruch-Layout) — der Aufrufer schließt die Anweisung dann aus der Spalte aus.
     /// </summary>
     static int CanonicalGapWidth(SyntaxTree syntaxTree, NavFormattingOptions options, SyntaxToken prev, SyntaxToken next) {
@@ -629,9 +767,10 @@ static class AlignmentMapBuilder {
         var ctx = new GapContext(prev, next, indentDepth: 0, trivia, isSuppressed: false, AlignmentMap.Empty, options);
 
         return GapRules.Select(in ctx) switch {
-            GapLayout.Nothing     => 0,
-            GapLayout.SingleSpace => 1,
-            _                     => -1,
+            GapLayout.Nothing       => 0,
+            GapLayout.SingleSpace   => 1,
+            GapLayout.AlignedColumn => 1,
+            _                       => -1,
         };
     }
 

@@ -39,4 +39,13 @@ enum ColumnId {
     /// <summary>Mehrzeiliges <c>[params]</c> im Task-Kopf: Folgeparameter unter dem ersten Parameter.</summary>
     ParamsList,
 
+    /// <summary>
+    /// Trailing-<c>//</c>-Kommentar-Spalte: Lücke zwischen dem letzten Token einer Anweisung und ihrem
+    /// Zeilenend-Kommentar. Richtet die Kommentare eines zusammenhängenden Anweisungs-Blocks tight unter
+    /// dem längsten Zeileninhalt aus. Wird — anders als die übrigen Spalten — nicht über ein
+    /// <see cref="GapLayout"/> nachgeschlagen, sondern direkt vom <see cref="GapRenderer"/> beim Setzen
+    /// des Trailing-Kommentars.
+    /// </summary>
+    TrailingComment,
+
 }

@@ -117,11 +117,25 @@ sealed class GapRenderer {
         var lines = SplitLines(ctx);
         var sb    = new StringBuilder();
 
-        // Trailing-Segment: Kommentare bleiben auf der Zeile von Prev, genau ein Space davor.
+        // Trailing-Segment: Kommentare bleiben auf der Zeile von Prev, genau ein Space davor — es sei denn,
+        // der Vorpass hat den ersten Trailing-'//' auf eine gemeinsame Block-Spalte ausgerichtet (dann
+        // stehen davor so viele Spaces, dass der Kommentar auf dieser Spalte sitzt). Prev endet auf der
+        // kanonischen Zeilenbreite; die Spaces stammen aus TryGetTrailingCommentSpaces (= Spalte − Breite).
+        var trailingCommentAligned = false;
         foreach (var trivia in lines[0]) {
-            if (trivia.IsComment) {
+            if (!trivia.IsComment) {
+                continue;
+            }
+
+            if (!trailingCommentAligned                                            &&
+                trivia.Type == SyntaxTokenType.SingleLineComment                   &&
+                ctx.Alignment.TryGetTrailingCommentSpaces(ctx.Extent.Start, out var pad)) {
+                sb.Append(' ', pad).Append(CommentText(trivia));
+            } else {
                 sb.Append(' ').Append(CommentText(trivia));
             }
+
+            trailingCommentAligned = true;
         }
 
         // Innenzeilen in authored Reihenfolge; Leerzeilen dabei zählen, um das Minimum zu ergänzen.
