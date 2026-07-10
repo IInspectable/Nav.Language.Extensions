@@ -49,7 +49,8 @@ public class NavFormattingErrorGoldenTests {
             A  -->  B
             B --> E;
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Sample
         {
@@ -59,7 +60,8 @@ public class NavFormattingErrorGoldenTests {
             A  -->  B
             B --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -78,7 +80,8 @@ public class NavFormattingErrorGoldenTests {
         {
             init   X;
             X  -->  E;
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Good
         {
@@ -90,7 +93,8 @@ public class NavFormattingErrorGoldenTests {
         {
             init   X;
             X  -->  E;
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -108,7 +112,8 @@ public class NavFormattingErrorGoldenTests {
             A  @@@  --> B;
             B --> E;
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Sample
         {
@@ -118,7 +123,8 @@ public class NavFormattingErrorGoldenTests {
             A  @@@  --> B;
             B --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -134,7 +140,8 @@ public class NavFormattingErrorGoldenTests {
         task X
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, source);
     }
@@ -143,6 +150,8 @@ public class NavFormattingErrorGoldenTests {
 
     [Test]
     public void ByteOrderMarkAtOffsetZeroIsPreserved() {
+        // Escaptes Literal (Ausnahme von der Raw-String-Regel): das führende BOM (U+FEFF) ließe sich
+        // als Raw-String nicht sichtbar an den Anfang setzen.
         AssertFormat("﻿task A\r\n{\r\n}\r\n", "﻿task A\r\n{\r\n}\r\n");
     }
 
@@ -169,7 +178,8 @@ public class NavFormattingErrorGoldenTests {
           A
               --> E;
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Sample
         {
@@ -179,7 +189,8 @@ public class NavFormattingErrorGoldenTests {
             A
                 --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -197,7 +208,8 @@ public class NavFormattingErrorGoldenTests {
                  Zeile2 */
             init I1;
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Sample
         {
@@ -205,7 +217,8 @@ public class NavFormattingErrorGoldenTests {
                Zeile2 */
             init I1;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }

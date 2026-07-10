@@ -35,7 +35,12 @@ public class NavFormattingServiceTests {
     // Eingaben für die dauerhaften Eigenschafts-Tests: von leer über kanonisch bis unaufgeräumt/defekt.
     static IEnumerable<string> Fixtures() {
         yield return "";
-        yield return "task A\r\n{\r\n}\r\n";
+        yield return """
+        task A
+        {
+        }
+
+        """;
         yield return """
         task Sample
         {
@@ -65,13 +70,62 @@ public class NavFormattingServiceTests {
         """;
         // S4-Fehler-Toleranz: fehlendes ';'/'}', Skiped im Statement, Streu-Token zwischen Membern, BOM,
         // Global-Fallback, Hand-gelegt-Delta-Shift, mehrzeiliger Block-Kommentar.
-        yield return "task Sample\r\n{\r\n    init I1;\r\n    exit E;\r\n\r\n    A  -->  B\r\n    B --> E;\r\n}\r\n";
-        yield return "task Good\r\n{\r\ninit I1;\r\nI1 --> E;\r\n}\r\ntask Broken\r\n{\r\n    init   X;\r\n    X  -->  E;\r\n";
-        yield return "[using A]\r\n@@@\r\n[using B]\r\ntask X\r\n{\r\n}\r\n";
+        yield return """
+        task Sample
+        {
+            init I1;
+            exit E;
+
+            A  -->  B
+            B --> E;
+        }
+
+        """;
+        yield return """
+        task Good
+        {
+        init I1;
+        I1 --> E;
+        }
+        task Broken
+        {
+            init   X;
+            X  -->  E;
+
+        """;
+        yield return """
+        [using A]
+        @@@
+        [using B]
+        task X
+        {
+        }
+
+        """;
+        // Diese beiden bleiben bewusst escapte Literale: das führende BOM (U+FEFF) und der reine
+        // Einzeiler ließen sich als Raw-String nur schlechter bzw. unsichtbar darstellen.
         yield return "﻿task A\r\n{\r\n}\r\n";
         yield return "@@@ %%% &&&\r\n";
-        yield return "task Sample\r\n{\r\n    init I1;\r\n    exit E;\r\n\r\n  A\r\n      --> E;\r\n}\r\n";
-        yield return "task Sample\r\n{\r\n      /* Zeile1\r\n         Zeile2 */\r\n    init I1;\r\n}\r\n";
+        yield return """
+        task Sample
+        {
+            init I1;
+            exit E;
+
+          A
+              --> E;
+        }
+
+        """;
+        yield return """
+        task Sample
+        {
+              /* Zeile1
+                 Zeile2 */
+            init I1;
+        }
+
+        """;
         yield return Resources.LargeNav;
     }
 
@@ -82,7 +136,12 @@ public class NavFormattingServiceTests {
 
     [Test]
     public void TrivialCanonicalFileProducesNoChanges() {
-        Assert.That(Format("task A\r\n{\r\n}\r\n"), Is.Empty);
+        Assert.That(Format("""
+        task A
+        {
+        }
+
+        """), Is.Empty);
     }
 
     [Test, TestCaseSource(nameof(Fixtures))]

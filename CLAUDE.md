@@ -187,11 +187,20 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   DTO-/Serialisierungs-Rand, nicht im Domänenmodell (z.B. `Location.FilePath` bleibt bewusst `string?`).
   Erspart Konsumenten Null-Checks und umgeht die netstandard2.0-Falle, dass `String.IsNullOrEmpty` die
   Nullability nicht verengt (→ CS8602). Playbook-Regel 4a in `doc/nav-nullable-status.md`.
-- **String-Literale: Raw-Strings (`"""…"""`) sind der Grundzustand — kein `@"…"`-Verbatim.** Gilt für
-  Produktiv- **und** Testcode (z.B. mehrzeilige `.nav`-Inhalte in Fixtures). Den Raw-String sauber auf
-  Code-Ebene einrücken; die schließende `"""`-Zeile entfernt die Basis-Einrückung, die *relative*
-  Struktur des Inhalts bleibt erhalten. `@"…"` nur dort, wo ein Raw-String klar schlechter liest —
-  kurze Pfad-Fragmente mit Backslash (`@"V2\"`).
+- **String-Literale: Raw-Strings (`"""…"""`) sind der Grundzustand — kein `@"…"`-Verbatim und
+  **kein** einzeilig-escaptes `"…\r\n…"`.** Gilt für Produktiv- **und** Testcode. **Jeder mehrzeilige
+  Inhalt** — insbesondere `.nav`-Fixtures und -Erwartungswerte, egal ob in `yield return`, als lokale
+  Variable **oder direkt als Methodenargument** (`Format("…")`, `Render("…")`, `AssertFormat("…", "…")`)
+  — wird als Raw-String geschrieben, nicht als einzeilige Kette mit `\r\n`/`\n`-Escapes. Den Raw-String
+  sauber auf Code-Ebene einrücken; die schließende `"""`-Zeile entfernt die Basis-Einrückung, die
+  *relative* Struktur des Inhalts bleibt erhalten. **Eine abschließende Datei-Newline** (das frühere
+  `… """ + "\r\n"`) wird durch **eine Leerzeile vor dem schließenden `"""`** ausgedrückt — der Raw-String
+  verschluckt die Newline direkt vor `"""`, die Leerzeile liefert sie zurück; kein `+ "\r\n"`-Anhang.
+  Escaptes `"…"` **nur** dort, wo ein Raw-String klar schlechter liest, weil die *unsichtbare* Whitespace
+  selbst der Prüfgegenstand ist: Trailing-Spaces (`task A   `), Tab- vs. Space-Einzug, An-/Abwesenheit der
+  Final-Newline, gezählte Leerzeilen am Dateiende, ein eingebettetes BOM (`﻿`) — sowie kurze
+  Pfad-Fragmente mit Backslash (`@"V2\"`). Solche Ausnahmen **mit einem Kommentar begründen**, damit sie
+  nicht versehentlich „aufgeräumt" werden (Muster: `Nav.Language.Tests\Formatting\NavFormattingServiceTests.cs`).
 - **Codegen-Emitter (CodeBuilder): zusammenhängende Blöcke als *einen* Raw-String schreiben, nicht als
   Folge von `cb.Write`/`cb.WriteLine`.** Mehrere aufeinanderfolgende Schreibaufrufe mit
   statischem/interpoliertem Text — inkl. per `cb.Indent()` gestaffelter Zeilen — zu einem

@@ -29,14 +29,24 @@ public class GapRendererTests {
     [Test]
     public void SingleSpaceRendersExactlyOneSpace() {
         // Lücke 'task' -> 'A' (im Original ein Space).
-        Assert.That(Render("task A\r\n{\r\n}\r\n", SyntaxTokenType.TaskKeyword, GapLayout.SingleSpace.Instance),
+        Assert.That(Render("""
+                           task A
+                           {
+                           }
+
+                           """, SyntaxTokenType.TaskKeyword, GapLayout.SingleSpace.Instance),
                     Is.EqualTo(" "));
     }
 
     [Test]
     public void SingleSpaceNormalizesWiderGaps() {
         // Lücke 'task' -> 'A' (im Original mehrere Spaces).
-        Assert.That(Render("task     A\r\n{\r\n}\r\n", SyntaxTokenType.TaskKeyword, GapLayout.SingleSpace.Instance),
+        Assert.That(Render("""
+                           task     A
+                           {
+                           }
+
+                           """, SyntaxTokenType.TaskKeyword, GapLayout.SingleSpace.Instance),
                     Is.EqualTo(" "));
     }
 
@@ -232,7 +242,8 @@ public class GapRendererTests {
                            [code Foo]
                            {
                            }
-                           """ + "\r\n",
+
+                           """,
                            (prev, next) => prev.ToString() == "Sample" && next.Type == SyntaxTokenType.OpenBracket,
                            GapLayout.SingleSpace.PullUp),
                     Is.EqualTo(" "));
@@ -246,7 +257,8 @@ public class GapRendererTests {
                            [code Foo]
                            {
                            }
-                           """ + "\r\n",
+
+                           """,
                            (prev, next) => prev.ToString() == "Sample" && next.Type == SyntaxTokenType.OpenBracket,
                            GapLayout.SingleSpace.PullUp),
                     Is.EqualTo(" // Kommentar\r\n"));
@@ -254,7 +266,12 @@ public class GapRendererTests {
 
     [Test]
     public void VerbatimReturnsOriginalGapText() {
-        Assert.That(Render("task     A\r\n{\r\n}\r\n", SyntaxTokenType.TaskKeyword, GapLayout.Verbatim.Instance),
+        Assert.That(Render("""
+                           task     A
+                           {
+                           }
+
+                           """, SyntaxTokenType.TaskKeyword, GapLayout.Verbatim.Instance),
                     Is.EqualTo("     "));
     }
 

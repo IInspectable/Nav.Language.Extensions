@@ -55,7 +55,8 @@ public class NavFormattingAlignmentGoldenTests {
             Choice      o-> Dialog;
             Dialog:Ok   --> Exit;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -74,7 +75,8 @@ public class NavFormattingAlignmentGoldenTests {
         {
             I1 --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -100,7 +102,8 @@ public class NavFormattingAlignmentGoldenTests {
             // Kommentar
             X1          --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -129,7 +132,8 @@ public class NavFormattingAlignmentGoldenTests {
             X   --> E;
             Y   --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -153,7 +157,8 @@ public class NavFormattingAlignmentGoldenTests {
             A /* x */ --> E;
             B:Out   --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -169,7 +174,8 @@ public class NavFormattingAlignmentGoldenTests {
             --> E;
             B --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, source);
     }
@@ -197,7 +203,8 @@ public class NavFormattingAlignmentGoldenTests {
             choice  Decide;
             task    LongerTypeName  Alias2;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -219,7 +226,8 @@ public class NavFormattingAlignmentGoldenTests {
             view    V;
             end;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -240,7 +248,8 @@ public class NavFormattingAlignmentGoldenTests {
             init    I1;
             task    Worker w;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -261,7 +270,8 @@ public class NavFormattingAlignmentGoldenTests {
                     [result bool]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -280,7 +290,8 @@ public class NavFormattingAlignmentGoldenTests {
         task Sample [code Foo]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -300,7 +311,8 @@ public class NavFormattingAlignmentGoldenTests {
                     [code Foo]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -321,7 +333,8 @@ public class NavFormattingAlignmentGoldenTests {
                            string label]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -339,7 +352,8 @@ public class NavFormattingAlignmentGoldenTests {
         task Sample [params]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -355,7 +369,8 @@ public class NavFormattingAlignmentGoldenTests {
         task Other [params int x, string label]
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -381,7 +396,8 @@ public class NavFormattingAlignmentGoldenTests {
             init    I;
             exit    O;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -404,7 +420,8 @@ public class NavFormattingAlignmentGoldenTests {
             I1         --> E;
             LongSource --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected, options);
     }
@@ -422,7 +439,8 @@ public class NavFormattingAlignmentGoldenTests {
             Start --> Decide;
             LongSource --> Decide;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, source, options);
     }

@@ -60,7 +60,8 @@ public class NavFormattingRangeTests {
                      task A
                      {
                      }
-                     """ + "\r\n";
+
+                     """;
 
         yield return """
                      task Sample
@@ -70,13 +71,15 @@ public class NavFormattingRangeTests {
 
                      I1-->E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         yield return """
                      [namespaceprefix N] [using A] [using B] task X
                      {
                      }
-                     """ + "\r\n";
+
+                     """;
 
         yield return """
                      task Sample
@@ -86,7 +89,8 @@ public class NavFormattingRangeTests {
 
                        I1-->E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         yield return """
                      task Broken
@@ -95,7 +99,8 @@ public class NavFormattingRangeTests {
                          @@@
                          exit E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         yield return Resources.LargeNav;
     }
@@ -146,7 +151,8 @@ public class NavFormattingRangeTests {
 
                        I1-->E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         var once = ApplyRange(source, RangeOf(source, "I1-->E;"));
 
@@ -193,7 +199,8 @@ public class NavFormattingRangeTests {
 
                          I1-->E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         var expected = """
                        task Sample
@@ -206,7 +213,8 @@ public class NavFormattingRangeTests {
 
                            I1 --> E;
                        }
-                       """ + "\r\n";
+
+                       """;
 
         // Auf das zweite (letzte) Vorkommen der Transition zielen.
         var secondStart = source.LastIndexOf("I1-->E;", StringComparison.Ordinal);
@@ -228,7 +236,8 @@ public class NavFormattingRangeTests {
 
                        I1-->E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         var expected = """
                        task Sample
@@ -238,7 +247,8 @@ public class NavFormattingRangeTests {
 
                            I1 --> E;
                        }
-                       """ + "\r\n";
+
+                       """;
 
         Assert.That(ApplyRange(source, RangeOf(source, "I1-->E;")), Is.EqualTo(expected));
     }
@@ -256,14 +266,16 @@ public class NavFormattingRangeTests {
                              string label]
                      {
                      }
-                     """ + "\r\n";
+
+                     """;
 
         var expected = """
                        task Other [params int x,
                                           string label]
                        {
                        }
-                       """ + "\r\n";
+
+                       """;
 
         Assert.That(ApplyRange(source, RangeOf(source, "string label")), Is.EqualTo(expected));
     }
@@ -281,7 +293,8 @@ public class NavFormattingRangeTests {
 
                          I1 --> E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         // Die Auswahl trifft den (als Trailing-Trivia an 'init I1;' hängenden) Kommentar; die Ausweitung
         // erfasst die init-Deklaration. Es entsteht kein Achse-A-Bruch und keine Overlap-Exception — der
@@ -303,7 +316,8 @@ public class NavFormattingRangeTests {
                          @@@
                          exit E;
                      }
-                     """ + "\r\n";
+
+                     """;
 
         Assert.That(ApplyRange(source, RangeOf(source, "@@@")), Is.EqualTo(source),
                     "In einer unterdrückten Region liefert FormatRange keine Änderung.");

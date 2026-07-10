@@ -55,7 +55,8 @@ public class NavFormattingGoldenTests {
             I1      --> E;
             w:Out   --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         Assert.That(NavFormattingService.FormatDocument(SyntaxTree.ParseText(canonical), Settings, SpacesOptions),
                     Is.Empty, "Eine bereits kanonische Datei liefert 0 Changes.");
@@ -74,7 +75,8 @@ public class NavFormattingGoldenTests {
 
             I1 --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -92,7 +94,8 @@ public class NavFormattingGoldenTests {
 
             I1 --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, source);
     }
@@ -111,7 +114,8 @@ public class NavFormattingGoldenTests {
         task X
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -127,7 +131,8 @@ public class NavFormattingGoldenTests {
         task X
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, source);
     }
@@ -146,7 +151,8 @@ public class NavFormattingGoldenTests {
             I1
                     --> E;
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         task Sample
         {
@@ -156,7 +162,8 @@ public class NavFormattingGoldenTests {
             I1
                     --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -182,7 +189,8 @@ public class NavFormattingGoldenTests {
 
             I1:Out --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -206,7 +214,8 @@ public class NavFormattingGoldenTests {
 
             I1 --> E;
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -236,7 +245,8 @@ public class NavFormattingGoldenTests {
 
             I1 --> E; // fertig
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -249,12 +259,16 @@ public class NavFormattingGoldenTests {
         task A
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
 
     // ---- Datei-Anfang & Datei-Ende --------------------------------------------------------------
+    // Ausnahme von der Raw-String-Regel: Prüfgegenstand ist hier die *unsichtbare* Whitespace selbst
+    // (führende/abschließende Spaces, An-/Abwesenheit der Final-Newline, gezählte Leerzeilen). Als
+    // escaptes Literal ist der Defekt exakt sichtbar; ein Raw-String ließe ihn im Layout verschwinden.
 
     [Test]
     public void LeadingWhitespaceBeforeFirstTokenIsRemoved() {
@@ -269,14 +283,16 @@ public class NavFormattingGoldenTests {
         task A
         {
         }
-        """ + "\r\n";
+
+        """;
         var expected = """
         // Kopf-Kommentar
 
         task A
         {
         }
-        """ + "\r\n";
+
+        """;
 
         AssertFormat(source, expected);
     }
@@ -308,6 +324,8 @@ public class NavFormattingGoldenTests {
     }
 
     // ---- Einzugsstil ----------------------------------------------------------------------------
+    // Ausnahme wie oben: der erwartete Tab-Einzug ('\t') ist der Prüfgegenstand und im Raw-String
+    // unsichtbar — darum bleiben Ein- und Ausgabe hier escapte Literale.
 
     [Test]
     public void TabsAreTheDefaultIndentStyle() {
