@@ -36,10 +36,33 @@ public class NavFormattingServiceTests {
     static IEnumerable<string> Fixtures() {
         yield return "";
         yield return "task A\r\n{\r\n}\r\n";
-        yield return "task Sample\r\n{\r\n\tinit I1;\r\n\texit E;\r\n\r\n\tI1 --> E;\r\n}\r\n";
-        yield return "#pragma version 1\r\ntask A\r\n{\r\n}\r\n";
+        yield return """
+        task Sample
+        {
+            init I1;
+            exit E;
+
+            I1 --> E;
+        }
+        """;
+        yield return """
+        #pragma version 1
+        task A
+        {
+        }
+        """;
+        // Bewusst unaufgeräumt/defekt: Trailing-Whitespace ('task A   '), enge Zwischenräume und ein
+        // fehlendes Datei-Endzeichen bleiben als escapte Literale sichtbar (im Raw-String wären die
+        // Trailing-Spaces unsichtbar und würden vom Editor/Tooling getilgt).
         yield return "// Kopf-Kommentar\r\ntask A   \r\n{\r\n  init I1;   exit E;\r\n\r\n\r\n  I1-->E;// tail\r\n}";
-        yield return "task Broken\r\n{\r\n    init I1\r\n    @@@\r\n    exit E;\r\n}\r\n";
+        yield return """
+        task Broken
+        {
+            init I1
+            @@@
+            exit E;
+        }
+        """;
         yield return Resources.LargeNav;
     }
 
