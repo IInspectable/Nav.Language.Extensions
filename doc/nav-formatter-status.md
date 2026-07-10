@@ -2,8 +2,9 @@
 
 > **Spezifikations- und Status-Dokument.** Beschreibt den **Soll-Zustand** des Formatters; verworfene
 > Alternativen sind dort vermerkt, wo sie zur jeweiligen Entscheidung gehören (nicht als Chronik).
-> Stand: **Design-Phase** — es existiert noch **kein** Formatter-Code (kein Ordner
-> `Nav.Language/Formatting/`). Die Umsetzung ist in commit-große Steps zerlegt (Abschnitt „Step-Plan").
+> Stand: **S1 umgesetzt** — `Nav.Language/Formatting/` existiert (Options, Gap-Infrastruktur, Renderer,
+> Regel-Dispatcher, Service-Walk); der Regelsatz besteht noch aus dem Verbatim-Catch-all, der Formatter
+> ist damit die **Identität** (0 Changes). Die Layout-Regeln folgen mit S2 (Abschnitt „Step-Plan").
 
 ## Motivation
 
@@ -90,7 +91,7 @@ eine andere Lücke).
 ```
 FormatDocument(tree, settings, options):
     suppressed = ComputeSuppressedExtents(tree, options)   // Fehler-Regionen + BOM-Guard
-    alignment  = BuildAlignmentMap(tree, suppressed)       // Lücke -> Zielspalte (Vorpass)
+    alignment  = BuildAlignmentMap(tree, suppressed)       // Lücke -> aufgelöste Space-Zahl (Vorpass)
     changes = []
     toks = tree.Tokens                                     // inkl. terminalem EOF
     for i in 0 .. toks.Count-3:                            // alle Paare REALER Token (EOF-Paar exklusive)
@@ -182,9 +183,14 @@ readonly struct GapContext {
                                        // Tiefe wird für Einzug nie gebraucht (ggf. via ctx.Prev ableitbar).
     public GapTrivia    Trivia;        // hasComment / hasSkipped / hasDirective / newLineCount
     public bool         IsSuppressed;  // aus ComputeSuppressedExtents
-    public AlignmentMap Alignment;     // vorberechnet: Lücke -> Zielspalte
+    public AlignmentMap Alignment;     // vorberechnet: Lücke -> aufgelöste Space-Zahl
 }
 ```
+
+(Die `AlignmentMap` legt bewusst die bereits **aufgelöste Space-Zahl** ab statt der Zielspalte: nur der
+Vorpass kennt die kanonischen Vor-Spalten-Breiten — für `AlignedColumn` ist der Wert das Padding
+`targetCol − Breite`, für `NewLineAlignedColumn` die absolute Spalte nach dem Umbruch. Regeln und
+Renderer schlagen nur nach und bleiben pur.)
 
 Die **Regelliste ist die Spezifikation** — top-down lesbar, jede Zeile ein Satz:
 
@@ -250,6 +256,38 @@ sealed class TightColonRule : IGapRule {
 Der **Renderer** ist die **einzige** Stelle, die `GapLayout` + erhaltene Trivia (Kommentare, Direktiven)
 zu einem String macht — Kommentare/Direktiven werden hier wieder eingefädelt, damit die Regeln simpel
 bleiben und nur das *Skelett* bestimmen.
+
+### Renderer: Vertikalmodell kommentarreicher Lücken (festgezurrt, umgesetzt)
+
+Wie der Renderer eine Lücke mit Kommentaren/Direktiven/Leerzeilen um das Layout-Skelett herum aufbaut
+(`GapRenderer`, per Unit-Tests genagelt):
+
+- Die Lücke wird entlang ihrer `NewLine`-Trivia in ihre **authored Zeilenstruktur** zerlegt:
+  Trailing-Segment (auf der Zeile von `Prev`), null oder mehr **Innenzeilen**, Leading-Segment (auf der
+  Zeile von `Next`). Newlines **im Inneren** eines mehrzeiligen Kommentars sind Teil des Kommentar-Texts
+  und zerteilen nicht (ein `/* */` ist *eine* Trivia).
+- Das Layout bestimmt **nur zwei Dinge**: ob `Next` auf derselben Zeile bleibt (horizontale Layouts)
+  und seinen horizontalen Ziel-Ort (nichts/Space/Spalte bzw. Einzugstiefe/Spalte). Die **Innenstruktur**
+  (Reihenfolge von Leer-, Kommentar- und Direktivzeilen) wird nie erfunden, entfernt oder umsortiert —
+  normalisiert wird pro Zeile nur der Whitespace (Kommentarzeile → Zeilen-Präfix des Layouts, Direktive →
+  Spalte 0, Leerzeile → leer; Whitespace um Inline-Kommentare → ein Space).
+- **Leerzeilen-Minimum:** `BlankLinesBefore` wirkt als Minimum (Regeln reichen die Autorenzahl durch,
+  `BlankLineBeforeTransitionsRule` hebt an) — fehlende Leerzeilen werden unmittelbar vor der Zeile von
+  `Next` ergänzt, vorhandene nie gekappt.
+- **Renderer-Schranke (Defense-in-Depth, im Renderer selbst):** verlangt ein Layout Same-Line, obwohl
+  die Lücke zeilen-erzwingende Trivia enthält (Newline, `//`-Kommentar, mehrzeiliger Block-Kommentar,
+  Direktive), degradiert es zum Umbruch auf `ctx.IndentDepth` mit erhaltener Innenstruktur. Enthält die
+  Lücke eine `SkippedTokensTrivia`, rendert der Renderer unabhängig vom Layout verbatim.
+- **Lexer-Fallstricke (empirisch verifiziert):** ein `//`-Kommentar **verschluckt beim Lexen das `\r`**
+  des Zeilenendes (die `NewLine`-Trivia trägt dann nur `\n`) — der Renderer schreibt Zeilenenden selbst
+  (`settings.NewLine`) und kappt daher Zeilenend-Whitespace des `//`-Kommentar-Texts (`CommentText`),
+  sonst entstünde `\r\r\n`. Eine `DirectiveTrivia` trägt dagegen **nur den Zeileninhalt** (`#pragma …`
+  ohne Zeilenende); ihr terminierendes `NewLine` ist eine eigene Trivia — die Zeilen-Zerlegung trägt
+  also ohne Sonderfall. Eine (unzulässig) **eingerückte** Direktive wird trotzdem als `DirectiveTrivia`
+  gelext; der Renderer setzt sie auf Spalte 0 zurück.
+- Der Delta-Shift der Innenzeilen mehrzeiliger `/* */`-Kommentare ist hier noch nicht enthalten (Teil
+  der Kommentar-Normalisierung, S2): derzeit bleibt deren Inneres byte-genau stehen, nur der Whitespace
+  vor der ersten Kommentarzeile wird normalisiert — idempotent, nur eben noch ohne Relativ-Erhalt.
 
 ### Dispatch & Priorität — wie „genau eine Regel pro Lücke" garantiert wird
 
@@ -688,8 +726,11 @@ Neuer Ordner `Nav.Language/Formatting/`:
   `FormatRange(…, TextExtent range, …)` (S5). Eingabe ist bewusst der `SyntaxTree` (rein syntaktisches
   Feature; Token, Trivia und Syntax-Diagnostics hängen dort — kein Semantik-Build nötig). Intern:
   Gap-Walk, Regelliste, Renderer, `ComputeSuppressedExtents`, `BuildAlignmentMap`.
-- `NavFormattingOptions.cs` — Options-Record + `Default`.
-- `GapLayout.cs`, `IGapRule.cs`, `GapContext.cs` + Regel-Klassen (klein, je eine Datei oder gebündelt).
+- `NavFormattingOptions.cs` — Options-Record + `Default` (dazu `IndentStyle.cs`, `AlignmentColumnPolicy.cs`).
+- `GapLayout.cs`, `IGapRule.cs`, `RulePriority.cs`, `GapContext.cs`, `GapTrivia.cs`, `ColumnId.cs`,
+  `AlignmentMap.cs`, `GapRenderer.cs`; Dispatcher + Regel-Klassen gebündelt in `GapRules.cs`.
+  Öffentlich sind nur Service + Options(+Enums); die Gap-Maschinerie bleibt `internal`
+  (Tests via `InternalsVisibleTo`).
 
 **Wiederverwenden (nicht neu bauen):** `SyntaxTree.Tokens`/`Diagnostics`/`SkippedTokens()` + Trivia-API
 (`SyntaxToken.LeadingTrivia`/`TrailingTrivia`/`Extent`/`Parent`), `SourceText.Substring`,
@@ -897,7 +938,7 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 | # | Inhalt | Fertig, wenn | Status |
 |---|---|---|---|
 | **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
-| **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | offen |
+| **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | **erledigt** — Ordner `Nav.Language/Formatting/` komplett (Options+Enums, `GapLayout`/`GapContext`/`GapTrivia`/`AlignmentMap`, `GapRenderer` mit Vertikalmodell + Renderer-Schranke, `GapRules`-Dispatcher mit Intra-Tier-Debug-Check, `NavFormattingService`-Walk inkl. `IndentDepth` + Final-Gap-Hook). Regelsatz = Safety + Verbatim-Catch-all ⇒ Identität; Tests `Formatting/` (Service-Eigenschaften + Renderer-Goldens), beide TFMs grün |
 | **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | offen |
 | **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
 | **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | offen |
