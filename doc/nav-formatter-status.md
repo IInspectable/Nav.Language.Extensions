@@ -25,14 +25,23 @@ anbinden.
 
 ## Ermitteltes Zielformat (empirisch aus einer großen realen `.nav`-Codebasis)
 
-Statistisch über einen großen realen `.nav`-Bestand ermittelt (Größenordnung mehrere tausend Dateien);
-die folgenden Anteile sind die dominanten Konventionen:
+Statistisch über einen großen realen `.nav`-Bestand ermittelt — **Quelle der Wahrheit: `d:\tfs\main`
+(~1900 `.nav`-Dateien)**; die im Repo eingecheckte `Nav.Language.Tests\Resources\LargeNav.nav` ist ein
+repräsentatives Einzelstück daraus. Die folgenden Anteile sind die dominanten Konventionen:
 
 - **Einzug:** Tab (Breite 4) dominiert (~66% der Dateien tab-lastig) vs. 4 Spaces (~33%); starke
   **Intra-Datei-Mischung** → der Formatter **normalisiert** auf den konfigurierten Stil.
 - **Klammern:** Allman (öffnende `{` in eigener Zeile) ~98,5%; schließende `}` immer eigene Zeile.
-- **Abschnitts-Reihenfolge:** `[namespaceprefix]`, dann `[using]`-Block, dann `taskref`, dann
-  `task`-Block; im Task erst Node-Deklarationen, eine Leerzeile, dann die Transitionen.
+- **Abschnitts-Reihenfolge (deskriptiv — wird NICHT erzwungen):** typischerweise `[namespaceprefix]`,
+  dann `[using]`-Block, dann `taskref`, dann `task`-Block. Der Formatter **ordnet nie um** — als reiner
+  Gap-Rewriter bewegt er keine signifikanten Token. `taskref` (`TaskDeclarationSyntax`) und `task`
+  (`TaskDefinitionSyntax`) liegen zudem gemischt in *einer* `Members`-Liste in Quellreihenfolge und sind
+  grammatikalisch **frei anordbar** → ihre Reihenfolge bleibt unangetastet. Erzwungen wird nur der
+  **Whitespace** zwischen den Abschnitten, nie ihre Reihenfolge. Im Task ist „erst Node-Deklarationen,
+  dann Transitionen" bereits **grammatikalisch fix** (getrennte `NodeDeclarationBlock` /
+  `TransitionDefinitionBlock`); Formatter-Sache ist dort einzig die **Leerzeile** dazwischen
+  (`BlankLineBeforeTransitionsRule`). (Reihenfolge-Normalisierung wäre ein separates, opt-in
+  Code-Action-/Organize-Feature — kein Whitespace-Formatter.)
 - **Pfeile:** Space auf **beiden** Seiten (~98%); **Spaltenausrichtung ~79%** (bewusst aktiviert, s.u.).
   Pfeiltypen: `-->` ~81%, `o->` ~19%; alles andere <0,2% (Tippfehler).
 - **`Node:Port`-Doppelpunkt tight** (~99%); Listen: Komma + Space.
@@ -135,7 +144,8 @@ abstract record GapLayout {
     sealed record Nothing                        : GapLayout;  // tight, z.B. Node:Port
     sealed record SingleSpace                    : GapLayout;  // genau 1 Space
     sealed record AlignedColumn(ColumnId Column) : GapLayout;  // Spaces bis zur Gruppenspalte
-    sealed record NewLine(int BlankLinesBefore, int IndentDepth) : GapLayout;
+    sealed record NewLine(int BlankLinesBefore, int IndentDepth) : GapLayout;  // BlankLinesBefore:
+                                                                               // Autorenzahl (kein Kollaps)
     sealed record Verbatim                       : GapLayout;  // unterdrückt / Kommentar-Inneres
 }
 ```
@@ -152,7 +162,10 @@ readonly struct GapContext {
     // reine, formatierungs-invariante Fakten — NIE das aktuelle Whitespace (außer Newline-Anzahl)
     public SyntaxToken Prev, Next;
     public SyntaxNode? PrevParent, NextParent;
-    public int          IndentDepth;   // direkt aus Ahnenkette, nicht aus Nachbar-Operationen
+    public int          IndentDepth;   // := IndentDepth(Next): Tiefe des die neue Zeile eröffnenden
+                                       // Tokens (aus Ahnenkette, nie aus Nachbar-Operationen). NewLine-
+                                       // Layouts richten sich immer nach der beginnenden Zeile; Prev-
+                                       // Tiefe wird für Einzug nie gebraucht (ggf. via ctx.Prev ableitbar).
     public GapTrivia    Trivia;        // hasComment / hasSkipped / newLineCount
     public bool         IsSuppressed;  // aus ComputeSuppressedExtents
     public AlignmentMap Alignment;     // vorberechnet: Lücke -> Zielspalte
@@ -165,11 +178,12 @@ Die **Regelliste ist die Spezifikation** — top-down lesbar, jede Zeile ein Sat
 static readonly IReadOnlyList<IGapRule> Rules = [
     new VerbatimWhenSuppressedRule(),    // 1. unterdrückte Region / Kommentar-Inneres -> Verbatim
     new BraceOnOwnLineRule(),            // 2. vor '{' und '}' -> NewLine(0, depth)  (Allman)
-    new StatementBreakRule(),            // 3. nach ';' -> NewLine(blank?, depth)
-    new BlankLineBeforeTransitionsRule(),// 4. letzte Deklaration -> erste Transition: NewLine(1, depth)
+    new StatementBreakRule(),            // 3. nach ';' -> NewLine(blank=Autorenzahl, depth)  (kein Kollaps)
+    new BlankLineBeforeTransitionsRule(),// 4. letzte Deklaration -> erste Transition: NewLine(max(blank,1), depth)
     new TightColonRule(),                // 5. Node ':' Port -> Nothing
     new ArrowAlignmentRule(),            // 6. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
-    new InstanceNameAlignmentRule(),     // 7. Typ -> Alias in Gruppe -> AlignedColumn(Instance)
+    new NodeGridAlignmentRule(),         // 7. keyword->node -> AlignedColumn(Node);
+                                         //    node->rest -> AlignedColumn(DeclRest)  (3-Spalten-Raster)
     new DefaultSingleSpaceRule(),        // 8. Catch-all -> SingleSpace
 ];
 ```
@@ -242,21 +256,93 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
 
 - **Pfeil-Spalte** = Lücke zwischen `TransitionDefinitionSyntax.SourceNode` (letztes Token) und
   `Edge.Keyword` (`-->`/`o->`/`==>`, Fortsetzung `--^`/`o-^` — alle 3 Zeichen).
-- **Instanznamen-Spalte** = Lücke zwischen Typ-Identifier und Alias-Identifier in Node-Deklarationen
-  (z.B. `TaskNodeDeclarationSyntax.Identifier` → `IdentifierAlias`).
+- **Node-Deklarations-Raster (drei virtuelle Spalten `keyword | node | rest`)** — die Node-Arten sind
+  verschieden gebaut, aber positionell einheitlich ausrichtbar:
+  - **Spalte 1 `keyword`** = `init`/`task`/`choice`/`view`/`dialog`/`exit`/`end` (steht am Zeilenanfang
+    auf Block-Einzug, nicht ausgerichtet).
+  - **Spalte 2 `node`** = das **erste `Identifier` nach dem Keyword**. Das ist **nur bei `task`** der
+    referenzierte *Typ* (`TaskNodeDeclarationSyntax.Identifier`); bei `init`/`choice`/`exit`/`view`/
+    `dialog` ist es der *Name* des Knotens selbst. **`end;` hat gar keinen Identifier** → keine
+    node-Spalte (nur Keyword; nimmt an der Ausrichtung nicht teil). Ausgerichtet über die Lücke
+    `keyword → node`.
+  - **Spalte 3 `rest`** = das **erste Token *nach* dem node-Identifier**, sofern vorhanden. Inhalt je
+    Art: `task` → `IdentifierAlias` **oder** `[donotinject]`/`[abstractmethod]`; `init` → `[params]`/
+    `[abstractmethod]`/`do …`; `choice` → `[params]`. **`view`/`dialog`/`exit` haben nie eine Spalte 3**
+    (Form `keyword Identifier;`), `end` ebenso wenig. **Nur `task`** kann ein zweites Identifier (Alias)
+    tragen. Ausgerichtet über die Lücke `node → rest`; **nur der Start**, nie der Inhalt. Fehlt Spalte 3
+    (z.B. `choice Decide;`, `view V;`), gibt es **kein Phantom-Padding**.
 
-Algorithmus je Gruppe: (1) Block in **Gruppen** partitionieren, getrennt durch **Leerzeile**, **eigene
-Kommentarzeile**, **unterdrückte** oder **hand-gelegte** (mehrzeilige) Anweisung; ebenfalls aus der Spalte
-ausgeschlossen: eine Transition mit **Inline-Block-Kommentar im Vor-Pfeil-Bereich** (s. „Kommentare"). (2) Pro Zeile die natürliche Vor-Spalten-Breite in
-**Zeichen** messen (reine Token-Textbreite, z.B. `SourceNode.ToString().Length`). (3)
-`targetCol = max(Breiten)`, `pad = targetCol − Breite + 1` (≥1 Space), Lücke durch genau `pad`
-**Spaces** ersetzen.
+  Beide Identifier-Lücken (`keyword → node`, `node → rest`) sind je ein eigener Token-Paar-Lückentyp →
+  je ein `AlignedColumn`-Layout, passt bruchlos in „ein Change pro Lücke". Spaltenwerte je Gruppe über
+  `AlignmentColumnPolicy` (Default `NextTabStop`). Das ist ein **fester** 3-Spalten-Raster (tractable,
+  idempotent) — **nicht** die zurückgestellte Mehrspalten-Ausrichtung, die die *variabel vielen*
+  Trailing-Klauseln (`on`/`if`/`do`) an **Transitionen** meint.
 
-**Idempotenz-Beweis:** `targetCol` ist ein `max` über *Token-Textbreiten* — invariant unter
-Formatierung (Token-Text ändert sich nie; Einzug wird separat davor gesetzt und **nicht** in die Breite
-eingerechnet → **tab-breiten-unabhängig**, „Tabs für Einzug, Spaces für Ausrichtung"). Zweiter Lauf
-rechnet identisches `targetCol` und `pad` → identische Ausgabe. Ausrichtungs-Spaces stehen stets **vor
-einem Token derselben Zeile**, nie vor einem Newline → kollidieren nie mit dem Trailing-Whitespace-Trim.
+Algorithmus je Gruppe: (1) Block in **Gruppen** partitionieren. Trenn-Kriterium ist die **Zeilenanzahl im
+Leading Trivia** des nächsten signifikanten Tokens, nicht „Leerzeile" als solche:
+
+```
+interruptLines = Zeilen im Gap-Trivia STRIKT zwischen den beiden signifikanten Token
+                 (leere Zeilen + eigene Kommentarzeilen) = (Newlines im Trivia − 1)
+```
+
+**Neue Gruppe ⟺ `interruptLines ≥ 2`.** Damit brechen *eine* Leerzeile **oder** *eine* eigene
+Kommentarzeile die Gruppe **nicht** (gleiche Gruppe); erst zwei Umbruch-Zeilen tun es — z.B. **zwei
+Leerzeilen** oder **Leerzeile + Kommentarzeile**. Eleganter Nebeneffekt: nicht der Kommentar trennt,
+sondern die **Leerzeile davor** — genau das Abschnitts-Header-Idiom. Zusätzlich brechen (wie gehabt) eine
+**unterdrückte** oder **hand-gelegte** (mehrzeilige) Anweisung die Gruppe; ebenfalls aus der Spalte
+ausgeschlossen: eine Transition mit **Inline-Block-Kommentar im Vor-Pfeil-Bereich** (s. „Kommentare").
+Weil Leerzeilen **nicht kollabiert** werden (s. „Optionen"), ist `interruptLines` formatierungs-invariant
+→ die Gruppierung ist ohne Sonderkniff idempotent.
+(2) Pro Zeile die natürliche Vor-Spalten-Breite in **Zeichen** messen — **kanonisch**, nicht aus dem
+Ist-Text (s. Fallstrick unten). (3) Zielspalte über die konfigurierte **`AlignmentColumnPolicy`**
+bestimmen (Default `NextTabStop`, s.u.); `pad = targetCol − Breite + 1` (≥1 Space), Lücke durch genau
+`pad` **Spaces** ersetzen. **Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs** — in Stein gemeißelt,
+unabhängig vom `IndentStyle`.
+
+**Fallstrick — Breite kanonisch messen, NIE aus `node.ToString()`:** die Vor-Spalten-Breite muss aus dem
+**kanonisch-normalisierten Token-Rendering** des Knotens kommen (Summe der signifikanten Token-Textlängen
++ die inneren Gaps *so, wie der Formatter sie schreiben wird* — für `Node:Port` = 0, für Listen
+Komma+Space usw.), **nicht** aus `SourceNode.ToString().Length`. Grund: `ToString()` eines Mehr-Token-
+Knotens enthält dessen *Ist*-Whitespace, den der Formatter aber selbst normalisiert (z.B.
+`Dialog : Ok` → `Dialog:Ok` via `TightColonRule`). Misst man `ToString()`, wandert `targetCol` zwischen
+erstem und zweitem Lauf (11 → 9) → das Gruppen-`max` liefert unterschiedlich viele Padding-Spaces auf den
+*anderen* Zeilen → **nicht idempotent** (und schon Lauf 1 richtet falsch aus). Die kanonische Breite
+hängt dagegen nur an Token-Text + Regelentscheidung (beide formatierungs-invariant).
+
+**`AlignmentColumnPolicy` (wie `targetCol` aus den kanonischen Breiten folgt):**
+
+- `tightMin = max(kanonische Breite) + 1` — das **erzwungene Minimum** (weniger als 1 Space ist nie
+  möglich); zugleich der Boden aller Policies. Ausreißer, deren natürliche Breite ≥ `targetCol` ist,
+  bekommen 1 Space und überlaufen (automatisch, keine negative Padding-Wahl).
+- **`NextTabStop` (Default):** `targetCol` = nächster Tab-Stopp ≥ `tightMin`, d.h. auf ein Vielfaches
+  von `IndentSize` aufgerundet. Ehrt die reale Autoren-Absicht — die im Korpus beobachteten „weiter als
+  nötig" ausgerichteten Spalten (Vielfache von 4 in `LargeNav`) sind **Tab-Stopp-Artefakte** vom
+  Tab-Tippen, keine präzise gewählten Breiten. Deterministisch, idempotent (nur Funktion von Token-Breite
+  + `IndentSize`), ausreißer-immun, in einem Satz erklärbar. In Spaces gerendert (Lock oben).
+- **`Tight`:** `targetCol = tightMin`. Reinste kanonische Form; verkleinert jede über-gepaddete Spalte
+  → großer Einmal-Diff. Fallback, falls die Korpus-Messung keine konsistente Absicht zeigt.
+- **`PreserveDominant`:** `targetCol = max(tightMin, dominante Ist-Spalte)`, wobei die dominante Spalte
+  aus dem Ist-Layout gelesen wird. Bewahrt bewusst breitere, konsistente Autorenspalten, liest aber
+  Ist-Whitespace und braucht Tab-Auflösung → nicht-Default. (Verworfen als Default: die früher erwogene
+  Perzentil-Heuristik „targetCol = wo >X% der Kanten fallen" — idempotent, aber magische Konstante,
+  Ist-Whitespace-abhängig, bei raggedem Input rauschanfällig, schwer erklärbar; ein Per-Zeile-Padding-
+  Deckel zerstört die Spalte und ist nur als Obergrenze `targetCol ≤ tightMin + X` verteidigbar.)
+
+**Meta-Entscheidung ist Achse-B (Stil, keine Grundwahrheit) → per Korpus zu kalibrieren:** vor dem
+endgültigen Festzurren pro Ausrichtungsgruppe im Korpus (`d:\tfs\main`, ~1900 `.nav`) `extra =
+autorSpalte − tightMin` (Tabs bei `IndentSize` aufgelöst) histogrammieren. Cluster bei 0 → `Tight`
+genügt; Cluster auf Tab-Stopp-Vielfachen → `NextTabStop` (die Arbeitshypothese); hochvariabel/bimodal →
+keine bewahrbare Absicht, `Tight` ist der ehrliche Kanon.
+
+**Idempotenz-Beweis:** `targetCol` (in `NextTabStop`/`Tight`) ist eine reine Funktion aus *kanonischen
+Token-Breiten* + `IndentSize` — invariant unter Formatierung (Token-Text ändert sich nie; Einzug wird
+separat davor gesetzt und **nicht** in die Breite eingerechnet → **tab-breiten-unabhängig**, „Tabs für
+Einzug, Spaces für Ausrichtung"). Zweiter Lauf rechnet identisches `targetCol` und `pad` → identische
+Ausgabe. Ausrichtungs-Spaces stehen stets **vor einem Token derselben Zeile**, nie vor einem Newline →
+kollidieren nie mit dem Trailing-Whitespace-Trim. (`PreserveDominant` bleibt idempotent, weil nach Lauf 1
+die Mehrheit exakt auf `targetCol` sitzt → derselbe dominante Wert; es liest aber als einzige Policy den
+Ist-Whitespace und ist daher nicht-Default.)
 
 > **Zurückgestellt:** Mehrspalten-Ausrichtung (`on`/`if`/`do`) und `[params]`-Spaltenausrichtung —
 > empirisch stark nur die Pfeil-Spalte (~79%) und die Instanznamen-Spalte; die Kaskade bringt wenig
@@ -328,7 +414,10 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
   eingefaltet → die „ein Change pro Lücke"-Invariante bleibt (einziger gesegneter Fall, in dem Text
   *innerhalb* einer Trivia angefasst wird). Umsetzung: Teil der Kommentar-Normalisierung (Schritt S2);
   wegen der Seltenheit mehrzeiliger `/* */` kein v1-Blocker.
-- Leerzeilen um Kommentare auf **max. 1** kollabieren.
+- Leerzeilen werden **nicht kollabiert** — die vom Autor gesetzte vertikale Trennung bleibt erhalten
+  (nur Trailing-Whitespace auf Leerzeilen wird gestrippt, Einzug neu gesetzt). Grund: Leerzeilen tragen
+  seit dem `interruptLines`-Gruppierungskriterium **Bedeutung** (≥2 = Gruppenbruch); ein Kollaps würde
+  dieses Signal zerstören und die Gruppierung zwischen zwei Läufen kippen (nicht idempotent).
 
 ## Hand-gelegte Anweisungen (mehrzeilig / reich kommentiert)
 
@@ -384,13 +473,45 @@ konservativer = Inneres *inklusive* erster Zeile komplett verbatim (kein Delta-S
 
 ## Ganze Datei vs. Selektion
 
-- **Ganze Datei (`FormatDocument`):** alle Lücken + Final-Newline/EOF-Trim.
-- **Selektion (`FormatRange`):** (1) Range **auf ganze Zeilen** einrasten, dann **auf ganze
-  Anweisungsknoten** ausweiten, die er teilweise schneidet (via `FullExtent`) — sonst wird ein
-  mehrzeiliges `[params]` oder eine umgebrochene Transition halb formatiert. (2) Ausrichtungsgruppen über
-  den **ganzen umschließenden Block** rechnen, aber **nur Changes für Lücken mit Extent ⊆ erweitertem
-  Range** emittieren → In-Range-Pfeile bleiben zu Out-of-Range-Nachbarn spaltenkonsistent. Selektion in
-  Kommentar / über unterdrückte Region → sicher (verbatim).
+**Tragendes Modell: `FormatRange` = gefiltertes `FormatDocument`.** Intern wird **immer das ganze
+Dokument** formatiert; angewandt (emittiert) werden **nur die Changes, deren Extent im (erweiterten)
+Range liegt**:
+
+```
+FormatRange(x, r) ≡ { c ∈ FormatDocument(x) : c.Extent ⊆ ExpandTo(r) }
+```
+
+Daraus folgt **gratis**: `FormatRange(x, ganzeDatei) == FormatDocument(x)` und **Monotonie** — ein
+späterer Voll-Format verschiebt nie, was ein Range-Format schon platziert hat (Range-Format ist eine
+*Teilanwendung* desselben Ergebnisses, nie ein Widerspruch dazu).
+
+- **Ganze Datei (`FormatDocument`):** alle Lücken inkl. Final-Gap (Final-Newline/EOF-Trim).
+- **Selektion (`FormatRange`):**
+  1. **Range erweitern:** erst **auf ganze Zeilen** einrasten, dann **auf ganze Anweisungsknoten**
+     ausweiten, die er teilweise schneidet (via `FullExtent`, inkl. Leading-Trivia — so wird auch der
+     Einzug der selektierten Anweisung mitkorrigiert) — sonst wird ein mehrzeiliges `[params]` oder eine
+     umgebrochene Transition halb formatiert.
+  2. **Alle nicht-lokalen Pässe laufen über die volle Datei / den vollen Block, nie range-beschränkt** —
+     nur so gilt die Subset-Garantie:
+     - `ComputeSuppressedExtents` **datei-weit** (ein fehlendes `}` suppremiert seinen Body unabhängig
+       vom Range → eine In-Range-Lücke wird identisch entschieden wie im Voll-Modus).
+     - **Gruppierung + `targetCol` block-weit** (die *tragende* Invariante): würde `targetCol` nur über
+       In-Range-Zeilen gerechnet, käme eine schmalere Spalte heraus → die In-Range-Zeilen würden auf
+       eine Spalte gesetzt, die der Voll-Format wieder verschiebt → **nicht monoton**. Dank kanonischer
+       Breite (s. „Spaltenausrichtung") ist `targetCol` ohnehin identisch, auch wenn eine breitere
+       Out-of-Range-Zeile gerade falsch formatiert ist.
+     - `IndentDepth` aus der Ahnenkette (ohnehin range-unabhängig).
+  3. **Nur** Changes mit Extent **⊆ erweitertem Range** emittieren → In-Range-Pfeile bleiben zu
+     Out-of-Range-Nachbarn spaltenkonsistent. **Der Final-Gap unterliegt demselben `⊆`-Filter** — er wird
+     **nicht** als Extra-Schritt nach dem Filtern angehängt (sonst würde eine Selektion, die das
+     Dateiende nicht enthält, dort trotzdem eine Newline einfügen → Edit außerhalb der Auswahl, kein
+     Subset mehr).
+- **Erwartete (kein Bug) Konsequenz:** zerschneidet die Selektion eine Ausrichtungsgruppe, werden nur die
+  In-Range-Zeilen auf `targetCol` gesetzt; Out-of-Range-Nachbarn bleiben ggf. **ragged** — „nur die
+  Auswahl anfassen" (Editor-Konvention), löst sich beim nächsten Voll-Format. (Verworfene Alternative:
+  das Emittieren auf die ganze Gruppe ausweiten — editiert außerhalb der Selektion, bricht die
+  Subset-Garantie.)
+- Selektion in Kommentar / über unterdrückte Region → sicher (verbatim, via datei-weite Suppression).
 
 ## Optionen & Konfiguration
 
@@ -402,9 +523,16 @@ analog `NavCompletionService.TriggerCharacters`):
   `NavLanguagePreferences.InsertTabs = false` / `IndentSize = 4`, `TextViewExtensions.GetEditorSettings`),
   LSP `FormattingOptions.insertSpaces`/`tabSize`, CLI-Flag. Default bei Unbekannt: **Tabs**
   (Korpus-Mehrheit).
-- `AlignArrows = true`, `AlignInstanceNames = true`.
-- `InsertFinalNewline = true`, `TrimTrailingWhitespace = true`, Leerzeilen-Kollaps auf 1 (in v1
-  hartkodiert).
+- `AlignArrows = true`, `AlignNodeGrid = true` (das 3-Spalten-Deklarations-Raster `keyword | node |
+  rest`, s. „Spaltenausrichtung").
+- `AlignmentColumnPolicy` = `NextTabStop` (Default) | `Tight` | `PreserveDominant` — wie die Zielspalte
+  aus den Zeilenbreiten folgt (s. „Spaltenausrichtung"). **Ausrichtungs-Padding ist immer Leerzeichen**
+  (nie Tabs), unabhängig vom `IndentStyle` des Einzugs — in Stein gemeißelt.
+- `InsertFinalNewline = true`, `TrimTrailingWhitespace = true`. **Kein Leerzeilen-Kollaps** — die
+  Anzahl aufeinanderfolgender Leerzeilen wird nie reduziert (`GapLayout.NewLine.BlankLinesBefore` gibt
+  die vom Autor gesetzte Zahl unverändert weiter). Einzige strukturelle Ausnahme: die
+  `BlankLineBeforeTransitionsRule` **stellt** zwischen Node-Deklarationen und Transitionen **mindestens
+  eine** Leerzeile sicher (fügt bei 0 eine ein), kappt aber nach oben nichts.
 
 `TextEditorSettings` (heute `{ TabSize, NewLine }`, geteilt/immutabel) wird **nicht** erweitert —
 `IndentStyle` lebt in `NavFormattingOptions`. Newline für emittierte Umbrüche = `settings.NewLine`.
@@ -452,14 +580,25 @@ task Sample
 
 `Node:Port` bleibt tight; die längste Quelle (`Dialog:Ok`) definiert die Spalte.
 
-**Node-Deklarationen: Instanznamen-Spalte**
+**Node-Deklarationen: 3-Spalten-Raster `keyword | node | rest`** (Spalten auf `NextTabStop`, `IndentSize` 4)
 
 ```
-// vorher                       // nachher
-task Foo Alias1;                 task Foo            Alias1;
-task LongerTypeName Alias2;      task LongerTypeName Alias2;
-task Bar;                        task Bar;
+// vorher
+task Foo Alias1;
+init Start [params int x];
+choice Decide;
+task LongerTypeName Alias2;
+// nachher
+task    Foo             Alias1;
+init    Start           [params int x];
+choice  Decide;
+task    LongerTypeName  Alias2;
 ```
+
+Spalte `node` (Spalte 2) auf dem nächsten Tab-Stopp hinter dem längsten Keyword; Spalte `rest`
+(Spalte 3) hinter dem längsten `node`. `init`s `[params …]` und `task`s Alias teilen sich Spalte 3
+(Variante 2, korpus-treu — ausgerichtet wird der *Start*, nicht der Inhalt); `choice Decide;` hat keine
+Spalte 3 und bekommt kein Phantom-Padding.
 
 **Fehler/Skiped-Token: umschließende Anweisung bleibt verbatim**
 
@@ -521,6 +660,61 @@ task Broken                  task Broken
   + Test, der pro Lücke alle Prädikate auswertet und **Intra-Tier-Disjunktheit** asertiert (Cross-Tier-
   Präzedenz gewollt/dokumentiert). Reihenfolge wird geprüfte statt implizite Spezifikation. `IGapRule` um
   `Tier` erweitert.
+- **R9 — Ausrichtung, Wächter, Reihenfolge, Einzug-Tiefe (Grill-Runde):** fünf Punkte geschärft.
+  (1) **Kein Reordering** — der Gap-Rewriter bewegt keine Token; Abschnitts-/`taskref`/`task`-Reihenfolge
+  ist deskriptiv, nicht erzwungen (Reordering wäre ein separates Organize-Feature). (2) **`GapContext.
+  IndentDepth := IndentDepth(Next)`** — der Einzug richtet sich nach der die neue Zeile eröffnenden
+  Token-Tiefe (vorher mehrdeutig). (3) **Ausrichtungsbreite kanonisch messen, nie `node.ToString()`** —
+  `ToString()` liest Ist-Whitespace, den der Formatter selbst normalisiert (`Dialog : Ok`→`Dialog:Ok`) →
+  Gruppen-`max` wackelt zwischen Läufen → nicht idempotent; der Idempotenz-Beweis trägt nur mit
+  kanonischer Breite. (4) **Spaltenpolicy** — Ausrichtungs-Padding **immer Leerzeichen, nie Tabs** (in
+  Stein gemeißelt; der Korpus richtet mit Tabs aus, wird auf Spaces normalisiert). Default **`NextTabStop`**
+  (nächster Tab-Stopp ab `tightMin`), weil die „weiter als nötig" ausgerichteten Korpus-Spalten
+  Tab-Stopp-Artefakte sind, keine präzisen Breiten; Alternativen `Tight`/`PreserveDominant` als Strategie,
+  Perzentil-Heuristik verworfen. Finaler Wert per **Korpus-Messung** (`d:\tfs\main`, ~1900 `.nav`) über
+  die `extra = autorSpalte − tightMin`-Verteilung. (5) **Laufzeit-Wächter** re-lext **statement-/member-
+  granular** (nicht datei-global) und ist **`Debug.Assert` in Debug + stderr-Log in Release** (Treffer =
+  immer Bug, nie still verschlucken).
+- **R10 — Node-Deklarations-Ausrichtung als 3-Spalten-Raster:** das frühere „Instanznamen-Spalte =
+  Lücke Typ→Alias" war unterspezifiziert (nur `task`/`view`/`dialog`-mit-Alias, ignorierte die
+  block-weit ausgerichtete Spalte hinter dem Keyword). Korrigiert zum korpus-realen **festen Raster
+  `keyword | node | rest`**: `node` = erstes Identifier nach dem Keyword (Typ *oder* Name, über alle
+  Node-Arten einheitlich), `rest` = erstes Token nach `node` (**Variante 2, korpus-treu**: Alias *oder*
+  `[`-Block *oder* `do` — nur der Start ausgerichtet). Beide Identifier-Lücken je ein `AlignedColumn`,
+  Spaltenwerte via `NextTabStop`; fehlende Spalte 3 ohne Phantom-Padding. Ausdrücklich **nicht** die
+  zurückgestellte Mehrspalten-Ausrichtung (die betrifft die variabel vielen `on`/`if`/`do`-Klauseln an
+  Transitionen). Regel `InstanceNameAlignmentRule` → `NodeGridAlignmentRule`; Option `AlignInstanceNames`
+  → `AlignNodeGrid`. (Zwischenzeitlich erwogener, wieder verworfener Vorschlag: Deklarations-Ausrichtung
+  ganz aus v1 herausschneiden — hinfällig, da das feste Raster tractable und idempotent ist.)
+- **R11 — Gruppierung via `interruptLines`, kein Leerzeilen-Kollaps:** das Ausrichtungs-Gruppen-
+  Trennkriterium ist nicht mehr „Leerzeile / eigene Kommentarzeile", sondern die **Zeilenanzahl im
+  Leading Trivia** (`interruptLines` = leere + Kommentarzeilen zwischen zwei signifikanten Token). **Neue
+  Gruppe ⟺ `interruptLines ≥ 2`** → eine einzelne Leerzeile *oder* eine einzelne Kommentarzeile bricht
+  **nicht**; erst zwei (2 Leerzeilen bzw. Leerzeile+Kommentar) tun es (das Abschnitts-Header-Idiom: die
+  Leerzeile *vor* dem Kommentar trennt, nicht der Kommentar). Damit einher geht: **Leerzeilen werden gar
+  nicht mehr kollabiert** (vorher „max 1"). Grund: Leerzeilen tragen jetzt Gruppierungs-Bedeutung — ein
+  Kollaps auf 1 würde ein `interruptLines=2`-Signal auf 1 senken → Gruppen verschmelzen im zweiten Lauf →
+  **nicht idempotent** (der Kollaps zerstört genau das Trenn-Signal). Ohne Kollaps ist `interruptLines`
+  formatierungs-invariant → Gruppierung trivial idempotent. Einzige verbliebene Blank-Normalisierung:
+  `BlankLineBeforeTransitionsRule` sichert **≥1** Leerzeile zwischen Deklarationen und Transitionen (fügt
+  bei 0 ein), kappt aber nie. (Verworfene Alternative: Kollaps-Cap 2 statt gar kein Kollaps — wäre auch
+  idempotent gewesen, aber der Nutzer bevorzugt volle Erhaltung der vertikalen Trennung.)
+- **R12 — Selektion = gefiltertes Voll-Format:** `FormatRange(x, r) ≡ { c ∈ FormatDocument(x) : c.Extent
+  ⊆ ExpandTo(r) }` — intern immer das ganze Dokument formatieren, nur die In-Range-Changes anwenden.
+  Garantiert `FormatRange(x, ganzeDatei) == FormatDocument(x)` + Monotonie (Voll-Format verschiebt nie,
+  was Range-Format platziert hat). Tragende Bedingung: **alle nicht-lokalen Pässe voll-scope** —
+  Suppression datei-weit, Gruppierung/`targetCol` block-weit (sonst schmalere Spalte → nicht monoton),
+  `IndentDepth` aus Ahnenkette. Der **Final-Gap läuft durch denselben `⊆`-Filter** (nie als Extra-Schritt
+  angehängt — sonst Newline-Insert außerhalb der Auswahl). Gruppen-zerschneidende Selektion lässt
+  Out-of-Range-Nachbarn bewusst ragged (Editor-Konvention); Alternative „Emittieren auf ganze Gruppe
+  ausweiten" verworfen (editiert außerhalb der Auswahl).
+- **R13 — Node-Deklarations-Token-Strukturen verifiziert (Korrektur zu R10):** am Syntaxmodell
+  gegengeprüft. **Nur `task`** trägt Typ + optional Alias (`Identifier` + `IdentifierAlias`); `init`/
+  `choice`/`exit`/`view`/`dialog` sind Keyword + **ein** Identifier (der *Name*, kein Typ), **ohne**
+  Alias; `end;` ist **nur Keyword** (kein Identifier → keine node-Spalte). Die R10-Formulierung „bei
+  `task`/`view`/`dialog` der Typ" war falsch und ist in der Definition korrigiert. Das 3-Spalten-Raster
+  selbst bleibt gültig: `node` = erstes Identifier (Typ nur bei `task`, sonst Name), `rest` = erstes
+  Token danach (bei `view`/`dialog`/`exit`/`end` nie vorhanden → kein Phantom-Padding).
 
 ## Step-Plan
 
@@ -532,8 +726,8 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 |---|---|---|---|
 | **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
 | **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | offen |
-| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Space um Pfeile, tight `Colon`, Komma+Space, Final-Newline, Trailing-Trim, Leerzeilen-Kollaps; Kommentar-Normalisierung | Golden für saubere Dateien + Idempotenz grün | offen |
-| **S3** | Ausrichtung: Pfeil-Spalte + Instanznamen-Spalte inkl. Gruppenbildung + `AlignmentMap`-Vorpass | Golden mit Spalten + Idempotenz grün | offen |
+| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Space um Pfeile, tight `Colon`, Komma+Space, Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung | Golden für saubere Dateien + Idempotenz grün | offen |
+| **S3** | Ausrichtung: Pfeil-Spalte + Instanznamen-Spalte inkl. Gruppenbildung + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Idempotenz grün | offen |
 | **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback | Edge-Case-Fixtures grün, keine Overlap-Exception | offen |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
 
@@ -567,10 +761,25 @@ Unabhängig von Geschmack; hier *gibt* es Falsch, und hier liegen die Bugs:
 korrektheitskritische Fläche auf eine **kleine, aufzählbare** Menge von „das darf Whitespace nie tun" (zwei
 Token verschmelzen, `//` verschluckt ein Token, ein Pflicht-Trenner verschwindet). Das erlaubt einen
 **Laufzeit-Wächter (fail-safe):** nach dem Berechnen der Changes das Ergebnis **re-lexen** und den
-Token-Strom vergleichen; weicht er ab (oder gibt es neue Diagnostics), werden die Changes **verworfen** —
-die Datei bleibt unverändert. Damit wird Achse-A-„falsch" **konstruktiv unmöglich**; der Preis ist, im
-Zweifel *nichts* zu tun statt etwas Falsches. Achse A ist also nicht nur testbar, sondern **pro Aufruf
-verifizierbar** (Kosten: ein zusätzlicher Lex-Durchlauf — für einen Formatter vernachlässigbar).
+Token-Strom vergleichen; weicht er ab (oder gibt es neue Diagnostics), werden die betroffenen Changes
+**verworfen** — die Datei bleibt dort unverändert. Damit wird Achse-A-„falsch" **konstruktiv unmöglich**;
+der Preis ist, im Zweifel *nichts* zu tun statt etwas Falsches. Achse A ist also nicht nur testbar,
+sondern **pro Aufruf verifizierbar** (Kosten: ein zusätzlicher Lex-Durchlauf — für einen Formatter
+vernachlässigbar).
+
+Zwei Präzisierungen, damit der Wächter nicht mehr schadet als er nützt:
+
+- **Granularität: statement-/member-weise, nicht datei-global.** Ein einzelner fehlerhafter Change darf
+  nicht das Formatierungsergebnis der ganzen Datei verwerfen (sonst tut der Formatter bei einer 2000-
+  Zeilen-Datei wegen *einer* kaputten Lücke gar nichts). Da Changes per Konstruktion disjunkt pro Lücke
+  sind und die Suppression ohnehin statement-/member-granular arbeitet (dieselbe Extent-Einheit wie
+  `ComputeSuppressedExtents`), re-lext der Wächter **pro Anweisung/Member**: nur die Changes der Einheit,
+  deren Re-Lex abweicht, werden verworfen — der Rest der Datei wird formatiert.
+- **Sichtbarkeit: ein Wächter-Treffer ist IMMER ein Bug**, kein legitimer Laufzustand (der Formatter
+  fasst nie signifikanten Token-Text an). Deshalb in **Debug/Test hart `Debug.Assert`/Fail** — der
+  Wächter darf im Testlauf nie feuern; feuert er, ist ein Golden-/Fuzz-Fall reproduziert. In **Release**
+  verwerfen + **einmalig auf `stderr`** loggen (host-neutral, konform zur Stdio-Log-Regel). So bleibt
+  Achse-A-Sicherheit erhalten, aber der Bug wird laut statt still verschluckt.
 
 ### Achse B — Stil/Konvention (subjektiv, keine Grundwahrheit)
 
@@ -611,7 +820,13 @@ gegen den Korpus zur Deckung bringen.
   die Prioritäts-Reihenfolge zur geprüften statt impliziten Eigenschaft.
 - **Fehler-Fixtures:** je Edge-Case-Zeile → Assert: unterdrückte Regionen byte-genau erhalten, keine
   Overlap-Exception.
-- **Selektions-Tests:** Range mitten in Block / `[params]` / Kommentar / unterdrückter Region.
-- **Korpus-Smoke (optional, lokal):** `FormatDocument` über eine kuratierte Teilmenge einer realen
-  `.nav`-Codebasis + Idempotenz-Prüfung (kein Diff bei zweitem Lauf) — starker Konfidenz-Test, nicht
-  eingecheckt.
+- **Selektions-Tests:** Range mitten in Block / `[params]` / Kommentar / unterdrückter Region. Zusätzlich
+  die **Subset-/Monotonie-Garantie** prüfen: `FormatRange(x, r) == filter(FormatDocument(x), r)` über
+  Fixtures, inkl. `r = ganze Datei` ⇒ Gleichheit mit `FormatDocument`, und Range am Dateiende vs. nicht am
+  Dateiende (Final-Gap-Filter).
+- **Korpus-Smoke (optional, lokal):** `FormatDocument` über eine kuratierte Teilmenge des realen Korpus
+  (`d:\tfs\main`, ~1900 `.nav`) + Idempotenz-Prüfung (kein Diff bei zweitem Lauf) — starker Konfidenz-
+  Test, nicht eingecheckt.
+- **Spalten-Kalibrierung (einmalig, vor dem Festzurren der `AlignmentColumnPolicy`):** über den Korpus
+  pro Ausrichtungsgruppe `extra = autorSpalte − tightMin` histogrammieren (Tabs bei `IndentSize`
+  aufgelöst) → entscheidet empirisch zwischen `Tight` / `NextTabStop` / `PreserveDominant`.
