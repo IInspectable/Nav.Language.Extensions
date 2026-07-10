@@ -2,11 +2,12 @@
 
 > **Spezifikations- und Status-Dokument.** Beschreibt den **Soll-Zustand** des Formatters; verworfene
 > Alternativen sind dort vermerkt, wo sie zur jeweiligen Entscheidung gehören (nicht als Chronik).
-> Stand: **S2 umgesetzt** — der Regelsatz enthält die Layout-Regeln für fehlerfreie Dateien (Allman,
-> Member-/Statement-Breaks, Leerzeile vor Transitionen, tight Colon, `PunctuationRule` inkl. Typ-Interna,
-> Single-Space-Catch-all) plus Datei-Anfang (Kopf-Kommentare/Fehl-Einzug) und Final-Lücke
-> (Final-Newline, EOF-Trailing-Trim). Ausrichtung (S3), Fehler-Toleranz (S4) und Selektion (S5) folgen
-> (Abschnitt „Step-Plan").
+> Stand: **S3 umgesetzt** — zusätzlich zum S2-Layout-Regelsatz (Allman, Member-/Statement-Breaks,
+> Leerzeile vor Transitionen, tight Colon, `PunctuationRule` inkl. Typ-Interna, Single-Space-Catch-all,
+> Datei-Anfang/Final-Lücke) jetzt die komplette Spaltenausrichtung: Pfeil-Spalte, Node-Grid
+> (`keyword|node|rest`), Task-Kopf (Blöcke stapeln + mehrzeiliges `[params]`), `taskref`-Kopf einzeilig —
+> mit `AlignmentMap`-Vorpass, Gruppenbildung und `AlignmentColumnPolicy` (Default `NextTabStop`,
+> per Korpus kalibriert). Fehler-Toleranz (S4) und Selektion (S5) folgen (Abschnitt „Step-Plan").
 
 ## Motivation
 
@@ -283,7 +284,11 @@ Wie der Renderer eine Lücke mit Kommentaren/Direktiven/Leerzeilen um das Layout
 - **Renderer-Schranke (Defense-in-Depth, im Renderer selbst):** verlangt ein Layout Same-Line, obwohl
   die Lücke zeilen-erzwingende Trivia enthält (Newline, `//`-Kommentar, mehrzeiliger Block-Kommentar,
   Direktive), degradiert es zum Umbruch auf `ctx.IndentDepth` mit erhaltener Innenstruktur. Enthält die
-  Lücke eine `SkippedTokensTrivia`, rendert der Renderer unabhängig vom Layout verbatim.
+  Lücke eine `SkippedTokensTrivia`, rendert der Renderer unabhängig vom Layout verbatim. **Einzige
+  Ausnahme (Pull-up, seit S3):** die Task-/`taskref`-Kopf-Kanonisierung liefert
+  `SingleSpace.PullUp` — **bloße** authored Newlines werden dann hochgezogen (entfallen); die harte
+  Schranke bleibt: über einen `//`-Kommentar, einen mehrzeiligen Block-Kommentar oder eine Direktive
+  wird auch mit Pull-up nie zusammengezogen.
 - **Lexer-Fallstricke (empirisch verifiziert):** ein `//`-Kommentar **verschluckt beim Lexen das `\r`**
   des Zeilenendes (die `NewLine`-Trivia trägt dann nur `\n`) — der Renderer schreibt Zeilenenden selbst
   (`settings.NewLine`) und kappt daher Zeilenend-Whitespace des `//`-Kommentar-Texts (`CommentText`),
@@ -437,11 +442,16 @@ hängt dagegen nur an Token-Text + Regelentscheidung (beide formatierungs-invari
   Ist-Whitespace-abhängig, bei raggedem Input rauschanfällig, schwer erklärbar; ein Per-Zeile-Padding-
   Deckel zerstört die Spalte und ist nur als Obergrenze `targetCol ≤ tightMin + X` verteidigbar.)
 
-**Meta-Entscheidung ist Achse-B (Stil, keine Grundwahrheit) → per Korpus zu kalibrieren:** vor dem
-endgültigen Festzurren pro Ausrichtungsgruppe im Korpus (`d:\tfs\main`, ~1900 `.nav`) `extra =
-autorSpalte − tightMin` (Tabs bei `IndentSize` aufgelöst) histogrammieren. Cluster bei 0 → `Tight`
-genügt; Cluster auf Tab-Stopp-Vielfachen → `NextTabStop` (die Arbeitshypothese); hochvariabel/bimodal →
-keine bewahrbare Absicht, `Tight` ist der ehrliche Kanon.
+**Meta-Entscheidung ist Achse-B (Stil, keine Grundwahrheit) → per Korpus kalibriert (S3, erledigt):**
+pro Ausrichtungsgruppe im Korpus (`d:\tfs\main`, 1913 `.nav`) wurde `extra = autorSpalte − tightMin`
+(Tabs bei `IndentSize` 4 aufgelöst, Spalten ab Inhaltsbeginn) erhoben — nur über Gruppen (≥ 2
+Teilnehmer), deren Autor-Spalte uniform ist. Ergebnis: **Pfeil-Spalte** (n=3299 uniforme Gruppen, dazu
+1956 ragged): nur 8,0% sitzen exakt auf `tightMin`, aber **90,6% auf einem Tab-Vielfachen** (26,2%
+exakt auf dem *nächsten* Tab-Stopp; der Überschuss dahinter fällt glatt ab — Tab-Tipp-Artefakte, keine
+präzise gewählten Breiten). **Node-Grid** (n=1785): `NextTabStop` exakt 49,1% vs. `Tight` exakt 42,4%.
+→ **`NextTabStop` ist der bestätigte Default** — die beste deterministische Policy auf beiden Spalten;
+den variablen Überschuss könnte nur das Ist-Whitespace-lesende `PreserveDominant` bewahren (bewusst
+nicht Default).
 
 **Idempotenz-Beweis:** `targetCol` (in `NextTabStop`/`Tight`) ist eine reine Funktion aus *kanonischen
 Token-Breiten* + `IndentSize` — invariant unter Formatierung (Token-Text ändert sich nie; Einzug wird
@@ -509,6 +519,7 @@ Gap-Layouts im Überblick (`Id`/`[`/`]`/`,` = signifikante Token des Kopfs):
 | `[params …]` mehrzeilig, `',' → Param` | `NewLineAlignedColumn(ParamsList)` | `TaskHeadLayoutRule` |
 | `Param → ','` (immer) | `Nothing` (tight) | `PunctuationRule` |
 | letzter Param `→ ]` | `Nothing` (tight) | `PunctuationRule` |
+| leeres `[params]`: `params → ]` | `Nothing` (tight) | `PunctuationRule` (kein „erster Parameter" — im Korpus real, per Smoke gefunden) |
 | letzter `Block.] → {` | `NewLine` (Allman) | `BraceOnOwnLineRule` (Structure, preemptiert) |
 
 Beide Spalten (`TaskHeadBlock`, `ParamsList`) sind reine Funktionen kanonischer Token-Breiten → der
@@ -948,7 +959,7 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 | **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
 | **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | **erledigt** — Ordner `Nav.Language/Formatting/` komplett (Options+Enums, `GapLayout`/`GapContext`/`GapTrivia`/`AlignmentMap`, `GapRenderer` mit Vertikalmodell + Renderer-Schranke, `GapRules`-Dispatcher mit Intra-Tier-Debug-Check, `NavFormattingService`-Walk inkl. `IndentDepth` + Final-Gap-Hook). Regelsatz = Safety + Verbatim-Catch-all ⇒ Identität; Tests `Formatting/` (Service-Eigenschaften + Renderer-Goldens), beide TFMs grün |
 | **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | **erledigt** — Regelsatz komplett (`BraceOnOwnLineRule` inkl. „nach `{`", `MemberBreakRule` mit Top-Level-`]`-Prüfung via `CodeGenerationUnitSyntax`-Elter, `BlankLineBeforeTransitionsRule`/`StatementBreakRule` per Prädikat disjunkt, `TightColonRule`, `PunctuationRule`, Single-Space-Catch-all); dazu **Datei-Anfang** (`RenderLeadingGap`: Kopf-Kommentare auf Tiefe 0, Direktiven auf Spalte 0, Fehl-Einzug entfernt; Skiped/BOM ⇒ verbatim) und **Final-Lücke** (`RenderFinalGap`: genau eine Final-Newline, EOF-Leerzeilen-Trim, Kommentar-/Direktivzeilen erhalten; leere/Whitespace-Dateien bleiben leer). Renderer-Fix: einzeilig authored Lücke mit Umbruch-Layout emittierte Inline-Kommentare doppelt (in S1 unerreichbar). Goldens `NavFormattingGoldenTests`, beide TFMs grün. Kommentar-Delta-Shift bewusst nach S4 verschoben (s. „Kommentare & Direktiven") |
-| **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
+| **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | **erledigt** — `AlignmentMapBuilder` (Vorpass: Gruppen via `interruptLines ≥ 2`, Hand-gelegt/defekt bricht, Kommentar-Ausschluss je Spalte, kanonische Breite über die Regelentscheidung selbst, je Spalte ≥ 2 Teilnehmer), `ArrowAlignmentRule`/`NodeGridAlignmentRule` (Alignment-Tier, schlagen nur nach; ohne Eintrag Single-Space-Fallback), `TaskHeadLayoutRule` (TokenPair: Block 1 `SingleSpace.PullUp`, Stapel/`[params]` `NewLineAlignedColumn`, `taskref` einzeilig; leeres `[params]` bleibt der `PunctuationRule`), Renderer-Schranken-Ausnahme Pull-up, `GapTrivia.HasLineBreakingComment`, Options im `GapContext`. Policy per Korpus kalibriert (s. „Spaltenausrichtung"); Korpus-Smoke über alle 1913 `.nav`: 0 Crashes, idempotent, Token-Strom erhalten, Intra-Tier-Disjunktheit (Debug-Assert) über jede Lücke. Goldens `NavFormattingAlignmentGoldenTests`, beide TFMs grün |
 | **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Hand-gelegt-Freeze + Delta-Shift (äußerer Einzug hand-gelegter Anweisungen **und** Innenzeilen mehrzeiliger `/* */`-Kommentare — ein Mechanismus); Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | offen |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
 

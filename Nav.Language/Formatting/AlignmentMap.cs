@@ -18,9 +18,14 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 sealed class AlignmentMap {
 
     /// <summary>Die leere Tabelle — kein Eintrag, jede Nachfrage fällt auf das Regel-/Renderer-Fallback.</summary>
-    public static readonly AlignmentMap Empty = new();
+    public static readonly AlignmentMap Empty = new(new Dictionary<int, int>());
 
-    readonly Dictionary<int, int> _spacesByGapStart = new();
+    readonly Dictionary<int, int> _spacesByGapStart;
+
+    /// <summary>Die vom Vorpass (<see cref="AlignmentMapBuilder"/>) berechnete Tabelle.</summary>
+    public AlignmentMap(Dictionary<int, int> spacesByGapStart) {
+        _spacesByGapStart = spacesByGapStart;
+    }
 
     /// <summary>
     /// Die aufgelöste Space-Zahl für die Lücke mit Startposition <paramref name="gapStart"/>, oder

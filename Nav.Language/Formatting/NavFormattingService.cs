@@ -58,7 +58,7 @@ public static class NavFormattingService {
 
         var changes   = new List<TextChange>();
         var renderer  = new GapRenderer(syntaxTree.SourceText, settings, options);
-        var alignment = AlignmentMap.Empty; // Der Ausrichtungs-Vorpass befüllt die Tabelle; ohne ihn nimmt keine Lücke an einer Ausrichtung teil.
+        var alignment = AlignmentMapBuilder.Build(syntaxTree, options); // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
 
         // Datei-Anfang: die Leading-Trivia des ersten realen Tokens liegt vor der ersten Paar-Lücke und
         // wird gesondert normalisiert. Skiped-Läufe (insbesondere ein führendes BOM, das als Unknown ->
@@ -79,7 +79,7 @@ public static class NavFormattingService {
         // ausschließlich RenderFinalGap vorbehalten (siehe Klassen-Doku).
         for (var i = 0; i < tokens.Count - 2; i++) {
 
-            var ctx    = CreateContext(tokens[i], tokens[i + 1], alignment);
+            var ctx    = CreateContext(syntaxTree, tokens[i], tokens[i + 1], alignment, options);
             var layout = GapRules.Select(in ctx);
 
             if (layout is GapLayout.Verbatim) {
@@ -143,12 +143,13 @@ public static class NavFormattingService {
         return false;
     }
 
-    static GapContext CreateContext(SyntaxToken prev, SyntaxToken next, AlignmentMap alignment) {
+    static GapContext CreateContext(SyntaxTree syntaxTree, SyntaxToken prev, SyntaxToken next, AlignmentMap alignment, NavFormattingOptions options) {
         return new GapContext(prev, next,
                               indentDepth: ComputeIndentDepth(next),
-                              trivia: GapTrivia.Create(prev, next),
+                              trivia: GapTrivia.Create(prev, next, syntaxTree.SourceText),
                               isSuppressed: false, // Fehler-Unterdrückung (ComputeSuppressedExtents) ist noch nicht angebunden.
-                              alignment: alignment);
+                              alignment: alignment,
+                              options: options);
     }
 
     /// <summary>

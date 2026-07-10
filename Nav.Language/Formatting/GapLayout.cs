@@ -23,6 +23,17 @@ abstract record GapLayout {
 
         public static readonly SingleSpace Instance = new();
 
+        /// <summary>
+        /// Die Pull-up-Variante der Task-/<c>taskref</c>-Kopf-Kanonisierung: bloße authored Newlines in
+        /// der Lücke werden hochgezogen (Schranken-Ausnahme im Renderer) — zeilen-erzwingende Trivia
+        /// (<c>//</c>-Kommentar, mehrzeiliger Block-Kommentar, Direktive) bleibt Sache der
+        /// Renderer-Schranke und verhindert das Hochziehen weiterhin.
+        /// </summary>
+        public static readonly SingleSpace PullUp = new() { PullUpAuthoredLineBreaks = true };
+
+        /// <summary>Ob bloße authored Newlines hochgezogen werden dürfen (siehe <see cref="PullUp"/>).</summary>
+        public bool PullUpAuthoredLineBreaks { get; init; }
+
     }
 
     /// <summary>Spaces bis zur vorberechneten Gruppenspalte (siehe <see cref="AlignmentMap"/>).</summary>

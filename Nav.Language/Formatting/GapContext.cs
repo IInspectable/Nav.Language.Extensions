@@ -11,13 +11,14 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 readonly struct GapContext {
 
     public GapContext(SyntaxToken prev, SyntaxToken next, int indentDepth, GapTrivia trivia,
-                      bool isSuppressed, AlignmentMap alignment) {
+                      bool isSuppressed, AlignmentMap alignment, NavFormattingOptions options) {
         Prev         = prev;
         Next         = next;
         IndentDepth  = indentDepth;
         Trivia       = trivia;
         IsSuppressed = isSuppressed;
         Alignment    = alignment;
+        Options      = options;
     }
 
     /// <summary>Das Token vor der Lücke.</summary>
@@ -48,6 +49,13 @@ readonly struct GapContext {
 
     /// <summary>Die vorberechnete Ausrichtungs-Tabelle (Lücke → aufgelöste Space-Zahl).</summary>
     public AlignmentMap Alignment { get; }
+
+    /// <summary>
+    /// Die Formatter-Optionen des Laufs — für Regeln, deren Zuständigkeit ein Feature-Schalter ist
+    /// (z.B. Task-Kopf-Kanonisierung). Lauf-konstant und damit genauso formatierungs-invariant wie die
+    /// übrigen Fakten.
+    /// </summary>
+    public NavFormattingOptions Options { get; }
 
     /// <summary>
     /// Der Quelltext-Ausschnitt der Lücke: exakt <c>[Prev.End, Next.Start)</c>. Die FullSpans der Token

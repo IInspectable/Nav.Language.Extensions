@@ -62,8 +62,8 @@ sealed class GapRenderer {
         switch (layout) {
             case GapLayout.Nothing:
                 return RenderHorizontal(ctx, separator: "");
-            case GapLayout.SingleSpace:
-                return RenderHorizontal(ctx, separator: " ");
+            case GapLayout.SingleSpace singleSpace:
+                return RenderHorizontal(ctx, separator: " ", allowPullUp: singleSpace.PullUpAuthoredLineBreaks);
             case GapLayout.AlignedColumn:
                 return RenderHorizontal(ctx, separator: AlignmentSpaces(ctx, fallback: " "));
             case GapLayout.NewLine newLine:
@@ -78,11 +78,15 @@ sealed class GapRenderer {
 
     /// <summary>
     /// Same-Line-Rendering: Inline-Block-Kommentare bleiben auf der Zeile (je ein Space davor, Inhalt
-    /// verbatim), danach der Layout-Trenner. Bei zeilen-erzwingender Trivia greift die Renderer-Schranke.
+    /// verbatim), danach der Layout-Trenner. Bei zeilen-erzwingender Trivia greift die Renderer-Schranke;
+    /// einzige Ausnahme ist das Hochziehen der Task-/taskref-Kopf-Kanonisierung
+    /// (<paramref name="allowPullUp"/>): <b>bloße</b> authored Newlines entfallen — enthält die Lücke
+    /// dagegen einen <c>//</c>-Kommentar, einen mehrzeiligen Block-Kommentar oder eine Direktive, wird
+    /// nie hochgezogen.
     /// </summary>
-    string RenderHorizontal(in GapContext ctx, string separator) {
+    string RenderHorizontal(in GapContext ctx, string separator, bool allowPullUp = false) {
 
-        if (RequiresLineBreak(ctx)) {
+        if (RequiresLineBreak(ctx) && !(allowPullUp && !ctx.Trivia.HasLineBreakingComment && !ctx.Trivia.HasDirective)) {
             // Renderer-Schranke: nie ein Token hinter einen '//'-Kommentar oder auf eine Direktivzeile
             // ziehen — das horizontale Layout degradiert zum Umbruch auf Block-Einzug.
             return RenderVertical(ctx, blankLinesBefore: 0, linePrefix: IndentString(ctx.IndentDepth));
@@ -273,29 +277,8 @@ sealed class GapRenderer {
     /// <c>//</c>-Kommentar (läuft bis Zeilenende), ein mehrzeiliger Block-Kommentar oder eine Direktive.
     /// Ein einzeiliger <c>/* */</c>-Kommentar zählt nicht — er verhält sich wie ein Inline-Token.
     /// </summary>
-    bool RequiresLineBreak(in GapContext ctx) {
-
-        if (ctx.Trivia.NewLineCount > 0 || ctx.Trivia.HasDirective) {
-            return true;
-        }
-
-        if (!ctx.Trivia.HasComment) {
-            return false;
-        }
-
-        foreach (var trivia in EnumerateTrivia(ctx)) {
-            if (trivia.Type == SyntaxTokenType.SingleLineComment) {
-                return true;
-            }
-
-            if (trivia.Type == SyntaxTokenType.MultiLineComment &&
-                _sourceText.Substring(trivia.Extent).IndexOf('\n') >= 0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    static bool RequiresLineBreak(in GapContext ctx) =>
+        ctx.Trivia.NewLineCount > 0 || ctx.Trivia.HasDirective || ctx.Trivia.HasLineBreakingComment;
 
     /// <summary>
     /// Zerlegt den Lückeninhalt entlang seiner <see cref="SyntaxTokenType.NewLine"/>-Trivia in die

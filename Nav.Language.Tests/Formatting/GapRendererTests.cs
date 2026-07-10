@@ -225,6 +225,24 @@ public class GapRendererTests {
     }
 
     [Test]
+    public void PullUpSingleSpaceMergesBareAuthoredNewlines() {
+        // Die Schranken-Ausnahme der Task-Kopf-Kanonisierung: bloße authored Newlines werden hochgezogen.
+        Assert.That(Render("task Sample\r\n[code Foo]\r\n{\r\n}\r\n",
+                           (prev, next) => prev.ToString() == "Sample" && next.Type == SyntaxTokenType.OpenBracket,
+                           GapLayout.SingleSpace.PullUp),
+                    Is.EqualTo(" "));
+    }
+
+    [Test]
+    public void PullUpNeverMergesAcrossLineBreakingComment() {
+        // Die harte Schranke bleibt: hinter einen '//'-Kommentar wird nie hochgezogen (Tiefe 0).
+        Assert.That(Render("task Sample // Kommentar\r\n[code Foo]\r\n{\r\n}\r\n",
+                           (prev, next) => prev.ToString() == "Sample" && next.Type == SyntaxTokenType.OpenBracket,
+                           GapLayout.SingleSpace.PullUp),
+                    Is.EqualTo(" // Kommentar\r\n"));
+    }
+
+    [Test]
     public void VerbatimReturnsOriginalGapText() {
         Assert.That(Render("task     A\r\n{\r\n}\r\n", SyntaxTokenType.TaskKeyword, GapLayout.Verbatim.Instance),
                     Is.EqualTo("     "));
@@ -296,8 +314,9 @@ public class GapRendererTests {
             }
 
             var indentDepth = IsInTaskBody(next) ? 1 : 0;
-            var ctx         = new GapContext(prev, next, indentDepth, GapTrivia.Create(prev, next),
-                                             isSuppressed: false, alignment: AlignmentMap.Empty);
+            var ctx         = new GapContext(prev, next, indentDepth, GapTrivia.Create(prev, next, tree.SourceText),
+                                             isSuppressed: false, alignment: AlignmentMap.Empty,
+                                             options: NavFormattingOptions.Default);
 
             return new TestGap(tree, ctx, tree.SourceText.Substring(ctx.Extent));
         }

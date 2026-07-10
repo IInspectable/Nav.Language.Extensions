@@ -11,11 +11,11 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Nav.Language.Tests.Formatting;
 
 /// <summary>
-/// Golden-Tests des S2-Regelsatzes (Layout fehlerfreier Dateien): Allman-Klammern, Member-/Statement-
+/// Golden-Tests des Layout-Regelsatzes fehlerfreier Dateien: Allman-Klammern, Member-/Statement-
 /// Umbrüche, die Leerzeile vor den Transitionen, tight <c>Node:Port</c>, Interpunktion und Typ-Interna,
 /// Kommentar-Normalisierung, Direktiven ab Spalte 0, Datei-Anfang (Fehl-Einzug/Kopf-Kommentare) sowie
-/// Final-Newline und EOF-Trailing-Trim. Spaltenausrichtung (Pfeile, Node-Grid, Task-Kopf) folgt in S3 —
-/// hier gilt überall das Single-Space-Idiom.
+/// Final-Newline und EOF-Trailing-Trim. Die Erwartungen enthalten die Spaltenausrichtung (Pfeile,
+/// Node-Grid) mit; deren eigene Goldens liegen in <see cref="NavFormattingAlignmentGoldenTests"/>.
 /// </summary>
 [TestFixture]
 public class NavFormattingGoldenTests {
@@ -48,12 +48,12 @@ public class NavFormattingGoldenTests {
 
         task Sample [params string label]
         {
-            init I1;
-            task Worker w;
-            exit E;
+            init    I1;
+            task    Worker w;
+            exit    E;
 
-            I1 --> E;
-            w:Out --> E;
+            I1      --> E;
+            w:Out   --> E;
         }
         """ + "\r\n";
 
@@ -69,8 +69,8 @@ public class NavFormattingGoldenTests {
         var expected = """
         task Sample
         {
-            init I1;
-            exit E;
+            init    I1;
+            exit    E;
 
             I1 --> E;
         }
@@ -85,8 +85,8 @@ public class NavFormattingGoldenTests {
         var source = """
         task Sample
         {
-            init I1;
-            exit E;
+            init    I1;
+            exit    E;
 
 
 
@@ -149,8 +149,8 @@ public class NavFormattingGoldenTests {
         var expected = """
         task Sample
         {
-            init I1;
-            exit E;
+            init    I1;
+            exit    E;
 
             I1
             --> E;
@@ -176,8 +176,8 @@ public class NavFormattingGoldenTests {
         var expected = """
         task Sample
         {
-            task B I1;
-            exit E;
+            task    B I1;
+            exit    E;
 
             I1:Out --> E;
         }
@@ -200,8 +200,8 @@ public class NavFormattingGoldenTests {
         var expected = """
         task Sample
         {
-            init I1 [params List<int> numbers, Dict<string, List<int>> map, T6[][] raw, int? maybe];
-            exit E;
+            init    I1 [params List<int> numbers, Dict<string, List<int>> map, T6[][] raw, int? maybe];
+            exit    E;
 
             I1 --> E;
         }

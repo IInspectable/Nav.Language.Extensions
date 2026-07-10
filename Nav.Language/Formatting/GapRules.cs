@@ -31,6 +31,10 @@ static class GapRules {
         // TokenPair
         new TightColonRule(),                 // Node ':' Port -> tight
         new PunctuationRule(),                // tight vor ','/';', [-Innenränder, Typ-Interna
+        new TaskHeadLayoutRule(),             // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
+        // Alignment
+        new ArrowAlignmentRule(),             // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+        new NodeGridAlignmentRule(),          // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
         // Default
         new DefaultSingleSpaceRule(),         // Catch-all -> genau ein Space
     };
@@ -253,6 +257,162 @@ sealed class PunctuationRule: IGapRule {
 
         return false;
     }
+
+}
+
+/// <summary>
+/// TokenPair: Kanonisierung des Task-/<c>taskref</c>-Kopfs. Im <b>Task</b>-Kopf steht der erste
+/// Code-Block immer genau ein Space hinter dem Identifier (Hochziehen authored Umbrüche via Pull-up),
+/// jeder weitere Block auf eigener Zeile linksbündig unter dem <c>[</c> des ersten
+/// (<see cref="ColumnId.TaskHeadBlock"/>); ein vom Autor <b>mehrzeilig</b> gelegtes <c>[params …]</c>
+/// richtet die Folgeparameter unter dem ersten aus (<see cref="ColumnId.ParamsList"/> — ob die Liste
+/// mehrzeilig ist, hat der Vorpass entschieden: nur dann existiert der Spalten-Eintrag). Der
+/// <b>taskref</b>-Kopf wird dagegen einzeilig normalisiert (kein Stapeln — die Blöcke sind
+/// leichtgewichtig); erzwingt dort ein Kommentar den Umbruch, greift die Renderer-Schranke.
+/// </summary>
+/// <remarks>
+/// Der Lückentyp <c>] → [</c> gehört hier nur den Kopf-Blöcken (Eltern-Knoten
+/// <see cref="CodeSyntax"/> unter Task-Definition/-Deklaration) — der gleiche Lückentyp im Array-Rang
+/// ist Sache der <see cref="PunctuationRule"/> (per Eltern-Knoten disjunkt, beide TokenPair). Die
+/// Klammer vor dem <c>{</c> gehört weiter der <see cref="BraceOnOwnLineRule"/> (Structure, preemptiert).
+/// Node-Deklarationen im Body (<c>[donotinject]</c>/<c>[abstractmethod]</c>/<c>[params]</c> an
+/// <c>init</c>/<c>choice</c>/<c>task</c>-Knoten) bleiben unberührt (Wirt ist kein Task-/taskref-Kopf).
+/// </remarks>
+sealed class TaskHeadLayoutRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.TokenPair;
+
+    public GapLayout? Apply(in GapContext ctx) {
+
+        if (!ctx.Options.AlignTaskHeadBlocks) {
+            return null;
+        }
+
+        // Lücken vor einem Kopf-Block-'[': Identifier → Block 1 bzw. Block.] → nächster Block.[.
+        if (ctx.Next.Type == SyntaxTokenType.OpenBracket && ctx.NextParent is CodeSyntax block) {
+
+            switch (block.Parent) {
+
+                case TaskDefinitionSyntax task:
+                    if (ctx.Prev == task.Identifier) {
+                        // Block 1 immer genau ein Space hinter dem Identifier — auch wenn der Autor ihn
+                        // umbrochen hatte (Pull-up). Erzwingt ein Kommentar den Umbruch, fällt Block 1
+                        // wie ein Folgeblock auf die kanonische Kopf-Spalte.
+                        return ForcesLineBreak(in ctx)
+                            ? new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock)
+                            : GapLayout.SingleSpace.PullUp;
+                    }
+
+                    if (ctx.Prev.Type == SyntaxTokenType.CloseBracket && ctx.PrevParent is CodeSyntax previousBlock &&
+                        ReferenceEquals(previousBlock.Parent, task)) {
+                        return new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock);
+                    }
+
+                    break;
+
+                case TaskDeclarationSyntax taskref:
+                    if (ctx.Prev == taskref.Identifier ||
+                        (ctx.Prev.Type == SyntaxTokenType.CloseBracket && ctx.PrevParent is CodeSyntax previousRefBlock &&
+                         ReferenceEquals(previousRefBlock.Parent, taskref))) {
+                        return GapLayout.SingleSpace.PullUp;
+                    }
+
+                    break;
+            }
+
+            return null;
+        }
+
+        // Mehrzeiliges [params …] im Task-Kopf: ',' → nächster Parameter unter den ersten.
+        if (ctx.Prev.Type == SyntaxTokenType.Comma && ctx.PrevParent is ParameterListSyntax { Parent: CodeParamsDeclarationSyntax { Parent: TaskDefinitionSyntax } } &&
+            ctx.Alignment.TryGetSpaces(ctx.Extent.Start, out _)) {
+            return new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.ParamsList);
+        }
+
+        // Lücke params → erster Parameter im Task-Kopf: der erste Parameter klebt hinter "params "
+        // (Pull-up — er definiert die Params-Spalte); erzwingt ein Kommentar den Umbruch, fällt er auf
+        // die Params-Spalte. Ein leeres [params] hat keinen ersten Parameter — die Lücke params → ']'
+        // gehört der PunctuationRule (tight; Intra-Tier-Disjunktheit).
+        if (ctx.Prev.Type == SyntaxTokenType.ParamsKeyword && ctx.Next.Type != SyntaxTokenType.CloseBracket &&
+            ctx.PrevParent is CodeParamsDeclarationSyntax { Parent: TaskDefinitionSyntax }) {
+            return ForcesLineBreak(in ctx)
+                ? new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.ParamsList)
+                : GapLayout.SingleSpace.PullUp;
+        }
+
+        return null;
+    }
+
+    static bool ForcesLineBreak(in GapContext ctx) =>
+        ctx.Trivia.HasLineBreakingComment || ctx.Trivia.HasDirective;
+
+}
+
+/// <summary>
+/// Alignment: die Lücke zwischen Quell-Teil und Edge-Keyword einer (Exit-)Transition nimmt an der
+/// Pfeil-Spalte ihrer Gruppe teil. Ob und wie weit, hat der Vorpass entschieden
+/// (<see cref="AlignmentMap"/>); ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
+/// Lücke als Single-Space. Alle Edge-Keywords sind 3 Zeichen breit — die Spalte hinter dem Pfeil
+/// fluchtet automatisch mit. Fortsetzungs-Kanten (<c>--^</c>/<c>o-^</c>) sind kein
+/// <see cref="EdgeSyntax"/> und bleiben beim Single-Space-Idiom des Catch-all.
+/// </summary>
+sealed class ArrowAlignmentRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Alignment;
+
+    public GapLayout? Apply(in GapContext ctx) =>
+        ctx.Options.AlignArrows &&
+        ctx.NextParent is EdgeSyntax { Parent: TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax }
+            ? new GapLayout.AlignedColumn(ColumnId.Arrow)
+            : null;
+
+}
+
+/// <summary>
+/// Alignment: das 3-Spalten-Raster der Node-Deklarationen (<c>keyword | node | rest</c>) — Spalte 2 über
+/// die Lücke Keyword → node-Identifier, Spalte 3 über die Lücke node-Identifier → erstes Token des
+/// Rests (nur der Start, nie der Inhalt). Teilnahme und Spaltenwerte kommen aus dem Vorpass; ohne
+/// Eintrag rendert die Lücke als Single-Space. <c>end;</c> hat keinen Identifier und die Lücke vor dem
+/// <c>;</c> gehört der <see cref="PunctuationRule"/> — kein Phantom-Padding.
+/// </summary>
+sealed class NodeGridAlignmentRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Alignment;
+
+    public GapLayout? Apply(in GapContext ctx) {
+
+        if (!ctx.Options.AlignNodeGrid) {
+            return null;
+        }
+
+        // Spalte 2: keyword → node (das Keyword ist das erste Token der Deklaration).
+        if (ctx.NextParent is NodeDeclarationSyntax declaration &&
+            ReferenceEquals(ctx.PrevParent, declaration) &&
+            ctx.Prev.Start == declaration.Start &&
+            ctx.Next == NodeIdentifier(declaration)) {
+            return new GapLayout.AlignedColumn(ColumnId.Node);
+        }
+
+        // Spalte 3: node → rest (Next kann einem Kind-Knoten gehören, z.B. [params] oder do-Klausel).
+        if (ctx.Prev.Type == SyntaxTokenType.Identifier && ctx.PrevParent is NodeDeclarationSyntax previousDeclaration &&
+            ctx.Prev == NodeIdentifier(previousDeclaration) &&
+            ctx.Next.Type != SyntaxTokenType.Semicolon && ctx.Next.Start < previousDeclaration.End) {
+            return new GapLayout.AlignedColumn(ColumnId.DeclRest);
+        }
+
+        return null;
+    }
+
+    /// <summary>Der node-Identifier der Deklaration — <c>end;</c> hat keinen (Spalte 2 entfällt).</summary>
+    static SyntaxToken NodeIdentifier(NodeDeclarationSyntax declaration) => declaration switch {
+        TaskNodeDeclarationSyntax nodeDeclaration   => nodeDeclaration.Identifier,
+        InitNodeDeclarationSyntax nodeDeclaration   => nodeDeclaration.Identifier,
+        ChoiceNodeDeclarationSyntax nodeDeclaration => nodeDeclaration.Identifier,
+        DialogNodeDeclarationSyntax nodeDeclaration => nodeDeclaration.Identifier,
+        ViewNodeDeclarationSyntax nodeDeclaration   => nodeDeclaration.Identifier,
+        ExitNodeDeclarationSyntax nodeDeclaration   => nodeDeclaration.Identifier,
+        _                                           => SyntaxToken.Missing,
+    };
 
 }
 
