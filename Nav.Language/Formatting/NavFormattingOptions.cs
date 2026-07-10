@@ -56,4 +56,16 @@ public record NavFormattingOptions {
     /// <summary>Whitespace am Zeilenende entfernen (auch auf Leerzeilen). Default: <c>true</c>.</summary>
     public bool TrimTrailingWhitespace { get; init; } = true;
 
+    /// <summary>
+    /// Ob der interne Achse-A-Wächter nach dem Formatieren mitläuft (Re-Parse des Ergebnisses + Vergleich des
+    /// signifikanten Token-Stroms, der Direktiven und der Diagnostics). Default: <c>false</c>.
+    /// </summary>
+    /// <remarks>
+    /// Bewusst per Default aus — der Wächter re-parst und wendet die Changes ein zweites Mal an (grob eine
+    /// Verdopplung von Parse + Apply). Er ist ein reiner <b>Entwicklungs-Selbsttest</b>: schlägt er an, ist
+    /// das immer ein Formatter-Bug, kein legitimer Laufzeitzustand. Da die Hosts einen Debug-Build ausliefern,
+    /// darf er auch dort nicht mitlaufen; ausschließlich die Tests schalten ihn per Opt-in ein.
+    /// </remarks>
+    public bool VerifyResult { get; init; } = false;
+
 }

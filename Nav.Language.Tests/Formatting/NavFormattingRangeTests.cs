@@ -30,12 +30,15 @@ public class NavFormattingRangeTests {
     // Spaces-Einzug, damit die Raw-String-Erwartungen lesbar bleiben (vgl. NavFormattingGoldenTests).
     static readonly NavFormattingOptions SpacesOptions = NavFormattingOptions.Default with { IndentStyle = IndentStyle.Spaces };
 
+    // VerifyResult: Tests schalten den (per Default aus geschalteten) Achse-A-Wächter als Opt-in ein.
+    static readonly NavFormattingOptions VerifyingOptions = SpacesOptions with { VerifyResult = true };
+
     static IReadOnlyList<TextChange> FormatDocument(string text) {
-        return NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, SpacesOptions);
+        return NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, VerifyingOptions);
     }
 
     static IReadOnlyList<TextChange> FormatRange(string text, TextExtent range) {
-        return NavFormattingService.FormatRange(SyntaxTree.ParseText(text), range, Settings, SpacesOptions);
+        return NavFormattingService.FormatRange(SyntaxTree.ParseText(text), range, Settings, VerifyingOptions);
     }
 
     static string ApplyRange(string text, TextExtent range) {

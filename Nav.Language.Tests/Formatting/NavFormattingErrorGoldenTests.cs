@@ -25,7 +25,7 @@ public class NavFormattingErrorGoldenTests {
     static readonly NavFormattingOptions SpacesOptions = NavFormattingOptions.Default with { IndentStyle = IndentStyle.Spaces };
 
     static string Format(string text) {
-        var changes = NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, SpacesOptions);
+        var changes = NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, SpacesOptions with { VerifyResult = true });
         return new TextChangeWriter().ApplyTextChanges(text, changes);
     }
 

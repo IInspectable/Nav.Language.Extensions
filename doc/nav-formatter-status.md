@@ -13,8 +13,10 @@
 > und BOM-`Nav0000`@0 ausgenommen; Global-Fallback), der **Hand-gelegt-Delta-Shift** (äußerer Einzug
 > mehrzeiliger Anweisungen) und der gleichgebaute Delta-Shift der Innenzeilen mehrzeiliger
 > `/* */`-Kommentare (ein Mechanismus `ShiftInteriorLines`, zwei Abnehmer) sowie der **Laufzeit-Wächter**
-> (Achse A: Token-Strom + Direktiven + keine neuen Error-Diagnostics je Aufruf). Korpus-Smoke über alle
-> 1913 `.nav` × 2 Einzugsstile: 0 Idempotenz-/Token-/Direktiv-/Fehler-Brüche, 0 Crashes, Wächter feuert nie.
+> (Achse A: Token-Strom + Direktiven + keine neuen Error-Diagnostics) — seit dem Perf-Pass **Opt-in**
+> (`NavFormattingOptions.VerifyResult`, Default aus; nur die Tests schalten ihn ein, weil der Re-Parse Parse
+> und Apply grob verdoppelt, s. „Korrektheits-Modell"). Korpus-Smoke über alle 1913 `.nav` × 2 Einzugsstile:
+> 0 Idempotenz-/Token-/Direktiv-/Fehler-Brüche, 0 Crashes, Wächter feuert nie.
 > **Host-Anbindung VS + VS Code erledigt** (VS Format-Document/Selection-Command + Symbolleisten-Schaltfläche;
 > LSP `textDocument/formatting`+`rangeFormatting`, siehe „Zurückgestellt"); offen bleiben nur noch MCP
 > `nav_format` und das CLI-`format`-Verb.
@@ -929,8 +931,12 @@ ihren Zeilenanfang). Das erlaubt einen **Laufzeit-Wächter (fail-safe):** nach d
 Ergebnis **re-lexen** und Token-Strom + Direktiv-Trivia vergleichen; weicht etwas ab (oder gibt es neue
 Diagnostics), werden die betroffenen Changes **verworfen** — die Datei bleibt dort unverändert. Damit wird
 Achse-A-„falsch" **konstruktiv unmöglich**; der Preis ist, im Zweifel *nichts* zu tun statt etwas Falsches.
-Achse A ist also nicht nur testbar, sondern **pro Aufruf verifizierbar** (Kosten: ein zusätzlicher
-Lex-Durchlauf — für einen Formatter vernachlässigbar).
+Achse A ist damit nicht nur testbar, sondern **verifizierbar** — allerdings zum Preis eines vollen
+**Re-Parse plus zweitem Apply** je Aufruf (Messung: grobe Verdopplung von Parse + Apply, ~+770 ms über den
+Korpus). Weil der Wächter ein reines Entwicklungs-Werkzeug ist (ein Treffer ist **immer** ein Formatter-Bug,
+kein Laufzustand) und die Hosts einen Debug-Build ausliefern, läuft er **nicht** unbedingt mit, sondern nur
+per **Opt-in** (`NavFormattingOptions.VerifyResult`, Default `false`): die Tests schalten ihn ein, die
+ausgelieferten Hosts nicht.
 
 Zwei Präzisierungen, damit der Wächter nicht mehr schadet als er nützt:
 
@@ -941,10 +947,12 @@ Zwei Präzisierungen, damit der Wächter nicht mehr schadet als er nützt:
   `ComputeSuppressedExtents`), re-lext der Wächter **pro Anweisung/Member**: nur die Changes der Einheit,
   deren Re-Lex abweicht, werden verworfen — der Rest der Datei wird formatiert.
 - **Sichtbarkeit: ein Wächter-Treffer ist IMMER ein Bug**, kein legitimer Laufzustand (der Formatter
-  fasst nie signifikanten Token-Text an). Deshalb in **Debug/Test hart `Debug.Assert`/Fail** — der
-  Wächter darf im Testlauf nie feuern; feuert er, ist ein Golden-/Fuzz-Fall reproduziert. In **Release**
-  verwerfen + **einmalig auf `stderr`** loggen (host-neutral, konform zur Stdio-Log-Regel). So bleibt
-  Achse-A-Sicherheit erhalten, aber der Bug wird laut statt still verschluckt.
+  fasst nie signifikanten Token-Text an). Wenn er läuft, ist er hart: `Debug.Fail` **plus** die betroffenen
+  Changes verwerfen und **einmalig auf `stderr`** loggen (host-neutral, konform zur Stdio-Log-Regel) — der
+  Bug wird laut statt still verschluckt, im Testlauf feuert er nie. Weil er per Default aus ist
+  (`VerifyResult`, s.o.), tragen ihn nur die Tests: sie schalten ihn per Opt-in ein, sodass die
+  Selbsttest-Abdeckung über Goldens **und** Korpus erhalten bleibt, während die ausgelieferten Hosts die
+  Re-Parse-Kosten nicht zahlen.
 
 ### Achse B — Stil/Konvention (subjektiv, keine Grundwahrheit)
 
@@ -977,7 +985,7 @@ gegen den Korpus zur Deckung bringen.
 - **Bedeutungserhalt (Achse A):** `Tokens(format(x)) == Tokens(x)` (signifikante Token, Typ+Text) +
   identische Direktiv-Trivia-Sequenz und **keine neuen Diagnostics** — als Property-Test über Fixtures
   **und** den großen Korpus; zusätzlich als **Laufzeit-Wächter** im Service (bei Abweichung: Changes
-  verwerfen, Eingabe zurückgeben).
+  verwerfen, Eingabe zurückgeben) — **Opt-in** via `NavFormattingOptions.VerifyResult`, in den Tests an.
 - **Gap-Kontext-Abdeckung:** die aus Grammatik/Korpus erreichbaren `(prevType, nextType, …)`-Nachbarschaften
   aufzählen und sicherstellen, dass jede eine explizite, getestete Layout-Entscheidung hat.
 - **Fuzz/Differential:** zufällig gültige bzw. mutierte `.nav` erzeugen, die Achse-A-Invarianten
@@ -1010,7 +1018,7 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 | **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | **erledigt** — Ordner `Nav.Language/Formatting/` komplett (Options+Enums, `GapLayout`/`GapContext`/`GapTrivia`/`AlignmentMap`, `GapRenderer` mit Vertikalmodell + Renderer-Schranke, `GapRules`-Dispatcher mit Intra-Tier-Debug-Check, `NavFormattingService`-Walk inkl. `IndentDepth` + Final-Gap-Hook). Regelsatz = Safety + Verbatim-Catch-all ⇒ Identität; Tests `Formatting/` (Service-Eigenschaften + Renderer-Goldens), beide TFMs grün |
 | **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | **erledigt** — Regelsatz komplett (`BraceOnOwnLineRule` inkl. „nach `{`", `MemberBreakRule` mit Top-Level-`]`-Prüfung via `CodeGenerationUnitSyntax`-Elter, `BlankLineBeforeTransitionsRule`/`StatementBreakRule` per Prädikat disjunkt, `TightColonRule`, `PunctuationRule`, Single-Space-Catch-all); dazu **Datei-Anfang** (`RenderLeadingGap`: Kopf-Kommentare auf Tiefe 0, Direktiven auf Spalte 0, Fehl-Einzug entfernt; Skiped/BOM ⇒ verbatim) und **Final-Lücke** (`RenderFinalGap`: genau eine Final-Newline, EOF-Leerzeilen-Trim, Kommentar-/Direktivzeilen erhalten; leere/Whitespace-Dateien bleiben leer). Renderer-Fix: einzeilig authored Lücke mit Umbruch-Layout emittierte Inline-Kommentare doppelt (in S1 unerreichbar). Goldens `NavFormattingGoldenTests`, beide TFMs grün. Kommentar-Delta-Shift bewusst nach S4 verschoben (s. „Kommentare & Direktiven") |
 | **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | **erledigt** — `AlignmentMapBuilder` (Vorpass: Gruppen via `interruptLines ≥ 2`, Hand-gelegt/defekt bricht, Kommentar-Ausschluss je Spalte, kanonische Breite über die Regelentscheidung selbst, je Spalte ≥ 2 Teilnehmer), `ArrowAlignmentRule`/`NodeGridAlignmentRule` (Alignment-Tier, schlagen nur nach; ohne Eintrag Single-Space-Fallback), `TaskHeadLayoutRule` (TokenPair: Block 1 `SingleSpace.PullUp`, Stapel/`[params]` `NewLineAlignedColumn`, `taskref` einzeilig; leeres `[params]` bleibt der `PunctuationRule`), Renderer-Schranken-Ausnahme Pull-up, `GapTrivia.HasLineBreakingComment`, Options im `GapContext`. Policy per Korpus kalibriert (s. „Spaltenausrichtung"); Korpus-Smoke über alle 1913 `.nav`: 0 Crashes, idempotent, Token-Strom erhalten, Intra-Tier-Disjunktheit (Debug-Assert) über jede Lücke. Goldens `NavFormattingAlignmentGoldenTests`, beide TFMs grün |
-| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Hand-gelegt-Freeze + Delta-Shift (äußerer Einzug hand-gelegter Anweisungen **und** Innenzeilen mehrzeiliger `/* */`-Kommentare — ein Mechanismus); Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | **erledigt** — `FormatterSuppression` (Klassifikation je Anweisung/Member: `Suppressed` bei fehlendem `;`/`}`, Skiped/Direktive im Statement, Error-Diagnostik über die kleinste umschließende Anweisung — **Code-Block-Inhaltsfehler** wie `[code Foo]`/`[params BADTYPE]` und **BOM-`Nav0000`@0** ausgenommen; `HandLaid` bei Newline/zeilen-erzwingendem Kommentar; `HasUsableMembers`-Global-Fallback), `GapRenderer.ShiftInteriorLines`/`RenderRawShifted`/`OwnLineCommentText` (ein Delta-Shift, zwei Abnehmer — Leerzeilen ohne neuen Trailing-Whitespace, letzte Lücken-Zeile = Einzug vor dem nächsten Token wird mitgeschoben), `NavFormattingService.Guard` (re-lext das Ergebnis, vergleicht Token-Strom + Direktiven + Error-Count; Debug `Debug.Fail`, Release verwerfen + `stderr`). Goldens `NavFormattingErrorGoldenTests`, Property-Fixtures + Direktiv-/Fehler-Erhaltung erweitert; Korpus-Smoke 1913×2: 0 Brüche, 0 Crashes, Wächter feuert nie. Beide TFMs grün |
+| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Hand-gelegt-Freeze + Delta-Shift (äußerer Einzug hand-gelegter Anweisungen **und** Innenzeilen mehrzeiliger `/* */`-Kommentare — ein Mechanismus); Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | **erledigt** — `FormatterSuppression` (Klassifikation je Anweisung/Member: `Suppressed` bei fehlendem `;`/`}`, Skiped/Direktive im Statement, Error-Diagnostik über die kleinste umschließende Anweisung — **Code-Block-Inhaltsfehler** wie `[code Foo]`/`[params BADTYPE]` und **BOM-`Nav0000`@0** ausgenommen; `HandLaid` bei Newline/zeilen-erzwingendem Kommentar; `HasUsableMembers`-Global-Fallback), `GapRenderer.ShiftInteriorLines`/`RenderRawShifted`/`OwnLineCommentText` (ein Delta-Shift, zwei Abnehmer — Leerzeilen ohne neuen Trailing-Whitespace, letzte Lücken-Zeile = Einzug vor dem nächsten Token wird mitgeschoben), `NavFormattingService.Guard` (re-parst das Ergebnis, vergleicht Token-Strom + Direktiven + Error-Count; bei Abweichung `Debug.Fail` + verwerfen + `stderr` — **Opt-in** via `NavFormattingOptions.VerifyResult`, Default aus, nur Tests an; s. „Korrektheits-Modell"). Goldens `NavFormattingErrorGoldenTests`, Property-Fixtures + Direktiv-/Fehler-Erhaltung erweitert; Korpus-Smoke 1913×2: 0 Brüche, 0 Crashes, Wächter feuert nie. Beide TFMs grün |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | **erledigt** — `FormatRange` als gefiltertes `FormatDocument` (`{ c ∈ FormatDocument(x) : c.Extent ⊆ ExpandRange(r) }`); `ExpandRange` rastet auf ganze Zeilen ein und weitet auf die schneidenden Anweisungs-/Member-Knoten aus (`FormattableNodes` = Transition/Exit-Transition/Node-Deklaration + Task-Kopf-`[params]`), inkl. der vorangehenden Lücke `[prev.End, first.Start]` (`LeadingGapStart`), die als einziger Change den Einzug des Knotens setzt — Ende bleibt bei `node.End` (die Trailing-Lücke setzt den Einzug des *nächsten* Knotens und bleibt draußen). Alle nicht-lokalen Pässe laufen über die volle Datei (Suppression/`targetCol`/Einzug → Subset gilt konstruktiv); der Final-Gap unterliegt demselben `⊆`-Filter (keine Newline, wenn die Auswahl das Dateiende nicht enthält). Tests `NavFormattingRangeTests` (Ganze-Datei-Gleichheit, Subset-Garantie, Idempotenz, Final-Gap-Filter, Auswahl mitten im Block/`[params]`/Kommentar/unterdrückter Region), beide TFMs grün |
 
 **Host-Anbindung (VS + VS Code erledigt):** Die **VS**-Standardbefehle *Format Document*

@@ -25,7 +25,8 @@ public class NavFormattingServiceTests {
     static readonly TextEditorSettings Settings = new(tabSize: 4, newLine: "\r\n");
 
     static IReadOnlyList<TextChange> Format(string text) {
-        return NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, NavFormattingOptions.Default);
+        // VerifyResult: Tests schalten den (per Default aus geschalteten) Achse-A-Wächter als Opt-in ein.
+        return NavFormattingService.FormatDocument(SyntaxTree.ParseText(text), Settings, NavFormattingOptions.Default with { VerifyResult = true });
     }
 
     static string ApplyFormat(string text) {

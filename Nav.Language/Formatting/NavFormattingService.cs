@@ -117,7 +117,7 @@ public static class NavFormattingService {
             changes.Add(finalChange.Value);
         }
 
-        return Guard(syntaxTree, changes);
+        return options.VerifyResult ? Guard(syntaxTree, changes) : changes;
     }
 
     /// <summary>
@@ -320,12 +320,14 @@ public static class NavFormattingService {
     }
 
     /// <summary>
-    /// Laufzeit-Wächter (Achse A, fail-safe): Da der Formatter nie signifikanten Token-Text anfasst, muss
+    /// Achse-A-Selbsttest (fail-safe): Da der Formatter nie signifikanten Token-Text anfasst, muss
     /// <c>format(x)</c> zum identischen signifikanten Token-Strom (Typ + Text) zurück-parsen, mit
     /// identischer Direktiv-Sequenz und ohne neue Error-Diagnostics. Weicht das ab, ist das <b>immer ein
-    /// Bug</b> (kein legitimer Laufzustand) — in Debug/Test hart <see cref="Debug.Fail(string)"/>, in
-    /// Release werden die Changes verworfen (Eingabe bleibt unverändert) und einmalig auf
-    /// <c>stderr</c> geloggt (konform zur Stdio-Log-Regel).
+    /// Bug</b> (kein legitimer Laufzustand) — hart <see cref="Debug.Fail(string)"/>; zusätzlich werden die
+    /// Changes verworfen (Eingabe bleibt unverändert) und einmalig auf <c>stderr</c> geloggt (konform zur
+    /// Stdio-Log-Regel). Läuft nur bei <see cref="NavFormattingOptions.VerifyResult"/> mit — das setzen
+    /// ausschließlich die Tests, da der Re-Parse Parse + Apply grob verdoppelt und die ausgelieferten
+    /// (Debug-)Hosts diese Kosten nicht tragen sollen.
     /// </summary>
     static IReadOnlyList<TextChange> Guard(SyntaxTree syntaxTree, IReadOnlyList<TextChange> changes) {
 
