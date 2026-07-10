@@ -258,6 +258,30 @@ public class NavFormattingAlignmentGoldenTests {
     }
 
     [Test]
+    public void ExitTransitionConditionsAreAligned() {
+        // Exit-Transitionen tragen den tighten ':ExitPort' im Quell-Teil (in der kanonischen Breite
+        // enthalten). Nach der (ebenfalls ausgerichteten) Pfeil-Spalte rasten die Bedingungen tight
+        // hinter dem längsten Ziel-Teil ein.
+        var source = """
+        task Sample
+        {
+            A:Done --> Foo if "a";
+            Longer:Cancel --> B else if "b";
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            A:Done          --> Foo if "a";
+            Longer:Cancel   --> B   else if "b";
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
     public void ConditionAlignmentCanBeTurnedOff() {
         var options = SpacesOptions with { AlignConditions = false };
         var source = """
