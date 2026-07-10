@@ -96,7 +96,7 @@ sealed class GoToMouseProcessor: MouseProcessorBase {
     void UpdateNavigateToTagSpan(ITagSpan<GoToTag> navigateToTagSpan) {
 
         if (navigateToTagSpan.Span == _navigateToTagSpan?.Span) {
-            // Theoretisch k�nnten sich die Tags dennoch unterscheiden...
+            // Theoretisch könnten sich die Tags dennoch unterscheiden...
             _navigateToTagSpan = navigateToTagSpan;
             return;
         }
