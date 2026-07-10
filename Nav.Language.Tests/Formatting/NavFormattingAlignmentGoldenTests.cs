@@ -15,7 +15,7 @@ namespace Nav.Language.Tests.Formatting;
 /// <c>:Port</c> in der kanonischen Breite), das 3-Spalten-Node-Raster <c>keyword | node | rest</c>,
 /// die Gruppenbildung (<c>interruptLines ≥ 2</c>, Größe-1-Ausnahme, Ausschlüsse), der Task-Kopf
 /// (Blöcke stapeln, Pull-up des ersten Blocks, mehrzeiliges <c>[params]</c> unter dem ersten
-/// Parameter) und der einzeilig normalisierte <c>taskref</c>-Kopf — jeweils mit Idempotenz-Prüfung.
+/// Parameter) und der symmetrisch stapelnde <c>taskref</c>-Kopf — jeweils mit Idempotenz-Prüfung.
 /// Default-Policy ist <c>NextTabStop</c> (per Korpus-Kalibrierung bestätigt); Padding ist immer Spaces.
 /// </summary>
 [TestFixture]
@@ -574,20 +574,19 @@ public class NavFormattingAlignmentGoldenTests {
     // ---- taskref-Kopf ---------------------------------------------------------------------------
 
     [Test]
-    public void TaskrefHeadIsNormalizedToASingleLine() {
-        // Kein Stapeln im taskref-Kopf: die leichten Blöcke werden (auch über authored Umbrüche
-        // hinweg) einzeilig gezogen; die Connection-Points nehmen am Node-Grid teil.
+    public void TaskrefHeadStacksBlocksLikeTaskHead() {
+        // Symmetrie zum Task-Kopf: Block 1 inline hinter dem Identifier (Pull-up), jeder Folgeblock
+        // gestapelt unter dem '[' des ersten; die Connection-Points nehmen am Node-Grid teil.
         var source = """
-        taskref Legacy
-            [namespaceprefix Foo.Bar]
-            [result bool r]
+        taskref Legacy [namespaceprefix Foo.Bar] [result bool r]
         {
             init I;
             exit O;
         }
         """;
         var expected = """
-        taskref Legacy [namespaceprefix Foo.Bar] [result bool r]
+        taskref Legacy [namespaceprefix Foo.Bar]
+                       [result bool r]
         {
             init    I;
             exit    O;

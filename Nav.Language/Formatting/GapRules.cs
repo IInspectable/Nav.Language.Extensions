@@ -275,14 +275,14 @@ sealed class PunctuationRule: IGapRule {
 }
 
 /// <summary>
-/// TokenPair: Kanonisierung des Task-/<c>taskref</c>-Kopfs. Im <b>Task</b>-Kopf steht der erste
-/// Code-Block immer genau ein Space hinter dem Identifier (Hochziehen authored Umbrüche via Pull-up),
-/// jeder weitere Block auf eigener Zeile linksbündig unter dem <c>[</c> des ersten
-/// (<see cref="ColumnId.TaskHeadBlock"/>); ein vom Autor <b>mehrzeilig</b> gelegtes <c>[params …]</c>
-/// richtet die Folgeparameter unter dem ersten aus (<see cref="ColumnId.ParamsList"/> — ob die Liste
-/// mehrzeilig ist, hat der Vorpass entschieden: nur dann existiert der Spalten-Eintrag). Der
-/// <b>taskref</b>-Kopf wird dagegen einzeilig normalisiert (kein Stapeln — die Blöcke sind
-/// leichtgewichtig); erzwingt dort ein Kommentar den Umbruch, greift die Renderer-Schranke.
+/// TokenPair: Kanonisierung des Task-/<c>taskref</c>-Kopfs — beide werden <b>identisch</b> behandelt
+/// (Symmetrie): der erste Code-Block steht immer genau ein Space hinter dem Identifier (Hochziehen
+/// authored Umbrüche via Pull-up), jeder weitere Block auf eigener Zeile linksbündig unter dem <c>[</c>
+/// des ersten (<see cref="ColumnId.TaskHeadBlock"/>). Ein vom Autor <b>mehrzeilig</b> gelegtes
+/// <c>[params …]</c> (nur am Task-Kopf) richtet die Folgeparameter unter dem ersten aus
+/// (<see cref="ColumnId.ParamsList"/> — ob die Liste mehrzeilig ist, hat der Vorpass entschieden: nur
+/// dann existiert der Spalten-Eintrag). Erzwingt ein Kommentar den Umbruch von Block 1, fällt er wie
+/// ein Folgeblock auf die kanonische Kopf-Spalte.
 /// </summary>
 /// <remarks>
 /// Der Lückentyp <c>] → [</c> gehört hier nur den Kopf-Blöcken (Eltern-Knoten
@@ -303,35 +303,27 @@ sealed class TaskHeadLayoutRule: IGapRule {
         }
 
         // Lücken vor einem Kopf-Block-'[': Identifier → Block 1 bzw. Block.] → nächster Block.[.
+        // task- und taskref-Kopf werden identisch behandelt (Symmetrie): Block 1 inline hinter dem
+        // Identifier (Pull-up), jeder Folgeblock gestapelt auf der Kopf-Spalte.
         if (ctx.Next.Type == SyntaxTokenType.OpenBracket && ctx.NextParent is CodeSyntax block) {
 
-            switch (block.Parent) {
+            if (HeadIdentifier(block.Parent) is not { } identifier) {
+                return null;
+            }
 
-                case TaskDefinitionSyntax task:
-                    if (ctx.Prev == task.Identifier) {
-                        // Block 1 immer genau ein Space hinter dem Identifier — auch wenn der Autor ihn
-                        // umbrochen hatte (Pull-up). Erzwingt ein Kommentar den Umbruch, fällt Block 1
-                        // wie ein Folgeblock auf die kanonische Kopf-Spalte.
-                        return ForcesLineBreak(in ctx)
-                            ? new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock)
-                            : GapLayout.SingleSpace.PullUp;
-                    }
+            // Block 1 immer genau ein Space hinter dem Identifier — auch wenn der Autor ihn umbrochen
+            // hatte (Pull-up). Erzwingt ein Kommentar den Umbruch, fällt Block 1 wie ein Folgeblock auf
+            // die kanonische Kopf-Spalte.
+            if (ctx.Prev == identifier) {
+                return ForcesLineBreak(in ctx)
+                    ? new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock)
+                    : GapLayout.SingleSpace.PullUp;
+            }
 
-                    if (ctx.Prev.Type == SyntaxTokenType.CloseBracket && ctx.PrevParent is CodeSyntax previousBlock &&
-                        ReferenceEquals(previousBlock.Parent, task)) {
-                        return new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock);
-                    }
-
-                    break;
-
-                case TaskDeclarationSyntax taskref:
-                    if (ctx.Prev == taskref.Identifier ||
-                        (ctx.Prev.Type == SyntaxTokenType.CloseBracket && ctx.PrevParent is CodeSyntax previousRefBlock &&
-                         ReferenceEquals(previousRefBlock.Parent, taskref))) {
-                        return GapLayout.SingleSpace.PullUp;
-                    }
-
-                    break;
+            // Jeder Folgeblock auf eigener Zeile, linksbündig unter dem '[' des ersten.
+            if (ctx.Prev.Type == SyntaxTokenType.CloseBracket && ctx.PrevParent is CodeSyntax previousBlock &&
+                ReferenceEquals(previousBlock.Parent, block.Parent)) {
+                return new GapLayout.NewLineAlignedColumn(BlankLinesBefore: 0, ColumnId.TaskHeadBlock);
             }
 
             return null;
@@ -359,6 +351,13 @@ sealed class TaskHeadLayoutRule: IGapRule {
 
     static bool ForcesLineBreak(in GapContext ctx) =>
         ctx.Trivia.HasLineBreakingComment || ctx.Trivia.HasDirective;
+
+    /// <summary>Der Identifier eines Task-/<c>taskref</c>-Kopfs — <c>null</c>, wenn der Elter kein Kopf ist.</summary>
+    static SyntaxToken? HeadIdentifier(SyntaxNode? head) => head switch {
+        TaskDefinitionSyntax task     => task.Identifier,
+        TaskDeclarationSyntax taskref => taskref.Identifier,
+        _                             => null,
+    };
 
 }
 

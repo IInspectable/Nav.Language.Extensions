@@ -62,8 +62,13 @@ static class AlignmentMapBuilder {
             }
         }
 
-        if (options.AlignNodeGrid) {
-            foreach (var taskref in syntaxTree.Root.DescendantNodes<TaskDeclarationSyntax>()) {
+        foreach (var taskref in syntaxTree.Root.DescendantNodes<TaskDeclarationSyntax>()) {
+
+            if (options.AlignTaskHeadBlocks) {
+                AddTaskrefHeadColumns(taskref, spaces);
+            }
+
+            if (options.AlignNodeGrid) {
                 AddNodeGridColumns(syntaxTree, options, taskref.ConnectionPoints, spaces);
             }
         }
@@ -83,17 +88,40 @@ static class AlignmentMapBuilder {
     /// </summary>
     static void AddTaskHeadColumns(SyntaxTree syntaxTree, TaskDefinitionSyntax task, Dictionary<int, int> spaces) {
 
-        var keyword    = task.TaskKeyword;
-        var identifier = task.Identifier;
-
-        if (keyword.IsMissing || identifier.IsMissing) {
-            // Defekter Kopf — Sache der Fehler-Unterdrückung (S4), hier keine Kanonisierung.
+        var headColumn = AddHeadBlockColumns(task.TaskKeyword, task.Identifier, HeadBlocks(task), spaces);
+        if (headColumn < 0) {
             return;
         }
 
-        var blocks = HeadBlocks(task);
+        AddParamsListColumn(syntaxTree, task.CodeParamsDeclaration, headColumn, spaces);
+    }
+
+    /// <summary>
+    /// Die Kopf-Spalte einer <c>taskref</c>-Deklaration — symmetrisch zum Task-Kopf: Block 1 inline
+    /// hinter dem Identifier, Folgeblöcke (<c>[namespaceprefix …]</c>/<c>[notimplemented]</c>/
+    /// <c>[result …]</c>) gestapelt unter dem <c>[</c> des ersten. Ein <c>taskref</c> hat kein
+    /// <c>[params …]</c>, daher keine Params-Spalte.
+    /// </summary>
+    static void AddTaskrefHeadColumns(TaskDeclarationSyntax taskref, Dictionary<int, int> spaces) {
+        AddHeadBlockColumns(taskref.TaskrefKeyword, taskref.Identifier, HeadBlocks(taskref), spaces);
+    }
+
+    /// <summary>
+    /// Legt die <see cref="ColumnId.TaskHeadBlock"/>-Spalte eines Task-/<c>taskref</c>-Kopfs an: Spalte
+    /// des <c>[</c> von Block 1 (<c>keyword + " " + Identifier + " "</c>, Tiefe 0 → reine
+    /// Space-Ausrichtung ab Spalte 0) für die Stapel-Lücken <c>] → [</c> und den Kommentar-Grenzfall der
+    /// Lücke Identifier → Block 1. Liefert die Kopf-Spalte zurück (Basis für die Params-Spalte) bzw.
+    /// <c>−1</c>, wenn der Kopf defekt (fehlendes Keyword/Identifier) oder blocklos ist.
+    /// </summary>
+    static int AddHeadBlockColumns(SyntaxToken keyword, SyntaxToken identifier, List<CodeSyntax> blocks, Dictionary<int, int> spaces) {
+
+        if (keyword.IsMissing || identifier.IsMissing) {
+            // Defekter Kopf — Sache der Fehler-Unterdrückung (S4), hier keine Kanonisierung.
+            return -1;
+        }
+
         if (blocks.Count == 0) {
-            return;
+            return -1;
         }
 
         var headColumn = keyword.Length + 1 + identifier.Length + 1;
@@ -103,7 +131,7 @@ static class AlignmentMapBuilder {
             spaces[blocks[i - 1].End] = headColumn;
         }
 
-        AddParamsListColumn(syntaxTree, task.CodeParamsDeclaration, headColumn, spaces);
+        return headColumn;
     }
 
     /// <summary>
@@ -148,6 +176,26 @@ static class AlignmentMapBuilder {
         Add(task.CodeGenerateToDeclaration);
         Add(task.CodeParamsDeclaration);
         Add(task.CodeResultDeclaration);
+
+        blocks.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+        return blocks;
+    }
+
+    /// <summary>Die vorhandenen Kopf-Blöcke der <c>taskref</c>-Deklaration in Quellreihenfolge.</summary>
+    static List<CodeSyntax> HeadBlocks(TaskDeclarationSyntax taskref) {
+
+        var blocks = new List<CodeSyntax>(capacity: 3);
+
+        void Add(CodeSyntax? block) {
+            if (block != null) {
+                blocks.Add(block);
+            }
+        }
+
+        Add(taskref.CodeNamespaceDeclaration);
+        Add(taskref.CodeNotImplementedDeclaration);
+        Add(taskref.CodeResultDeclaration);
 
         blocks.Sort((a, b) => a.Start.CompareTo(b.Start));
 

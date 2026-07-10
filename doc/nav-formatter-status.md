@@ -538,12 +538,17 @@ auf eigener Zeile bleibt, wird nur führender Whitespace angefasst — nie ein T
 gezogen (Achse-A-sicher, der Wächter feuert nie). Ein mehrzeiliger `/* */`-Block-Kommentar im `[params]`
 wird nicht reflowt, sondern per Delta-Shift mitgeschoben (s. „Kommentare & Direktiven").
 
-**Scope: nur der Task-Definitions-Kopf (depth 0).** Die anderen Code-Block-Wirte:
+**Der `taskref`-Kopf stapelt symmetrisch (depth 0).** Der `TaskDeclarationSyntax`-Kopf trägt
+`[namespaceprefix]`/`[notimplemented]`/`[result]` (nur Einzel-Fragmente, keine Listen;
+`CodeBlockFacts.DeclarationKeywords(TaskRef)`). Er wird **identisch zum Task-Kopf** behandelt (Belang A):
+Block 1 inline hinter dem Identifier (Pull-up), jeder Folgeblock gestapelt unter dem `[` des ersten
+(`NewLineAlignedColumn(TaskHeadBlock)`, Kopf-Spalte = `"taskref ".Length + Id.Length + 1`). Ein `taskref`
+hat kein `[params]`, daher entfällt Belang B. Das war früher eine bewusste Ausnahme (einzeilige
+Normalisierung „die Blöcke sind leichtgewichtig") — zugunsten *eines* mentalen Modells und der
+Respektierung vom Autor gelegter Struktur aufgegeben.
 
-- **`taskref`-Kopf** (`[namespaceprefix]`/`[notimplemented]`/`[result]` — nur Einzel-Fragmente, keine
-  Listen; `CodeBlockFacts.DeclarationKeywords(TaskRef)`) wird **einzeilig normalisiert** (Lücken →
-  `SingleSpace`, kein Stapeln — die Blöcke sind leichtgewichtig); erzwingt ein Kommentar den Umbruch,
-  greift die Renderer-Schranke.
+**Sonstige Code-Block-Wirte:**
+
 - **Node**-Deklarationen im Body (`init`/`choice`/`task`-Knoten mit `[params]`/`[abstractmethod]`/
   `[donotinject]`) unterliegen dem **Node-Grid** und bleiben einzeilig. Legt ein Autor eine
   Node-Deklaration mehrzeilig, fällt sie — wie eine hand-gelegte Anweisung — über das bestehende
