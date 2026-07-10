@@ -13,6 +13,7 @@ using Microsoft.VisualStudio.Text.Editor.OptionsExtensionMethods;
 using Microsoft.VisualStudio.Text.Outlining;
 
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Language.Formatting;
 
 #endregion
 
@@ -149,6 +150,19 @@ static partial class TextViewExtensions {
         return new TextEditorSettings(
             tabSize: textView.Options.GetTabSize(),
             newLine: textView.Options.GetNewLineCharacter());
+    }
+
+    /// <summary>
+    /// Leitet die <see cref="NavFormattingOptions"/> für den Formatter aus den Editor-Optionen ab.
+    /// Einzugsstil und -breite kommen aus dem bestehenden Editor-Konfig-Kanal (Tabs vs. Leerzeichen,
+    /// Einzugsbreite); die übrigen Optionen bleiben auf den kanonischen Vorgaben von
+    /// <see cref="NavFormattingOptions.Default"/>.
+    /// </summary>
+    public static NavFormattingOptions GetFormattingOptions(this ITextView textView) {
+        return NavFormattingOptions.Default with {
+            IndentStyle = textView.Options.IsConvertTabsToSpacesEnabled() ? IndentStyle.Spaces : IndentStyle.Tabs,
+            IndentSize  = textView.Options.GetIndentSize()
+        };
     }
 
 }

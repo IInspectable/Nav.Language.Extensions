@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 
 using Pharmatechnik.Nav.Language.GoTo;
 using Pharmatechnik.Nav.Language.Text;
+using Pharmatechnik.Nav.Language.Formatting;
 using Pharmatechnik.Nav.Language.CallHierarchy;
 using Pharmatechnik.Nav.Language.Rename;
 using Pharmatechnik.Nav.Language.CodeFixes;
@@ -66,13 +67,15 @@ class NavLanguageServer {
                     },
                     Full = true
                 },
-                DocumentSymbolProvider    = true,
-                DefinitionProvider        = true,
-                ReferencesProvider        = true,
-                DocumentHighlightProvider = true,
-                HoverProvider             = true,
-                FoldingRangeProvider      = true,
-                RenameProvider            = true,
+                DocumentSymbolProvider         = true,
+                DefinitionProvider             = true,
+                ReferencesProvider             = true,
+                DocumentHighlightProvider      = true,
+                HoverProvider                  = true,
+                FoldingRangeProvider           = true,
+                RenameProvider                 = true,
+                DocumentFormattingProvider     = true,
+                DocumentRangeFormattingProvider = true,
                 CodeActionProvider        = new Protocol.CodeActionOptions {
                     // QuickFix (ErrorFix/StyleFix) + Refactor (Introduce Choice). Die Aktionen liefern
                     // ihre WorkspaceEdit direkt mit — kein codeAction/resolve nötig.
@@ -406,6 +409,99 @@ class NavLanguageServer {
         return new TextEditorSettings(tabSize: 4, newLine: newLine);
     }
 
+    [JsonRpcMethod(Protocol.Methods.TextDocumentFormattingName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.TextEdit[]? Formatting(Protocol.DocumentFormattingParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return null;
+        }
+
+        // Der Formatter ist rein syntaktisch → der SyntaxTree genügt (kein Semantik-Build wie bei Rename).
+        var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
+        if (syntaxTree == null) {
+            return null;
+        }
+
+        var sourceText = syntaxTree.SourceText;
+        var changes    = NavFormattingService.FormatDocument(
+            syntaxTree,
+            FormattingSettingsFor(sourceText, param.Options),
+            FormattingOptionsFor(param.Options));
+
+        return ToTextEdits(sourceText, changes);
+    }
+
+    [JsonRpcMethod(Protocol.Methods.TextDocumentRangeFormattingName, UseSingleObjectParameterDeserialization = true)]
+    public Protocol.TextEdit[]? RangeFormatting(Protocol.DocumentRangeFormattingParams param) {
+
+        var filePath = NavUri.ToFilePath(param.TextDocument.Uri);
+        if (filePath == null) {
+            return null;
+        }
+
+        var syntaxTree = _workspace.GetSyntaxTree(filePath, CancellationToken.None);
+        if (syntaxTree == null) {
+            return null;
+        }
+
+        var sourceText = syntaxTree.SourceText;
+        var start      = LspMapper.ToOffset(sourceText, param.Range.Start);
+        var end        = LspMapper.ToOffset(sourceText, param.Range.End);
+        var range      = TextExtent.FromBounds(Math.Min(start, end), Math.Max(start, end));
+
+        var changes = NavFormattingService.FormatRange(
+            syntaxTree,
+            range,
+            FormattingSettingsFor(sourceText, param.Options),
+            FormattingOptionsFor(param.Options));
+
+        return ToTextEdits(sourceText, changes);
+    }
+
+    /// <summary>
+    /// Editor-Einstellungen für den Formatter aus den vom Client gelieferten <see cref="Protocol.FormattingOptions"/>:
+    /// TabSize kommt vom Client, der Zeilenumbruch wird aus dem Dokument erkannt (CRLF vs. LF).
+    /// </summary>
+    static TextEditorSettings FormattingSettingsFor(SourceText sourceText, Protocol.FormattingOptions options) {
+        var newLine = sourceText.Text.Contains("\r\n") ? "\r\n" : "\n";
+        return new TextEditorSettings(tabSize: options.TabSize, newLine: newLine);
+    }
+
+    /// <summary>
+    /// Bildet die LSP-<see cref="Protocol.FormattingOptions"/> auf die <see cref="NavFormattingOptions"/> ab:
+    /// Einzugsstil (Tabs vs. Leerzeichen) und -breite kommen aus dem Client; die übrigen Optionen bleiben auf
+    /// den kanonischen Vorgaben von <see cref="NavFormattingOptions.Default"/>.
+    /// </summary>
+    static NavFormattingOptions FormattingOptionsFor(Protocol.FormattingOptions options) {
+        return NavFormattingOptions.Default with {
+            IndentStyle = options.InsertSpaces ? IndentStyle.Spaces : IndentStyle.Tabs,
+            IndentSize  = options.TabSize
+        };
+    }
+
+    /// <summary>
+    /// Wandelt offset-basierte Engine-<see cref="TextChange"/> in dateilokale LSP-<see cref="Protocol.TextEdit"/>.
+    /// Leere Änderungen und solche außerhalb des Dokuments werden übersprungen.
+    /// </summary>
+    static Protocol.TextEdit[] ToTextEdits(SourceText sourceText, IReadOnlyList<TextChange> changes) {
+
+        var edits = new List<Protocol.TextEdit>();
+        foreach (var change in changes) {
+
+            if (change.IsEmpty || change.Extent.End > sourceText.Length) {
+                continue;
+            }
+
+            edits.Add(new Protocol.TextEdit {
+                Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
+                NewText = change.ReplacementText
+            });
+        }
+
+        return edits.ToArray();
+    }
+
     [JsonRpcMethod(Protocol.Methods.TextDocumentCodeActionName, UseSingleObjectParameterDeserialization = true)]
     public Protocol.CodeAction[] CodeAction(Protocol.CodeActionParams param) {
 
@@ -462,26 +558,14 @@ class NavLanguageServer {
     /// </summary>
     static Protocol.WorkspaceEdit? ToWorkspaceEdit(Uri uri, SourceText sourceText, IReadOnlyList<TextChange> changes) {
 
-        var edits = new List<Protocol.TextEdit>();
-        foreach (var change in changes) {
-
-            if (change.IsEmpty || change.Extent.End > sourceText.Length) {
-                continue;
-            }
-
-            edits.Add(new Protocol.TextEdit {
-                Range   = LspMapper.ToRange(sourceText.GetLocation(change.Extent)),
-                NewText = change.ReplacementText
-            });
-        }
-
-        if (edits.Count == 0) {
+        var edits = ToTextEdits(sourceText, changes);
+        if (edits.Length == 0) {
             return null;
         }
 
         return new Protocol.WorkspaceEdit {
             Changes = new Dictionary<string, Protocol.TextEdit[]> {
-                [uri.OriginalString] = edits.ToArray()
+                [uri.OriginalString] = edits
             }
         };
     }

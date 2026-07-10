@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 
 using Pharmatechnik.Nav.Language.Extension.Commands;
+using Pharmatechnik.Nav.Language.Extension.CodeFixes;
 using Pharmatechnik.Nav.Language.Extension;
 
 #endregion
@@ -19,10 +20,12 @@ namespace Pharmatechnik.Language.Nav.Extension.Margin;
 
 public partial class NavMarginControl {
 
-    private readonly IWpfTextView _textView;
+    private readonly IWpfTextView       _textView;
+    private readonly ITextChangeService _textChangeService;
 
-    public NavMarginControl(IWpfTextView textView) {
-        _textView = textView;
+    internal NavMarginControl(IWpfTextView textView, ITextChangeService textChangeService) {
+        _textView          = textView;
+        _textChangeService = textChangeService;
         InitializeComponent();
 
         UpdateTooltips();
@@ -39,6 +42,7 @@ public partial class NavMarginControl {
     void UpdateTooltips() {
         NavPreviewButton.ToolTip  = GetTooltipText(KnownCommandIds.ViewCode,           "View Code");
         GenerateNavButton.ToolTip = GetTooltipText(KnownCommandIds.NavGenerateCommand, "C# Code aus .nav-Dateien generieren");
+        FormatButton.ToolTip      = GetTooltipText(KnownCommandIds.FormatDocument,     "Nav-Dokument formatieren");
     }
 
     private void OnGenerateNavButtonClick(object sender, RoutedEventArgs e) {
@@ -54,6 +58,14 @@ public partial class NavMarginControl {
 
         _textView.VisualElement.Focus();
         NavLanguagePackage.InvokeCommand(KnownCommandIds.ViewCode);
+        UpdateTooltips();
+    }
+
+    private void OnFormatButtonClick(object sender, RoutedEventArgs e) {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        _textView.VisualElement.Focus();
+        NavFormatCommand.FormatDocument(_textView, _textChangeService);
         UpdateTooltips();
     }
 

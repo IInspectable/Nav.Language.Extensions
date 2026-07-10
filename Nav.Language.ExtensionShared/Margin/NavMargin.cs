@@ -7,6 +7,7 @@ using System.Windows.Media;
 using Microsoft.VisualStudio.Text.Editor;
 
 using Pharmatechnik.Nav.Language.Extension;
+using Pharmatechnik.Nav.Language.Extension.CodeFixes;
 
 #endregion
 
@@ -21,10 +22,10 @@ sealed class NavMargin: IWpfTextViewMargin {
 
     readonly NavMarginControl _marginControl;
 
-    public NavMargin(IWpfTextView textView) {
+    public NavMargin(IWpfTextView textView, ITextChangeService textChangeService) {
         _textView = textView;
 
-        _marginControl = new NavMarginControl(textView);
+        _marginControl = new NavMarginControl(textView, textChangeService);
 
         _textView.Closed += OnTextViewClosed;
 

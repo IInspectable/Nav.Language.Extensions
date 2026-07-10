@@ -11,8 +11,8 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 > (Nav + Edge + Path); nur die C#-Code-Block-Completion (`CodeCompletionSource`) bleibt bewusst VS/Roslyn-only.
 > **Call Hierarchy** (`callHierarchy/*`, Task→Task), **Code Actions** (`textDocument/codeAction`),
 > **Rename** (`textDocument/rename`), **Completion (Nav+Edge+Path)**, **Folding** (`textDocument/foldingRange`),
-> **Hover** (`textDocument/hover`), References/documentHighlight und GoTo Definition (Option B) sind
-> **erledigt** — siehe unten.
+> **Hover** (`textDocument/hover`), **Formatting** (`textDocument/formatting`+`rangeFormatting`),
+> References/documentHighlight und GoTo Definition (Option B) sind **erledigt** — siehe unten.
 
 ---
 
@@ -77,6 +77,7 @@ Worktree `D:\git\Nav.Language.Extensions-nav-lsp`). Ergänzt die ursprüngliche 
 Completion-Mapping (Engine-Kind → LSP-`CompletionItemKind` + `SortText`) liegt im `Completion`-Handler in `NavLanguageServer.cs`; der Logik-Kern in `Nav.Language/Completion/` (`NavCompletionService.cs`, `NavCompletionItem.cs`).
 **Call-Hierarchy-Kern:** `Nav.Language/CallHierarchy/NavCallHierarchyService.cs` (VS-frei); LSP-Seite in `Nav.Language.Lsp/CallHierarchy/` (`CallHierarchyDtos.cs` eigene DTOs, `NavServerCapabilities.cs` Capability-Subklasse, `CallHierarchyBuilder.cs` Item-Mapping); die drei Handler (`prepareCallHierarchy`/`incomingCalls`/`outgoingCalls`) liegen in `NavLanguageServer.cs`.
 **Code-Actions-Kern:** `Nav.Language/CodeActions/` (`NavCodeActionService.cs`, `NavCodeAction.cs`); der `codeAction`-Handler (Range→`TextExtent`, `NavCodeAction`→`Lsp.CodeAction`/`WorkspaceEdit`, Kategorie→`CodeActionKind`, Titel-Dedup) liegt in `NavLanguageServer.cs`.
+- **Formatting** (`textDocument/formatting` + `textDocument/rangeFormatting`): Engine-Kern `Nav.Language/Formatting/NavFormattingService.FormatDocument`/`FormatRange` (rein syntaktisch → `_workspace.GetSyntaxTree` genügt, kein Semantik-Build). Handler `Formatting`/`RangeFormatting` in `NavLanguageServer.cs`; Capabilities `DocumentFormattingProvider`/`DocumentRangeFormattingProvider` (nativ im Protokoll-Paket 17.2.8, keine Custom-DTOs). LSP-`FormattingOptions` (`tabSize`/`insertSpaces`) → `TextEditorSettings` + `NavFormattingOptions` (`IndentStyle`/`IndentSize`), Rest = `NavFormattingOptions.Default`. `TextChange[]`→`TextEdit[]` über den gemeinsamen Helfer `ToTextEdits` (`LspMapper.ToRange(sourceText.GetLocation(change.Extent))`), den auch `ToWorkspaceEdit` (Rename/CodeAction) nutzt. Der VS-Code-Client (`vscode-nav-lsp`) braucht keine Änderung (Capabilities lassen „Format Document"/„Format Selection" automatisch aufleuchten); Format-on-Save bewusst nicht erzwungen. End-to-End per stdio-Smoke verifiziert.
 
 ---
 

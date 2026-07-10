@@ -12,5 +12,6 @@ static class KnownCommandIds {
 
     public static readonly CommandID ViewCode           = new(new Guid("{5efc7975-14bc-11cf-9b2b-00aa00573819}"), (int)VSConstants.VSStd97CmdID.ViewCode);
     public static readonly CommandID NavGenerateCommand = new(GuidIXOSEssentialsPackageCmdSet, 0x0240);
+    public static readonly CommandID FormatDocument     = new(VSConstants.VSStd2K, (int)VSConstants.VSStd2KCmdID.FORMATDOCUMENT);
 
 }

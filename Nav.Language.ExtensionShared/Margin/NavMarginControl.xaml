@@ -52,5 +52,21 @@
                 Moniker="{x:Static catalog:KnownMonikers.GenerateFile}" />
         </Button>
 
+        <Button x:Name="FormatButton"
+                Padding="0"
+                Click="OnFormatButtonClick"
+                BorderBrush="Transparent"
+                Background="{DynamicResource {x:Static platformUi:EnvironmentColors.ScrollBarBackgroundBrushKey}}">
+
+            <imaging:CrispImage
+                Margin="1"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                StretchDirection="Both"
+                Stretch="UniformToFill"
+                Height="13"
+                Moniker="{x:Static catalog:KnownMonikers.FormatDocument}" />
+        </Button>
+
     </StackPanel>
 </Border>

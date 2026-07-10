@@ -54,6 +54,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)CodeFixes\RemoveUnusedTaskDeclarationSuggestedActionProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\CommandHandlerNames.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\CommentUncommentSelectionCommandHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Commands\FormatCommandHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Commands\NavFormatCommand.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\FindReferencesCommandHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\GoToDefinitionCommandCommandHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Commands\ViewCallHierarchyCommandHandler.cs" />

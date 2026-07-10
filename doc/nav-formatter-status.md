@@ -15,7 +15,9 @@
 > `/* */`-Kommentare (ein Mechanismus `ShiftInteriorLines`, zwei Abnehmer) sowie der **Laufzeit-Wächter**
 > (Achse A: Token-Strom + Direktiven + keine neuen Error-Diagnostics je Aufruf). Korpus-Smoke über alle
 > 1913 `.nav` × 2 Einzugsstile: 0 Idempotenz-/Token-/Direktiv-/Fehler-Brüche, 0 Crashes, Wächter feuert nie.
-> Offen ist nur noch die (bewusst zurückgestellte) Host-Anbindung (Abschnitt „Step-Plan" / „Zurückgestellt").
+> **Host-Anbindung VS + VS Code erledigt** (VS Format-Document/Selection-Command + Symbolleisten-Schaltfläche;
+> LSP `textDocument/formatting`+`rangeFormatting`, siehe „Zurückgestellt"); offen bleiben nur noch MCP
+> `nav_format` und das CLI-`format`-Verb.
 
 ## Motivation
 
@@ -971,8 +973,21 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 | **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Hand-gelegt-Freeze + Delta-Shift (äußerer Einzug hand-gelegter Anweisungen **und** Innenzeilen mehrzeiliger `/* */`-Kommentare — ein Mechanismus); Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | **erledigt** — `FormatterSuppression` (Klassifikation je Anweisung/Member: `Suppressed` bei fehlendem `;`/`}`, Skiped/Direktive im Statement, Error-Diagnostik über die kleinste umschließende Anweisung — **Code-Block-Inhaltsfehler** wie `[code Foo]`/`[params BADTYPE]` und **BOM-`Nav0000`@0** ausgenommen; `HandLaid` bei Newline/zeilen-erzwingendem Kommentar; `HasUsableMembers`-Global-Fallback), `GapRenderer.ShiftInteriorLines`/`RenderRawShifted`/`OwnLineCommentText` (ein Delta-Shift, zwei Abnehmer — Leerzeilen ohne neuen Trailing-Whitespace, letzte Lücken-Zeile = Einzug vor dem nächsten Token wird mitgeschoben), `NavFormattingService.Guard` (re-lext das Ergebnis, vergleicht Token-Strom + Direktiven + Error-Count; Debug `Debug.Fail`, Release verwerfen + `stderr`). Goldens `NavFormattingErrorGoldenTests`, Property-Fixtures + Direktiv-/Fehler-Erhaltung erweitert; Korpus-Smoke 1913×2: 0 Brüche, 0 Crashes, Wächter feuert nie. Beide TFMs grün |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | **erledigt** — `FormatRange` als gefiltertes `FormatDocument` (`{ c ∈ FormatDocument(x) : c.Extent ⊆ ExpandRange(r) }`); `ExpandRange` rastet auf ganze Zeilen ein und weitet auf die schneidenden Anweisungs-/Member-Knoten aus (`FormattableNodes` = Transition/Exit-Transition/Node-Deklaration + Task-Kopf-`[params]`), inkl. der vorangehenden Lücke `[prev.End, first.Start]` (`LeadingGapStart`), die als einziger Change den Einzug des Knotens setzt — Ende bleibt bei `node.End` (die Trailing-Lücke setzt den Einzug des *nächsten* Knotens und bleibt draußen). Alle nicht-lokalen Pässe laufen über die volle Datei (Suppression/`targetCol`/Einzug → Subset gilt konstruktiv); der Final-Gap unterliegt demselben `⊆`-Filter (keine Newline, wenn die Auswahl das Dateiende nicht enthält). Tests `NavFormattingRangeTests` (Ganze-Datei-Gleichheit, Subset-Garantie, Idempotenz, Final-Gap-Filter, Auswahl mitten im Block/`[params]`/Kommentar/unterdrückter Region), beide TFMs grün |
 
-**Zurückgestellt (nicht v1):** Host-Anbindung (LSP `textDocument/formatting`+`rangeFormatting`, MCP
-`nav_format` read-only, VS Format-Document/Selection-Command, CLI `format`-Verb mit `--check`/`--write`);
+**Host-Anbindung (VS + VS Code erledigt):** Die **VS**-Standardbefehle *Format Document*
+(`Edit.FormatDocument`) und *Format Selection* (`Edit.FormatSelection`) greifen für `.nav` über den
+modernen Commanding-Weg (`FormatCommandHandler : ICommandHandler<FormatDocumentCommandArgs>`/
+`<FormatSelectionCommandArgs>` in `Nav.Language.ExtensionShared/Commands/`); zusätzlich eine
+**Format-Dokument-Schaltfläche** in der Nav-Editor-Symbolleiste (`NavMarginControl`). Beide teilen den
+Helfer `NavFormatCommand` (SyntaxTree via `ParserService`, Optionen aus `ITextView.GetFormattingOptions()`,
+undo-fähig über `ITextChangeService`). **VS Code** läuft über den **LSP-Server**:
+`textDocument/formatting` + `textDocument/rangeFormatting` (`NavLanguageServer.Formatting`/`RangeFormatting`,
+Capabilities `DocumentFormattingProvider`/`DocumentRangeFormattingProvider`); der VS-Code-Client braucht
+keine Änderung (die Format-Befehle leuchten über die gemeldeten Capabilities automatisch auf), Format-on-Save
+wird bewusst nicht erzwungen. `IndentStyle`/`IndentSize` kommen je Host aus dem Editor-Konfig-Kanal
+(VS `textView.Options`, LSP `FormattingOptions.insertSpaces`/`tabSize`).
+
+**Zurückgestellt (nicht v1):** restliche Host-Anbindung (MCP `nav_format` read-only, CLI `format`-Verb mit
+`--check`/`--write`);
 Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Ausrichtung **außerhalb** des Task-Kopfs (Node-Wirte
 `init`/`choice` bleiben grid-einzeilig — der Task-Kopf ist in S3 enthalten); Format-on-Type/-Paste;
 Reformatierung des **Inneren** von Direktiven (`#pragma`-Spacing — ihr Erhalt auf eigener Zeile ab

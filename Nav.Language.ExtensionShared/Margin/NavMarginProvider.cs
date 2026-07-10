@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
 
 using Pharmatechnik.Nav.Language.Extension;
+using Pharmatechnik.Nav.Language.Extension.CodeFixes;
 
 #endregion
 
@@ -24,6 +25,13 @@ namespace Pharmatechnik.Language.Nav.Extension.Margin;
 [GridCellLength(1.0)]
 sealed class NavMarginProvider: IWpfTextViewMarginProvider {
 
+    readonly ITextChangeService _textChangeService;
+
+    [ImportingConstructor]
+    public NavMarginProvider(ITextChangeService textChangeService) {
+        _textChangeService = textChangeService;
+    }
+
     /// <summary>
     /// Creates an <see cref="IWpfTextViewMargin"/> for the given <see cref="IWpfTextViewHost"/>.
     /// </summary>
@@ -33,7 +41,7 @@ sealed class NavMarginProvider: IWpfTextViewMarginProvider {
     /// The value may be null if this <see cref="IWpfTextViewMarginProvider"/> does not participate for this context.
     /// </returns>
     public IWpfTextViewMargin CreateMargin(IWpfTextViewHost wpfTextViewHost, IWpfTextViewMargin marginContainer) {
-        return new NavMargin(wpfTextViewHost.TextView);
+        return new NavMargin(wpfTextViewHost.TextView, _textChangeService);
     }
 
 }
