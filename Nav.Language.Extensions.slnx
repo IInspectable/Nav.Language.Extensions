@@ -79,6 +79,7 @@
     <File Path="doc/nav-completion-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
     <File Path="doc/nav-feature-usage-census.md" />
+    <File Path="doc/nav-formatter-status.md" />
     <File Path="doc/nav-grammar-status.md" />
     <File Path="doc/nav-kolibri.md" />
     <File Path="doc/nav-lsp-status.md" />
