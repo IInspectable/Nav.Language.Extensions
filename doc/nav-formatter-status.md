@@ -45,7 +45,10 @@ repräsentatives Einzelstück daraus. Die folgenden Anteile sind die dominanten 
 - **Pfeile:** Space auf **beiden** Seiten (~98%); **Spaltenausrichtung ~79%** (bewusst aktiviert, s.u.).
   Pfeiltypen: `-->` ~81%, `o->` ~19%; alles andere <0,2% (Tippfehler).
 - **`Node:Port`-Doppelpunkt tight** (~99%); Listen: Komma + Space.
-- **Mehrzeilige `[params …]`** richten Fortsetzungszeilen unter dem ersten Parameter aus (v1 zurückgestellt).
+- **Task-Kopf-Code-Blöcke** (`[code]`/`[base]`/`[generateto]`/`[params]`/`[result]` zwischen `task <Id>` und
+  `{`): der erste Block ein Space nach dem Identifier, weitere Blöcke je eigene Zeile linksbündig darunter
+  (immer gestapelt). **Mehrzeilige `[params …]`** richten die Parameter unter dem ersten aus
+  (Autor-Umbruch bewahrt); Einzeiler bleiben einzeilig. Details s. „Task-Kopf-Ausrichtung".
 - **Kommentare:** `//` dominiert (~95% eigene Zeile / leading); Banner `// ----` als Idiom; `/* */`
   selten, **inline** (z.B. `[result bool /* SomeResultType */]`).
 - **Hygiene:** CRLF 99,5%; **Final-Newline fehlt in 55%** → normalisieren auf *vorhanden*;
@@ -146,6 +149,10 @@ abstract record GapLayout {
     sealed record AlignedColumn(ColumnId Column) : GapLayout;  // Spaces bis zur Gruppenspalte
     sealed record NewLine(int BlankLinesBefore, int IndentDepth) : GapLayout;  // BlankLinesBefore:
                                                                                // Autorenzahl (kein Kollaps)
+    sealed record NewLineAlignedColumn(int BlankLinesBefore, ColumnId Column) : GapLayout;
+                                                               // Umbruch, DANN Spaces bis zur Gruppen-
+                                                               // spalte (statt Tiefen-Einzug) — für den
+                                                               // Task-Kopf-Block-Stack + mehrzeiliges [params]
     sealed record Verbatim                       : GapLayout;  // unterdrückt / Kommentar-Inneres
 }
 ```
@@ -181,10 +188,13 @@ static readonly IReadOnlyList<IGapRule> Rules = [
     new StatementBreakRule(),            // 3. nach ';' -> NewLine(blank=Autorenzahl, depth)  (kein Kollaps)
     new BlankLineBeforeTransitionsRule(),// 4. letzte Deklaration -> erste Transition: NewLine(max(blank,1), depth)
     new TightColonRule(),                // 5. Node ':' Port -> Nothing
-    new ArrowAlignmentRule(),            // 6. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
-    new NodeGridAlignmentRule(),         // 7. keyword->node -> AlignedColumn(Node);
+    new TaskHeadLayoutRule(),            // 6. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
+                                         //    NewLineAlignedColumn(TaskHeadBlock); mehrzeiliges [params]:
+                                         //    ','->Param = NewLineAlignedColumn(ParamsList)  (s. „Task-Kopf-Ausrichtung")
+    new ArrowAlignmentRule(),            // 7. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
+    new NodeGridAlignmentRule(),         // 8. keyword->node -> AlignedColumn(Node);
                                          //    node->rest -> AlignedColumn(DeclRest)  (3-Spalten-Raster)
-    new DefaultSingleSpaceRule(),        // 8. Catch-all -> SingleSpace
+    new DefaultSingleSpaceRule(),        // 9. Catch-all -> SingleSpace
 ];
 ```
 
@@ -344,9 +354,60 @@ kollidieren nie mit dem Trailing-Whitespace-Trim. (`PreserveDominant` bleibt ide
 die Mehrheit exakt auf `targetCol` sitzt → derselbe dominante Wert; es liest aber als einzige Policy den
 Ist-Whitespace und ist daher nicht-Default.)
 
-> **Zurückgestellt:** Mehrspalten-Ausrichtung (`on`/`if`/`do`) und `[params]`-Spaltenausrichtung —
-> empirisch stark nur die Pfeil-Spalte (~79%) und die Instanznamen-Spalte; die Kaskade bringt wenig
-> Nutzen bei viel Komplexität.
+### Task-Kopf-Ausrichtung (Code-Blöcke + mehrzeiliges `[params]`)
+
+Der `TaskDefinitionSyntax`-**Kopf** trägt zwischen `task <Id>` und `{` bis zu **fünf** Code-Blöcke in
+fester Grammatik-Reihenfolge (`[code]`, `[base]`, `[generateto]`, `[params]`, `[result]` —
+`CodeBlockFacts.DeclarationKeywords(TaskDefinition)`). Zwei getrennte Belange:
+
+**(A) Äußeres Stapeln (bedingungslos).** Der **erste** vorhandene Block steht **immer genau ein Space
+nach dem Identifier** — auch wenn der Autor ihn umbrochen hatte (die Lücke `Id → Block1.[` = `SingleSpace`).
+**Jeder weitere** Block steht auf **eigener Zeile**, linksbündig unter dem `[` des ersten Blocks (die Lücke
+`Block.] → nächster.[` = `NewLineAlignedColumn(TaskHeadBlock)`). Das ist eine bewusste **Kanonisierung** (im
+Gegensatz zur sonstigen Umbruch-Erhaltung), weil mehrere schwere Blöcke auf einer Zeile schwer lesbar sind.
+
+Die **Kopf-Spalte ist kanonisch** und pro Task-Definition lokal: `col = "task ".Length + Id.Length + 1`
+(depth 0 → reine **Space**-Ausrichtung ab Spalte 0, kein Tab). Reine Funktion des kanonischen
+Identifier-Textes → idempotent. Blöcke ohne innere Liste (`[code]`/`[base]`/`[generateto]`/`[result]`) sind
+für das Stapeln nur Ganzes — nur `[params]` hat eine Komma-Liste (Belang B).
+
+**(B) Inneres `[params]` (Autor-Umbruch bewahrt).** Einzeilige `[params …]` bleiben **einzeilig** (nur
+Spacing normalisiert: `params `+Space, Komma+Space). Hat der Autor die Liste **mehrzeilig** gelegt, wird
+jeder Parameter unter den **ersten** ausgerichtet: `Param → ','` tight, `',' → nächster Param` =
+`NewLineAlignedColumn(ParamsList)`. Params-Spalte = `Block.[`-Spalte + `"[params ".Length`. Das schließende
+`]` bleibt **tight** am letzten Parameter (Listen-Idiom, **nicht** Allman — das gilt nur für den Task-Body).
+
+**`[params]` ist vom Hand-gelegt-Freeze ausgenommen.** Anders als eine mehrzeilige Transition wird ein
+mehrzeiliges `[params]` **nicht** verbatim eingefroren, sondern kanonisch ausgerichtet — **auch mit
+Kommentaren** (Trailing-`//` je Zeile → Single-Space). Das ist sicher: die Params-Spalte hängt an der
+**Parameter-Position, nicht am Kommentartext** (kein Arrow-Column-Problem), und weil jeder Parameter ohnehin
+auf eigener Zeile bleibt, wird nur führender Whitespace angefasst — nie ein Token auf eine `//`-Zeile
+gezogen (Achse-A-sicher, der Wächter feuert nie). Ein mehrzeiliger `/* */`-Block-Kommentar im `[params]`
+wird nicht reflowt, sondern per Delta-Shift mitgeschoben (R4-Mechanik).
+
+**Scope: nur der Task-Kopf (depth 0).** Die übrigen Code-Block-Wirte bleiben unberührt: `taskref`
+(`[namespaceprefix]`/`[result]`) sowie die **Node**-Deklarationen im Body (`init`/`choice`/`task`-Knoten mit
+`[params]`/`[abstractmethod]`/`[donotinject]`) unterliegen weiter dem **R10-Node-Grid** und bleiben
+einzeilig. Legt ein Autor eine Node-Deklaration mehrzeilig, fällt sie — wie eine hand-gelegte Anweisung —
+über das bestehende Primitiv aus dem Grid (kein Sonderfall).
+
+Gap-Layouts im Überblick (`Id`/`[`/`]`/`,` = signifikante Token des Kopfs):
+
+| Lücke | Layout |
+|---|---|
+| `Id → Block1.[` | `SingleSpace` (Block 1 immer inline) |
+| `Block.] → nächster Block.[` | `NewLineAlignedColumn(TaskHeadBlock)` |
+| `[params …]` einzeilig, `Param ↔ ','` | `Nothing` (vor `,`) / `SingleSpace` (nach `,`) |
+| `[params …]` mehrzeilig, `Param → ','` | `Nothing` (tight) |
+| `[params …]` mehrzeilig, `',' → Param` | `NewLineAlignedColumn(ParamsList)` |
+| letzter Param `→ ]` | `Nothing` (tight) |
+
+Beide Spalten (`TaskHeadBlock`, `ParamsList`) sind reine Funktionen kanonischer Token-Breiten → der
+Idempotenz-Beweis der übrigen Ausrichtung trägt unverändert.
+
+> **Zurückgestellt:** Mehrspalten-Ausrichtung (`on`/`if`/`do`) und `[params]`-Interna **außerhalb** des
+> Task-Kopfs (Node-Wirte `init`/`choice` bleiben grid-einzeilig) — empirisch stark nur die Pfeil-Spalte
+> (~79%) und das Node-Grid; die Kaskade bringt wenig Nutzen bei viel Komplexität.
 
 ## Verhalten bei Fehlern / Unknown / Skiped-Token
 
@@ -525,6 +586,9 @@ analog `NavCompletionService.TriggerCharacters`):
   (Korpus-Mehrheit).
 - `AlignArrows = true`, `AlignNodeGrid = true` (das 3-Spalten-Deklarations-Raster `keyword | node |
   rest`, s. „Spaltenausrichtung").
+- `AlignTaskHeadBlocks = true` — Task-Kopf-Code-Blöcke stapeln (Block 1 inline, weitere je Zeile
+  darunter) **und** mehrzeilige `[params]` unter dem ersten Parameter ausrichten (s. „Task-Kopf-
+  Ausrichtung"). Padding immer Spaces.
 - `AlignmentColumnPolicy` = `NextTabStop` (Default) | `Tight` | `PreserveDominant` — wie die Zielspalte
   aus den Zeilenbreiten folgt (s. „Spaltenausrichtung"). **Ausrichtungs-Padding ist immer Leerzeichen**
   (nie Tabs), unabhängig vom `IndentStyle` des Einzugs — in Stein gemeißelt.
@@ -551,7 +615,8 @@ Neuer Ordner `Nav.Language/Formatting/`:
 **Wiederverwenden (nicht neu bauen):** `SyntaxTree.Tokens` + Trivia-API (`SyntaxToken.LeadingTrivia`/
 `TrailingTrivia`/`Extent`/`Parent`), `SourceText.Substring`, `TextChange.NewReplace`,
 `TextExtent.FromBounds`, `TextChangeWriter.ApplyTextChanges` (Tests/CLI). Layout-/Ausrichtungsregeln
-stützen sich auf `TransitionDefinitionSyntax`, `EdgeSyntax`, `TaskDefinitionSyntax`,
+stützen sich auf `TransitionDefinitionSyntax`, `EdgeSyntax`, `TaskDefinitionSyntax` (Kopf-Blöcke +
+`Identifier`/`OpenBrace`), `CodeParamsDeclarationSyntax`/`ParameterListSyntax`/`ParameterSyntax`,
 `NodeDeclarationBlockSyntax`, `TaskNodeDeclarationSyntax`. Muster-Referenz für Service-Form + „single
 authority": `Nav.Language/Completion/NavCompletionService.cs`.
 
@@ -600,6 +665,36 @@ Spalte `node` (Spalte 2) auf dem nächsten Tab-Stopp hinter dem längsten Keywor
 (Variante 2, korpus-treu — ausgerichtet wird der *Start*, nicht der Inhalt); `choice Decide;` hat keine
 Spalte 3 und bekommt kein Phantom-Padding.
 
+**Task-Kopf: Blöcke stapeln + mehrzeiliges `[params]` ausrichten**
+
+```
+// vorher
+task Sample [code Foo] [params int x, string label] [result bool]
+{ … }
+
+// vorher (params vom Autor mehrzeilig gelegt)
+task Other
+  [params int x,
+  string label]
+{ … }
+
+// nachher
+task Sample [code Foo]
+            [params int x, string label]
+            [result bool]
+{ … }
+
+// nachher (Autor-Umbruch bewahrt -> Parameter unter dem ersten ausgerichtet)
+task Other [params int x,
+                  string label]
+{ … }
+```
+
+Der erste Block sitzt ein Space nach dem Identifier; weitere Blöcke stapeln linksbündig darunter. Das
+einzeilige `[params]` (Sample) bleibt einzeilig; das mehrzeilige (Other) wird unter dem ersten Parameter
+ausgerichtet, `]` tight. Bei `Other` wird zudem der vom Autor umbrochene erste Block auf ein Space hinter
+den Identifier hochgezogen.
+
 **Fehler/Skiped-Token: umschließende Anweisung bleibt verbatim**
 
 ```
@@ -624,7 +719,8 @@ task Broken                  task Broken
   Ahnenkette statt Klammern zählen. BOM-Guard ergänzt.
 - **R3 — Regelsatz-Modell:** bewusste Abgrenzung von Roslyns Operation-/Solver-Modell. Gewählt: winzige
   feste Engine + **flache, geordnete Regelliste** (first-match-wins), Regeln als reine
-  `ctx -> GapLayout?`-Funktionen über geschlossenem 5-Werte-Vokabular; einzige nicht-lokale Zutat
+  `ctx -> GapLayout?`-Funktionen über geschlossenem 5-Werte-Vokabular (R14: erweitert auf 6,
+  `NewLineAlignedColumn`); einzige nicht-lokale Zutat
   (Ausrichtung) als `AlignmentMap`-Vorpass isoliert.
 - **R4 — Mehrzeilige Kommentare:** drei Operationen unterschieden — (1) Inhalt-Reflow **nein**, (2)
   Innenzeilen **um das Einrück-Delta mitschieben** (relative Form erhalten) **ja**, (3) `*`-Präfix-
@@ -715,6 +811,25 @@ task Broken                  task Broken
   `task`/`view`/`dialog` der Typ" war falsch und ist in der Definition korrigiert. Das 3-Spalten-Raster
   selbst bleibt gültig: `node` = erstes Identifier (Typ nur bei `task`, sonst Name), `rest` = erstes
   Token danach (bei `view`/`dialog`/`exit`/`end` nie vorhanden → kein Phantom-Padding).
+- **R14 — Task-Kopf-Ausrichtung (Grill-Runde):** die zuvor pauschal zurückgestellte `[params]`-Ausrichtung
+  für den **Task-Definitions-Kopf** ausspezifiziert (neuer Abschnitt „Task-Kopf-Ausrichtung"). Zwei
+  Belange getrennt: **(A) äußere Blöcke bedingungslos stapeln** — Block 1 immer ein Space nach dem
+  Identifier (auch wenn der Autor ihn umbrochen hatte), weitere Blöcke je eigene Zeile linksbündig unter
+  Block 1s `[`; bewusste Kanonisierung (mehrere schwere Blöcke einzeilig sind schwer lesbar), im Gegensatz
+  zur sonstigen Umbruch-Erhaltung. **(B) inneres `[params]` bewahrt den Autor-Umbruch** — Einzeiler bleibt
+  einzeilig, mehrzeilig wird unter dem ersten Parameter ausgerichtet, `]` tight (Listen-Idiom, nicht
+  Allman). `[params]` ist **vom Hand-gelegt-Freeze ausgenommen** und wird **auch mit Kommentaren**
+  ausgerichtet (sicher: Spalte hängt an Parameter-Position, nicht Kommentartext; nur führender Whitespace,
+  nie Token auf `//`-Zeile → Achse-A-sicher). **Scope: nur der Task-Kopf (depth 0)** — Node-Wirte
+  (`init`/`choice`/`task`) bleiben R10-Grid; mehrzeilige Node-Decl fällt übers bestehende Hand-gelegt-
+  Primitiv aus dem Grid. Nur `[params]` hat eine Komma-Liste (die anderen vier Kopf-Blöcke tragen einen
+  Einzel-Fragment). Modellfolge: `GapLayout` um **`NewLineAlignedColumn(BlankLinesBefore, ColumnId)`**
+  erweitert (Umbruch + Spalten-Ausrichtung statt Tiefen-Einzug; Vokabular 5→6), neue Regel
+  `TaskHeadLayoutRule` (Tier TokenPair, nach `TightColonRule`), neue Spalten `TaskHeadBlock`/`ParamsList`,
+  neue Option `AlignTaskHeadBlocks`. Beide Spalten kanonisch → idempotent. Umsetzung **in S3 gefaltet**
+  (statt eigenem Step). (Verworfen: params-mit-Kommentar einfrieren wie eine hand-gelegte Transition —
+  hier unnötig, weil die Spalte kommentartext-unabhängig ist; und äußere Blöcke bewahren statt stapeln —
+  Nutzer bevorzugt die kanonische gestapelte Kopf-Form.)
 
 ## Step-Plan
 
@@ -727,13 +842,14 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 | **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
 | **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | offen |
 | **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Space um Pfeile, tight `Colon`, Komma+Space, Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung | Golden für saubere Dateien + Idempotenz grün | offen |
-| **S3** | Ausrichtung: Pfeil-Spalte + Instanznamen-Spalte inkl. Gruppenbildung + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Idempotenz grün | offen |
+| **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
 | **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback | Edge-Case-Fixtures grün, keine Overlap-Exception | offen |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
 
 **Zurückgestellt (nicht v1):** Host-Anbindung (LSP `textDocument/formatting`+`rangeFormatting`, MCP
 `nav_format` read-only, VS Format-Document/Selection-Command, CLI `format`-Verb mit `--check`/`--write`);
-Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Spaltenausrichtung; Format-on-Type/-Paste;
+Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Ausrichtung **außerhalb** des Task-Kopfs (Node-Wirte
+`init`/`choice` bleiben grid-einzeilig — der Task-Kopf ist in S3 enthalten); Format-on-Type/-Paste;
 Reformatierung von Direktiven (`#pragma`/`#version`); EOL-Normalisierung im Inneren mehrzeiliger Kommentare.
 
 **Bewusst ausgeschlossen (nicht nur zurückgestellt):** Inhaltliches Umbrechen/Neu-Formatieren von
