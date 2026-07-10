@@ -25,6 +25,7 @@ namespace Pharmatechnik.Nav.Language;
 public abstract partial class SyntaxNode: IExtent {
 
     List<SyntaxNode>? _childNodes;
+    SyntaxToken[]?    _childTokens;
     SyntaxTree?       _syntaxTree;
     SyntaxNode?       _parent;
 
@@ -102,7 +103,21 @@ public abstract partial class SyntaxNode: IExtent {
     /// <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia), überschreiben diese Methode.
     /// </summary>
     public virtual IEnumerable<SyntaxToken> ChildTokens() {
-        return SyntaxTree.Tokens[Extent].Where(token => token.Parent == this);
+        // Nach FinalConstruct ist der Knoten eingefroren -> das Ergebnis ist unveränderlich und wird einmalig
+        // materialisiert gecacht. Bewusst kein LINQ (Where erzeugte pro Aufruf einen Iterator samt Closure),
+        // da die Token-Property-Accessoren der Knoten diese Methode auf dem heißen Pfad sehr oft aufrufen.
+        if (_childTokens == null) {
+            List<SyntaxToken>? tokens = null;
+            foreach (var token in SyntaxTree.Tokens[Extent]) {
+                if (token.Parent == this) {
+                    (tokens ??= new List<SyntaxToken>()).Add(token);
+                }
+            }
+
+            _childTokens = tokens?.ToArray() ?? Array.Empty<SyntaxToken>();
+        }
+
+        return _childTokens;
     }
 
     static readonly IReadOnlyList<SyntaxNode> EmptyNodeList = new List<SyntaxNode>();

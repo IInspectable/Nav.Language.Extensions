@@ -15,28 +15,69 @@ public static class SyntaxTokenExtensions {
         return source.Where(t => t.Type == type);
     }
 
+    // Diese Selektoren sitzen auf dem heißen Pfad (jeder Token-Property-Accessor eines Syntax-Knotens ruft
+    // FirstOrMissing auf) — daher bewusst als allokationsfreie Schleifen statt LINQ (Where/DefaultIfEmpty
+    // würden pro Aufruf Iterator- und Closure-Objekte erzeugen).
     public static SyntaxToken FirstOrMissing(this IEnumerable<SyntaxToken> source, TextClassification classification) {
-        return source.Where(t => t.Classification == classification).DefaultIfEmpty(SyntaxToken.Missing).First();
+        foreach (var token in source) {
+            if (token.Classification == classification) {
+                return token;
+            }
+        }
+
+        return SyntaxToken.Missing;
     }
 
     public static SyntaxToken FirstOrDefault(this IEnumerable<SyntaxToken> source, TextClassification classification) {
-        return source.FirstOrDefault(t => t.Classification == classification);
+        foreach (var token in source) {
+            if (token.Classification == classification) {
+                return token;
+            }
+        }
+
+        return default;
     }
 
     public static SyntaxToken FirstOrMissing(this IEnumerable<SyntaxToken> source, SyntaxTokenType type) {
-        return source.Where(t => t.Type == type).DefaultIfEmpty(SyntaxToken.Missing).First();
+        foreach (var token in source) {
+            if (token.Type == type) {
+                return token;
+            }
+        }
+
+        return SyntaxToken.Missing;
     }
 
     public static SyntaxToken FirstOrDefault(this IEnumerable<SyntaxToken> source, SyntaxTokenType type) {
-        return source.FirstOrDefault(t => t.Type == type);
+        foreach (var token in source) {
+            if (token.Type == type) {
+                return token;
+            }
+        }
+
+        return default;
     }
 
     public static SyntaxToken LastOrDefault(this IEnumerable<SyntaxToken> source, TextClassification classification) {
-        return source.LastOrDefault(t => t.Classification == classification);
+        var result = default(SyntaxToken);
+        foreach (var token in source) {
+            if (token.Classification == classification) {
+                result = token;
+            }
+        }
+
+        return result;
     }
 
     public static SyntaxToken LastOrDefault(this IEnumerable<SyntaxToken> source, SyntaxTokenType type) {
-        return source.LastOrDefault(t => t.Type == type);
+        var result = default(SyntaxToken);
+        foreach (var token in source) {
+            if (token.Type == type) {
+                result = token;
+            }
+        }
+
+        return result;
     }
 
 }
