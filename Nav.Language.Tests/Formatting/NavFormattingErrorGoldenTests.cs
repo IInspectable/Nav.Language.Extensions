@@ -68,7 +68,17 @@ public class NavFormattingErrorGoldenTests {
     public void MissingCloseBraceKeepsTaskBodyVerbatimButFormatsOtherMembers() {
         // Der ganze Body des Tasks mit fehlendem '}' bleibt verbatim (X-Deklaration/Transition mit
         // odd-Spacing bleiben) und es wird kein '}' erfunden; der vollständige Nachbar-Task wird formatiert.
-        var source = "task Good\r\n{\r\ninit I1;\r\nI1 --> E;\r\n}\r\ntask Broken\r\n{\r\n    init   X;\r\n    X  -->  E;\r\n";
+        var source = """
+        task Good
+        {
+        init I1;
+        I1 --> E;
+        }
+        task Broken
+        {
+            init   X;
+            X  -->  E;
+        """ + "\r\n";
         var expected = """
         task Good
         {
@@ -180,7 +190,14 @@ public class NavFormattingErrorGoldenTests {
     public void MultiLineBlockCommentInteriorIsDeltaShiftedNotReflowed() {
         // Kein Reflow des Kommentar-Inneren; die erste Zeile wandert von Spalte 6 auf den Block-Einzug 4
         // (Delta -2), die Folgezeile wird um dasselbe Delta mitgeschoben (9 -> 7).
-        var source = "task Sample\r\n{\r\n      /* Zeile1\r\n         Zeile2 */\r\n    init I1;\r\n}\r\n";
+        var source = """
+        task Sample
+        {
+              /* Zeile1
+                 Zeile2 */
+            init I1;
+        }
+        """ + "\r\n";
         var expected = """
         task Sample
         {
