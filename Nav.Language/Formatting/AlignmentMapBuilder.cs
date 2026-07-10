@@ -36,7 +36,7 @@ static class AlignmentMapBuilder {
     public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options) {
 
         if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks &&
-            !options.AlignConditions && !options.AlignTrailingComments) {
+            !options.AlignTriggers && !options.AlignConditions && !options.AlignTrailingComments) {
             return AlignmentMap.Empty;
         }
 
@@ -57,8 +57,14 @@ static class AlignmentMapBuilder {
                 AddArrowColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
             }
 
-            // Nach der Pfeil-Spalte: die Condition-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
+            // Nach der Pfeil-Spalte: die Trigger-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
             // auf (sie steckt in derselben Zeile rechts vom Pfeil) — daher zwingend nach AddArrowColumns.
+            if (options.AlignTriggers) {
+                AddTriggerColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
+            }
+
+            // Nach der Trigger-Spalte: die Condition-Spalte steht in Quellreihenfolge rechts vom Trigger
+            // und baut auf dessen (sowie auf das Pfeil-) Padding auf — daher nach AddTriggerColumns.
             if (options.AlignConditions) {
                 AddConditionColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
             }
@@ -328,6 +334,103 @@ static class AlignmentMapBuilder {
         return candidate;
     }
 
+    // ---- Trigger-Spalte (on … / spontaneous) -----------------------------------------------------
+
+    sealed class TriggerCandidate {
+
+        public TriggerCandidate(SyntaxNode statement) {
+            Statement = statement;
+        }
+
+        public SyntaxNode Statement   { get; }
+        public bool       BreaksGroup { get; set; }
+        public bool       IsAligned   { get; set; }
+        public int        GapStart    { get; set; }
+        public int        Width       { get; set; }
+
+    }
+
+    /// <summary>
+    /// Richtet die <c>on …</c>/<c>spontaneous</c>-Trigger aufeinanderfolgender Transitionen spaltenweise
+    /// aus. Nur <see cref="TransitionDefinitionSyntax"/> trägt einen Trigger; Exit-Transitionen laufen als
+    /// Nicht-Teilnehmer mit (sie brechen die Gruppe nicht), damit die Gruppierung deckungsgleich zur
+    /// Pfeil-/Condition-Spalte bleibt. Eine triggerlose Transition ist ebenfalls kein Teilnehmer, bricht
+    /// die Gruppe aber nicht. Anders als Pfeil/Node-Grid — aber wie die Trailing-Kommentare — bricht die
+    /// Gruppe bereits bei <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>).
+    /// Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten
+    /// Zeile, kein Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die Condition-Spalte).
+    /// </summary>
+    static void AddTriggerColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
+
+        var candidates = new List<TriggerCandidate>();
+
+        foreach (var transition in block.TransitionDefinitions) {
+            candidates.Add(CreateTriggerCandidate(syntaxTree, options, transition, transition.Edge, transition.Semicolon, transition.Trigger, spaces));
+        }
+
+        foreach (var exitTransition in block.ExitTransitionDefinitions) {
+            candidates.Add(CreateTriggerCandidate(syntaxTree, options, exitTransition, exitTransition.Edge, exitTransition.Semicolon, trigger: null, spaces));
+        }
+
+        candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
+
+        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
+
+            var participants = group.Where(c => c.IsAligned).ToList();
+            if (participants.Count < 2) {
+                continue;
+            }
+
+            var targetCol = participants.Max(c => c.Width) + 1;
+
+            foreach (var participant in participants) {
+                spaces[participant.GapStart] = targetCol - participant.Width;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Vermisst eine (Exit-)Transition für die Trigger-Spalte: kanonische Breite ab Zeilenanfang bis zum
+    /// führenden Trigger-Keyword — die inneren Lücken kommen aus der Regelentscheidung, die bereits
+    /// aufgelöste Pfeil-Spalte aus <paramref name="spaces"/>. Defekt (fehlende Kante / fehlendes <c>;</c>)
+    /// oder hand-gelegt ⇒ bricht die Gruppe; kein Trigger ⇒ kein Teilnehmer (bricht nicht); ein Kommentar/
+    /// eine Direktive im Vor-Trigger-Bereich ⇒ nur aus der Spalte ausgeschlossen.
+    /// </summary>
+    static TriggerCandidate CreateTriggerCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
+                                                   SyntaxNode statement, EdgeSyntax? edge, SyntaxToken semicolon,
+                                                   TriggerSyntax? trigger, Dictionary<int, int> spaces) {
+
+        var candidate   = new TriggerCandidate(statement);
+        var edgeKeyword = edge?.Keyword ?? SyntaxToken.Missing;
+
+        if (edgeKeyword.IsMissing || semicolon.IsMissing) {
+            candidate.BreaksGroup = true;
+            return candidate;
+        }
+
+        var tokens = syntaxTree.Tokens[statement.Extent].ToList();
+        if (IsHandLaid(syntaxTree, tokens)) {
+            candidate.BreaksGroup = true;
+            return candidate;
+        }
+
+        if (trigger == null) {
+            // Triggerlose Transition (oder Exit-Transition) — kein Teilnehmer, aber die Gruppe bleibt.
+            return candidate;
+        }
+
+        var width = WidthUpToColumn(syntaxTree, options, tokens, trigger.Start, spaces, out var gapStart);
+        if (width < 0) {
+            return candidate;
+        }
+
+        candidate.IsAligned = true;
+        candidate.GapStart  = gapStart;
+        candidate.Width     = width;
+
+        return candidate;
+    }
+
     // ---- Condition-Spalte (if / else if / else) --------------------------------------------------
 
     sealed class ConditionCandidate {
@@ -346,11 +449,12 @@ static class AlignmentMapBuilder {
 
     /// <summary>
     /// Richtet die <c>if</c>/<c>else if</c>/<c>else</c>-Bedingungen aufeinanderfolgender (Exit-)Transitionen
-    /// spaltenweise aus — dieselbe Gruppenbildung wie die Pfeil-Spalte. Nur Transitionen <b>mit</b>
-    /// <see cref="ConditionClauseSyntax"/> nehmen teil; eine bedingungslose Transition ist kein Teilnehmer,
-    /// bricht die Gruppe aber nicht (im Korpus die häufige erste, unbedingte Kante). Ausrichtung nur bei
-    /// ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten Zeile, kein
-    /// Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die <see cref="ColumnId.NodeParams"/>-Spalte):
+    /// spaltenweise aus. Nur Transitionen <b>mit</b> <see cref="ConditionClauseSyntax"/> nehmen teil; eine
+    /// bedingungslose Transition ist kein Teilnehmer, bricht die Gruppe aber nicht (im Korpus die häufige
+    /// erste, unbedingte Kante). Anders als Pfeil/Node-Grid — aber wie die Trailing-Kommentare — bricht die
+    /// Gruppe bereits bei <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>).
+    /// Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten
+    /// Zeile, kein Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die <see cref="ColumnId.NodeParams"/>-Spalte):
     /// die nachgestellte Klausel soll minimal sitzen, nicht unnötig weit nach rechts.
     /// </summary>
     static void AddConditionColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
@@ -367,7 +471,7 @@ static class AlignmentMapBuilder {
 
         candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
 
-        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup)) {
+        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
 
             var participants = group.Where(c => c.IsAligned).ToList();
             if (participants.Count < 2) {
@@ -680,8 +784,8 @@ static class AlignmentMapBuilder {
     /// Partitioniert die Kandidaten in Ausrichtungsgruppen: neue Gruppe bei
     /// <c>interruptLines ≥ interruptThreshold</c> oder an einem Gruppen-brechenden Kandidaten (der selbst
     /// nie Mitglied wird). <paramref name="interruptThreshold"/> ist standardmäßig <c>2</c> (eine
-    /// Leerzeile oder Kommentarzeile bricht nicht); die Trailing-Kommentar-Ausrichtung übergibt <c>1</c>
-    /// (bereits eine einzelne Leerzeile bricht den Block).
+    /// Leerzeile oder Kommentarzeile bricht nicht — Pfeil-/Node-Grid-Spalte); die Trigger-, Condition- und
+    /// Trailing-Kommentar-Ausrichtung übergeben <c>1</c> (bereits eine einzelne Leerzeile bricht den Block).
     /// </summary>
     static IEnumerable<List<T>> GroupCandidates<T>(SyntaxTree syntaxTree, IReadOnlyList<T> candidates,
                                                    Func<T, SyntaxNode> statementOf, Func<T, bool> breaksGroup,

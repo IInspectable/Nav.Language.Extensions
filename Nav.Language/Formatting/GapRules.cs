@@ -34,6 +34,7 @@ static class GapRules {
         new TaskHeadLayoutRule(),             // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
         // Alignment
         new ArrowAlignmentRule(),             // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+        new TriggerAlignmentRule(),           // Ziel-Teil -> on/spontaneous in Gruppe -> Trigger-Spalte
         new ConditionAlignmentRule(),         // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
         new NodeGridAlignmentRule(),          // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
         // Default
@@ -378,6 +379,43 @@ sealed class ArrowAlignmentRule: IGapRule {
         ctx.NextParent is EdgeSyntax { Parent: TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax }
             ? new GapLayout.AlignedColumn(ColumnId.Arrow)
             : null;
+
+}
+
+/// <summary>
+/// Alignment: die Lücke vor dem führenden <c>on</c>/<c>spontaneous</c> einer <see cref="TriggerSyntax"/>
+/// nimmt an der Trigger-Spalte ihrer Transitions-Gruppe teil (nur <see cref="TransitionDefinitionSyntax"/>
+/// trägt einen Trigger — Exit-Transitionen nicht). Ob und wie weit, hat der Vorpass entschieden
+/// (<see cref="AlignmentMap"/>) — ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
+/// Lücke als Single-Space.
+/// </summary>
+sealed class TriggerAlignmentRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Alignment;
+
+    public GapLayout? Apply(in GapContext ctx) =>
+        ctx.Options.AlignTriggers && StartsTransitionTrigger(in ctx)
+            ? new GapLayout.AlignedColumn(ColumnId.Trigger)
+            : null;
+
+    /// <summary>
+    /// Ob <c>ctx.Next</c> das <b>erste</b> Token der <see cref="TriggerSyntax"/> einer
+    /// <see cref="TransitionDefinitionSyntax"/> ist (das führende <c>on</c> bzw. <c>spontaneous</c>).
+    /// </summary>
+    static bool StartsTransitionTrigger(in GapContext ctx) {
+
+        if (ctx.NextParent == null) {
+            return false;
+        }
+
+        foreach (var trigger in ctx.NextParent.AncestorsAndSelf().OfType<TriggerSyntax>()) {
+            if (trigger.Parent is TransitionDefinitionSyntax) {
+                return ctx.Next.Start == trigger.Start;
+            }
+        }
+
+        return false;
+    }
 
 }
 

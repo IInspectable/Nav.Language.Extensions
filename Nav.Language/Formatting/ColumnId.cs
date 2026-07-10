@@ -12,10 +12,20 @@ enum ColumnId {
     Arrow,
 
     /// <summary>
+    /// Trigger-Spalte einer Transitions-Gruppe: Lücke vor dem führenden <c>on</c>/<c>spontaneous</c> der
+    /// <see cref="TriggerSyntax"/>. Richtet aufeinanderfolgende Trigger unter dem längsten Ziel-Teil aus;
+    /// misst kanonisch ab Zeilenanfang und baut dabei auf die bereits aufgelöste Pfeil-Spalte auf. Die
+    /// Gruppenbildung ist — wie bei den Trailing-Kommentaren — bereits durch <b>eine einzelne</b>
+    /// Leerzeile bzw. Kommentarzeile unterbrochen.
+    /// </summary>
+    Trigger,
+
+    /// <summary>
     /// Condition-Spalte einer Transitions-Gruppe: Lücke vor dem <c>if</c>/<c>else</c>/<c>else if</c> der
     /// <see cref="ConditionClauseSyntax"/> (das führende Keyword der Klausel). Richtet aufeinanderfolgende
     /// Bedingungen unter dem längsten Ziel-Teil aus; misst kanonisch ab Zeilenanfang und baut dabei auf
-    /// die bereits aufgelöste Pfeil-Spalte auf.
+    /// die bereits aufgelösten Pfeil- und Trigger-Spalten auf. Die Gruppenbildung ist — wie bei den
+    /// Trailing-Kommentaren — bereits durch <b>eine einzelne</b> Leerzeile bzw. Kommentarzeile unterbrochen.
     /// </summary>
     Condition,
 

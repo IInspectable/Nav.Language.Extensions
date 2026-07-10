@@ -282,6 +282,32 @@ public class NavFormattingAlignmentGoldenTests {
     }
 
     [Test]
+    public void SingleBlankLineBreaksTheConditionGroup() {
+        // Wie bei den Trailing-Kommentaren bricht bereits eine einzelne Leerzeile den Condition-Block —
+        // die beiden Bedingungen sind danach je Größe-1-Gruppen und bleiben Single-Space (kein
+        // gemeinsames 'if'). Die Pfeile bleiben eine Gruppe (dort bricht erst die zweite Leerzeile).
+        var source = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+
+            Src --> B else;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+
+            Src --> B else;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
     public void ConditionAlignmentCanBeTurnedOff() {
         var options = SpacesOptions with { AlignConditions = false };
         var source = """
@@ -296,6 +322,150 @@ public class NavFormattingAlignmentGoldenTests {
         {
             Src --> AktionSuchen if "a";
             Src --> B else;
+        }
+
+        """;
+
+        AssertFormat(source, expected, options);
+    }
+
+    // ---- Trigger-Spalte (on … / spontaneous) ----------------------------------------------------
+
+    [Test]
+    public void TriggersAlignTightBehindTheLongestTarget() {
+        // Trigger-Spalte tight hinter dem längsten Ziel-Teil ("Src --> LongTarget" = 18 -> Spalte 19);
+        // die breiteste Zeile bekommt genau einen Space. Pfeile richten sich unabhängig davon aus.
+        var source = """
+        task Sample
+        {
+            Src --> A on Trigger1;
+            Src --> LongTarget on Trigger2;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> A          on Trigger1;
+            Src --> LongTarget on Trigger2;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SpontaneousTriggerParticipatesInTheColumn() {
+        // Auch der schlüsselwort-basierte 'spontaneous'-Trigger richtet sich an der Trigger-Spalte aus.
+        var source = """
+        task Sample
+        {
+            Src --> A spontaneous;
+            Src --> LongTarget on T2;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> A          spontaneous;
+            Src --> LongTarget on T2;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleTriggerIsNotAligned() {
+        // Nur eine Transition der Gruppe trägt einen Trigger -> kein Padding, Single-Space.
+        var source = """
+        task Sample
+        {
+            Src --> LongTarget on T1;
+            Src --> B;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> LongTarget on T1;
+            Src --> B;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleBlankLineBreaksTheTriggerGroup() {
+        // Wie bei den Trailing-Kommentaren bricht bereits eine einzelne Leerzeile den Trigger-Block:
+        // jede Gruppe rechnet ihre eigene Spalte (19 bzw. 11). Die Pfeile bleiben eine Gruppe (dort
+        // bricht erst die zweite Leerzeile) — hier trivial, weil alle Quell-Teile "Src" sind.
+        var source = """
+        task Sample
+        {
+            Src --> A on T1;
+            Src --> LongTarget on T2;
+
+            Src --> Bb on T3;
+            Src --> C on T4;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> A          on T1;
+            Src --> LongTarget on T2;
+
+            Src --> Bb on T3;
+            Src --> C  on T4;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void TriggersAndConditionsBuildOnEachOther() {
+        // Die Spalten stapeln in Quellreihenfolge: die Trigger-Spalte baut auf die Pfeil-Spalte auf, die
+        // Condition-Spalte auf beide. 'on' fluchtet auf Spalte 19, 'if' auf Spalte 28.
+        var source = """
+        task Sample
+        {
+            Src --> A on T1 if "a";
+            Src --> LongTarget on Trig2 if "b";
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> A          on T1    if "a";
+            Src --> LongTarget on Trig2 if "b";
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void TriggerAlignmentCanBeTurnedOff() {
+        var options = SpacesOptions with { AlignTriggers = false };
+        var source = """
+        task Sample
+        {
+            Src --> A on T1;
+            Src --> LongTarget on T2;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> A on T1;
+            Src --> LongTarget on T2;
         }
 
         """;

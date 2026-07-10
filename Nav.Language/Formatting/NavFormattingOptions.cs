@@ -26,8 +26,16 @@ public record NavFormattingOptions {
     public bool AlignArrows { get; init; } = true;
 
     /// <summary>
+    /// Aufeinanderfolgende Trigger (<c>on …</c>/<c>spontaneous</c>) einer Transitions-Gruppe spaltenweise
+    /// ausrichten (tight unter dem längsten Ziel-Teil). Wie bei den Trailing-Kommentaren bricht bereits
+    /// <b>eine einzelne</b> Leerzeile (bzw. eine eigene Kommentarzeile) den Block. Default: <c>true</c>.
+    /// </summary>
+    public bool AlignTriggers { get; init; } = true;
+
+    /// <summary>
     /// Aufeinanderfolgende <c>if</c>/<c>else if</c>/<c>else</c>-Bedingungen einer Transitions-Gruppe
-    /// spaltenweise ausrichten (unter dem längsten Ziel-Teil). Default: <c>true</c>.
+    /// spaltenweise ausrichten (unter dem längsten Ziel-Teil). Wie bei den Trailing-Kommentaren bricht
+    /// bereits <b>eine einzelne</b> Leerzeile (bzw. eine eigene Kommentarzeile) den Block. Default: <c>true</c>.
     /// </summary>
     public bool AlignConditions { get; init; } = true;
 
