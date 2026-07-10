@@ -60,6 +60,21 @@ public static class NavFormattingService {
         var renderer  = new GapRenderer(syntaxTree.SourceText, settings, options);
         var alignment = AlignmentMap.Empty; // Der Ausrichtungs-Vorpass befüllt die Tabelle; ohne ihn nimmt keine Lücke an einer Ausrichtung teil.
 
+        // Datei-Anfang: die Leading-Trivia des ersten realen Tokens liegt vor der ersten Paar-Lücke und
+        // wird gesondert normalisiert. Skiped-Läufe (insbesondere ein führendes BOM, das als Unknown ->
+        // SkippedTokensTrivia gelext wird) bleiben verbatim — so entsteht nie ein Change an Offset 0,
+        // der das BOM anfasste (BOM-Guard).
+        var firstToken = tokens[0];
+        if (firstToken.Type != SyntaxTokenType.EndOfFile && !HasSkippedTokens(firstToken.LeadingTrivia)) {
+
+            var leadingExtent    = TextExtent.FromBounds(0, firstToken.Start);
+            var canonicalLeading = renderer.RenderLeadingGap(firstToken, ComputeIndentDepth(firstToken));
+
+            if (canonicalLeading != syntaxTree.SourceText.Substring(leadingExtent)) {
+                changes.Add(TextChange.NewReplace(leadingExtent, canonicalLeading));
+            }
+        }
+
         // Alle Paare realer Token — das Paar (letztes reales Token, EOF) ist die Final-Lücke und bleibt
         // ausschließlich RenderFinalGap vorbehalten (siehe Klassen-Doku).
         for (var i = 0; i < tokens.Count - 2; i++) {
@@ -80,7 +95,7 @@ public static class NavFormattingService {
             }
         }
 
-        var finalChange = RenderFinalGap(syntaxTree, settings, options);
+        var finalChange = RenderFinalGap(syntaxTree, renderer, options);
         if (finalChange != null) {
             changes.Add(finalChange.Value);
         }
@@ -90,10 +105,42 @@ public static class NavFormattingService {
 
     /// <summary>
     /// Behandelt die Final-Lücke zwischen dem letzten realen Token und dem Dateiende — der einzige Ort
-    /// für Final-Newline und EOF-Trailing-Trim. Derzeit bleibt sie verbatim (kein Change).
+    /// für Final-Newline und EOF-Trailing-Trim (Kommentar-/Direktivzeilen am Dateiende bleiben erhalten,
+    /// hinter dem letzten Inhalt endet die Datei mit genau einer Newline). Bei
+    /// <see cref="NavFormattingOptions.InsertFinalNewline"/> = <c>false</c> bleibt die Lücke verbatim;
+    /// Skiped-Läufe bleiben immer verbatim.
     /// </summary>
-    static TextChange? RenderFinalGap(SyntaxTree syntaxTree, TextEditorSettings settings, NavFormattingOptions options) {
-        return null;
+    static TextChange? RenderFinalGap(SyntaxTree syntaxTree, GapRenderer renderer, NavFormattingOptions options) {
+
+        if (!options.InsertFinalNewline) {
+            return null;
+        }
+
+        var tokens    = syntaxTree.Tokens;
+        var endOfFile = tokens[tokens.Count - 1];
+        var lastToken = tokens.Count >= 2 ? tokens[tokens.Count - 2] : (SyntaxToken?) null;
+
+        if (lastToken != null && HasSkippedTokens(lastToken.Value.TrailingTrivia) || HasSkippedTokens(endOfFile.LeadingTrivia)) {
+            return null;
+        }
+
+        var extent    = TextExtent.FromBounds(lastToken?.End ?? 0, endOfFile.End);
+        var canonical = renderer.RenderFinalGap(lastToken, endOfFile);
+
+        return canonical != syntaxTree.SourceText.Substring(extent)
+            ? TextChange.NewReplace(extent, canonical)
+            : null;
+    }
+
+    static bool HasSkippedTokens(SyntaxTriviaList triviaList) {
+
+        foreach (var trivia in triviaList) {
+            if (trivia.Type == SyntaxTokenType.SkippedTokensTrivia) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static GapContext CreateContext(SyntaxToken prev, SyntaxToken next, AlignmentMap alignment) {

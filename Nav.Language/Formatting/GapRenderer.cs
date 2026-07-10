@@ -136,7 +136,38 @@ sealed class GapRenderer {
         }
 
         // Zeile von Next: Präfix, dann etwaige Inline-Kommentare vor dem Token (je ein Space danach).
+        // Bei einer einzeilig authored Lücke (kein Newline) ist das eine Segment bereits als Trailing
+        // behandelt — es darf nicht ein zweites Mal (als Leading) emittiert werden.
         sb.Append(_settings.NewLine).Append(linePrefix);
+        if (lines.Count > 1) {
+            foreach (var trivia in lines[lines.Count - 1]) {
+                if (trivia.IsComment) {
+                    sb.Append(CommentText(trivia)).Append(' ');
+                }
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Rendert den Datei-Anfang: die Leading-Trivia des <b>ersten</b> Tokens liegt vor der ersten
+    /// Paar-Lücke und wird gesondert normalisiert — Kommentarzeilen auf dem Einzug des ersten Tokens,
+    /// Direktiven ab Spalte 0, Leerzeilen erhalten, das Token selbst beginnt seine Zeile auf
+    /// <paramref name="indentDepth"/> (Trailing-Whitespace/Fehl-Einzug davor entfällt).
+    /// </summary>
+    public string RenderLeadingGap(SyntaxToken firstToken, int indentDepth) {
+
+        var lines  = SplitLines(firstToken.LeadingTrivia);
+        var prefix = IndentString(indentDepth);
+        var sb     = new StringBuilder();
+
+        for (var i = 0; i < lines.Count - 1; i++) {
+            sb.Append(RenderInteriorLine(lines[i], prefix)).Append(_settings.NewLine);
+        }
+
+        // Zeile des ersten Tokens: Einzug, dann etwaige Inline-Kommentare vor dem Token.
+        sb.Append(prefix);
         foreach (var trivia in lines[lines.Count - 1]) {
             if (trivia.IsComment) {
                 sb.Append(CommentText(trivia)).Append(' ');
@@ -144,6 +175,68 @@ sealed class GapRenderer {
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Rendert die Final-Lücke zwischen dem letzten realen Token (<c>null</c>, wenn die Datei keines hat)
+    /// und dem Dateiende: Trailing-Kommentare bleiben auf der Zeile des letzten Tokens, Kommentar-/
+    /// Direktivzeilen und Leerzeilen dazwischen bleiben erhalten (Tiefe 0 bzw. Spalte 0) — aber hinter
+    /// dem letzten Inhalt endet die Datei mit <b>genau einer</b> Newline (EOF-Trailing-Trim). Eine Datei
+    /// ganz ohne Inhalt (leer bzw. nur Whitespace) bleibt bzw. wird leer.
+    /// </summary>
+    public string RenderFinalGap(SyntaxToken? lastToken, SyntaxToken endOfFile) {
+
+        var lines = SplitLines(EnumerateFinalTrivia(lastToken, endOfFile));
+        var sb    = new StringBuilder();
+
+        var firstInteriorLine = 0;
+        if (lastToken != null) {
+            // Zeile des letzten Tokens: Trailing-Kommentare bleiben dort, genau ein Space davor.
+            foreach (var trivia in lines[0]) {
+                if (trivia.IsComment) {
+                    sb.Append(' ').Append(CommentText(trivia));
+                }
+            }
+
+            firstInteriorLine = 1;
+        }
+
+        var contents = new List<string>();
+        for (var i = firstInteriorLine; i < lines.Count; i++) {
+            contents.Add(RenderInteriorLine(lines[i], linePrefix: IndentString(0)));
+        }
+
+        // EOF-Trailing-Trim: Leerzeilen hinter dem letzten Inhalt entfallen — dann genau eine Final-Newline.
+        while (contents.Count > 0 && contents[contents.Count - 1].Length == 0) {
+            contents.RemoveAt(contents.Count - 1);
+        }
+
+        for (var i = 0; i < contents.Count; i++) {
+            if (i > 0 || lastToken != null) {
+                sb.Append(_settings.NewLine);
+            }
+
+            sb.Append(contents[i]);
+        }
+
+        if (lastToken != null || contents.Count > 0) {
+            sb.Append(_settings.NewLine);
+        }
+
+        return sb.ToString();
+    }
+
+    static IEnumerable<SyntaxTrivia> EnumerateFinalTrivia(SyntaxToken? lastToken, SyntaxToken endOfFile) {
+
+        if (lastToken != null) {
+            foreach (var trivia in lastToken.Value.TrailingTrivia) {
+                yield return trivia;
+            }
+        }
+
+        foreach (var trivia in endOfFile.LeadingTrivia) {
+            yield return trivia;
+        }
     }
 
     /// <summary>Eine Innenzeile: leer, Direktive ab Spalte 0 (verbatim) oder Kommentar(e) auf dem Zeilen-Präfix.</summary>
@@ -211,10 +304,14 @@ sealed class GapRenderer {
     /// des Kommentar-Texts und zerteilen nicht.
     /// </summary>
     static List<List<SyntaxTrivia>> SplitLines(in GapContext ctx) {
+        return SplitLines(EnumerateTrivia(ctx));
+    }
+
+    static List<List<SyntaxTrivia>> SplitLines(IEnumerable<SyntaxTrivia> triviaStream) {
 
         var lines = new List<List<SyntaxTrivia>> { new() };
 
-        foreach (var trivia in EnumerateTrivia(ctx)) {
+        foreach (var trivia in triviaStream) {
             if (trivia.Type == SyntaxTokenType.NewLine) {
                 lines.Add(new List<SyntaxTrivia>());
             } else {

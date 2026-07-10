@@ -2,9 +2,11 @@
 
 > **Spezifikations- und Status-Dokument.** Beschreibt den **Soll-Zustand** des Formatters; verworfene
 > Alternativen sind dort vermerkt, wo sie zur jeweiligen Entscheidung gehören (nicht als Chronik).
-> Stand: **S1 umgesetzt** — `Nav.Language/Formatting/` existiert (Options, Gap-Infrastruktur, Renderer,
-> Regel-Dispatcher, Service-Walk); der Regelsatz besteht noch aus dem Verbatim-Catch-all, der Formatter
-> ist damit die **Identität** (0 Changes). Die Layout-Regeln folgen mit S2 (Abschnitt „Step-Plan").
+> Stand: **S2 umgesetzt** — der Regelsatz enthält die Layout-Regeln für fehlerfreie Dateien (Allman,
+> Member-/Statement-Breaks, Leerzeile vor Transitionen, tight Colon, `PunctuationRule` inkl. Typ-Interna,
+> Single-Space-Catch-all) plus Datei-Anfang (Kopf-Kommentare/Fehl-Einzug) und Final-Lücke
+> (Final-Newline, EOF-Trailing-Trim). Ausrichtung (S3), Fehler-Toleranz (S4) und Selektion (S5) folgen
+> (Abschnitt „Step-Plan").
 
 ## Motivation
 
@@ -94,6 +96,10 @@ FormatDocument(tree, settings, options):
     alignment  = BuildAlignmentMap(tree, suppressed)       // Lücke -> aufgelöste Space-Zahl (Vorpass)
     changes = []
     toks = tree.Tokens                                     // inkl. terminalem EOF
+    // Datei-Anfang: die Leading-Trivia des ERSTEN Tokens liegt vor der ersten Paar-Lücke ->
+    // RenderLeadingGap (Kommentare auf Token-Tiefe, Direktiven Spalte 0, Fehl-Einzug entfernt);
+    // Skiped-Läufe (insb. BOM -> SkippedTokensTrivia) bleiben verbatim = BOM-Guard am Offset 0
+    changes.Add(RenderLeadingGap(toks[0], settings, options))
     for i in 0 .. toks.Count-3:                            // alle Paare REALER Token (EOF-Paar exklusive)
         gap = Gap(toks[i], toks[i+1])                      // Extent = FromBounds(A.End, B.Start)
         if IntersectsSuppressed(gap, suppressed): continue // verbatim
@@ -285,9 +291,10 @@ Wie der Renderer eine Lücke mit Kommentaren/Direktiven/Leerzeilen um das Layout
   ohne Zeilenende); ihr terminierendes `NewLine` ist eine eigene Trivia — die Zeilen-Zerlegung trägt
   also ohne Sonderfall. Eine (unzulässig) **eingerückte** Direktive wird trotzdem als `DirectiveTrivia`
   gelext; der Renderer setzt sie auf Spalte 0 zurück.
-- Der Delta-Shift der Innenzeilen mehrzeiliger `/* */`-Kommentare ist hier noch nicht enthalten (Teil
-  der Kommentar-Normalisierung, S2): derzeit bleibt deren Inneres byte-genau stehen, nur der Whitespace
-  vor der ersten Kommentarzeile wird normalisiert — idempotent, nur eben noch ohne Relativ-Erhalt.
+- Der Delta-Shift der Innenzeilen mehrzeiliger `/* */`-Kommentare ist hier noch nicht enthalten
+  (verschoben nach **S4**, wo derselbe Delta-Shift-Mechanismus für hand-gelegte Anweisungen entsteht):
+  derzeit bleibt deren Inneres byte-genau stehen, nur der Whitespace vor der ersten Kommentarzeile wird
+  normalisiert — idempotent, nur eben noch ohne Relativ-Erhalt.
 
 ### Dispatch & Priorität — wie „genau eine Regel pro Lücke" garantiert wird
 
@@ -579,8 +586,9 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
   Tabs im Inneren nicht mehrdeutig werden. Idempotent (nach dem ersten Lauf ist `Delta = 0`). Deckt auch
   unterminierte `/* … EOF` ab. Der neu geschriebene Kommentar wird in das **eine** Replacement seiner Lücke
   eingefaltet → die „ein Change pro Lücke"-Invariante bleibt (einziger gesegneter Fall, in dem Text
-  *innerhalb* einer Trivia angefasst wird). Umsetzung: Teil der Kommentar-Normalisierung (Schritt S2);
-  wegen der Seltenheit mehrzeiliger `/* */` kein v1-Blocker.
+  *innerhalb* einer Trivia angefasst wird). Umsetzung: in **S4**, zusammen mit dem gleichgebauten
+  Delta-Shift der hand-gelegten Anweisungen (ein Mechanismus, zwei Abnehmer); wegen der Seltenheit
+  mehrzeiliger `/* */` kein v1-Blocker.
 - **Direktiven (`#pragma …`):** strukturierte Trivia, kein Token — der Renderer behandelt sie wie einen
   Eigene-Zeile-Kommentar, aber mit **erzwungenem Einzug 0 und Text verbatim**: eine Direktive bleibt
   immer auf eigener Zeile **ab Spalte 0**. Grund ist das Lexer-Gate (`#` mitten in der Zeile ⇒ `Nav0000`):
@@ -939,9 +947,9 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 |---|---|---|---|
 | **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
 | **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | **erledigt** — Ordner `Nav.Language/Formatting/` komplett (Options+Enums, `GapLayout`/`GapContext`/`GapTrivia`/`AlignmentMap`, `GapRenderer` mit Vertikalmodell + Renderer-Schranke, `GapRules`-Dispatcher mit Intra-Tier-Debug-Check, `NavFormattingService`-Walk inkl. `IndentDepth` + Final-Gap-Hook). Regelsatz = Safety + Verbatim-Catch-all ⇒ Identität; Tests `Formatting/` (Service-Eigenschaften + Renderer-Goldens), beide TFMs grün |
-| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | offen |
+| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | **erledigt** — Regelsatz komplett (`BraceOnOwnLineRule` inkl. „nach `{`", `MemberBreakRule` mit Top-Level-`]`-Prüfung via `CodeGenerationUnitSyntax`-Elter, `BlankLineBeforeTransitionsRule`/`StatementBreakRule` per Prädikat disjunkt, `TightColonRule`, `PunctuationRule`, Single-Space-Catch-all); dazu **Datei-Anfang** (`RenderLeadingGap`: Kopf-Kommentare auf Tiefe 0, Direktiven auf Spalte 0, Fehl-Einzug entfernt; Skiped/BOM ⇒ verbatim) und **Final-Lücke** (`RenderFinalGap`: genau eine Final-Newline, EOF-Leerzeilen-Trim, Kommentar-/Direktivzeilen erhalten; leere/Whitespace-Dateien bleiben leer). Renderer-Fix: einzeilig authored Lücke mit Umbruch-Layout emittierte Inline-Kommentare doppelt (in S1 unerreichbar). Goldens `NavFormattingGoldenTests`, beide TFMs grün. Kommentar-Delta-Shift bewusst nach S4 verschoben (s. „Kommentare & Direktiven") |
 | **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
-| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | offen |
+| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Hand-gelegt-Freeze + Delta-Shift (äußerer Einzug hand-gelegter Anweisungen **und** Innenzeilen mehrzeiliger `/* */`-Kommentare — ein Mechanismus); Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | offen |
 | **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
 
 **Zurückgestellt (nicht v1):** Host-Anbindung (LSP `textDocument/formatting`+`rangeFormatting`, MCP
