@@ -273,8 +273,17 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
   Zeile belassen, **genau ein Space** davor.
 - **Eigene Zeile (leading, inkl. Banner `// ----`):** auf eigener Zeile auf **aktuellem Block-Einzug**;
   Kommentar-**Text verbatim** (Banner-Innenleben nie anfassen).
-- **`MultiLineComment`:** **Inneres nie verändern** (Neueinrücken würde es korrumpieren); nur der
-  Whitespace vor der ersten Zeile wird normalisiert. Deckt auch unterminierte `/* … EOF` ab.
+- **`MultiLineComment`:** der **Inhalt wird nie umgebrochen/neu formatiert** (kein Reflow — ASCII-Art,
+  eingebettete Beispiele, bewusste Formatierung bleiben). **Aber** die Folgezeilen werden **um dasselbe
+  Delta mitgeschoben**, um das die erste Kommentarzeile beim Neu-Einrücken wandert (relative Einrückung
+  erhalten, wie Roslyn/ReSharper im konservativen Modus). Kein Ausrichten eines `*`-Präfixes (im Nav-Korpus
+  keine Konvention). Fallstricke: **negatives Delta clampt bei Spalte 0** (nie Nicht-Whitespace anfassen);
+  der Shift arbeitet auf den **Roh-Whitespace-Präfixen** der Zeilen (nicht auf Spaltenarithmetik), damit
+  Tabs im Inneren nicht mehrdeutig werden. Idempotent (nach dem ersten Lauf ist `Delta = 0`). Deckt auch
+  unterminierte `/* … EOF` ab. Der neu geschriebene Kommentar wird in das **eine** Replacement seiner Lücke
+  eingefaltet → die „ein Change pro Lücke"-Invariante bleibt (einziger gesegneter Fall, in dem Text
+  *innerhalb* einer Trivia angefasst wird). Umsetzung: Teil der Kommentar-Normalisierung (Schritt S2);
+  wegen der Seltenheit mehrzeiliger `/* */` kein v1-Blocker.
 - Leerzeilen um Kommentare auf **max. 1** kollabieren.
 
 ## Ganze Datei vs. Selektion
@@ -382,6 +391,13 @@ task Broken                  task Broken
   feste Engine + **flache, geordnete Regelliste** (first-match-wins), Regeln als reine
   `ctx -> GapLayout?`-Funktionen über geschlossenem 5-Werte-Vokabular; einzige nicht-lokale Zutat
   (Ausrichtung) als `AlignmentMap`-Vorpass isoliert.
+- **R4 — Mehrzeilige Kommentare:** drei Operationen unterschieden — (1) Inhalt-Reflow **nein**, (2)
+  Innenzeilen **um das Einrück-Delta mitschieben** (relative Form erhalten) **ja**, (3) `*`-Präfix-
+  Ausrichtung **nein** (keine Nav-Konvention). Frühere Pauschale „Inneres nie verändern" dadurch
+  präzisiert. Shift ist idempotent (`Delta = 0` nach erstem Lauf), clampt bei Spalte 0, arbeitet auf
+  Roh-Whitespace-Präfixen (Tabs), und faltet sich in das eine Lücken-Replacement ein (Invariante bleibt).
+  Häufige `//`-Banner sind ohnehin schon abgedeckt; `/* */` mehrzeilig ist im Korpus selten → kein
+  v1-Blocker.
 
 ## Step-Plan
 
@@ -402,6 +418,11 @@ Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (n
 `nav_format` read-only, VS Format-Document/Selection-Command, CLI `format`-Verb mit `--check`/`--write`);
 Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Spaltenausrichtung; Format-on-Type/-Paste;
 Reformatierung von Direktiven (`#pragma`/`#version`); EOL-Normalisierung im Inneren mehrzeiliger Kommentare.
+
+**Bewusst ausgeschlossen (nicht nur zurückgestellt):** Inhaltliches Umbrechen/Neu-Formatieren von
+Kommentar-Text (Reflow); Ausrichten eines `*`-Präfixes in Block-Kommentaren (keine Nav-Konvention). Das
+bloße **Mitschieben** der Kommentar-Innenzeilen um das Einrück-Delta ist hingegen **enthalten** (s.
+„Kommentare").
 
 ## Verifikation (end-to-end)
 
