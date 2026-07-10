@@ -121,6 +121,152 @@ public static class NavFormattingService {
     }
 
     /// <summary>
+    /// Formatiert nur die <b>Auswahl</b> <paramref name="range"/> und liefert die Changes, die vollständig
+    /// darin liegen. Tragendes Modell: <c>FormatRange</c> ist ein <b>gefiltertes</b> <see cref="FormatDocument"/> —
+    /// intern wird immer das ganze Dokument formatiert (alle nicht-lokalen Pässe — Suppression, Ausrichtungs-
+    /// Vorpass/<c>targetCol</c>, Einzug — laufen dabei über die <b>volle</b> Datei, nie range-beschränkt),
+    /// emittiert werden nur die Changes, deren Extent im (erweiterten) Range liegt:
+    /// <c>FormatRange(x, r) ≡ { c ∈ FormatDocument(x) : c.Extent ⊆ ExpandRange(r) }</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>Daraus folgen gratis die <b>Subset-/Monotonie-Garantien</b>: <c>FormatRange(x, ganzeDatei) ==
+    /// FormatDocument(x)</c>, und ein späterer Voll-Format verschiebt nie, was ein Range-Format schon
+    /// platziert hat (Range-Format ist eine Teilanwendung desselben Ergebnisses). Weil die Change-Extents pro
+    /// Lücke disjunkt sind, ist das Filtern overlap-frei; der Final-Gap unterliegt <b>demselben</b>
+    /// <c>⊆</c>-Filter (kein Extra-Schritt — eine Auswahl ohne das Dateiende fügt dort keine Newline ein).</para>
+    /// <para>Der Range wird zuvor erweitert (<see cref="ExpandRange"/>): erst auf ganze Zeilen einrasten,
+    /// dann auf ganze Anweisungs-/Member-Knoten ausweiten, die er teilweise schneidet — inklusive der
+    /// vorangehenden Lücke, die den Einzug des Knotens setzt. Zerschneidet die Auswahl eine
+    /// Ausrichtungsgruppe, bleiben Out-of-Range-Nachbarn ggf. ragged (erwartete Editor-Konvention „nur die
+    /// Auswahl anfassen", löst sich beim nächsten Voll-Format) — die <c>targetCol</c> ist dank kanonischer
+    /// Breitenmessung dennoch identisch zum Voll-Modus.</para>
+    /// </remarks>
+    public static IReadOnlyList<TextChange> FormatRange(SyntaxTree syntaxTree, TextExtent range, TextEditorSettings settings, NavFormattingOptions options) {
+
+        if (syntaxTree == null) {
+            throw new ArgumentNullException(nameof(syntaxTree));
+        }
+
+        if (settings == null) {
+            throw new ArgumentNullException(nameof(settings));
+        }
+
+        if (options == null) {
+            throw new ArgumentNullException(nameof(options));
+        }
+
+        // Immer das ganze Dokument formatieren (inkl. Laufzeit-Wächter); danach auf den erweiterten Range
+        // filtern. So gilt die Subset-Garantie konstruktiv — es gibt keinen range-beschränkten Sonderpfad.
+        var documentChanges = FormatDocument(syntaxTree, settings, options);
+        if (documentChanges.Count == 0) {
+            return documentChanges;
+        }
+
+        var expanded = ExpandRange(syntaxTree, range);
+
+        var result = new List<TextChange>();
+        foreach (var change in documentChanges) {
+            if (expanded.Contains(change.Extent)) {
+                result.Add(change);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Erweitert die rohe Auswahl zum tatsächlich formatierten Bereich: (1) auf ganze Zeilen einrasten,
+    /// (2) auf ganze Anweisungs-/Member-Knoten ausweiten, die der zeilen-eingerastete Range teilweise
+    /// schneidet — bis zum Knoten-Ende und nach vorn bis zum Ende des vorangehenden signifikanten Tokens.
+    /// Diese eine vordere Lücke (Extent <c>[prev.End, first.Start]</c>) ist der einzige Change, der den
+    /// Einzug des Knotens setzt (ein Change pro Lücke); ohne sie bliebe der Einzug der selektierten
+    /// Anweisung unkorrigiert und eine mehrzeilige Anweisung (hand-gelegt, mehrzeiliges <c>[params]</c>)
+    /// würde nur halb formatiert.
+    /// </summary>
+    static TextExtent ExpandRange(SyntaxTree syntaxTree, TextExtent range) {
+
+        var sourceText = syntaxTree.SourceText;
+        var length     = sourceText.Length;
+
+        // Rohe Auswahl in das Dokument klemmen (ein Host könnte eine veraltete/zu große Auswahl liefern).
+        var start = Math.Max(0, Math.Min(range.Start, length));
+        var end   = Math.Max(start, Math.Min(range.End, length));
+
+        // (1) Auf ganze Zeilen einrasten.
+        start = sourceText.GetTextLineAtPosition(start).Start;
+
+        var endLine = sourceText.GetTextLineAtPosition(end);
+        // Endet die Auswahl am Zeilenanfang (Spalte 0) einer weiteren Zeile, gehört diese Zeile nicht mehr
+        // dazu — der letzte ausgewählte Inhalt endet am Ende der Vorzeile (== endLine.Start).
+        if (end <= start || end != endLine.Start) {
+            end = endLine.End;
+        }
+
+        // (2) Auf ganze Anweisungs-/Member-Knoten ausweiten, die der (fixe) zeilen-eingerastete Range echt
+        //     schneidet (Adjazenz zählt nicht). Der Test läuft gegen den FullExtent (inkl. Leading-Trivia).
+        var lineRange = TextExtent.FromBounds(start, end);
+        foreach (var node in FormattableNodes(syntaxTree)) {
+
+            var full = node.FullExtent;
+            if (full.Start >= lineRange.End || full.End <= lineRange.Start) {
+                continue;
+            }
+
+            start = Math.Min(start, LeadingGapStart(syntaxTree, node));
+            end   = Math.Max(end, node.End);
+        }
+
+        return TextExtent.FromBounds(start, end);
+    }
+
+    /// <summary>
+    /// Der Startpunkt der Lücke <b>vor</b> dem ersten Token eines Knotens — das Ende des unmittelbar
+    /// vorangehenden signifikanten Tokens (oder 0 am Datei-Anfang). Genau diese Lücke trägt den Change, der
+    /// den Einzug des Knotens setzt; der Range muss bis hierher zurückreichen, damit dieser Change beim
+    /// <c>⊆</c>-Filter erhalten bleibt.
+    /// </summary>
+    static int LeadingGapStart(SyntaxTree syntaxTree, SyntaxNode node) {
+
+        var firstToken = syntaxTree.Tokens.FindAtPosition(node.Start);
+        var fullStart  = firstToken.IsMissing ? node.Start : firstToken.FullExtent.Start;
+
+        if (fullStart <= 0) {
+            return 0;
+        }
+
+        var previous = syntaxTree.Tokens.FindOwningToken(fullStart - 1);
+        return previous.IsMissing ? 0 : previous.End;
+    }
+
+    /// <summary>
+    /// Die für die Range-Ausweitung maßgeblichen Knoten: die Anweisungen (Transitionen, Exit-Transitionen,
+    /// Node-Deklarationen) — dieselbe statement-/member-granulare Einheit wie
+    /// <see cref="FormatterSuppression"/> — plus das <c>[params]</c> des Task-Kopfes
+    /// (<see cref="CodeParamsDeclarationSyntax"/>, das nicht in einer Node-Deklaration steckt), damit ein
+    /// mehrzeiliges Task-Kopf-<c>[params]</c> nicht halb formatiert wird, ohne den ganzen Task einzubeziehen.
+    /// </summary>
+    static IEnumerable<SyntaxNode> FormattableNodes(SyntaxTree syntaxTree) {
+
+        var root = syntaxTree.Root;
+
+        foreach (var node in root.DescendantNodes<TransitionDefinitionSyntax>()) {
+            yield return node;
+        }
+
+        foreach (var node in root.DescendantNodes<ExitTransitionDefinitionSyntax>()) {
+            yield return node;
+        }
+
+        foreach (var node in root.DescendantNodes<NodeDeclarationSyntax>()) {
+            yield return node;
+        }
+
+        foreach (var node in root.DescendantNodes<CodeParamsDeclarationSyntax>()) {
+            yield return node;
+        }
+    }
+
+    /// <summary>
     /// Behandelt die Final-Lücke zwischen dem letzten realen Token und dem Dateiende — der einzige Ort
     /// für Final-Newline und EOF-Trailing-Trim (Kommentar-/Direktivzeilen am Dateiende bleiben erhalten,
     /// hinter dem letzten Inhalt endet die Datei mit genau einer Newline). Bei
