@@ -196,15 +196,28 @@ sealed class StatementBreakRule: IGapRule {
 
 }
 
-/// <summary>TokenPair: <c>Node:Port</c> bleibt tight — kein Whitespace um den Doppelpunkt.</summary>
+/// <summary>
+/// TokenPair: der <c>Node:Port</c>-Doppelpunkt (Exit-Transition <c>Source:ExitPort</c>) bleibt beidseitig
+/// tight. Der einzige andere Doppelpunkt der Sprache — der Basistyp-Trenner im <c>[base WfsType : Interface]</c>-
+/// Kopf-Block (<see cref="CodeBaseDeclarationSyntax"/>) — bleibt <b>davor</b> tight, bekommt aber <b>danach</b>
+/// einen Space (die Lücke hinter dem Doppelpunkt fällt hier durch → der Catch-all liefert Single-Space).
+/// </summary>
 sealed class TightColonRule: IGapRule {
 
     public RulePriority Tier => RulePriority.TokenPair;
 
-    public GapLayout? Apply(in GapContext ctx) =>
-        ctx.Next.Type == SyntaxTokenType.Colon || ctx.Prev.Type == SyntaxTokenType.Colon
+    public GapLayout? Apply(in GapContext ctx) {
+
+        // Hinter dem Base-Doppelpunkt ein Space: Lücke durchfallen lassen (Catch-all → Single-Space).
+        // Der Node:Port-Doppelpunkt der Exit-Transition ist davon unberührt und bleibt beidseitig tight.
+        if (ctx.Prev.Type == SyntaxTokenType.Colon && ctx.PrevParent is CodeBaseDeclarationSyntax) {
+            return null;
+        }
+
+        return ctx.Next.Type == SyntaxTokenType.Colon || ctx.Prev.Type == SyntaxTokenType.Colon
             ? GapLayout.Nothing.Instance
             : null;
+    }
 
 }
 

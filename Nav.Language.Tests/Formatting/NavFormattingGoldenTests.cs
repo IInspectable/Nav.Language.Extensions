@@ -196,6 +196,31 @@ public class NavFormattingGoldenTests {
     }
 
     [Test]
+    public void BaseColonGetsSpaceAfterButNodePortStaysTight() {
+        var source = """
+        task Sample [base StandardWFS<TS>:IWFServiceBase,IBeginWFSType]
+        {
+            task    Worker w;
+            exit    E;
+
+            w:Out --> E;
+        }
+        """;
+        var expected = """
+        task Sample [base StandardWFS<TS>: IWFServiceBase, IBeginWFSType]
+        {
+            task    Worker w;
+            exit    E;
+
+            w:Out --> E;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
     public void TypeInternalsAreTightAndParameterListsGetCommaSpace() {
         var source = """
         task Sample

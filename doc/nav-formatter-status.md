@@ -59,7 +59,10 @@ repräsentatives Einzelstück daraus. Die folgenden Anteile sind die dominanten 
   Code-Action-/Organize-Feature — kein Whitespace-Formatter.)
 - **Pfeile:** Space auf **beiden** Seiten (~98%); **Spaltenausrichtung ~79%** (bewusst aktiviert, s.u.).
   Pfeiltypen: `-->` ~81%, `o->` ~19%; alles andere <0,2% (Tippfehler).
-- **`Node:Port`-Doppelpunkt tight** (~99%); Listen: Komma + Space.
+- **`Node:Port`-Doppelpunkt tight** (~99%; Exit-Transition `Source:ExitPort`); Listen: Komma + Space.
+  **Ausnahme Basistyp-Doppelpunkt** im `[base WfsType : Interface]`-Kopf-Block: davor tight, **danach
+  ein Space** (`[base X:Y]` → `[base X: Y]`) — über den Eltern-Knoten `CodeBaseDeclarationSyntax` von
+  der Node:Port-Nachbarschaft getrennt.
 - **Task-Kopf-Code-Blöcke** (`[code]`/`[base]`/`[generateto]`/`[params]`/`[result]` zwischen `task <Id>` und
   `{`): der erste Block ein Space nach dem Identifier, weitere Blöcke je eigene Zeile linksbündig darunter
   (immer gestapelt). **Mehrzeilige `[params …]`** richten die Parameter unter dem ersten aus
@@ -225,7 +228,8 @@ static readonly IReadOnlyList<IGapRule> Rules = [
     new StatementBreakRule(),            //  5. nach ';' -> NewLine(blank=Autorenzahl, depth) — exkludiert
                                          //     die Blockgrenze aus Regel 4 (Intra-Tier-Disjunktheit)
     // TokenPair
-    new TightColonRule(),                //  6. Node ':' Port -> Nothing
+    new TightColonRule(),                //  6. Node ':' Port -> Nothing; Base-Doppelpunkt ([base X:Y])
+                                         //     davor tight, danach Space (Gap fällt durch -> Catch-all)
     new PunctuationRule(),               //  7. tight vor ','/';' , [-Innenränder, Typ-Interna (s.u.)
     new TaskHeadLayoutRule(),            //  8. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
                                          //     NewLineAlignedColumn(TaskHeadBlock); mehrzeiliges [params]:
