@@ -35,7 +35,7 @@ static class AlignmentMapBuilder {
 
     public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options) {
 
-        if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks) {
+        if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks && !options.AlignConditions) {
             return AlignmentMap.Empty;
         }
 
@@ -53,6 +53,12 @@ static class AlignmentMapBuilder {
 
             if (options.AlignArrows) {
                 AddArrowColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
+            }
+
+            // Nach der Pfeil-Spalte: die Condition-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
+            // auf (sie steckt in derselben Zeile rechts vom Pfeil) — daher zwingend nach AddArrowColumns.
+            if (options.AlignConditions) {
+                AddConditionColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
             }
         }
 
@@ -244,6 +250,137 @@ static class AlignmentMapBuilder {
         candidate.AuthoredColumn = AuthoredColumn(syntaxTree, preArrow[0], edgeKeyword, options);
 
         return candidate;
+    }
+
+    // ---- Condition-Spalte (if / else if / else) --------------------------------------------------
+
+    sealed class ConditionCandidate {
+
+        public ConditionCandidate(SyntaxNode statement) {
+            Statement = statement;
+        }
+
+        public SyntaxNode Statement   { get; }
+        public bool       BreaksGroup { get; set; }
+        public bool       IsAligned   { get; set; }
+        public int        GapStart    { get; set; }
+        public int        Width       { get; set; }
+
+    }
+
+    /// <summary>
+    /// Richtet die <c>if</c>/<c>else if</c>/<c>else</c>-Bedingungen aufeinanderfolgender (Exit-)Transitionen
+    /// spaltenweise aus — dieselbe Gruppenbildung wie die Pfeil-Spalte. Nur Transitionen <b>mit</b>
+    /// <see cref="ConditionClauseSyntax"/> nehmen teil; eine bedingungslose Transition ist kein Teilnehmer,
+    /// bricht die Gruppe aber nicht (im Korpus die häufige erste, unbedingte Kante). Ausrichtung nur bei
+    /// ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten Zeile, kein
+    /// Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die <see cref="ColumnId.NodeParams"/>-Spalte):
+    /// die nachgestellte Klausel soll minimal sitzen, nicht unnötig weit nach rechts.
+    /// </summary>
+    static void AddConditionColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
+
+        var candidates = new List<ConditionCandidate>();
+
+        foreach (var transition in block.TransitionDefinitions) {
+            candidates.Add(CreateConditionCandidate(syntaxTree, options, transition, transition.Edge, transition.Semicolon, transition.ConditionClause, spaces));
+        }
+
+        foreach (var exitTransition in block.ExitTransitionDefinitions) {
+            candidates.Add(CreateConditionCandidate(syntaxTree, options, exitTransition, exitTransition.Edge, exitTransition.Semicolon, exitTransition.ConditionClause, spaces));
+        }
+
+        candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
+
+        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup)) {
+
+            var participants = group.Where(c => c.IsAligned).ToList();
+            if (participants.Count < 2) {
+                continue;
+            }
+
+            var targetCol = participants.Max(c => c.Width) + 1;
+
+            foreach (var participant in participants) {
+                spaces[participant.GapStart] = targetCol - participant.Width;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Vermisst eine (Exit-)Transition für die Condition-Spalte: kanonische Breite ab Zeilenanfang bis zum
+    /// führenden Klausel-Keyword — die inneren Lücken kommen aus der Regelentscheidung, die bereits
+    /// aufgelöste Pfeil-Spalte aus <paramref name="spaces"/> (damit Pfeil- und Condition-Ausrichtung nicht
+    /// auseinanderlaufen). Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die
+    /// Gruppe; keine Condition ⇒ kein Teilnehmer (bricht nicht); ein Kommentar/eine Direktive im
+    /// Vor-Condition-Bereich ⇒ nur aus der Spalte ausgeschlossen.
+    /// </summary>
+    static ConditionCandidate CreateConditionCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
+                                                       SyntaxNode statement, EdgeSyntax? edge, SyntaxToken semicolon,
+                                                       ConditionClauseSyntax? conditionClause, Dictionary<int, int> spaces) {
+
+        var candidate   = new ConditionCandidate(statement);
+        var edgeKeyword = edge?.Keyword ?? SyntaxToken.Missing;
+
+        if (edgeKeyword.IsMissing || semicolon.IsMissing) {
+            candidate.BreaksGroup = true;
+            return candidate;
+        }
+
+        var tokens = syntaxTree.Tokens[statement.Extent].ToList();
+        if (IsHandLaid(syntaxTree, tokens)) {
+            candidate.BreaksGroup = true;
+            return candidate;
+        }
+
+        if (conditionClause == null) {
+            // Bedingungslose Transition — kein Teilnehmer, aber die Gruppe bleibt bestehen.
+            return candidate;
+        }
+
+        var conditionStart = conditionClause.Start;
+        var width          = WidthUpToColumn(syntaxTree, options, tokens, conditionStart, spaces, out var gapStart);
+        if (width < 0) {
+            return candidate;
+        }
+
+        candidate.IsAligned = true;
+        candidate.GapStart  = gapStart;
+        candidate.Width     = width;
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Kanonische Breite ab Zeilenanfang (erstes Token) bis zum Token, das bei
+    /// <paramref name="columnStart"/> beginnt (exklusiv), Summe der Token-Textlängen + der inneren Lücken.
+    /// Eine Lücke, die bereits eine aufgelöste Ausrichtung trägt (z.B. die Pfeil-Spalte), wird aus
+    /// <paramref name="spaces"/> übernommen — so bleibt die Messung mit dem späteren Rendering konsistent;
+    /// sonst über die Regelentscheidung (<see cref="CanonicalGapWidth"/>). <c>−1</c>, wenn eine Lücke nicht
+    /// einzeilig-kanonisch ist (Kommentar/Direktive/Umbruch). <paramref name="gapStart"/> ist die
+    /// Startposition der auszurichtenden Lücke (Ende des letzten Tokens vor <paramref name="columnStart"/>).
+    /// </summary>
+    static int WidthUpToColumn(SyntaxTree syntaxTree, NavFormattingOptions options, IReadOnlyList<SyntaxToken> tokens,
+                               int columnStart, Dictionary<int, int> spaces, out int gapStart) {
+
+        gapStart = tokens[0].End;
+        var width = tokens[0].Length;
+
+        for (var i = 1; i < tokens.Count && tokens[i].Start < columnStart; i++) {
+
+            var start = tokens[i - 1].End;
+            if (!spaces.TryGetValue(start, out var gapWidth)) {
+                gapWidth = CanonicalGapWidth(syntaxTree, options, tokens[i - 1], tokens[i]);
+            }
+
+            if (gapWidth < 0) {
+                return -1;
+            }
+
+            width  += gapWidth + tokens[i].Length;
+            gapStart = tokens[i].End;
+        }
+
+        return width;
     }
 
     // ---- Node-Deklarations-Raster (keyword | node | rest) ----------------------------------------

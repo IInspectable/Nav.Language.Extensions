@@ -26,6 +26,12 @@ public record NavFormattingOptions {
     public bool AlignArrows { get; init; } = true;
 
     /// <summary>
+    /// Aufeinanderfolgende <c>if</c>/<c>else if</c>/<c>else</c>-Bedingungen einer Transitions-Gruppe
+    /// spaltenweise ausrichten (unter dem längsten Ziel-Teil). Default: <c>true</c>.
+    /// </summary>
+    public bool AlignConditions { get; init; } = true;
+
+    /// <summary>
     /// Node-Deklarationen auf das 3-Spalten-Raster <c>keyword | node | rest</c> ausrichten.
     /// Default: <c>true</c>.
     /// </summary>

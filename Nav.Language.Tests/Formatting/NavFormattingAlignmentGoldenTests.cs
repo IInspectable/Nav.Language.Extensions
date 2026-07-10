@@ -180,6 +180,105 @@ public class NavFormattingAlignmentGoldenTests {
         AssertFormat(source, source);
     }
 
+    // ---- Condition-Spalte (if / else if / else) -------------------------------------------------
+
+    [Test]
+    public void ConditionsAreAlignedToTheNextTabStop() {
+        // Die erste, unbedingte Kante bricht die Gruppe nicht (nur kein Teilnehmer). Condition-Spalte
+        // tight hinter dem längsten Ziel-Teil: "Src --> AktionErweiterteSuche" = 29 -> Spalte 30, die
+        // breiteste Zeile bekommt also genau einen Space. Beim else if wird nur das führende 'else'
+        // ausgerichtet, das innere 'if' bleibt Single-Space.
+        var source = """
+        task Sample
+        {
+            Src --> First;
+            Src --> AktionSuchen if "a";
+            Src --> AktionErweiterteSuche else if "b";
+            Src --> ArtikelBearbeiten else;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> First;
+            Src --> AktionSuchen          if "a";
+            Src --> AktionErweiterteSuche else if "b";
+            Src --> ArtikelBearbeiten     else;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleConditionIsNotAligned() {
+        // Nur eine Transition der Gruppe trägt eine Bedingung -> kein Tab-Stopp-Padding, Single-Space.
+        var source = """
+        task Sample
+        {
+            Src --> LongTarget if "a";
+            Src --> B;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> LongTarget if "a";
+            Src --> B;
+        }
+
+        """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ConditionsAlignEvenWhenArrowsAreNotAligned() {
+        // Unabhängige Optionen: Pfeile bleiben Single-Space, die Bedingungen richten sich trotzdem aus
+        // (tight hinter "Src --> AktionSuchen" = 20 -> Spalte 21).
+        var options = SpacesOptions with { AlignArrows = false };
+        var source = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+            LongSrc --> B else;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+            LongSrc --> B        else;
+        }
+
+        """;
+
+        AssertFormat(source, expected, options);
+    }
+
+    [Test]
+    public void ConditionAlignmentCanBeTurnedOff() {
+        var options = SpacesOptions with { AlignConditions = false };
+        var source = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+            Src --> B else;
+        }
+        """;
+        var expected = """
+        task Sample
+        {
+            Src --> AktionSuchen if "a";
+            Src --> B else;
+        }
+
+        """;
+
+        AssertFormat(source, expected, options);
+    }
+
     // ---- Node-Grid (keyword | node | rest) ------------------------------------------------------
 
     [Test]

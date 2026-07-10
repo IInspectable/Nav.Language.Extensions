@@ -11,6 +11,14 @@ enum ColumnId {
     /// <summary>Pfeil-Spalte einer Transitions-Gruppe: Lücke zwischen Quell-Teil und Edge-Keyword.</summary>
     Arrow,
 
+    /// <summary>
+    /// Condition-Spalte einer Transitions-Gruppe: Lücke vor dem <c>if</c>/<c>else</c>/<c>else if</c> der
+    /// <see cref="ConditionClauseSyntax"/> (das führende Keyword der Klausel). Richtet aufeinanderfolgende
+    /// Bedingungen unter dem längsten Ziel-Teil aus; misst kanonisch ab Zeilenanfang und baut dabei auf
+    /// die bereits aufgelöste Pfeil-Spalte auf.
+    /// </summary>
+    Condition,
+
     /// <summary>Spalte 2 des Node-Deklarations-Rasters: Lücke <c>keyword → node</c>-Identifier.</summary>
     Node,
 

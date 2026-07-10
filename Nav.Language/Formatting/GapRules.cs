@@ -34,6 +34,7 @@ static class GapRules {
         new TaskHeadLayoutRule(),             // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
         // Alignment
         new ArrowAlignmentRule(),             // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+        new ConditionAlignmentRule(),         // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
         new NodeGridAlignmentRule(),          // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
         // Default
         new DefaultSingleSpaceRule(),         // Catch-all -> genau ein Space
@@ -378,6 +379,44 @@ sealed class ArrowAlignmentRule: IGapRule {
         ctx.NextParent is EdgeSyntax { Parent: TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax }
             ? new GapLayout.AlignedColumn(ColumnId.Arrow)
             : null;
+
+}
+
+/// <summary>
+/// Alignment: die Lücke vor dem führenden <c>if</c>/<c>else</c>/<c>else if</c> einer
+/// <see cref="ConditionClauseSyntax"/> nimmt an der Condition-Spalte ihrer Transitions-Gruppe teil.
+/// Ausgerichtet wird nur das <b>führende</b> Klausel-Keyword (bei <c>else if</c> also das <c>else</c>,
+/// nicht das innere <c>if</c>); ob und wie weit, hat der Vorpass entschieden (<see cref="AlignmentMap"/>) —
+/// ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die Lücke als Single-Space.
+/// </summary>
+sealed class ConditionAlignmentRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Alignment;
+
+    public GapLayout? Apply(in GapContext ctx) =>
+        ctx.Options.AlignConditions && StartsTransitionCondition(in ctx)
+            ? new GapLayout.AlignedColumn(ColumnId.Condition)
+            : null;
+
+    /// <summary>
+    /// Ob <c>ctx.Next</c> das <b>erste</b> Token der <see cref="ConditionClauseSyntax"/> einer
+    /// (Exit-)Transition ist. Der <c>else if</c>-Fall hat eine geschachtelte Klausel — die äußerste, deren
+    /// Elter eine Transition ist, ist die Klausel der Transition; ihr Start ist das führende <c>else</c>.
+    /// </summary>
+    static bool StartsTransitionCondition(in GapContext ctx) {
+
+        if (ctx.NextParent == null) {
+            return false;
+        }
+
+        foreach (var clause in ctx.NextParent.AncestorsAndSelf().OfType<ConditionClauseSyntax>()) {
+            if (clause.Parent is TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax) {
+                return ctx.Next.Start == clause.Start;
+            }
+        }
+
+        return false;
+    }
 
 }
 

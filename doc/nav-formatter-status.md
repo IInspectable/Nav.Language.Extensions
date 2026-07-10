@@ -376,6 +376,20 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
   (`Source:ExitPort --> Ziel;`, Quell-Teil inkl. tightem `:ExitPort`). Alle Edge-Keywords sind
   **3 Zeichen** breit (`-->`/`o->`/`==>`, Fortsetzungen `--^`/`o-^`) → die Spalte hinter dem Pfeil
   fluchtet automatisch mit.
+- **Condition-Spalte** (`ColumnId.Condition`) = Lücke vor dem **führenden** `if`/`else`/`else if` einer
+  `ConditionClauseSyntax` (dem Klausel-Start; beim `else if` also das `else`, nicht das innere `if`). Sie
+  richtet aufeinanderfolgende Bedingungen unter dem längsten Ziel-Teil aus (im Korpus das häufige Muster
+  „mehrere Kanten vom selben Choice, je mit einer Bedingung"). Die Breite wird **kanonisch ab
+  Zeilenanfang** gemessen (Token-Texte + regel-entschiedene Lücken) und **baut auf die bereits aufgelöste
+  Pfeil-Spalte auf** — die Condition-Lücke sitzt in derselben Zeile rechts vom Pfeil, deshalb übernimmt
+  die Breitenmessung das Pfeil-Padding aus der `AlignmentMap` (der Vorpass fügt die Condition-Spalte
+  **nach** der Pfeil-Spalte hinzu). Gruppenbildung und die „≥ 2 Teilnehmer"-Regel sind dieselben wie bei
+  der Pfeil-Spalte; eine **bedingungslose** Transition ist kein Teilnehmer, **bricht die Gruppe aber
+  nicht** (nur `on`/`do` bleiben zurückgestellt). Die Spalte ist — anders als Pfeil/Node-Grid — **immer
+  tight** (`col = max(Breite) + 1`, **kein** Tab-Stopp, keine `AlignmentColumnPolicy`, wie die
+  `[params]`-Spalte `ColumnId.NodeParams`): die nachgestellte Klausel soll minimal sitzen, nicht unnötig
+  weit nach rechts; die breiteste Zeile bekommt genau einen Space. Über die Option `AlignConditions`
+  schaltbar (Default `true`).
 - **Node-Deklarations-Raster (drei virtuelle Spalten `keyword | node | rest`)** — die Node-Arten sind
   verschieden gebaut, aber positionell einheitlich ausrichtbar:
   - **Spalte 1 `keyword`** = `init`/`task`/`choice`/`view`/`dialog`/`exit`/`end` (steht am Zeilenanfang
