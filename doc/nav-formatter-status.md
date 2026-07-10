@@ -1,10 +1,9 @@
-﻿# Nav Code-Formatter — Design & Status
+﻿# Nav Code-Formatter — Spezifikation & Status
 
-> **Lebendes Design-/Tracking-Dokument.** Es wird über **mehrere Runden** fortgeschrieben und
-> zunehmend verfeinert; frühere Runden bleiben als Entscheidungsspur erhalten (Abschnitt
-> „Entscheidungs-Log"). Stand: **Design-Phase** — es existiert noch **kein** Formatter-Code
-> (verifiziert: keine `Format`/`PrettyPrint`/`Indent`-Treffer im `Syntax/`-Bereich außerhalb von
-> Diagnostik-Text und C#-Codegen). Umsetzung ist in commit-große Steps zerlegt (Abschnitt „Step-Plan").
+> **Spezifikations- und Status-Dokument.** Beschreibt den **Soll-Zustand** des Formatters; verworfene
+> Alternativen sind dort vermerkt, wo sie zur jeweiligen Entscheidung gehören (nicht als Chronik).
+> Stand: **Design-Phase** — es existiert noch **kein** Formatter-Code (kein Ordner
+> `Nav.Language/Formatting/`). Die Umsetzung ist in commit-große Steps zerlegt (Abschnitt „Step-Plan").
 
 ## Motivation
 
@@ -16,10 +15,12 @@ Die Nav-Sprache hat keinen Formatter. Gewünscht ist einer, der
 - und ein **empirisch belegtes** Zielformat erzeugt.
 
 Der Formatter wird ein weiterer VS-freier **Feature-Kern in `Nav.Language`** nach dem etablierten
-Muster (statischer `Nav<Feature>Service`, Eingabe `CodeGenerationUnit` + Settings, Ausgabe
-`IReadOnlyList<TextChange>`, kanonische Defaults als „single authority" im Kern — vgl.
-`Nav.Language/Completion/NavCompletionService.cs`). Alle Hosts (LSP/MCP/VS/CLI) könnten ihn später
-anbinden.
+Muster (statischer `Nav<Feature>Service`, Ausgabe `IReadOnlyList<TextChange>`, kanonische Defaults als
+„single authority" im Kern — vgl. `Nav.Language/Completion/NavCompletionService.cs`). Eingabe ist —
+bewusste Abweichung vom Completion-Muster, das Semantik braucht — der **`SyntaxTree`**, nicht die
+`CodeGenerationUnit`: der Formatter ist rein syntaktisch (Token, Trivia, Syntax-Diagnostics liegen alle
+am `SyntaxTree`) und erzwingt so keinen Semantik-Build; Hosts mit `CodeGenerationUnit` reichen deren
+Syntaxbaum durch. Alle Hosts (LSP/MCP/VS/CLI) können ihn später anbinden.
 
 **Scope erste Ausbaustufe (v1): nur Engine-Kern + Tests.** Host-Anbindung ist bewusst zurückgestellt.
 
@@ -74,6 +75,8 @@ tragende Idee.
 - **`EndOfFile`** ist das letzte Token und trägt die **komplette Datei-End-Trivia** als LeadingTrivia
   (`AttachEndOfFile`). Die letzte Lücke `[letztesReale.End, textLen]` ist der Ort für
   Final-Newline / EOF-Trim.
+- **Direktiven (`#pragma …`) sind strukturierte Trivia**, keine Token — sie liegen *in* den Lücken und
+  werden dort erhalten (s. „Kommentare & Direktiven").
 
 **Load-bearing-Invariante: genau ein `TextChange` pro Lücke, ein einziger Durchlauf.** Alle realen
 Nicht-EOF-Token haben Länge ≥ 1, nur EOF ist nullbreit und steht am Ende → die Change-Extents sind
@@ -85,22 +88,26 @@ eine andere Lücke).
 **Engine-Skelett:**
 
 ```
-FormatDocument(unit, settings, options):
-    tree       = unit.Syntax
+FormatDocument(tree, settings, options):
     suppressed = ComputeSuppressedExtents(tree, options)   // Fehler-Regionen + BOM-Guard
     alignment  = BuildAlignmentMap(tree, suppressed)       // Lücke -> Zielspalte (Vorpass)
     changes = []
     toks = tree.Tokens                                     // inkl. terminalem EOF
-    for i in 0 .. toks.Count-2:
+    for i in 0 .. toks.Count-3:                            // alle Paare REALER Token (EOF-Paar exklusive)
         gap = Gap(toks[i], toks[i+1])                      // Extent = FromBounds(A.End, B.Start)
         if IntersectsSuppressed(gap, suppressed): continue // verbatim
         layout    = FirstMatchingRule(ctx(gap, ...))       // -> GapLayout (Regelsatz, s.u.)
-        canonical = Render(layout, gap-Kommentare, settings)
+        canonical = Render(layout, gap-Trivia, settings)
         if canonical != tree.SourceText.Substring(gap.Extent):
             changes.Add(TextChange.NewReplace(gap.Extent, canonical))   // ≤1 pro Lücke
-    changes.Add(RenderFinalGap(lastRealToken, EOF, settings, options))  // Final-Newline / EOF-Trim
+    // die EINE verbleibende Lücke (letztesReale, EOF): Final-Newline / EOF-Trim —
+    // unterliegt derselben Suppression + BOM-Guard, ist NICHT zusätzlich zur Schleife
+    changes.Add(RenderFinalGap(lastRealToken, EOF, settings, options, suppressed))
     return changes
 ```
+
+(Die EOF-Lücke wird bewusst **nur** von `RenderFinalGap` behandelt — liefe sie zusätzlich durch die
+Schleife, entstünden zwei Changes für eine Lücke und die Invariante bräche.)
 
 ### Einzug (flach: Tiefe 0/1)
 
@@ -153,7 +160,7 @@ abstract record GapLayout {
                                                                // Umbruch, DANN Spaces bis zur Gruppen-
                                                                // spalte (statt Tiefen-Einzug) — für den
                                                                // Task-Kopf-Block-Stack + mehrzeiliges [params]
-    sealed record Verbatim                       : GapLayout;  // unterdrückt / Kommentar-Inneres
+    sealed record Verbatim                       : GapLayout;  // unterdrückte Region
 }
 ```
 
@@ -173,7 +180,7 @@ readonly struct GapContext {
                                        // Tokens (aus Ahnenkette, nie aus Nachbar-Operationen). NewLine-
                                        // Layouts richten sich immer nach der beginnenden Zeile; Prev-
                                        // Tiefe wird für Einzug nie gebraucht (ggf. via ctx.Prev ableitbar).
-    public GapTrivia    Trivia;        // hasComment / hasSkipped / newLineCount
+    public GapTrivia    Trivia;        // hasComment / hasSkipped / hasDirective / newLineCount
     public bool         IsSuppressed;  // aus ComputeSuppressedExtents
     public AlignmentMap Alignment;     // vorberechnet: Lücke -> Zielspalte
 }
@@ -183,25 +190,56 @@ Die **Regelliste ist die Spezifikation** — top-down lesbar, jede Zeile ein Sat
 
 ```csharp
 static readonly IReadOnlyList<IGapRule> Rules = [
-    new VerbatimWhenSuppressedRule(),    // 1. unterdrückte Region / Kommentar-Inneres -> Verbatim
-    new BraceOnOwnLineRule(),            // 2. vor '{' und '}' -> NewLine(0, depth)  (Allman)
-    new StatementBreakRule(),            // 3. nach ';' -> NewLine(blank=Autorenzahl, depth)  (kein Kollaps)
-    new BlankLineBeforeTransitionsRule(),// 4. letzte Deklaration -> erste Transition: NewLine(max(blank,1), depth)
-    new TightColonRule(),                // 5. Node ':' Port -> Nothing
-    new TaskHeadLayoutRule(),            // 6. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
-                                         //    NewLineAlignedColumn(TaskHeadBlock); mehrzeiliges [params]:
-                                         //    ','->Param = NewLineAlignedColumn(ParamsList)  (s. „Task-Kopf-Ausrichtung")
-    new ArrowAlignmentRule(),            // 7. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
-    new NodeGridAlignmentRule(),         // 8. keyword->node -> AlignedColumn(Node);
-                                         //    node->rest -> AlignedColumn(DeclRest)  (3-Spalten-Raster)
-    new DefaultSingleSpaceRule(),        // 9. Catch-all -> SingleSpace
+    // Safety
+    new VerbatimWhenSuppressedRule(),    //  1. unterdrückte Region -> Verbatim
+    // Structure
+    new BraceOnOwnLineRule(),            //  2. vor '{' und vor '}' -> NewLine(blank=Autorenzahl, depth)  (Allman;
+                                         //     auch hier kein Leerzeilen-Kollaps)
+    new MemberBreakRule(),               //  3. nach '}' und nach Top-Level-']' ([namespaceprefix]/[using])
+                                         //     -> NewLine(blank=Autorenzahl, 0) — AUSSER Next == ';' ("};")
+    new BlankLineBeforeTransitionsRule(),//  4. Blockgrenze letzte Deklaration -> erste Transition:
+                                         //     NewLine(max(blank,1), depth)
+    new StatementBreakRule(),            //  5. nach ';' -> NewLine(blank=Autorenzahl, depth) — exkludiert
+                                         //     die Blockgrenze aus Regel 4 (Intra-Tier-Disjunktheit)
+    // TokenPair
+    new TightColonRule(),                //  6. Node ':' Port -> Nothing
+    new PunctuationRule(),               //  7. tight vor ','/';' , [-Innenränder, Typ-Interna (s.u.)
+    new TaskHeadLayoutRule(),            //  8. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
+                                         //     NewLineAlignedColumn(TaskHeadBlock); mehrzeiliges [params]:
+                                         //     ','->Param = NewLineAlignedColumn(ParamsList)  (s. „Task-Kopf-Ausrichtung")
+    // Alignment
+    new ArrowAlignmentRule(),            //  9. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
+    new NodeGridAlignmentRule(),         // 10. keyword->node -> AlignedColumn(Node);
+                                         //     node->rest -> AlignedColumn(DeclRest)  (3-Spalten-Raster)
+    // Default
+    new DefaultSingleSpaceRule(),        // 11. Catch-all -> SingleSpace
 ];
 ```
+
+**`PunctuationRule` im Detail** (die Interpunktions-Grundwahrheiten, die sonst der Catch-all mit
+falschen Spaces fluten würde):
+
+- tight **vor** `,` und **vor** `;` (überall — deckt auch `end;`, `choice Decide;`, `};` ab);
+  *nach* `,` liefert der Catch-all das Komma+Space-Idiom.
+- tight **nach öffnendem `[`** und **vor schließendem `]`** eines Code-Blocks (`[params`, `bool]`).
+- **Typ-Interna** in `[params]`-Typen sind tight: Generik-Spitzklammern und Array-Klammern
+  (`T2<T3, T4<T5>>`, `T6[][]`) kleben beidseitig; das `,` in Generik-Argumenten behält Komma+Space.
+  Die Lücke **Typ-Ende → Parametername** ist dagegen `SingleSpace` — unterscheidbar an der
+  Knotengrenze innerhalb `ParameterSyntax` (Typ-Teil vs. Name-Token), nicht am Token-Typ.
+- Der Lückentyp `] → [` kommt **zweimal** vor: Array-Rank (`T6[][]`, tight, hier) vs. Task-Kopf-Blöcke
+  (`NewLineAlignedColumn`, Regel 8) — via Eltern-Knoten disjunkt; genau so ein Fall, den der
+  Intra-Tier-Disjunktheits-Check (s. „Dispatch") absichert.
+
+Die vollständige Token-Paar-Tabelle wird nicht hier gepflegt, sondern fällt aus der
+**Gap-Kontext-Abdeckungs-Prüfung** (s. „Verifikation"): jede aus der Grammatik erreichbare Nachbarschaft
+bekommt in S2 eine explizite, getestete Entscheidung.
 
 Typische Regelgröße (komplett):
 
 ```csharp
 sealed class TightColonRule : IGapRule {
+    public RulePriority Tier => RulePriority.TokenPair;
+
     public GapLayout? Apply(in GapContext ctx) =>
         ctx.Next.Type == SyntaxTokenType.Colon || ctx.Prev.Type == SyntaxTokenType.Colon
             ? new GapLayout.Nothing()
@@ -209,9 +247,9 @@ sealed class TightColonRule : IGapRule {
 }
 ```
 
-Der **Renderer** ist die **einzige** Stelle, die `GapLayout` + erhaltene Kommentare zu einem String macht
-(Kommentare werden hier wieder eingefädelt, damit die Regeln simpel bleiben und nur das *Skelett*
-bestimmen).
+Der **Renderer** ist die **einzige** Stelle, die `GapLayout` + erhaltene Trivia (Kommentare, Direktiven)
+zu einem String macht — Kommentare/Direktiven werden hier wieder eingefädelt, damit die Regeln simpel
+bleiben und nur das *Skelett* bestimmen.
 
 ### Dispatch & Priorität — wie „genau eine Regel pro Lücke" garantiert wird
 
@@ -238,9 +276,13 @@ Entscheidung) — nicht einen Listenindex zu raten (fragil).
 **Wie stiller Overlap verhindert wird:** ein Test-/Debug-Modus wertet für **jede** Lücke **alle** Prädikate
 aus und prüft: **innerhalb eines Tiers matcht höchstens eine Regel** (Intra-Tier-Disjunktheit).
 Cross-Tier-Overlaps sind **gewollt** und dokumentiert (der höhere Tier preemptiert — z.B. schlägt
-Verbatim/Suppression bewusst jede Layout-Regel). Läuft über Goldens **und** den Korpus → aus der impliziten
-Ordnungs-Abhängigkeit wird eine **geprüfte** Eigenschaft. Ungewollter Intra-Tier-Overlap ⇒ **Prädikat
-verschärfen** (oder Präzedenz explizit dokumentieren), nicht die Reihenfolge „zurechtschieben".
+Verbatim/Suppression bewusst jede Layout-Regel; die Struktur-Regel „vor `{`" schlägt das
+Task-Kopf-Layout). Läuft über Goldens **und** den Korpus → aus der impliziten Ordnungs-Abhängigkeit wird
+eine **geprüfte** Eigenschaft. Ungewollter Intra-Tier-Overlap ⇒ **Prädikat verschärfen** (oder Präzedenz
+explizit dokumentieren), nicht die Reihenfolge „zurechtschieben". Zwei bereits bekannte, per Prädikat
+disjunkt gehaltene Paare im selben Tier: `StatementBreakRule` exkludiert die Blockgrenze der
+`BlankLineBeforeTransitionsRule` (beide Structure, beide matchen „nach `;`"); `PunctuationRule` und
+`TaskHeadLayoutRule` teilen sich `] → [` nach Eltern-Knoten (beide TokenPair).
 
 (Verworfene Alternative: global disjunkte Prädikate ganz ohne Priorität — am strengsten, aber jede neue
 Regel müsste gegen *alle* anderen als disjunkt bewiesen werden; die Safety-Regeln überlappen ohnehin
@@ -264,8 +306,11 @@ bewusst als **Vorberechnung** (`AlignmentMap`) an *einer* benannten, testbaren S
 
 Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
 
-- **Pfeil-Spalte** = Lücke zwischen `TransitionDefinitionSyntax.SourceNode` (letztes Token) und
-  `Edge.Keyword` (`-->`/`o->`/`==>`, Fortsetzung `--^`/`o-^` — alle 3 Zeichen).
+- **Pfeil-Spalte** = Lücke zwischen dem letzten Token des Quell-Teils und `Edge.Keyword` — gilt für
+  `TransitionDefinitionSyntax` (`SourceNode`) **und** `ExitTransitionDefinitionSyntax`
+  (`Source:ExitPort --> Ziel;`, Quell-Teil inkl. tightem `:ExitPort`). Alle Edge-Keywords sind
+  **3 Zeichen** breit (`-->`/`o->`/`==>`, Fortsetzungen `--^`/`o-^`) → die Spalte hinter dem Pfeil
+  fluchtet automatisch mit.
 - **Node-Deklarations-Raster (drei virtuelle Spalten `keyword | node | rest`)** — die Node-Arten sind
   verschieden gebaut, aber positionell einheitlich ausrichtbar:
   - **Spalte 1 `keyword`** = `init`/`task`/`choice`/`view`/`dialog`/`exit`/`end` (steht am Zeilenanfang
@@ -280,7 +325,8 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
     `[abstractmethod]`/`do …`; `choice` → `[params]`. **`view`/`dialog`/`exit` haben nie eine Spalte 3**
     (Form `keyword Identifier;`), `end` ebenso wenig. **Nur `task`** kann ein zweites Identifier (Alias)
     tragen. Ausgerichtet über die Lücke `node → rest`; **nur der Start**, nie der Inhalt. Fehlt Spalte 3
-    (z.B. `choice Decide;`, `view V;`), gibt es **kein Phantom-Padding**.
+    (z.B. `choice Decide;`, `view V;`), gibt es **kein Phantom-Padding** (die Lücke `node → ;` ist
+    tight via `PunctuationRule`, höherer Tier).
 
   Beide Identifier-Lücken (`keyword → node`, `node → rest`) sind je ein eigener Token-Paar-Lückentyp →
   je ein `AlignedColumn`-Layout, passt bruchlos in „ein Change pro Lücke". Spaltenwerte je Gruppe über
@@ -305,10 +351,16 @@ ausgeschlossen: eine Transition mit **Inline-Block-Kommentar im Vor-Pfeil-Bereic
 Weil Leerzeilen **nicht kollabiert** werden (s. „Optionen"), ist `interruptLines` formatierungs-invariant
 → die Gruppierung ist ohne Sonderkniff idempotent.
 (2) Pro Zeile die natürliche Vor-Spalten-Breite in **Zeichen** messen — **kanonisch**, nicht aus dem
-Ist-Text (s. Fallstrick unten). (3) Zielspalte über die konfigurierte **`AlignmentColumnPolicy`**
-bestimmen (Default `NextTabStop`, s.u.); `pad = targetCol − Breite + 1` (≥1 Space), Lücke durch genau
-`pad` **Spaces** ersetzen. **Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs** — in Stein gemeißelt,
-unabhängig vom `IndentStyle`.
+Ist-Text (s. Fallstrick unten). Spalten zählen **ab Inhaltsbeginn der Zeile** (nach dem Einzug); der
+Einzug geht nie in die Breite ein. (3) Zielspalte über die konfigurierte **`AlignmentColumnPolicy`**
+bestimmen (Default `NextTabStop`, s.u.); `pad = targetCol − Breite` (durch `tightMin` immer ≥ 1), Lücke
+durch genau `pad` **Spaces** ersetzen. **Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs** — in
+Stein gemeißelt, unabhängig vom `IndentStyle`.
+
+**Gruppen der Größe 1 werden nicht ausgerichtet** (Layout `SingleSpace`): Ausrichtung ist ein
+Gruppen-Phänomen — eine einzeln stehende Transition `B --> Exit;` bekommt kein Tab-Stopp-Padding
+verpasst. Idempotent, weil die Gruppengröße nur von formatierungs-invarianten Fakten abhängt
+(`interruptLines`, Suppression, Hand-gelegt).
 
 **Fallstrick — Breite kanonisch messen, NIE aus `node.ToString()`:** die Vor-Spalten-Breite muss aus dem
 **kanonisch-normalisierten Token-Rendering** des Knotens kommen (Summe der signifikanten Token-Textlängen
@@ -316,11 +368,12 @@ unabhängig vom `IndentStyle`.
 Komma+Space usw.), **nicht** aus `SourceNode.ToString().Length`. Grund: `ToString()` eines Mehr-Token-
 Knotens enthält dessen *Ist*-Whitespace, den der Formatter aber selbst normalisiert (z.B.
 `Dialog : Ok` → `Dialog:Ok` via `TightColonRule`). Misst man `ToString()`, wandert `targetCol` zwischen
-erstem und zweitem Lauf (11 → 9) → das Gruppen-`max` liefert unterschiedlich viele Padding-Spaces auf den
+erstem und zweitem Lauf → das Gruppen-`max` liefert unterschiedlich viele Padding-Spaces auf den
 *anderen* Zeilen → **nicht idempotent** (und schon Lauf 1 richtet falsch aus). Die kanonische Breite
 hängt dagegen nur an Token-Text + Regelentscheidung (beide formatierungs-invariant).
 
-**`AlignmentColumnPolicy` (wie `targetCol` aus den kanonischen Breiten folgt):**
+**`AlignmentColumnPolicy` (wie `targetCol` aus den kanonischen Breiten folgt):** `targetCol` ist die
+(0-basierte) **Startspalte** der ausgerichteten Spalte, gemessen ab Inhaltsbeginn.
 
 - `tightMin = max(kanonische Breite) + 1` — das **erzwungene Minimum** (weniger als 1 Space ist nie
   möglich); zugleich der Boden aller Policies. Ausreißer, deren natürliche Breite ≥ `targetCol` ist,
@@ -365,6 +418,10 @@ nach dem Identifier** — auch wenn der Autor ihn umbrochen hatte (die Lücke `I
 **Jeder weitere** Block steht auf **eigener Zeile**, linksbündig unter dem `[` des ersten Blocks (die Lücke
 `Block.] → nächster.[` = `NewLineAlignedColumn(TaskHeadBlock)`). Das ist eine bewusste **Kanonisierung** (im
 Gegensatz zur sonstigen Umbruch-Erhaltung), weil mehrere schwere Blöcke auf einer Zeile schwer lesbar sind.
+**Grenzfall Kommentar in der Lücke `Id → Block1.[`:** erzwingt dort ein Kommentar den Umbruch (`//` oder
+mehrzeiliges `/* */`), kann Block 1 nicht hochgezogen werden (Renderer-Schranke, s. „Hand-gelegte
+Anweisungen") — er fällt dann wie ein Folgeblock auf `NewLineAlignedColumn(TaskHeadBlock)`; das ist
+konsistent, weil die Spalte kanonisch ist und nicht an der Ist-Position von Block 1 hängt.
 
 Die **Kopf-Spalte ist kanonisch** und pro Task-Definition lokal: `col = "task ".Length + Id.Length + 1`
 (depth 0 → reine **Space**-Ausrichtung ab Spalte 0, kein Tab). Reine Funktion des kanonischen
@@ -373,9 +430,10 @@ für das Stapeln nur Ganzes — nur `[params]` hat eine Komma-Liste (Belang B).
 
 **(B) Inneres `[params]` (Autor-Umbruch bewahrt).** Einzeilige `[params …]` bleiben **einzeilig** (nur
 Spacing normalisiert: `params `+Space, Komma+Space). Hat der Autor die Liste **mehrzeilig** gelegt, wird
-jeder Parameter unter den **ersten** ausgerichtet: `Param → ','` tight, `',' → nächster Param` =
-`NewLineAlignedColumn(ParamsList)`. Params-Spalte = `Block.[`-Spalte + `"[params ".Length`. Das schließende
-`]` bleibt **tight** am letzten Parameter (Listen-Idiom, **nicht** Allman — das gilt nur für den Task-Body).
+jeder Parameter unter den **ersten** ausgerichtet: `Param → ','` tight (via `PunctuationRule`),
+`',' → nächster Param` = `NewLineAlignedColumn(ParamsList)`. Params-Spalte = `Block.[`-Spalte +
+`"[params ".Length`. Das schließende `]` bleibt **tight** am letzten Parameter (Listen-Idiom, **nicht**
+Allman — das gilt nur für den Task-Body).
 
 **`[params]` ist vom Hand-gelegt-Freeze ausgenommen.** Anders als eine mehrzeilige Transition wird ein
 mehrzeiliges `[params]` **nicht** verbatim eingefroren, sondern kanonisch ausgerichtet — **auch mit
@@ -383,24 +441,30 @@ Kommentaren** (Trailing-`//` je Zeile → Single-Space). Das ist sicher: die Par
 **Parameter-Position, nicht am Kommentartext** (kein Arrow-Column-Problem), und weil jeder Parameter ohnehin
 auf eigener Zeile bleibt, wird nur führender Whitespace angefasst — nie ein Token auf eine `//`-Zeile
 gezogen (Achse-A-sicher, der Wächter feuert nie). Ein mehrzeiliger `/* */`-Block-Kommentar im `[params]`
-wird nicht reflowt, sondern per Delta-Shift mitgeschoben (R4-Mechanik).
+wird nicht reflowt, sondern per Delta-Shift mitgeschoben (s. „Kommentare & Direktiven").
 
-**Scope: nur der Task-Kopf (depth 0).** Die übrigen Code-Block-Wirte bleiben unberührt: `taskref`
-(`[namespaceprefix]`/`[result]`) sowie die **Node**-Deklarationen im Body (`init`/`choice`/`task`-Knoten mit
-`[params]`/`[abstractmethod]`/`[donotinject]`) unterliegen weiter dem **R10-Node-Grid** und bleiben
-einzeilig. Legt ein Autor eine Node-Deklaration mehrzeilig, fällt sie — wie eine hand-gelegte Anweisung —
-über das bestehende Primitiv aus dem Grid (kein Sonderfall).
+**Scope: nur der Task-Definitions-Kopf (depth 0).** Die anderen Code-Block-Wirte:
+
+- **`taskref`-Kopf** (`[namespaceprefix]`/`[notimplemented]`/`[result]` — nur Einzel-Fragmente, keine
+  Listen; `CodeBlockFacts.DeclarationKeywords(TaskRef)`) wird **einzeilig normalisiert** (Lücken →
+  `SingleSpace`, kein Stapeln — die Blöcke sind leichtgewichtig); erzwingt ein Kommentar den Umbruch,
+  greift die Renderer-Schranke.
+- **Node**-Deklarationen im Body (`init`/`choice`/`task`-Knoten mit `[params]`/`[abstractmethod]`/
+  `[donotinject]`) unterliegen dem **Node-Grid** und bleiben einzeilig. Legt ein Autor eine
+  Node-Deklaration mehrzeilig, fällt sie — wie eine hand-gelegte Anweisung — über das bestehende
+  Primitiv aus dem Grid (kein Sonderfall).
 
 Gap-Layouts im Überblick (`Id`/`[`/`]`/`,` = signifikante Token des Kopfs):
 
-| Lücke | Layout |
-|---|---|
-| `Id → Block1.[` | `SingleSpace` (Block 1 immer inline) |
-| `Block.] → nächster Block.[` | `NewLineAlignedColumn(TaskHeadBlock)` |
-| `[params …]` einzeilig, `Param ↔ ','` | `Nothing` (vor `,`) / `SingleSpace` (nach `,`) |
-| `[params …]` mehrzeilig, `Param → ','` | `Nothing` (tight) |
-| `[params …]` mehrzeilig, `',' → Param` | `NewLineAlignedColumn(ParamsList)` |
-| letzter Param `→ ]` | `Nothing` (tight) |
+| Lücke | Layout | Regel |
+|---|---|---|
+| `Id → Block1.[` | `SingleSpace` (Block 1 immer inline) | `TaskHeadLayoutRule` |
+| `Block.] → nächster Block.[` | `NewLineAlignedColumn(TaskHeadBlock)` | `TaskHeadLayoutRule` |
+| `[params …]` einzeilig, `',' → Param` | `SingleSpace` | Catch-all |
+| `[params …]` mehrzeilig, `',' → Param` | `NewLineAlignedColumn(ParamsList)` | `TaskHeadLayoutRule` |
+| `Param → ','` (immer) | `Nothing` (tight) | `PunctuationRule` |
+| letzter Param `→ ]` | `Nothing` (tight) | `PunctuationRule` |
+| letzter `Block.] → {` | `NewLine` (Allman) | `BraceOnOwnLineRule` (Structure, preemptiert) |
 
 Beide Spalten (`TaskHeadBlock`, `ParamsList`) sind reine Funktionen kanonischer Token-Breiten → der
 Idempotenz-Beweis der übrigen Ausrichtung trägt unverändert.
@@ -411,24 +475,27 @@ Idempotenz-Beweis der übrigen Ausrichtung trägt unverändert.
 
 ## Verhalten bei Fehlern / Unknown / Skiped-Token
 
-Zwei **getrennte** Belange (wichtige Korrektur gegenüber dem ersten Entwurf: **Kommentare sind KEIN
-Unterdrückungs-Auslöser** — sonst würde der Formatter bei ~95% der Dateien nichts tun):
+Zwei **getrennte** Belange (wichtig: **Kommentare sind KEIN Unterdrückungs-Auslöser** — sonst würde der
+Formatter bei ~95% der Dateien nichts tun):
 
 **(a) Kommentare** werden **innerhalb** der Lücken-Normalisierung behandelt, nie unterdrückt (s.
-„Kommentare").
+„Kommentare & Direktiven").
 
-**(b) Strukturbruch → kleinste umschließende Anweisung unterdrücken (verbatim).** Auslöser:
+**(b) Strukturbruch → unterdrücken (verbatim).** Auslöser:
 
 - Struktur-Token fehlt: `transition.Semicolon.IsMissing`, `task.CloseBrace.IsMissing`.
 - Lücke schneidet eine `SkippedTokensTrivia` (gefaltete Skiped-/Unknown-Läufe, `SyntaxTree.SkippedTokens()`).
-- Eine **Error-Severity-Syntax-Diagnostik** überlappt die Anweisung — **BOM-`Nav0000` bei Offset 0
-  ausgenommen**.
+- Eine **Error-Severity-Syntax-Diagnostik** (`SyntaxTree.Diagnostics`) überlappt die Anweisung —
+  **BOM-`Nav0000` bei Offset 0 ausgenommen**.
 
-„Unterdrücken" = **für Lücken mit Extent ⊆ `FullExtent` der Anweisung keinen Change erzeugen** (verbatim)
-und die Anweisung **aus Ausrichtungsgruppen ausschließen**. Da nur *weggelassen* wird und Lücken disjunkt
-sind, kann Unterdrückung **nie** einen Overlap erzeugen. Fehlende `}` ⇒ **gesamten Task-Body verbatim**
-(Containment unsicher), alles außerhalb wird weiter formatiert. **Global-Fallback:** keine brauchbaren
-Member ⇒ nur die zwei konservativen Changes (Final-Newline, EOF-Trailing-Trim).
+**Unterdrückungs-Einheit:** liegt der Auslöser **innerhalb** einer Anweisung, wird die **kleinste
+umschließende Anweisung** verbatim gelassen (für Lücken mit Extent ⊆ `FullExtent` der Anweisung keinen
+Change erzeugen) und **aus Ausrichtungsgruppen ausgeschlossen**. Liegt eine `SkippedTokensTrivia`
+dagegen in einer Lücke **zwischen** zwei Anweisungen (kein gemeinsamer Anweisungs-Elter), wird **nur
+diese eine Lücke** verbatim gelassen — die Nachbarn werden normal formatiert. Da nur *weggelassen* wird
+und Lücken disjunkt sind, kann Unterdrückung **nie** einen Overlap erzeugen. Fehlende `}` ⇒ **gesamten
+Task-Body verbatim** (Containment unsicher), alles außerhalb wird weiter formatiert. **Global-Fallback:**
+keine brauchbaren Member ⇒ nur die zwei konservativen Changes (Final-Newline, EOF-Trailing-Trim).
 
 **BOM-Guard:** führendes U+FEFF wird als `Unknown` → `SkippedTokensTrivia` + `Nav0000` gelext; explizit
 von Unterdrückung ausnehmen und **nie einen Change mit Extent-Start 0 emittieren, wenn `text[0]=='﻿'`**.
@@ -447,11 +514,12 @@ von Unterdrückung ausnehmen und **nie einen Change mit Extent-Start 0 emittiere
 | Nur Kommentare / leer / nur Whitespace | Kommentare erhalten + auf Tiefe 0 eingerückt; Trailing-Trim; eine Final-Newline |
 | Transition mit jedem Token auf eigener Zeile + Kommentaren | Als **hand-gelegt** erkannt (innere Newline/`//`) → Inneres verbatim, nur Block-Einzug per Delta-Shift re-gesetzt, aus Pfeil-Ausrichtung ausgeschlossen; nie auf eine Zeile gezogen |
 | Einzeiliger Inline-Block-Kommentar (`A /*x*/ --> B;`) | **Nicht** hand-gelegt → Umgebungs-Whitespace auf Single-Space normalisiert, Inhalt verbatim; bei Vor-Pfeil-Position aus der Pfeil-Spalte ausgeschlossen |
+| `#pragma`-Direktive vor/zwischen Membern | Eigene Zeile ab **Spalte 0**, Text verbatim; wird nie eingerückt oder verschoben |
 
 Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeugt — Durchreichen ist die
 *Abwesenheit* eines Edits über disjunkten Lücken.
 
-## Kommentare — Regeln
+## Kommentare & Direktiven — Regeln
 
 - **Trailing (gleiche Zeile):** `SingleLineComment` in `A.TrailingTrivia` vor dem ersten Newline → auf der
   Zeile belassen, **genau ein Space** davor.
@@ -475,8 +543,14 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
   eingefaltet → die „ein Change pro Lücke"-Invariante bleibt (einziger gesegneter Fall, in dem Text
   *innerhalb* einer Trivia angefasst wird). Umsetzung: Teil der Kommentar-Normalisierung (Schritt S2);
   wegen der Seltenheit mehrzeiliger `/* */` kein v1-Blocker.
+- **Direktiven (`#pragma …`):** strukturierte Trivia, kein Token — der Renderer behandelt sie wie einen
+  Eigene-Zeile-Kommentar, aber mit **erzwungenem Einzug 0 und Text verbatim**: eine Direktive bleibt
+  immer auf eigener Zeile **ab Spalte 0**. Grund ist das Lexer-Gate (`#` mitten in der Zeile ⇒ `Nav0000`):
+  jedes Einrücken oder Verschieben auf eine andere Zeile zerstörte die Direktive — ein Achse-A-Bruch, den
+  auch der Laufzeit-Wächter erkennt (s. „Korrektheits-Modell"). Reformatierung des Direktiv-**Inneren**
+  (Spacing zwischen `#pragma`, Keyword, Argument) ist zurückgestellt.
 - Leerzeilen werden **nicht kollabiert** — die vom Autor gesetzte vertikale Trennung bleibt erhalten
-  (nur Trailing-Whitespace auf Leerzeilen wird gestrippt, Einzug neu gesetzt). Grund: Leerzeilen tragen
+  (nur Trailing-Whitespace auf Leerzeilen wird gestrippt). Grund: Leerzeilen tragen
   seit dem `interruptLines`-Gruppierungskriterium **Bedeutung** (≥2 = Gruppenbruch); ein Kollaps würde
   dieses Signal zerstören und die Gruppierung zwischen zwei Läufen kippen (nicht idempotent).
 
@@ -497,7 +571,8 @@ Source          // Quelle
 **Harte Korrektheits-Schranke:** ein `//`-Kommentar läuft bis Zeilenende — das folgende Token kann
 **nie** auf dieselbe Zeile gezogen werden (sonst würde es Teil des Kommentars). „Auf eine Zeile
 zusammenziehen" ist für eine solche Anweisung also gar nicht verfügbar. (Als Defense-in-Depth: der
-Renderer emittiert nie ein Same-Line-Layout, wenn die vorangehende Trivia ein `//`-Kommentar ist.)
+**Renderer emittiert nie ein Same-Line-Layout, wenn die vorangehende Trivia ein `//`-Kommentar ist** —
+diese „Renderer-Schranke" gilt überall, auch im Task-/`taskref`-Kopf.)
 
 **Kein Teil-Reflow.** Man *könnte* nur dort umbrechen, wo Kommentare es erzwingen, und den Rest
 zusammenziehen — aber (a) für Fortsetzungszeilen einer Anweisung existiert **kein** kanonischer Einzug
@@ -508,17 +583,20 @@ partieller Reflow macht die Idempotenz fragil. Deshalb: **kein Teil-Reflow.**
 **Erkennung (strukturell, idempotent):** eine Anweisung gilt als **hand-gelegt**, sobald eine *innere*
 Lücke (echt zwischen erstem Token und terminierendem `;`) einen **Newline**, einen **`//`-Kommentar** oder
 einen **mehrzeiligen** Block-Kommentar enthält — also alles, was einen Zeilenumbruch erzwingt oder enthält.
-Ein **einzeiliger** Block-Kommentar zählt **nicht** (er bleibt auf der Zeile, s. „Kommentare").
-Kanonisch-einzeilige Anweisungen haben nie solche inneren Umbruch-Trivia, hand-gelegte behalten sie →
-gleicher Befund bei jedem Lauf. Es ist **dasselbe Primitiv** wie die Fehler-Unterdrückung
-(`ComputeSuppressedExtents` bekommt nur eine zweite Quelle).
+Ein **einzeiliger** Block-Kommentar zählt **nicht** (er bleibt auf der Zeile, s. „Kommentare &
+Direktiven"). Kanonisch-einzeilige Anweisungen haben nie solche inneren Umbruch-Trivia, hand-gelegte
+behalten sie → gleicher Befund bei jedem Lauf. Es ist **dasselbe Primitiv** wie die Fehler-Unterdrückung
+(`ComputeSuppressedExtents` bekommt nur eine zweite Quelle). **Ausnahmen von diesem Freeze:** das
+mehrzeilige `[params]` im Task-Kopf (kanonisch ausgerichtet, s. „Task-Kopf-Ausrichtung") und die
+Kopf-Lücken von `task`/`taskref` selbst (Kanonisierung).
 
 **Verhalten:**
 
 - **Inneres verbatim:** Intra-Zeilen-Spacing und Kommentar-Text unangetastet.
 - **Äußere Kante normalisiert:** die Anweisung wird als Ganzes auf den Block-Einzug **re-gesetzt** — jede
-  Zeile um dasselbe Einrück-**Delta** verschoben (relative Form erhalten, exakt der R4-Mechanismus: Clamp
-  bei Spalte 0, Roh-Whitespace-Präfixe). Leerzeilen davor/danach nach Policy.
+  Zeile um dasselbe Einrück-**Delta** verschoben (relative Form erhalten, exakt der Delta-Shift-Mechanismus
+  der mehrzeiligen Block-Kommentare: Clamp bei Spalte 0, Roh-Whitespace-Präfixe). Leerzeilen davor/danach
+  nach Policy.
 - **Aus Ausrichtungsgruppen ausgeschlossen** (keine Pfeil-Spalte für mehrzeilige Transitionen; trennt
   zugleich die Gruppe der einzeiligen Nachbarn).
 
@@ -593,10 +671,10 @@ analog `NavCompletionService.TriggerCharacters`):
   aus den Zeilenbreiten folgt (s. „Spaltenausrichtung"). **Ausrichtungs-Padding ist immer Leerzeichen**
   (nie Tabs), unabhängig vom `IndentStyle` des Einzugs — in Stein gemeißelt.
 - `InsertFinalNewline = true`, `TrimTrailingWhitespace = true`. **Kein Leerzeilen-Kollaps** — die
-  Anzahl aufeinanderfolgender Leerzeilen wird nie reduziert (`GapLayout.NewLine.BlankLinesBefore` gibt
-  die vom Autor gesetzte Zahl unverändert weiter). Einzige strukturelle Ausnahme: die
-  `BlankLineBeforeTransitionsRule` **stellt** zwischen Node-Deklarationen und Transitionen **mindestens
-  eine** Leerzeile sicher (fügt bei 0 eine ein), kappt aber nach oben nichts.
+  Anzahl aufeinanderfolgender Leerzeilen wird nie reduziert; **jede** `NewLine`-Regel (auch vor `{`/`}`)
+  reicht die Autorenzahl über `GapLayout.NewLine.BlankLinesBefore` unverändert weiter. Einzige
+  strukturelle Ausnahme: die `BlankLineBeforeTransitionsRule` **stellt** zwischen Node-Deklarationen und
+  Transitionen **mindestens eine** Leerzeile sicher (fügt bei 0 eine ein), kappt aber nach oben nichts.
 
 `TextEditorSettings` (heute `{ TabSize, NewLine }`, geteilt/immutabel) wird **nicht** erweitert —
 `IndentStyle` lebt in `NavFormattingOptions`. Newline für emittierte Umbrüche = `settings.NewLine`.
@@ -605,24 +683,27 @@ analog `NavCompletionService.TriggerCharacters`):
 
 Neuer Ordner `Nav.Language/Formatting/`:
 
-- `NavFormattingService.cs` — `static IReadOnlyList<TextChange> FormatDocument(CodeGenerationUnit unit,
-  TextEditorSettings settings, NavFormattingOptions options)` (v1) und
-  `FormatRange(…, TextExtent range, …)` (Stufe 2). Intern: Gap-Walk, Regelliste, Renderer,
-  `ComputeSuppressedExtents`, `BuildAlignmentMap`.
+- `NavFormattingService.cs` — `static IReadOnlyList<TextChange> FormatDocument(SyntaxTree syntaxTree,
+  TextEditorSettings settings, NavFormattingOptions options)` (S1–S4) und
+  `FormatRange(…, TextExtent range, …)` (S5). Eingabe ist bewusst der `SyntaxTree` (rein syntaktisches
+  Feature; Token, Trivia und Syntax-Diagnostics hängen dort — kein Semantik-Build nötig). Intern:
+  Gap-Walk, Regelliste, Renderer, `ComputeSuppressedExtents`, `BuildAlignmentMap`.
 - `NavFormattingOptions.cs` — Options-Record + `Default`.
 - `GapLayout.cs`, `IGapRule.cs`, `GapContext.cs` + Regel-Klassen (klein, je eine Datei oder gebündelt).
 
-**Wiederverwenden (nicht neu bauen):** `SyntaxTree.Tokens` + Trivia-API (`SyntaxToken.LeadingTrivia`/
-`TrailingTrivia`/`Extent`/`Parent`), `SourceText.Substring`, `TextChange.NewReplace`,
-`TextExtent.FromBounds`, `TextChangeWriter.ApplyTextChanges` (Tests/CLI). Layout-/Ausrichtungsregeln
-stützen sich auf `TransitionDefinitionSyntax`, `EdgeSyntax`, `TaskDefinitionSyntax` (Kopf-Blöcke +
-`Identifier`/`OpenBrace`), `CodeParamsDeclarationSyntax`/`ParameterListSyntax`/`ParameterSyntax`,
-`NodeDeclarationBlockSyntax`, `TaskNodeDeclarationSyntax`. Muster-Referenz für Service-Form + „single
-authority": `Nav.Language/Completion/NavCompletionService.cs`.
+**Wiederverwenden (nicht neu bauen):** `SyntaxTree.Tokens`/`Diagnostics`/`SkippedTokens()` + Trivia-API
+(`SyntaxToken.LeadingTrivia`/`TrailingTrivia`/`Extent`/`Parent`), `SourceText.Substring`,
+`TextChange.NewReplace`, `TextExtent.FromBounds`, `TextChangeWriter.ApplyTextChanges` (Tests/CLI).
+Layout-/Ausrichtungsregeln stützen sich auf `TransitionDefinitionSyntax`/`ExitTransitionDefinitionSyntax`,
+`EdgeSyntax`, `TaskDefinitionSyntax` (Kopf-Blöcke + `Identifier`/`OpenBrace`),
+`CodeParamsDeclarationSyntax`/`ParameterListSyntax`/`ParameterSyntax`, `NodeDeclarationBlockSyntax`,
+`TaskNodeDeclarationSyntax`, `CodeBlockFacts`. Muster-Referenz für Service-Form + „single authority":
+`Nav.Language/Completion/NavCompletionService.cs`.
 
 ## Vorher/Nachher-Beispiele
 
-Einzug = Tab (hier visuell als Spaces dargestellt); Ausrichtungs-Padding = echte Spaces.
+Einzug = Tab (hier visuell als Spaces dargestellt); Ausrichtungs-Padding = echte Spaces. Alle Beispiele
+mit `AlignmentColumnPolicy = NextTabStop`, `IndentSize` 4.
 
 **Transitionen: Pfeil-Spalten ausrichten + Spacing normalisieren**
 
@@ -637,15 +718,16 @@ task Sample
 // nachher
 task Sample
 {
-    init      --> Choice;
-    Choice    o-> Dialog;
-    Dialog:Ok --> Exit;
+    init        --> Choice;
+    Choice      o-> Dialog;
+    Dialog:Ok   --> Exit;
 }
 ```
 
-`Node:Port` bleibt tight; die längste Quelle (`Dialog:Ok`) definiert die Spalte.
+`Node:Port` bleibt tight; die längste Quelle (`Dialog:Ok`, kanonische Breite 9) ergibt `tightMin` 10,
+`NextTabStop` hebt auf Spalte 12 (nächstes Vielfaches von 4).
 
-**Node-Deklarationen: 3-Spalten-Raster `keyword | node | rest`** (Spalten auf `NextTabStop`, `IndentSize` 4)
+**Node-Deklarationen: 3-Spalten-Raster `keyword | node | rest`**
 
 ```
 // vorher
@@ -660,10 +742,10 @@ choice  Decide;
 task    LongerTypeName  Alias2;
 ```
 
-Spalte `node` (Spalte 2) auf dem nächsten Tab-Stopp hinter dem längsten Keyword; Spalte `rest`
-(Spalte 3) hinter dem längsten `node`. `init`s `[params …]` und `task`s Alias teilen sich Spalte 3
-(Variante 2, korpus-treu — ausgerichtet wird der *Start*, nicht der Inhalt); `choice Decide;` hat keine
-Spalte 3 und bekommt kein Phantom-Padding.
+Spalte `node` (Spalte 2) auf dem nächsten Tab-Stopp hinter dem längsten Keyword (`choice`, 6 → Spalte 8);
+Spalte `rest` (Spalte 3) hinter dem längsten `node` (`LongerTypeName`, endet Spalte 22 → Spalte 24).
+`init`s `[params …]` und `task`s Alias teilen sich Spalte 3 (korpus-treu — ausgerichtet wird der *Start*,
+nicht der Inhalt); `choice Decide;` hat keine Spalte 3 und bekommt kein Phantom-Padding.
 
 **Task-Kopf: Blöcke stapeln + mehrzeiliges `[params]` ausrichten**
 
@@ -686,14 +768,15 @@ task Sample [code Foo]
 
 // nachher (Autor-Umbruch bewahrt -> Parameter unter dem ersten ausgerichtet)
 task Other [params int x,
-                  string label]
+                   string label]
 { … }
 ```
 
-Der erste Block sitzt ein Space nach dem Identifier; weitere Blöcke stapeln linksbündig darunter. Das
-einzeilige `[params]` (Sample) bleibt einzeilig; das mehrzeilige (Other) wird unter dem ersten Parameter
-ausgerichtet, `]` tight. Bei `Other` wird zudem der vom Autor umbrochene erste Block auf ein Space hinter
-den Identifier hochgezogen.
+Der erste Block sitzt ein Space nach dem Identifier; weitere Blöcke stapeln linksbündig darunter
+(`TaskHeadBlock`-Spalte von `Sample`: 5+6+1 = 12). Das einzeilige `[params]` (Sample) bleibt einzeilig;
+das mehrzeilige (Other) wird unter dem ersten Parameter ausgerichtet (`ParamsList`-Spalte: `[` auf 11 +
+`"[params ".Length` 8 = 19), `]` tight. Bei `Other` wird zudem der vom Autor umbrochene erste Block auf
+ein Space hinter den Identifier hochgezogen.
 
 **Fehler/Skiped-Token: umschließende Anweisung bleibt verbatim**
 
@@ -707,155 +790,8 @@ task Broken                  task Broken
 }                            }
 ```
 
-## Entscheidungs-Log (Runden)
-
-- **R1 — Architektur:** Gap-Rewriter statt Voll-Reprint gewählt; Kern verändert nur Trivia-Lücken. Ein
-  Change pro Lücke als tragende Invariante (Overlap-Sicherheit gratis).
-- **R1 — Zielformat:** empirisch aus einer großen realen `.nav`-Codebasis statt geraten.
-- **R2 — Nutzerentscheide:** Pfeil-/Instanznamen-Ausrichtung **aktiviert**; Einzugsstil aus dem
-  **bestehenden** Konfig-Kanal (nicht neuer Knopf); v1-Scope = **Kern + Tests** (Hosts zurückgestellt).
-- **R2 — Fehler-Modell korrigiert:** Kommentare sind **kein** Unterdrückungs-Auslöser (sonst tut der
-  Formatter fast nie etwas); Unterdrückung nur bei echtem Strukturbruch. Einzug ist **flach (0/1)** via
-  Ahnenkette statt Klammern zählen. BOM-Guard ergänzt.
-- **R3 — Regelsatz-Modell:** bewusste Abgrenzung von Roslyns Operation-/Solver-Modell. Gewählt: winzige
-  feste Engine + **flache, geordnete Regelliste** (first-match-wins), Regeln als reine
-  `ctx -> GapLayout?`-Funktionen über geschlossenem 5-Werte-Vokabular (R14: erweitert auf 6,
-  `NewLineAlignedColumn`); einzige nicht-lokale Zutat
-  (Ausrichtung) als `AlignmentMap`-Vorpass isoliert.
-- **R4 — Mehrzeilige Kommentare:** drei Operationen unterschieden — (1) Inhalt-Reflow **nein**, (2)
-  Innenzeilen **um das Einrück-Delta mitschieben** (relative Form erhalten) **ja**, (3) `*`-Präfix-
-  Ausrichtung **nein** (keine Nav-Konvention). Frühere Pauschale „Inneres nie verändern" dadurch
-  präzisiert. Shift ist idempotent (`Delta = 0` nach erstem Lauf), clampt bei Spalte 0, arbeitet auf
-  Roh-Whitespace-Präfixen (Tabs), und faltet sich in das eine Lücken-Replacement ein (Invariante bleibt).
-  Häufige `//`-Banner sind ohnehin schon abgedeckt; `/* */` mehrzeilig ist im Korpus selten → kein
-  v1-Blocker.
-- **R5 — Hand-gelegte Anweisungen:** Grenzfall „jedes Token eigene Zeile + Kommentare" geklärt. Harte
-  Schranke: `//` verbietet Zusammenziehen. Kein Teil-Reflow (kein Fortsetzungs-Einzug-Modell, Ausrichtung
-  kollabiert, Idempotenz fragil). Trigger **hand-gelegt** = innere Lücke mit Newline/Kommentar
-  (strukturell, idempotent, dasselbe Primitiv wie Fehler-Unterdrückung + R4). Inneres verbatim, äußere
-  Kante via Delta-Shift re-gesetzt, aus Ausrichtung ausgeschlossen. Bewusste Demut: mehrzeilige Anweisungen
-  werden nie auf eine Zeile gezwungen (Dial: alternativ komplett verbatim).
-- **R6 — Block-Kommentare präziser:** R5-Trigger verfeinert — der eigentliche Grund für „Finger weg" ist
-  ein **Zeilenumbruch**, nicht „irgendein Kommentar". Ein **einzeiliger** `/* */`-Block-Kommentar erzwingt
-  keinen Umbruch → löst „hand-gelegt" **nicht** aus, sondern wird wie ein Inline-Token behandelt
-  (Umgebungs-Whitespace → Single-Space, Inhalt verbatim). `//` und **mehrzeilige** Block-Kommentare bleiben
-  Umbruch-Auslöser. Bewusste Vereinfachung: eine Transition mit Inline-Kommentar im **Vor-Pfeil-Bereich**
-  wird normalisiert, aber aus der Pfeil-Spalte ausgeschlossen (sonst hinge die Spaltenbreite am
-  Kommentartext).
-- **R7 — Korrektheits-Modell:** zwei Achsen getrennt. **Achse A** (Bedeutungserhalt = identischer
-  signifikanter Token-Strom + keine neuen Diagnostics, Idempotenz, Totalität/Nicht-Überlappung) ist
-  objektiv falsch-definierbar und wird per **fail-safe Laufzeit-Wächter** (Ergebnis re-lexen, bei
-  Abweichung Changes verwerfen) **pro Aufruf** abgesichert → Achse-A-Falsch konstruktiv unmöglich. **Achse
-  B** (Stil) hat kein objektives Falsch, nur Konformität zu Optionen + Goldens — nur *hier* greift das
-  „opt-in". „Vollständig" = jede aus Grammatik/Korpus erreichbare Gap-Kontext-Nachbarschaft hat eine
-  getestete Entscheidung (relativ, asymptotisch via Korpus-Diff, nicht geschlossen). Neuer Abschnitt
-  „Korrektheits-Modell" + Verifikations-Bullets (Bedeutungserhalt, Abdeckung, Fuzz).
-- **R8 — Dispatch & Priorität:** „genau eine Regel pro Lücke" = First-Match-Short-Circuit (Output-Overlap
-  unmöglich = Umsetzung der Ein-Change-pro-Lücke-Invariante). Gegen *stillen* Applicability-Overlap:
-  Prioritäts-Tiers (`Safety > Structure > TokenPair > Alignment > Default`; „spezifisch schlägt generisch")
-  + Test, der pro Lücke alle Prädikate auswertet und **Intra-Tier-Disjunktheit** asertiert (Cross-Tier-
-  Präzedenz gewollt/dokumentiert). Reihenfolge wird geprüfte statt implizite Spezifikation. `IGapRule` um
-  `Tier` erweitert.
-- **R9 — Ausrichtung, Wächter, Reihenfolge, Einzug-Tiefe (Grill-Runde):** fünf Punkte geschärft.
-  (1) **Kein Reordering** — der Gap-Rewriter bewegt keine Token; Abschnitts-/`taskref`/`task`-Reihenfolge
-  ist deskriptiv, nicht erzwungen (Reordering wäre ein separates Organize-Feature). (2) **`GapContext.
-  IndentDepth := IndentDepth(Next)`** — der Einzug richtet sich nach der die neue Zeile eröffnenden
-  Token-Tiefe (vorher mehrdeutig). (3) **Ausrichtungsbreite kanonisch messen, nie `node.ToString()`** —
-  `ToString()` liest Ist-Whitespace, den der Formatter selbst normalisiert (`Dialog : Ok`→`Dialog:Ok`) →
-  Gruppen-`max` wackelt zwischen Läufen → nicht idempotent; der Idempotenz-Beweis trägt nur mit
-  kanonischer Breite. (4) **Spaltenpolicy** — Ausrichtungs-Padding **immer Leerzeichen, nie Tabs** (in
-  Stein gemeißelt; der Korpus richtet mit Tabs aus, wird auf Spaces normalisiert). Default **`NextTabStop`**
-  (nächster Tab-Stopp ab `tightMin`), weil die „weiter als nötig" ausgerichteten Korpus-Spalten
-  Tab-Stopp-Artefakte sind, keine präzisen Breiten; Alternativen `Tight`/`PreserveDominant` als Strategie,
-  Perzentil-Heuristik verworfen. Finaler Wert per **Korpus-Messung** (`d:\tfs\main`, ~1900 `.nav`) über
-  die `extra = autorSpalte − tightMin`-Verteilung. (5) **Laufzeit-Wächter** re-lext **statement-/member-
-  granular** (nicht datei-global) und ist **`Debug.Assert` in Debug + stderr-Log in Release** (Treffer =
-  immer Bug, nie still verschlucken).
-- **R10 — Node-Deklarations-Ausrichtung als 3-Spalten-Raster:** das frühere „Instanznamen-Spalte =
-  Lücke Typ→Alias" war unterspezifiziert (nur `task`/`view`/`dialog`-mit-Alias, ignorierte die
-  block-weit ausgerichtete Spalte hinter dem Keyword). Korrigiert zum korpus-realen **festen Raster
-  `keyword | node | rest`**: `node` = erstes Identifier nach dem Keyword (Typ *oder* Name, über alle
-  Node-Arten einheitlich), `rest` = erstes Token nach `node` (**Variante 2, korpus-treu**: Alias *oder*
-  `[`-Block *oder* `do` — nur der Start ausgerichtet). Beide Identifier-Lücken je ein `AlignedColumn`,
-  Spaltenwerte via `NextTabStop`; fehlende Spalte 3 ohne Phantom-Padding. Ausdrücklich **nicht** die
-  zurückgestellte Mehrspalten-Ausrichtung (die betrifft die variabel vielen `on`/`if`/`do`-Klauseln an
-  Transitionen). Regel `InstanceNameAlignmentRule` → `NodeGridAlignmentRule`; Option `AlignInstanceNames`
-  → `AlignNodeGrid`. (Zwischenzeitlich erwogener, wieder verworfener Vorschlag: Deklarations-Ausrichtung
-  ganz aus v1 herausschneiden — hinfällig, da das feste Raster tractable und idempotent ist.)
-- **R11 — Gruppierung via `interruptLines`, kein Leerzeilen-Kollaps:** das Ausrichtungs-Gruppen-
-  Trennkriterium ist nicht mehr „Leerzeile / eigene Kommentarzeile", sondern die **Zeilenanzahl im
-  Leading Trivia** (`interruptLines` = leere + Kommentarzeilen zwischen zwei signifikanten Token). **Neue
-  Gruppe ⟺ `interruptLines ≥ 2`** → eine einzelne Leerzeile *oder* eine einzelne Kommentarzeile bricht
-  **nicht**; erst zwei (2 Leerzeilen bzw. Leerzeile+Kommentar) tun es (das Abschnitts-Header-Idiom: die
-  Leerzeile *vor* dem Kommentar trennt, nicht der Kommentar). Damit einher geht: **Leerzeilen werden gar
-  nicht mehr kollabiert** (vorher „max 1"). Grund: Leerzeilen tragen jetzt Gruppierungs-Bedeutung — ein
-  Kollaps auf 1 würde ein `interruptLines=2`-Signal auf 1 senken → Gruppen verschmelzen im zweiten Lauf →
-  **nicht idempotent** (der Kollaps zerstört genau das Trenn-Signal). Ohne Kollaps ist `interruptLines`
-  formatierungs-invariant → Gruppierung trivial idempotent. Einzige verbliebene Blank-Normalisierung:
-  `BlankLineBeforeTransitionsRule` sichert **≥1** Leerzeile zwischen Deklarationen und Transitionen (fügt
-  bei 0 ein), kappt aber nie. (Verworfene Alternative: Kollaps-Cap 2 statt gar kein Kollaps — wäre auch
-  idempotent gewesen, aber der Nutzer bevorzugt volle Erhaltung der vertikalen Trennung.)
-- **R12 — Selektion = gefiltertes Voll-Format:** `FormatRange(x, r) ≡ { c ∈ FormatDocument(x) : c.Extent
-  ⊆ ExpandTo(r) }` — intern immer das ganze Dokument formatieren, nur die In-Range-Changes anwenden.
-  Garantiert `FormatRange(x, ganzeDatei) == FormatDocument(x)` + Monotonie (Voll-Format verschiebt nie,
-  was Range-Format platziert hat). Tragende Bedingung: **alle nicht-lokalen Pässe voll-scope** —
-  Suppression datei-weit, Gruppierung/`targetCol` block-weit (sonst schmalere Spalte → nicht monoton),
-  `IndentDepth` aus Ahnenkette. Der **Final-Gap läuft durch denselben `⊆`-Filter** (nie als Extra-Schritt
-  angehängt — sonst Newline-Insert außerhalb der Auswahl). Gruppen-zerschneidende Selektion lässt
-  Out-of-Range-Nachbarn bewusst ragged (Editor-Konvention); Alternative „Emittieren auf ganze Gruppe
-  ausweiten" verworfen (editiert außerhalb der Auswahl).
-- **R13 — Node-Deklarations-Token-Strukturen verifiziert (Korrektur zu R10):** am Syntaxmodell
-  gegengeprüft. **Nur `task`** trägt Typ + optional Alias (`Identifier` + `IdentifierAlias`); `init`/
-  `choice`/`exit`/`view`/`dialog` sind Keyword + **ein** Identifier (der *Name*, kein Typ), **ohne**
-  Alias; `end;` ist **nur Keyword** (kein Identifier → keine node-Spalte). Die R10-Formulierung „bei
-  `task`/`view`/`dialog` der Typ" war falsch und ist in der Definition korrigiert. Das 3-Spalten-Raster
-  selbst bleibt gültig: `node` = erstes Identifier (Typ nur bei `task`, sonst Name), `rest` = erstes
-  Token danach (bei `view`/`dialog`/`exit`/`end` nie vorhanden → kein Phantom-Padding).
-- **R14 — Task-Kopf-Ausrichtung (Grill-Runde):** die zuvor pauschal zurückgestellte `[params]`-Ausrichtung
-  für den **Task-Definitions-Kopf** ausspezifiziert (neuer Abschnitt „Task-Kopf-Ausrichtung"). Zwei
-  Belange getrennt: **(A) äußere Blöcke bedingungslos stapeln** — Block 1 immer ein Space nach dem
-  Identifier (auch wenn der Autor ihn umbrochen hatte), weitere Blöcke je eigene Zeile linksbündig unter
-  Block 1s `[`; bewusste Kanonisierung (mehrere schwere Blöcke einzeilig sind schwer lesbar), im Gegensatz
-  zur sonstigen Umbruch-Erhaltung. **(B) inneres `[params]` bewahrt den Autor-Umbruch** — Einzeiler bleibt
-  einzeilig, mehrzeilig wird unter dem ersten Parameter ausgerichtet, `]` tight (Listen-Idiom, nicht
-  Allman). `[params]` ist **vom Hand-gelegt-Freeze ausgenommen** und wird **auch mit Kommentaren**
-  ausgerichtet (sicher: Spalte hängt an Parameter-Position, nicht Kommentartext; nur führender Whitespace,
-  nie Token auf `//`-Zeile → Achse-A-sicher). **Scope: nur der Task-Kopf (depth 0)** — Node-Wirte
-  (`init`/`choice`/`task`) bleiben R10-Grid; mehrzeilige Node-Decl fällt übers bestehende Hand-gelegt-
-  Primitiv aus dem Grid. Nur `[params]` hat eine Komma-Liste (die anderen vier Kopf-Blöcke tragen einen
-  Einzel-Fragment). Modellfolge: `GapLayout` um **`NewLineAlignedColumn(BlankLinesBefore, ColumnId)`**
-  erweitert (Umbruch + Spalten-Ausrichtung statt Tiefen-Einzug; Vokabular 5→6), neue Regel
-  `TaskHeadLayoutRule` (Tier TokenPair, nach `TightColonRule`), neue Spalten `TaskHeadBlock`/`ParamsList`,
-  neue Option `AlignTaskHeadBlocks`. Beide Spalten kanonisch → idempotent. Umsetzung **in S3 gefaltet**
-  (statt eigenem Step). (Verworfen: params-mit-Kommentar einfrieren wie eine hand-gelegte Transition —
-  hier unnötig, weil die Spalte kommentartext-unabhängig ist; und äußere Blöcke bewahren statt stapeln —
-  Nutzer bevorzugt die kanonische gestapelte Kopf-Form.)
-
-## Step-Plan
-
-Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (net472) **und**
-`dotnet test … -f net10.0` (beide TFMs grün) + gelieferte Commit-Message (Commit macht der Nutzer).
-**Fallstrick:** `nav test` baut nicht selbst → vor net472-Tests einmal `nav build`.
-
-| # | Inhalt | Fertig, wenn | Status |
-|---|---|---|---|
-| **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
-| **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | offen |
-| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Space um Pfeile, tight `Colon`, Komma+Space, Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung | Golden für saubere Dateien + Idempotenz grün | offen |
-| **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
-| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback | Edge-Case-Fixtures grün, keine Overlap-Exception | offen |
-| **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
-
-**Zurückgestellt (nicht v1):** Host-Anbindung (LSP `textDocument/formatting`+`rangeFormatting`, MCP
-`nav_format` read-only, VS Format-Document/Selection-Command, CLI `format`-Verb mit `--check`/`--write`);
-Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Ausrichtung **außerhalb** des Task-Kopfs (Node-Wirte
-`init`/`choice` bleiben grid-einzeilig — der Task-Kopf ist in S3 enthalten); Format-on-Type/-Paste;
-Reformatierung von Direktiven (`#pragma`/`#version`); EOL-Normalisierung im Inneren mehrzeiliger Kommentare.
-
-**Bewusst ausgeschlossen (nicht nur zurückgestellt):** Inhaltliches Umbrechen/Neu-Formatieren von
-Kommentar-Text (Reflow); Ausrichten eines `*`-Präfixes in Block-Kommentaren (keine Nav-Konvention). Das
-bloße **Mitschieben** der Kommentar-Innenzeilen um das Einrück-Delta ist hingegen **enthalten** (s.
-„Kommentare").
+`B --> Exit;` ist nach Ausschluss der beiden defekten Nachbarn eine **Gruppe der Größe 1** → keine
+Spalten-Ausrichtung, nur Single-Space-Normalisierung.
 
 ## Korrektheits-Modell (woran „richtig"/„vollständig" hängt)
 
@@ -867,21 +803,24 @@ Achsen** von „korrekt" mit völlig verschiedener Beweisbarkeit.
 Unabhängig von Geschmack; hier *gibt* es Falsch, und hier liegen die Bugs:
 
 1. **Bedeutungserhalt (Kardinalregel):** `format(x)` muss zum **identischen signifikanten Token-Strom**
-   (Typ + Text) zurück-parsen wie `x`, ohne **neue Diagnostics**. Wer die Tokenisierung ändert
-   (`on Trigger` → `onTrigger`; ein Token hinter `//` verschluckt), ist *falsch* — egal wessen Geschmack.
+   (Typ + Text) zurück-parsen wie `x`, mit **identischer Direktiv-Trivia-Sequenz** (Typ + Text +
+   Zeilenanfangs-Position — Direktiven leben in Trivia, ein Token-Strom-Vergleich allein sähe ihre
+   Zerstörung nicht) und ohne **neue Diagnostics**. Wer die Tokenisierung ändert (`on Trigger` →
+   `onTrigger`; ein Token hinter `//` verschluckt; ein `#pragma` eingerückt), ist *falsch* — egal wessen
+   Geschmack.
 2. **Idempotenz:** `format(format(x)) == format(x)`.
 3. **Totalität & Nicht-Überlappung:** jede Lücke genau eine Entscheidung (Catch-all-Regel), nie ein Crash,
    nie überlappende Edits (Ein-Change-pro-Lücke).
 
 **Architektur-Hebel:** weil wir **nie signifikanten Token-Text anfassen**, schrumpft die
 korrektheitskritische Fläche auf eine **kleine, aufzählbare** Menge von „das darf Whitespace nie tun" (zwei
-Token verschmelzen, `//` verschluckt ein Token, ein Pflicht-Trenner verschwindet). Das erlaubt einen
-**Laufzeit-Wächter (fail-safe):** nach dem Berechnen der Changes das Ergebnis **re-lexen** und den
-Token-Strom vergleichen; weicht er ab (oder gibt es neue Diagnostics), werden die betroffenen Changes
-**verworfen** — die Datei bleibt dort unverändert. Damit wird Achse-A-„falsch" **konstruktiv unmöglich**;
-der Preis ist, im Zweifel *nichts* zu tun statt etwas Falsches. Achse A ist also nicht nur testbar,
-sondern **pro Aufruf verifizierbar** (Kosten: ein zusätzlicher Lex-Durchlauf — für einen Formatter
-vernachlässigbar).
+Token verschmelzen, `//` verschluckt ein Token, ein Pflicht-Trenner verschwindet, eine Direktive verliert
+ihren Zeilenanfang). Das erlaubt einen **Laufzeit-Wächter (fail-safe):** nach dem Berechnen der Changes das
+Ergebnis **re-lexen** und Token-Strom + Direktiv-Trivia vergleichen; weicht etwas ab (oder gibt es neue
+Diagnostics), werden die betroffenen Changes **verworfen** — die Datei bleibt dort unverändert. Damit wird
+Achse-A-„falsch" **konstruktiv unmöglich**; der Preis ist, im Zweifel *nichts* zu tun statt etwas Falsches.
+Achse A ist also nicht nur testbar, sondern **pro Aufruf verifizierbar** (Kosten: ein zusätzlicher
+Lex-Durchlauf — für einen Formatter vernachlässigbar).
 
 Zwei Präzisierungen, damit der Wächter nicht mehr schadet als er nützt:
 
@@ -913,6 +852,7 @@ Lückenkontext ist `(prevTokenType, nextTokenType, Eltern-Knoten, Trivia-Klasse)
 **Token-Nachbarschaften sind endlich und aufzählbar** (aus Grammatik + Korpus). Vollständigkeit = **jede
 erreichbare Nachbarschaft hat eine explizite, getestete Entscheidung**. Das ist das Nächstliegende an
 „beweisbar vollständig" und ist *erreichbar* (Adjazenz-Menge generieren, gegen die Regelliste prüfen).
+Die Feinheiten der `PunctuationRule` (Typ-Interna, Generik) werden genau über diese Prüfung festgezurrt.
 
 **Fazit:** „kein Falsch, weil opt-in" gilt nur für den Stil. Es gibt ein **scharfes Falsch** (Achse A), das
 wir sogar *pro Aufruf* absichern, und ein **konventionelles Falsch** (Achse B), das wir spezifizieren und
@@ -924,9 +864,10 @@ gegen den Korpus zur Deckung bringen.
   Ausgabe, angewandt via `TextChangeWriter.ApplyTextChanges`. Fixtures als Raw-String-Literale
   (`"""…"""`), UTF-8 **mit BOM**, echte Umlaute. **Beide TFMs** grün.
 - **Idempotenz-Test:** `format(format(x)) == format(x)` über alle Fixtures.
-- **Bedeutungserhalt (Achse A):** `Tokens(format(x)) == Tokens(x)` (signifikante Token, Typ+Text) und
-  **keine neuen Diagnostics** — als Property-Test über Fixtures **und** den großen Korpus; zusätzlich als
-  **Laufzeit-Wächter** im Service (bei Abweichung: Changes verwerfen, Eingabe zurückgeben).
+- **Bedeutungserhalt (Achse A):** `Tokens(format(x)) == Tokens(x)` (signifikante Token, Typ+Text) +
+  identische Direktiv-Trivia-Sequenz und **keine neuen Diagnostics** — als Property-Test über Fixtures
+  **und** den großen Korpus; zusätzlich als **Laufzeit-Wächter** im Service (bei Abweichung: Changes
+  verwerfen, Eingabe zurückgeben).
 - **Gap-Kontext-Abdeckung:** die aus Grammatik/Korpus erreichbaren `(prevType, nextType, …)`-Nachbarschaften
   aufzählen und sicherstellen, dass jede eine explizite, getestete Layout-Entscheidung hat.
 - **Fuzz/Differential:** zufällig gültige bzw. mutierte `.nav` erzeugen, die Achse-A-Invarianten
@@ -946,3 +887,30 @@ gegen den Korpus zur Deckung bringen.
 - **Spalten-Kalibrierung (einmalig, vor dem Festzurren der `AlignmentColumnPolicy`):** über den Korpus
   pro Ausrichtungsgruppe `extra = autorSpalte − tightMin` histogrammieren (Tabs bei `IndentSize`
   aufgelöst) → entscheidet empirisch zwischen `Tight` / `NextTabStop` / `PreserveDominant`.
+
+## Step-Plan
+
+Jeder Step für sich baubar/testbar; nach jedem Step Code-Review + `nav test` (net472) **und**
+`dotnet test … -f net10.0` (beide TFMs grün) + gelieferte Commit-Message (Commit macht der Nutzer).
+**Fallstrick:** `nav test` baut nicht selbst → vor net472-Tests einmal `nav build`.
+
+| # | Inhalt | Fertig, wenn | Status |
+|---|---|---|---|
+| **S0** | Dieses Doc + in `.slnx` eingehängt | Doc liegt unter `doc/`, in Solution sichtbar | **erledigt** |
+| **S1** | `NavFormattingOptions` + Gap-Infrastruktur (Gap-Enumeration über `Tokens`, `GapContext`, `GapLayout`, Renderer-Gerüst, Ein-Change-pro-Lücke-Invariante inkl. Final-Gap-Sonderrolle) | Leere/triviale Datei = 0 Changes; Round-Trip idempotent | offen |
+| **S2** | Layout-Regeln (fehlerfrei): Allman, Tiefe-0/1-Einzug via Ahnenkette, Member-/Statement-Breaks, Space um Pfeile, tight `Colon`, `PunctuationRule` (Komma/Semikolon/`[`-Ränder/Typ-Interna via Abdeckungs-Prüfung), Final-Newline, Trailing-Trim, **kein** Leerzeilen-Kollaps (Autorenzahl erhalten, nur `BlankLineBeforeTransitionsRule` als Minimum-1); Kommentar-Normalisierung + Direktiven-Erhalt (Spalte 0, verbatim) | Golden für saubere Dateien + Idempotenz grün | offen |
+| **S3** | Ausrichtung: Pfeil-Spalte + Node-Grid (`keyword\|node\|rest`) + **Task-Kopf** (Blöcke stapeln + mehrzeiliges `[params]` unter erstem Parameter, `NewLineAlignedColumn`) inkl. Gruppenbildung (`interruptLines`, Größe-1-Ausnahme) + `AlignmentMap`-Vorpass; **kanonische** Breitenmessung (nie `ToString()`), `AlignmentColumnPolicy` (Default `NextTabStop`, Padding immer Spaces) | Golden mit Spalten + Task-Kopf + Idempotenz grün | offen |
+| **S4** | Fehler-Toleranz: `ComputeSuppressedExtents` (fehlende Struktur-Token, `SkippedTokensTrivia`, Error-Syntax-Diagnostik), BOM-Guard, Global-Fallback; Laufzeit-Wächter (Achse A) | Edge-Case-Fixtures grün, keine Overlap-Exception, Wächter feuert im Testlauf nie | offen |
+| **S5** | Selektion: `FormatRange` (Zeilen-Einrasten → Anweisungs-Ausweitung → Block-weite Ausrichtung, Changes nur im Range) | Selektions-Fixtures grün | offen |
+
+**Zurückgestellt (nicht v1):** Host-Anbindung (LSP `textDocument/formatting`+`rangeFormatting`, MCP
+`nav_format` read-only, VS Format-Document/Selection-Command, CLI `format`-Verb mit `--check`/`--write`);
+Mehrspalten-Ausrichtung (`on`/`if`/`do`); `[params]`-Ausrichtung **außerhalb** des Task-Kopfs (Node-Wirte
+`init`/`choice` bleiben grid-einzeilig — der Task-Kopf ist in S3 enthalten); Format-on-Type/-Paste;
+Reformatierung des **Inneren** von Direktiven (`#pragma`-Spacing — ihr Erhalt auf eigener Zeile ab
+Spalte 0 ist dagegen v1-Pflicht); EOL-Normalisierung im Inneren mehrzeiliger Kommentare.
+
+**Bewusst ausgeschlossen (nicht nur zurückgestellt):** Inhaltliches Umbrechen/Neu-Formatieren von
+Kommentar-Text (Reflow); Ausrichten eines `*`-Präfixes in Block-Kommentaren (keine Nav-Konvention). Das
+bloße **Mitschieben** der Kommentar-Innenzeilen um das Einrück-Delta ist hingegen **enthalten** (s.
+„Kommentare & Direktiven").
