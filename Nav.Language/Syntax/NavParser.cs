@@ -266,11 +266,24 @@ sealed partial class NavParser {
         // Die Präprozessor-Direktiven (#…) sind bereits im Konstruktor strukturiert erkannt und als
         // DirectiveTrivia gefaltet (der eigentliche Cursor sieht die „hidden" Präprozessor-Token nicht).
 
-        if (At(SyntaxTokenType.OpenBracket) && PeekType(1) == SyntaxTokenType.NamespaceprefixKeyword) {
+        // Kopf der CodeGenerationUnit: [namespaceprefix …] gefolgt von [using …]*. Der Using-Kopf
+        // existiert nur, wenn ein namespaceprefix ihn eröffnet — usings ohne vorangehendes namespaceprefix
+        // gehören grammatisch nicht in den Kopf (und werden in der Member-Schleife als Fehlerproduktion
+        // behandelt). Ist der Kopf eröffnet, werden die usings — wie die Code-Deklarationen der Wirte
+        // (siehe ParseCodeDeclarations) — verschränkt mit der Klammer-Recovery geparst: eine hier nicht
+        // zuzuordnende Klammer (malforme/unfertige using-Klammer wie `[usin …]`, ein zweites
+        // namespaceprefix, ein leeres [ … ]) wird als eigene Fehlerproduktion isoliert übersprungen, ohne
+        // die folgenden — für sich wohlgeformten — usings mitzureißen.
+        if (AtCodeDeclaration(SyntaxTokenType.NamespaceprefixKeyword)) {
             codeNamespace = ParseCodeNamespaceDeclaration();
 
-            while (At(SyntaxTokenType.OpenBracket) && PeekType(1) == SyntaxTokenType.UsingKeyword) {
-                codeUsings.Add(ParseCodeUsingDeclaration());
+            while (At(SyntaxTokenType.OpenBracket)) {
+                if (AtCodeDeclaration(SyntaxTokenType.UsingKeyword)) {
+                    codeUsings.Add(ParseCodeUsingDeclaration());
+                    continue;
+                }
+
+                ParseMalformedBracketDeclaration(CodeBlockHost.CompilationUnit);
             }
         }
 
