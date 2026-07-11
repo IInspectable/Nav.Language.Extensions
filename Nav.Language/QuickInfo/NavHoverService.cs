@@ -60,7 +60,7 @@ public static class NavHoverService {
     static NavHoverInfo? GetKeywordHover(CodeGenerationUnit unit, int position) {
 
         var token = unit.Syntax.SyntaxTree.Tokens.FindAtPosition(position);
-        if (token.IsMissing || !IsKeywordClassification(token.Classification)) {
+        if (token.IsMissing || !SyntaxFacts.IsKeywordClassification(token.Classification)) {
             return null;
         }
 
@@ -72,12 +72,6 @@ public static class NavHoverService {
         var parts = ImmutableArray.Create(new ClassifiedText(token.ToString(), token.Classification));
 
         return new NavHoverInfo(parts, token.GetLocation(), Array.Empty<Call>(), description);
-    }
-
-    static bool IsKeywordClassification(TextClassification classification) {
-        return classification is TextClassification.Keyword
-                              or TextClassification.ControlKeyword
-                              or TextClassification.PreprocessorKeyword;
     }
 
     static ImmutableArray<ClassifiedText> GetDisplayParts(ISymbol symbol) {

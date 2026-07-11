@@ -162,6 +162,17 @@ public static class SyntaxFacts {
         return KeywordDescriptions.TryGetValue(keyword, out var description) ? description : "";
     }
 
+    /// <summary>
+    /// Ob die Klassifikation ein Keyword-Token auszeichnet (reguläres Keyword, Kontroll-Keyword oder
+    /// Präprozessor-Keyword) — die Autorität, mit der Keyword-Token von gleichnamigen Bezeichnern
+    /// abgegrenzt werden (die Direktiv-Keywords <c>version</c>/<c>pragma</c> sind nicht reserviert).
+    /// </summary>
+    public static bool IsKeywordClassification(TextClassification classification) {
+        return classification is TextClassification.Keyword
+                              or TextClassification.ControlKeyword
+                              or TextClassification.PreprocessorKeyword;
+    }
+
     public static readonly ImmutableHashSet<string> HiddenKeywords = new[] {
         SpontaneousKeyword,
         SpontKeyword,

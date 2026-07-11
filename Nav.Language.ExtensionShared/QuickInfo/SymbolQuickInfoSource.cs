@@ -41,10 +41,13 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
             return null;
         }
 
-        var triggerSymbol = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Symbols.FindAtPosition(subjectTriggerPoint.Value.Position);
+        var position      = subjectTriggerPoint.Value.Position;
+        var triggerSymbol = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Symbols.FindAtPosition(position);
 
+        // Kein Symbol unter dem Caret — steht dort ein Keyword-Token, zeigt der Tooltip dessen Bedeutung
+        // (SyntaxFacts, die einzige Autorität). Spiegelt den Keyword-Fallback des LSP-Hovers (NavHoverService).
         if (triggerSymbol == null) {
-            return null;
+            return await BuildKeywordQuickInfoAsync(codeGenerationUnitAndSnapshot, position);
         }
 
         var location = triggerSymbol.Location;
@@ -62,6 +65,29 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
 
         return new QuickInfoItem(applicableToSpan: applicableToSpan,
                                  item: qiContent);
+    }
+
+    async Task<QuickInfoItem> BuildKeywordQuickInfoAsync(CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot, int position) {
+
+        var token = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Syntax.SyntaxTree.Tokens.FindAtPosition(position);
+        if (token.IsMissing || !SyntaxFacts.IsKeywordClassification(token.Classification)) {
+            return null;
+        }
+
+        var keyword = token.ToString();
+        if (SyntaxFacts.GetKeywordDescription(keyword).Length == 0) {
+            return null;
+        }
+
+        var applicableToSpan = codeGenerationUnitAndSnapshot.Snapshot.CreateTrackingSpan(
+            token.Start,
+            token.Length,
+            SpanTrackingMode.EdgeExclusive);
+
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+        return new QuickInfoItem(applicableToSpan: applicableToSpan,
+                                 item: QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword));
     }
 
 }
