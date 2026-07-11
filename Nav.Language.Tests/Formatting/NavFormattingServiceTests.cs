@@ -199,16 +199,86 @@ public class NavFormattingServiceTests {
                     "Achse A: die Formatierung darf keine neuen Error-Diagnostics einführen.");
     }
 
+    // --- Achse-A-Wächter (MeaningPreserved): die verschärften Vergleiche gezielt gegen künstlich
+    //     verfälschte Eingaben, die der Formatter selbst nie erzeugt (ein Treffer wäre immer ein Bug). ---
+
+    [Test]
+    public void GuardTreatsDirectiveIndentationAsInsignificant() {
+
+        // Der Formatter normalisiert eine eingerückte Direktive bewusst auf Spalte 0
+        // (DirectiveIsResetToColumnZero) — Einrücken ist also KEINE Bedeutungsänderung. Das
+        // Zeilenanfangs-Prädikat des Wächters ist deshalb die Lexer-Definition (nur Whitespace vor dem
+        // '#'), nicht „Spalte 0"; beide Fassungen erfüllen sie. Regressionssicherung: würde jemand das
+        // Prädikat auf „Spalte 0" verschärfen, flaggte der Wächter die korrekte Normalisierung als Bruch.
+        var atColumnZero = SyntaxTree.ParseText("""
+                                                #pragma test
+                                                task A
+                                                {
+                                                }
+
+                                                """);
+
+        var indented = SyntaxTree.ParseText("""
+                                                #pragma test
+                                            task A
+                                            {
+                                            }
+
+                                            """);
+
+        Assert.Multiple(() => {
+            Assert.That(SignificantTokens(indented), Is.EqualTo(SignificantTokens(atColumnZero)), "Vorbedingung: identischer signifikanter Token-Strom.");
+            Assert.That(DirectiveTexts(indented),    Is.EqualTo(DirectiveTexts(atColumnZero)),    "Vorbedingung: identischer Direktiv-Text.");
+            Assert.That(ErrorIds(indented),          Is.EqualTo(ErrorIds(atColumnZero)),          "Vorbedingung: das Einrücken erzeugt keine zusätzliche Diagnostik.");
+        });
+
+        Assert.That(NavFormattingService.MeaningPreserved(atColumnZero, indented), Is.True,
+                    "Direktiv-Einrückung ist bedeutungserhaltend — der Wächter darf sie nicht als Bruch werten.");
+    }
+
+    [Test]
+    public void GuardDetectsErrorSwap() {
+
+        // Fehler-Tausch: gleiche Anzahl (1), aber getauschte Id. Die frühere Anzahl-Schranke
+        // (nachher ≤ vorher) hätte das durchgelassen; die Teil-Multimengen-Prüfung erkennt die neue Id.
+        // (Ein solcher Tausch bei identischem Token-Strom lässt sich nicht parsen — daher direkt geprüft.)
+        Assert.That(NavFormattingService.IsSubMultiset(candidate: ["Nav3002"], reference: ["Nav0000"]),
+                    Is.False, "Ein Fehler-Tausch (neue Id bei gleicher Anzahl) ist keine Teil-Multimenge.");
+    }
+
+    [Test]
+    public void GuardAllowsErrorRemoval() {
+
+        // Das Entfernen eines Fehlers bleibt erlaubt (Teil-Multimenge) — wie unter der früheren Schranke.
+        Assert.That(NavFormattingService.IsSubMultiset(candidate: ["Nav0000"], reference: ["Nav0000", "Nav3002"]),
+                    Is.True, "Weniger Fehler als vorher ist zulässig (der Formatter erfindet keinen echten Fehler).");
+    }
+
     static int ErrorCount(SyntaxTree syntaxTree) {
         return syntaxTree.Diagnostics.Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
     }
 
-    static IReadOnlyList<(SyntaxTokenType Type, string Text)> SignificantTokens(string text) {
-        return SyntaxTree.ParseText(text)
-                         .Tokens
+    static IReadOnlyList<string> ErrorIds(SyntaxTree syntaxTree) {
+        return syntaxTree.Diagnostics
+                         .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+                         .Select(diagnostic => diagnostic.Descriptor.Id)
+                         .OrderBy(id => id)
+                         .ToList();
+    }
+
+    static IReadOnlyList<string> DirectiveTexts(SyntaxTree syntaxTree) {
+        return syntaxTree.Directives().Select(directive => directive.ToString()).ToList();
+    }
+
+    static IReadOnlyList<(SyntaxTokenType Type, string Text)> SignificantTokens(SyntaxTree syntaxTree) {
+        return syntaxTree.Tokens
                          .Where(token => token.Type != SyntaxTokenType.EndOfFile)
                          .Select(token => (token.Type, token.ToString()))
                          .ToList();
+    }
+
+    static IReadOnlyList<(SyntaxTokenType Type, string Text)> SignificantTokens(string text) {
+        return SignificantTokens(SyntaxTree.ParseText(text));
     }
 
 }

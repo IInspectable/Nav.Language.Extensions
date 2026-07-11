@@ -28,8 +28,8 @@
 
 | # | Step | Größe | Status |
 |---|---|---|---|
-| S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | **umgesetzt** (Commit ausstehend) |
-| S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | offen |
+| S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | **umgesetzt** (committed 89154ba2) |
+| S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | **umgesetzt** (Commit ausstehend) |
 | S3 | Dispatcher-Tier-Assert + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | offen |
 | S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, Deckel 2) + Dateianfang | mittel | offen |
 | S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | offen |
@@ -100,6 +100,30 @@ Refactorings (S6 baut sinnvollerweise auf S5 auf, weil beide den `AlignmentMapBu
 **Fertig, wenn:** stärkere Vergleiche implementiert (Wächter-Tests: eingerückte Direktive und
 Fehler-Tausch werden erkannt — z.B. über ein künstlich verfälschtes Change-Set), Spec-Absatz zur
 Granularität umformuliert, beide TFMs grün (Wächter feuert im Testlauf weiterhin nie regulär).
+
+**Umgesetzt** (in `NavFormattingService.MeaningPreserved`, `internal` für Tests):
+
+- **(1) Direktiv-Vergleich — Befund korrigiert.** Statt „Text" jetzt `(Text, steht am Zeilenanfang)`.
+  Wichtig: das Prädikat ist die **Lexer-Definition** (nur Whitespace vor dem `#` auf seiner Zeile),
+  **nicht „Spalte 0"** — ein erster Versuch mit Spalte-0 ließ prompt den Golden
+  `DirectiveIsResetToColumnZero` scheitern: der Formatter normalisiert eine eingerückte Direktive
+  bewusst auf Spalte 0, Einrücken ist also **bedeutungserhaltend** und darf nicht als Bruch gewertet
+  werden. Das Prädikat ist damit vor allem dokumentierende Absicherung der Invariante (für echte
+  Direktiven immer wahr; ein echter Bruch schlägt ohnehin schon im Token-Strom durch). Neuer Test
+  `GuardTreatsDirectiveIndentationAsInsignificant` pinnt genau das (MeaningPreserved == true) und wirkt
+  als Regressionssicherung gegen ein erneutes „Spalte-0"-Verschärfen.
+- **(2) Diagnostics — Teil-Multimenge statt Zählung.** `NoNewErrorDiagnostics` prüft, ob die Error-Id-
+  Multimenge *nach* der Formatierung in der *davor* enthalten ist (`IsSubMultiset`, `internal`). Das
+  verallgemeinert das frühere `nachher ≤ vorher` (Wegfall bleibt erlaubt) und fängt zusätzlich den
+  **Fehler-Tausch** bei gleicher Anzahl. Ein natürlicher Tausch bei identischem Token-Strom lässt sich
+  nicht parsen, deshalb prüfen `GuardDetectsErrorSwap`/`GuardAllowsErrorRemoval` die Multimengen-Semantik
+  direkt.
+- **(3) Granularität — Spec an Code angeglichen.** „datei-global verwerfen" als bewusste Vereinfachung
+  dokumentiert (opt-in Entwicklungs-Selbsttest, der nie feuern darf; statement-weises Verwerfen wäre
+  Überengineering und verschleierte einen echten Bug).
+
+Beide TFMs grün (net472 1672 passed/0 failed/3 skipped, net10 171/171 Formatting). Spec
+`doc/nav-formatter-status.md` (Korrektheits-Modell, Punkt 1 + Granularität) angeglichen.
 
 ---
 

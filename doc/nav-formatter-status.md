@@ -1005,11 +1005,25 @@ Achsen** von „korrekt" mit völlig verschiedener Beweisbarkeit.
 Unabhängig von Geschmack; hier *gibt* es Falsch, und hier liegen die Bugs:
 
 1. **Bedeutungserhalt (Kardinalregel):** `format(x)` muss zum **identischen signifikanten Token-Strom**
-   (Typ + Text) zurück-parsen wie `x`, mit **identischer Direktiv-Trivia-Sequenz** (Typ + Text +
-   Zeilenanfangs-Position — Direktiven leben in Trivia, ein Token-Strom-Vergleich allein sähe ihre
-   Zerstörung nicht) und ohne **neue Diagnostics**. Wer die Tokenisierung ändert (`on Trigger` →
-   `onTrigger`; ein Token hinter `//` verschluckt; ein `#pragma` eingerückt), ist *falsch* — egal wessen
-   Geschmack.
+   (Typ + Text) zurück-parsen wie `x`, mit **identischer Direktiv-Trivia-Sequenz** und ohne **neue
+   Diagnostics**. Zwei Feinheiten, die ein reiner Token-Strom-Vergleich nicht sähe:
+   - **Direktiven** (leben in Trivia, nicht im Token-Strom) werden als `(Text, steht am Zeilenanfang)`
+     verglichen — nicht bloß als Text. Das Zeilenanfangs-**Prädikat** ist die **Lexer-Definition** von
+     Direktiv-Fähigkeit (vor dem `#` steht auf seiner Zeile nur Whitespace), **nicht** „Spalte 0": der
+     Formatter normalisiert eine (unzulässig) eingerückte Direktive bewusst auf Spalte 0
+     (`DirectiveIsResetToColumnZero`), das Einrücken ist also bedeutungserhaltend und darf **nicht** als
+     Bruch gewertet werden. Das Prädikat ist somit vor allem dokumentierende Absicherung der Invariante
+     „Direktive bleibt auf eigener Zeile am Zeilenanfang"; ein echter Bruch (ein Token vor die Direktive
+     auf dieselbe Zeile gezogen) entzöge ihr die Direktiv-Fähigkeit und schlüge ohnehin schon im
+     signifikanten Token-Strom durch.
+   - **Neue Diagnostics** werden als **Teil-Multimenge der Error-Descriptor-Ids** verglichen (die
+     Id-Multimenge *nach* der Formatierung muss in der *davor* enthalten sein; Positionen verschieben sich
+     legitim und bleiben außen vor, die Vielfachheit zählt). So fällt auch ein Fehler-*Tausch* bei gleicher
+     Anzahl auf, den ein reiner Zähl-Vergleich (`nachher ≤ vorher`) durchgelassen hätte — das *Entfernen*
+     eines Fehlers bleibt (wie zuvor) erlaubt.
+
+   Wer die Tokenisierung ändert (`on Trigger` → `onTrigger`; ein Token hinter `//` verschluckt; ein
+   Token vor ein `#pragma` auf dessen Zeile gezogen), ist *falsch* — egal wessen Geschmack.
 2. **Idempotenz:** `format(format(x)) == format(x)`.
 3. **Totalität & Nicht-Überlappung:** jede Lücke genau eine Entscheidung (Catch-all-Regel), nie ein Crash,
    nie überlappende Edits (Ein-Change-pro-Lücke).
@@ -1030,12 +1044,15 @@ ausgelieferten Hosts nicht.
 
 Zwei Präzisierungen, damit der Wächter nicht mehr schadet als er nützt:
 
-- **Granularität: statement-/member-weise, nicht datei-global.** Ein einzelner fehlerhafter Change darf
-  nicht das Formatierungsergebnis der ganzen Datei verwerfen (sonst tut der Formatter bei einer 2000-
-  Zeilen-Datei wegen *einer* kaputten Lücke gar nichts). Da Changes per Konstruktion disjunkt pro Lücke
-  sind und die Suppression ohnehin statement-/member-granular arbeitet (dieselbe Extent-Einheit wie
-  `ComputeSuppressedExtents`), re-lext der Wächter **pro Anweisung/Member**: nur die Changes der Einheit,
-  deren Re-Lex abweicht, werden verworfen — der Rest der Datei wird formatiert.
+- **Granularität: datei-global verwerfen (bewusste Vereinfachung).** Der Wächter re-parst das ganze
+  Ergebnis einmal und verwirft bei Abweichung **alle** Changes — nicht pro Anweisung/Member. Das ist
+  Absicht: Der Wächter ist ein reiner Opt-in-Entwicklungs-Selbsttest (`VerifyResult`, per Default aus),
+  der **nie feuern darf** — ein Treffer ist *immer* ein Formatter-Bug, kein Laufzustand. Für so einen
+  Alles-oder-nichts-Selbsttest wäre statement-/member-weises Verwerfen (den Rest der Datei trotz Bug
+  ausliefern) Überengineering und würde einen echten Bug obendrein verschleiern. Die ausgelieferten Hosts
+  tragen den Wächter ohnehin nicht (Default aus), also gibt es kein „2000-Zeilen-Datei tut wegen *einer*
+  kaputten Lücke gar nichts"-Szenario im Feld. (Wollte man ihn je scharfschalten, wäre statement-weises
+  Re-Lexen pro `FormatterSuppression`-Einheit ein eigener Schritt — aktuell nicht vorgesehen.)
 - **Sichtbarkeit: ein Wächter-Treffer ist IMMER ein Bug**, kein legitimer Laufzustand (der Formatter
   fasst nie signifikanten Token-Text an). Wenn er läuft, ist er hart: `Debug.Fail` **plus** die betroffenen
   Changes verwerfen und **einmalig auf `stderr`** loggen (host-neutral, konform zur Stdio-Log-Regel) — der

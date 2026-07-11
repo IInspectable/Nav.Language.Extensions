@@ -348,10 +348,19 @@ public static class NavFormattingService {
         return Array.Empty<TextChange>();
     }
 
-    static bool MeaningPreserved(SyntaxTree before, SyntaxTree after) {
+    /// <summary>
+    /// Der eigentliche Achse-A-Vergleich (intern für Wächter-Tests sichtbar): <c>after</c> bewahrt die
+    /// Bedeutung von <c>before</c> genau dann, wenn (a) der signifikante Token-Strom (Typ + Text) identisch
+    /// ist, (b) die Direktiv-Sequenz identisch ist — verglichen als (Text, <i>steht am Zeilenanfang</i>),
+    /// nicht bloß als Text (Direktiven leben in Trivia, ein reiner Token-Strom-Vergleich sähe ihre
+    /// Zerstörung nicht) — und (c) keine <b>neue</b> Error-Diagnostik entsteht (verglichen als
+    /// <b>Teil-Multimenge der Descriptor-Ids</b>, damit auch ein Fehler-<i>Tausch</i> bei gleicher Anzahl
+    /// auffällt; Positionen verschieben sich durch Formatierung legitim und bleiben daher außen vor).
+    /// </summary>
+    internal static bool MeaningPreserved(SyntaxTree before, SyntaxTree after) {
         return SignificantTokens(before).SequenceEqual(SignificantTokens(after)) &&
                Directives(before).SequenceEqual(Directives(after)) &&
-               ErrorCount(after) <= ErrorCount(before);
+               NoNewErrorDiagnostics(before, after);
     }
 
     static IEnumerable<(SyntaxTokenType Type, string Text)> SignificantTokens(SyntaxTree syntaxTree) {
@@ -360,12 +369,75 @@ public static class NavFormattingService {
                          .Select(token => (token.Type, token.ToString()));
     }
 
-    static IEnumerable<string> Directives(SyntaxTree syntaxTree) {
-        return syntaxTree.Directives().Select(directive => directive.ToString());
+    /// <summary>
+    /// Die Direktiven als (Text, <i>steht am Zeilenanfang</i>). Das Zeilenanfangs-Prädikat ist die
+    /// <b>Lexer-Definition</b> von Direktiv-Fähigkeit — vor dem einleitenden <c>#</c> steht auf seiner Zeile
+    /// nur Whitespace (siehe <c>NavLexer.AtLineStart</c>) — <b>nicht</b> „Spalte 0". Genau das ist
+    /// formatierungs-vergleichbar: der Formatter normalisiert eine (unzulässig) eingerückte Direktive auf
+    /// Spalte 0 (<c>DirectiveIsResetToColumnZero</c>), die absolute Position verschiebt sich also legitim —
+    /// die Zeilenanfangs-<i>Eigenschaft</i> bleibt dabei aber invariant. Ein echter Bruch (ein Token vor die
+    /// Direktive auf dieselbe Zeile gezogen) entzöge ihr die Direktiv-Fähigkeit; sie verschwände dann aus
+    /// dieser Sequenz und tauchte im signifikanten Token-Strom auf. Das Prädikat ist somit vor allem
+    /// dokumentierende Absicherung dieser Invariante.
+    /// </summary>
+    static IEnumerable<(string Text, bool AtLineStart)> Directives(SyntaxTree syntaxTree) {
+        var sourceText = syntaxTree.SourceText;
+        return syntaxTree.Directives()
+                         .Select(directive => (directive.ToString(), AtLineStart(sourceText, directive)));
     }
 
-    static int ErrorCount(SyntaxTree syntaxTree) {
-        return syntaxTree.Diagnostics.Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    static bool AtLineStart(SourceText sourceText, DirectiveTriviaSyntax directive) {
+        var hash = directive.HashToken;
+        if (hash.IsMissing) {
+            return false;
+        }
+
+        var lineStart = sourceText.GetTextLineAtPosition(hash.Start).Start;
+        return string.IsNullOrWhiteSpace(sourceText.Substring(TextExtent.FromBounds(lineStart, hash.Start)));
+    }
+
+    /// <summary>
+    /// Keine <b>neue</b> Error-Diagnostik: die Multimenge der Error-Descriptor-Ids <i>nach</i> der
+    /// Formatierung ist eine Teil-Multimenge von der <i>davor</i> — jede Id kommt nachher höchstens so oft
+    /// vor wie vorher. Das verallgemeinert die frühere reine Anzahl-Schranke (nachher ≤ vorher) und fängt
+    /// zusätzlich einen Fehler-<i>Tausch</i> bei gleicher Anzahl (eine Id verschwindet, eine andere
+    /// entsteht). Positionen verschieben sich durch Formatierung legitim und bleiben außen vor; das
+    /// <i>Entfernen</i> eines Fehlers ist erlaubt — der Formatter fasst nie signifikanten Token-Text an,
+    /// kann also keinen echten Fehler erfinden; die Schranke ist ein Sicherheitsnetz gegen genau das.
+    /// </summary>
+    static bool NoNewErrorDiagnostics(SyntaxTree before, SyntaxTree after) {
+        return IsSubMultiset(ErrorDiagnosticIds(after), ErrorDiagnosticIds(before));
+    }
+
+    static IEnumerable<string> ErrorDiagnosticIds(SyntaxTree syntaxTree) {
+        return syntaxTree.Diagnostics
+                         .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+                         .Select(diagnostic => diagnostic.Descriptor.Id);
+    }
+
+    /// <summary>
+    /// Ob <paramref name="candidate"/> eine Teil-Multimenge von <paramref name="reference"/> ist: jedes
+    /// Element kommt in <paramref name="candidate"/> höchstens so oft vor wie in <paramref name="reference"/>.
+    /// (Intern für die Wächter-Tests sichtbar — ein natürlicher Fehler-Tausch bei identischem Token-Strom
+    /// lässt sich nicht parsen, deshalb wird die Multimengen-Semantik hier direkt geprüft.)
+    /// </summary>
+    internal static bool IsSubMultiset(IEnumerable<string> candidate, IEnumerable<string> reference) {
+
+        var budget = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var id in reference) {
+            budget.TryGetValue(id, out var count);
+            budget[id] = count + 1;
+        }
+
+        foreach (var id in candidate) {
+            if (!budget.TryGetValue(id, out var remaining) || remaining == 0) {
+                return false; // Neue Id oder häufiger als in der Referenz → nicht enthalten.
+            }
+
+            budget[id] = remaining - 1;
+        }
+
+        return true;
     }
 
     /// <summary>
