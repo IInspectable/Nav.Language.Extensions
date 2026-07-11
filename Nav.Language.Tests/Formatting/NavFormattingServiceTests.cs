@@ -37,96 +37,99 @@ public class NavFormattingServiceTests {
     static IEnumerable<string> Fixtures() {
         yield return "";
         yield return """
-        task A
-        {
-        }
+                     task A
+                     {
+                     }
 
-        """;
+                     """;
         yield return """
-        task Sample
-        {
-            init I1;
-            exit E;
+                     task Sample
+                     {
+                         init I1;
+                         exit E;
 
-            I1 --> E;
-        }
-        """;
+                         I1 --> E;
+                     }
+                     """;
         yield return """
-        #pragma version 1
-        task A
-        {
-        }
-        """;
+                     #pragma version 1
+                     task A
+                     {
+                     }
+                     """;
+
         // Bewusst unaufgeräumt/defekt: Trailing-Whitespace ('task A   '), enge Zwischenräume und ein
         // fehlendes Datei-Endzeichen bleiben als escapte Literale sichtbar (im Raw-String wären die
         // Trailing-Spaces unsichtbar und würden vom Editor/Tooling getilgt).
         yield return "// Kopf-Kommentar\r\ntask A   \r\n{\r\n  init I1;   exit E;\r\n\r\n\r\n  I1-->E;// tail\r\n}";
         yield return """
-        task Broken
-        {
-            init I1
-            @@@
-            exit E;
-        }
-        """;
+                     task Broken
+                     {
+                         init I1
+                         @@@
+                         exit E;
+                     }
+                     """;
+
         // S4-Fehler-Toleranz: fehlendes ';'/'}', Skiped im Statement, Streu-Token zwischen Membern, BOM,
         // Global-Fallback, Hand-gelegt-Delta-Shift, mehrzeiliger Block-Kommentar.
         yield return """
-        task Sample
-        {
-            init I1;
-            exit E;
+                     task Sample
+                     {
+                         init I1;
+                         exit E;
 
-            A  -->  B
-            B --> E;
-        }
+                         A  -->  B
+                         B --> E;
+                     }
 
-        """;
+                     """;
         yield return """
-        task Good
-        {
-        init I1;
-        I1 --> E;
-        }
-        task Broken
-        {
-            init   X;
-            X  -->  E;
+                     task Good
+                     {
+                     init I1;
+                     I1 --> E;
+                     }
+                     task Broken
+                     {
+                         init   X;
+                         X  -->  E;
 
-        """;
+                     """;
         yield return """
-        [using A]
-        @@@
-        [using B]
-        task X
-        {
-        }
+                     [using A]
+                     @@@
+                     [using B]
+                     task X
+                     {
+                     }
 
-        """;
+                     """;
+
         // Diese beiden bleiben bewusst escapte Literale: das führende BOM (U+FEFF) und der reine
         // Einzeiler ließen sich als Raw-String nur schlechter bzw. unsichtbar darstellen.
         yield return "﻿task A\r\n{\r\n}\r\n";
         yield return "@@@ %%% &&&\r\n";
         yield return """
-        task Sample
-        {
-            init I1;
-            exit E;
+                     task Sample
+                     {
+                         init I1;
+                         exit E;
 
-          A
-              --> E;
-        }
+                       A
+                           --> E;
+                     }
 
-        """;
+                     """;
         yield return """
-        task Sample
-        {
-              /* Zeile1
-                 Zeile2 */
-            init I1;
-        }
+                     task Sample
+                     {
+                           /* Zeile1
+                              Zeile2 */
+                         init I1;
+                     }
 
-        """;
+                     """;
         yield return Resources.LargeNav;
     }
 
@@ -138,11 +141,11 @@ public class NavFormattingServiceTests {
     [Test]
     public void TrivialCanonicalFileProducesNoChanges() {
         Assert.That(Format("""
-        task A
-        {
-        }
+                           task A
+                           {
+                           }
 
-        """), Is.Empty);
+                           """), Is.Empty);
     }
 
     [Test, TestCaseSource(nameof(Fixtures))]
@@ -164,8 +167,8 @@ public class NavFormattingServiceTests {
         var once  = ApplyFormat(text);
         var twice = ApplyFormat(once);
 
-        Assert.That(twice, Is.EqualTo(once), "format(format(x)) muss format(x) sein.");
-        Assert.That(Format(once), Is.Empty, "Der zweite Lauf darf keine Changes mehr liefern.");
+        Assert.That(twice,        Is.EqualTo(once), "format(format(x)) muss format(x) sein.");
+        Assert.That(Format(once), Is.Empty,         "Der zweite Lauf darf keine Changes mehr liefern.");
     }
 
     [Test, TestCaseSource(nameof(Fixtures))]
