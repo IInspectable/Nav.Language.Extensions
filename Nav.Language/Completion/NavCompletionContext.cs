@@ -118,20 +118,49 @@ enum NavCompletionContextKind {
 }
 
 /// <summary>
+/// Die Art des Quellknotens einer Transition — bestimmt, welche Folge-Klauseln (Trigger <c>on</c>,
+/// Bedingungen <c>if</c>/<c>else</c>) hinter Ziel bzw. Trigger überhaupt zulässig sind. Spiegelt die
+/// Analyzer Nav0200 (kein Signal-Trigger nach init), Nav0203 (kein Trigger nach choice), Nav0220 (keine
+/// Bedingungen in Trigger-Transitionen) und Nav0221 (nur <c>if</c> in Exit-Transitionen), damit die
+/// Completion keine Klausel anbietet, die sofort ein Diagnostic auslöste.
+/// </summary>
+enum TransitionSourceKind {
+
+    /// <summary>Quelle nicht auflösbar → der Aufrufer bietet konservativ die volle Klauselmenge.</summary>
+    Unknown,
+
+    /// <summary>init-Knoten: kein Signal-Trigger <c>on</c> (Nav0200); Bedingungen zulässig.</summary>
+    Init,
+
+    /// <summary>choice-Knoten: kein Trigger (Nav0203); Bedingungen zulässig.</summary>
+    Choice,
+
+    /// <summary>view/dialog (GUI): Trigger <c>on</c> zulässig, keine Bedingungen (Nav0220).</summary>
+    Gui,
+
+    /// <summary>Exit-Transition (<c>Knoten:exit</c>): kein Trigger (Grammatik), nur <c>if</c> (Nav0221).</summary>
+    Exit
+
+}
+
+/// <summary>
 /// Bestimmt die <see cref="NavCompletionContextKind"/> an einer Cursor-Position. Trägt zusätzlich die
 /// für die jeweilige Kategorie nötigen Bezugspunkte: die umschließende Task-Definition, — bei
-/// <see cref="NavCompletionContextKind.ExitConnectionPoint"/> — den Namen des Exit-Knotens, und — bei
-/// <see cref="NavCompletionContextKind.CodeBlock"/> — den <see cref="Host"/> des Code-Blocks.
+/// <see cref="NavCompletionContextKind.ExitConnectionPoint"/> — den Namen des Exit-Knotens, — bei
+/// <see cref="NavCompletionContextKind.CodeBlock"/> — den <see cref="Host"/> des Code-Blocks, und — bei den
+/// Folge-Klausel-Situationen (<see cref="NavCompletionContextKind.AfterTarget"/>/<see cref="NavCompletionContextKind.AfterTrigger"/>)
+/// — die <see cref="SourceKind"/> der Transition.
 /// </summary>
 sealed class NavCompletionContext {
 
     NavCompletionContext(NavCompletionContextKind kind, ITaskDefinitionSymbol? task, string? exitNodeName,
-                         CodeBlockHost host, ISet<string>? presentCodeKeywords) {
+                         CodeBlockHost host, ISet<string>? presentCodeKeywords, TransitionSourceKind sourceKind) {
         Kind               = kind;
         Task               = task;
         ExitNodeName       = exitNodeName;
         Host               = host;
         PresentCodeKeywords = presentCodeKeywords ?? EmptyKeywords;
+        SourceKind         = sourceKind;
     }
 
     static readonly ISet<string> EmptyKeywords = new HashSet<string>(StringComparer.Ordinal);
@@ -152,10 +181,18 @@ sealed class NavCompletionContext {
     /// </summary>
     public ISet<string> PresentCodeKeywords { get; }
 
+    /// <summary>
+    /// Die Art des Quellknotens der Transition — nur für die Folge-Klausel-Situationen
+    /// (<see cref="NavCompletionContextKind.AfterTarget"/>/<see cref="NavCompletionContextKind.AfterTrigger"/>)
+    /// aussagekräftig; sonst <see cref="TransitionSourceKind.Unknown"/>.
+    /// </summary>
+    public TransitionSourceKind SourceKind { get; }
+
     static NavCompletionContext Of(NavCompletionContextKind kind, ITaskDefinitionSymbol? task = null,
                                    string? exitNodeName = null, CodeBlockHost host = CodeBlockHost.CompilationUnit,
-                                   ISet<string>? presentCodeKeywords = null)
-        => new(kind, task, exitNodeName, host, presentCodeKeywords);
+                                   ISet<string>? presentCodeKeywords = null,
+                                   TransitionSourceKind sourceKind = TransitionSourceKind.Unknown)
+        => new(kind, task, exitNodeName, host, presentCodeKeywords, sourceKind);
 
     public static NavCompletionContext Classify(CodeGenerationUnit unit, int position) {
 
@@ -307,14 +344,17 @@ sealed class NavCompletionContext {
 
             // Zielknoten → danach die Folge-Klauseln. Ein Continuation-Ziel (Ziel einer
             // ContinuationTransitionSyntax) bietet dieselben Klauseln, aber KEINE weitere Continuation an.
+            // Welche Klauseln bei einem regulären Ziel zulässig sind, hängt am Quellknoten (SourceKind) —
+            // die Continuation-Klauseln bleiben davon unberührt und behalten ihr bestehendes Verhalten.
             case TargetNodeSyntax target:
-                return Of(target.Parent is ContinuationTransitionSyntax
-                              ? NavCompletionContextKind.AfterContinuationTarget
-                              : NavCompletionContextKind.AfterTarget, task);
+                return target.Parent is ContinuationTransitionSyntax
+                           ? Of(NavCompletionContextKind.AfterContinuationTarget, task)
+                           : Of(NavCompletionContextKind.AfterTarget, task, sourceKind: SourceKindOf(target, task));
 
-            // Trigger (`on …` / `spontaneous`) — auch mit gefülltem Signal → danach if/else/do.
-            case TriggerSyntax:
-                return Of(NavCompletionContextKind.AfterTrigger, task);
+            // Trigger (`on …` / `spontaneous`) — auch mit gefülltem Signal → danach if/else/do bzw. (bei
+            // GUI-Quelle) nur do, da Bedingungen in Trigger-Transitionen unzulässig sind (Nav0220).
+            case TriggerSyntax trigger:
+                return Of(NavCompletionContextKind.AfterTrigger, task, sourceKind: SourceKindOf(trigger, task));
 
             // Bedingung (`if …` / `else …`) — auch mit gefülltem Wert → danach do.
             case ConditionClauseSyntax:
@@ -370,6 +410,41 @@ sealed class NavCompletionContext {
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Die <see cref="TransitionSourceKind"/> der Transition, in der <paramref name="node"/> steht — Grundlage
+    /// dafür, welche Folge-Klauseln hinter Ziel bzw. Trigger zulässig sind. Eine Exit-Transition
+    /// (<c>Knoten:exit --> …</c>) wird direkt am Syntaxknoten erkannt; bei einer regulären Transition
+    /// entscheidet der <em>aufgelöste</em> Quellknoten (init/choice/gui). Lässt sich die Quelle nicht auflösen,
+    /// bleibt es <see cref="TransitionSourceKind.Unknown"/> — der Aufrufer bietet dann konservativ die volle Menge.
+    /// </summary>
+    static TransitionSourceKind SourceKindOf(SyntaxNode node, ITaskDefinitionSymbol? task) {
+
+        // Exit-Transition: die Quelle ist immer ein Task-Exit; grammatisch kein Trigger, nur `if` (Nav0221).
+        if (node.AncestorsAndSelf().OfType<ExitTransitionDefinitionSyntax>().Any()) {
+            return TransitionSourceKind.Exit;
+        }
+
+        var transition = node.AncestorsAndSelf().OfType<TransitionDefinitionSyntax>().FirstOrDefault();
+        if (transition == null || task == null) {
+            return TransitionSourceKind.Unknown;
+        }
+
+        var name       = transition.SourceNode.Name;
+        var sourceNode = task.TryFindNode(name);
+
+        // Sonderfall init: als Quelle ist — wie im SemanticModel-Builder — auch die Großschreibung `Init` erlaubt.
+        if (sourceNode == null && name == SyntaxFacts.InitKeyword) {
+            sourceNode = task.TryFindNode(SyntaxFacts.InitKeywordAlt);
+        }
+
+        return sourceNode switch {
+            IInitNodeSymbol   => TransitionSourceKind.Init,
+            IChoiceNodeSymbol => TransitionSourceKind.Choice,
+            IGuiNodeSymbol    => TransitionSourceKind.Gui,
+            _                 => TransitionSourceKind.Unknown
+        };
     }
 
     /// <summary>

@@ -231,12 +231,12 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
-    public void AfterTarget_OffersFollowupClauses() {
+    public void AfterTarget_FromInitSource_OffersConditionsAndDo() {
 
-        // Caret (|) hinter dem vollständigen Ziel `e ` (Whitespace), vor `;`. Folge-Klauseln nach dem Ziel —
-        // inkl. `else` (Bedingungs-Klausel, z.B. für Choice-Zweige). Continuation-Kanten sind ein Version-2-
-        // Feature und werden unter #version 1 (Default) NICHT angeboten (sonst würfe der Vorschlag sofort
-        // Nav5000). Keine Knoten, keine Deklarations-Keywords.
+        // Caret (|) hinter dem vollständigen Ziel `e ` (Whitespace), vor `;`. Die Quelle `i` ist ein init-Knoten:
+        // nach init ist ein Signal-Trigger `on` NICHT zulässig (Nav0200) und wird daher auch NICHT angeboten —
+        // es bleiben die Bedingungs-Klauseln `if`/`else` und `do`. Continuation-Kanten sind ein Version-2-
+        // Feature und werden unter #version 1 (Default) NICHT angeboten. Keine Knoten, keine Deklarations-Keywords.
         At("""
            task A
            {
@@ -246,17 +246,88 @@ public class NavCompletionServiceTests {
            }
 
            """)
-            .Offers(Keyword(SyntaxFacts.OnKeyword),
-                    Keyword(SyntaxFacts.IfKeyword),
+            .Offers(Keyword(SyntaxFacts.IfKeyword),
                     Keyword(SyntaxFacts.ElseKeyword),
                     Keyword(SyntaxFacts.DoKeyword));
     }
 
     [Test]
-    public void AfterTarget_UnderVersion2_AlsoOffersContinuationEdges() {
+    public void AfterTarget_FromGuiSource_OffersTriggerAndDo() {
 
-        // Wie oben, aber ab #version 2: hinter dem Ziel darf zusätzlich eine Continuation (`o-^`/`--^`) folgen —
-        // dieselbe Gate-Autorität wie Nav5000. Caret (|) hinter dem vollständigen Ziel `V ` (Whitespace).
+        // Der Screenshot-Fall: die Quelle `V` ist ein GUI-Knoten (view) → Trigger-Transition. Dort ist der
+        // Trigger `on` zulässig, Bedingungen `if`/`else` dagegen NICHT (Nav0220) und werden daher auch NICHT
+        // angeboten — es bleiben `on` und `do`. Caret (|) hinter dem vollständigen Ziel `d ` (Whitespace).
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               view V;
+               dialog d;
+               i --> V;
+               V o-> d |;
+           }
+
+           """)
+            .Offers(Keyword(SyntaxFacts.OnKeyword),
+                    Keyword(SyntaxFacts.DoKeyword));
+    }
+
+    [Test]
+    public void AfterTarget_FromChoiceSource_OffersConditionsAndDo() {
+
+        // Die Quelle `c` ist ein choice-Knoten → jeder Trigger ist unzulässig (Nav0203), Bedingungen dagegen
+        // zulässig. Angeboten werden daher `if`/`else`/`do`, kein `on`. Caret (|) hinter dem Ziel `e `.
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               choice c;
+               i --> c;
+               c --> e |;
+           }
+
+           """)
+            .Offers(Keyword(SyntaxFacts.IfKeyword),
+                    Keyword(SyntaxFacts.ElseKeyword),
+                    Keyword(SyntaxFacts.DoKeyword));
+    }
+
+    [Test]
+    public void AfterTarget_FromExitSource_OffersOnlyIfAndDo() {
+
+        // Exit-Transition (`Sub:se --> …`): grammatisch kann sie keinen Trigger tragen und nur eine
+        // `if`-Bedingung (Nav0221) — kein `else`, kein `on`. Angeboten werden daher nur `if` und `do`.
+        // Caret (|) hinter dem Ziel `e ` der Exit-Transition.
+        At("""
+           taskref Sub
+           {
+               init si;
+               exit se;
+           }
+
+           task A
+           {
+               init i;
+               exit e;
+               task Sub;
+               i --> Sub;
+               Sub:se --> e |;
+           }
+
+           """)
+            .Offers(Keyword(SyntaxFacts.IfKeyword),
+                    Keyword(SyntaxFacts.DoKeyword));
+    }
+
+    [Test]
+    public void AfterTarget_FromInitSource_UnderVersion2_AlsoOffersContinuationEdges() {
+
+        // Wie AfterTarget_FromInitSource, aber ab #version 2: hinter dem Ziel darf zusätzlich eine Continuation
+        // (`o-^`/`--^`) folgen — dieselbe Gate-Autorität wie Nav5000. Die Continuation hängt am Ziel, nicht am
+        // Quellknoten, und ist daher vom SourceKind-Pruning unberührt; `on` bleibt (init-Quelle) trotzdem weg.
+        // Caret (|) hinter dem vollständigen Ziel `V ` (Whitespace).
         At("""
            #version 2
            task A
@@ -268,8 +339,7 @@ public class NavCompletionServiceTests {
            }
 
            """)
-            .Offers(Keyword(SyntaxFacts.OnKeyword),
-                    Keyword(SyntaxFacts.IfKeyword),
+            .Offers(Keyword(SyntaxFacts.IfKeyword),
                     Keyword(SyntaxFacts.ElseKeyword),
                     Keyword(SyntaxFacts.DoKeyword),
                     Keyword(SyntaxFacts.ContinuationModalEdgeKeyword),  // o-^
@@ -401,6 +471,27 @@ public class NavCompletionServiceTests {
             .Offers(Keyword(SyntaxFacts.IfKeyword),
                     Keyword(SyntaxFacts.ElseKeyword),
                     Keyword(SyntaxFacts.DoKeyword));
+    }
+
+    [Test]
+    public void AfterTrigger_FromGuiSource_OffersOnlyDo() {
+
+        // GUI-Quelle (`V` = view) mit gesetztem Trigger `on Sig`: die Transition IST eine Trigger-Transition,
+        // Bedingungen sind dort unzulässig (Nav0220) — hinter dem Trigger bleibt daher nur `do`, kein if/else.
+        // Caret (|) hinter dem gefüllten `on Sig `-Trigger (Whitespace).
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               view V;
+               dialog d;
+               i --> V;
+               V o-> d on Sig |
+           }
+
+           """)
+            .Offers(Keyword(SyntaxFacts.DoKeyword));
     }
 
     [Test]

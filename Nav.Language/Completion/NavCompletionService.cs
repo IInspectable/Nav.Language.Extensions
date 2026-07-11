@@ -20,7 +20,9 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
 /// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
 /// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
-/// einem Ziel die Folge-Klauseln <c>on</c>/<c>if</c>/<c>else</c>/<c>do</c>; im Schlüsselwort-Slot eines Code-Blocks
+/// einem Ziel die je nach Quellknoten zulässigen Folge-Klauseln (GUI-Quelle <c>on</c>/<c>do</c>, init/choice
+/// <c>if</c>/<c>else</c>/<c>do</c>, Exit-Transition <c>if</c>/<c>do</c>) — nie eine Klausel, die sofort einen
+/// Analyzer-Fehler auslöste; im Schlüsselwort-Slot eines Code-Blocks
 /// (direkt hinter <c>[</c>) die Code-Block-Keywords. Keine Vorschläge in Kommentaren, Zeichenketten
 /// (<c>"…"</c>), im C#-Inhalt eines Code-Blocks oder im Wert-Slot hinter <c>do</c> (freier C#-Aufruf); innerhalb
 /// von <c>taskref "…"</c> die Pfad-Vervollständigung.
@@ -161,7 +163,7 @@ public static class NavCompletionService {
                 return TransitionStartItems(context);
 
             case NavCompletionContextKind.AfterTarget:
-                return AfterTargetItems(unit.LanguageVersion);
+                return AfterTargetItems(context, unit.LanguageVersion);
 
             // Wie AfterTarget, aber ohne die Continuation-Kanten: eine Continuation ist nicht verkettbar.
             case NavCompletionContextKind.AfterContinuationTarget:
@@ -169,7 +171,7 @@ public static class NavCompletionService {
                                     SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
 
             case NavCompletionContextKind.AfterTrigger:
-                return KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
+                return AfterTriggerItems(context);
 
             case NavCompletionContextKind.AfterCondition:
                 return KeywordItems(SyntaxFacts.DoKeyword);
@@ -366,25 +368,68 @@ public static class NavCompletionService {
         return true;
     }
 
-    // Hinter einem vollständigen Ziel: die Folge-Klauseln on/if/else/do — und ab Sprachversion 2 zusätzlich die
-    // Continuation-Kanten o-^/--^ (`… --> View o-^ Task`), sofern das Feature unter der effektiven #version
-    // verfügbar ist (dieselbe Autorität wie das Nav5000-Gate). Die Continuation-Keywords liegen bewusst hier und
-    // NICHT in VisibleEdgeKeywordItems: eine Continuation leitet keine neue Transition ein (sie hängt hinter dem
-    // Zielknoten), sie sind daher — wie schon in SyntaxFacts — von den regulären Edge-Keywords getrennt.
-    static IReadOnlyList<NavCompletionItem> AfterTargetItems(NavLanguageVersion version) {
+    // Hinter einem vollständigen Ziel: die je nach Quellknoten zulässigen Folge-Klauseln (siehe
+    // FollowupClauseKeywords) — und ab Sprachversion 2 zusätzlich die Continuation-Kanten o-^/--^
+    // (`… --> View o-^ Task`), sofern das Feature unter der effektiven #version verfügbar ist (dieselbe
+    // Autorität wie das Nav5000-Gate). Die Continuation-Keywords liegen bewusst hier und NICHT in
+    // VisibleEdgeKeywordItems: eine Continuation leitet keine neue Transition ein (sie hängt hinter dem
+    // Zielknoten), sie sind daher — wie schon in SyntaxFacts — von den regulären Edge-Keywords getrennt. Sie
+    // hängen am Ziel, nicht am Quellknoten, und bleiben daher vom SourceKind-Pruning unberührt.
+    static IReadOnlyList<NavCompletionItem> AfterTargetItems(NavCompletionContext context, NavLanguageVersion version) {
 
-        var keywords = new List<string> {
-            SyntaxFacts.OnKeyword,
-            SyntaxFacts.IfKeyword,
-            SyntaxFacts.ElseKeyword,
-            SyntaxFacts.DoKeyword
-        };
+        var keywords = FollowupClauseKeywords(context.SourceKind);
 
         if (NavLanguageFeatures.IsAvailable(NavLanguageFeature.Continuation, version)) {
             keywords.AddRange(SyntaxFacts.ContinuationEdgeKeywords);
         }
 
         return KeywordItems(keywords.ToArray());
+    }
+
+    // Hinter einem bereits gesetzten Trigger (`on Signal` / `spontaneous`): grammatisch folgt nur noch eine
+    // Bedingung und/oder `do`. Bei einer GUI-Quelle IST die Transition eine Trigger-Transition → Bedingungen
+    // sind dort unzulässig (Nav0220), es bleibt nur `do`; bei jeder anderen Quelle (init mit spontaneous)
+    // bleiben if/else/do. `on` entfällt hier immer — ein zweiter Trigger ist nie zulässig.
+    static IReadOnlyList<NavCompletionItem> AfterTriggerItems(NavCompletionContext context) {
+        return context.SourceKind == TransitionSourceKind.Gui
+                   ? KeywordItems(SyntaxFacts.DoKeyword)
+                   : KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
+    }
+
+    // Die hinter einem Ziel zulässigen Folge-Klauseln, abgeleitet aus dem Quellknoten der Transition — so
+    // bietet die Completion keine Klausel an, die sofort einen Analyzer-Fehler auslöste:
+    //   • GUI-Quelle (view/dialog) → Trigger-Transition: `on` zulässig, `if`/`else` nicht (Nav0220).
+    //   • init-Quelle → Signal-Trigger `on` unzulässig (Nav0200); Bedingungen zulässig.
+    //   • choice-Quelle → jeder Trigger unzulässig (Nav0203); Bedingungen zulässig.
+    //   • Exit-Transition → kein Trigger (Grammatik), nur `if` (Nav0221).
+    //   • Quelle unbekannt → konservativ die volle Menge (nie weniger anbieten als nötig).
+    // `do` (die Aktions-Klausel) ist überall zulässig und wird stets angehängt.
+    static List<string> FollowupClauseKeywords(TransitionSourceKind sourceKind) {
+
+        var keywords = new List<string>();
+
+        switch (sourceKind) {
+            case TransitionSourceKind.Gui:
+                keywords.Add(SyntaxFacts.OnKeyword);
+                break;
+            case TransitionSourceKind.Init:
+            case TransitionSourceKind.Choice:
+                keywords.Add(SyntaxFacts.IfKeyword);
+                keywords.Add(SyntaxFacts.ElseKeyword);
+                break;
+            case TransitionSourceKind.Exit:
+                keywords.Add(SyntaxFacts.IfKeyword);
+                break;
+            default:
+                keywords.Add(SyntaxFacts.OnKeyword);
+                keywords.Add(SyntaxFacts.IfKeyword);
+                keywords.Add(SyntaxFacts.ElseKeyword);
+                break;
+        }
+
+        keywords.Add(SyntaxFacts.DoKeyword);
+
+        return keywords;
     }
 
     // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Den Ersetzungsbereich (bereits getippte Edge-Zeichen)
