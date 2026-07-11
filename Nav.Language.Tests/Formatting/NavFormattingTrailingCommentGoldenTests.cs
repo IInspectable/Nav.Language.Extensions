@@ -31,7 +31,7 @@ public class NavFormattingTrailingCommentGoldenTests {
     }
 
     static void AssertFormat(string source, string expected, NavFormattingOptions options = null) {
-        Assert.That(Format(source, options), Is.EqualTo(expected));
+        Assert.That(Format(source,   options), Is.EqualTo(expected));
         Assert.That(Format(expected, options), Is.EqualTo(expected), "Das Golden selbst muss ein Fixpunkt sein (Idempotenz).");
     }
 
@@ -40,22 +40,22 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Kommentar-Spalte tight hinter der längsten Zeile ("B --> Exit;" = 17 -> Spalte 18); die
         // breiteste Zeile bekommt genau einen Space. Pfeile richten sich unabhängig davon aus.
         var source = """
-        task Sample
-        {
-            init --> A; // erste
-            A --> B; // zweite
-            B --> Exit; // dritte
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // erste
+                         A --> B; // zweite
+                         B --> Exit; // dritte
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A;    // erste
-            A       --> B;    // zweite
-            B       --> Exit; // dritte
-        }
+                       task Sample
+                       {
+                           init    --> A;    // erste
+                           A       --> B;    // zweite
+                           B       --> Exit; // dritte
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -65,22 +65,22 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Bereits eine einzelne Leerzeile trennt (Schwelle 1) -> zwei Gruppen der Größe 1 -> keine
         // Kommentar-Ausrichtung, nur je ein Space.
         var source = """
-        task Sample
-        {
-            init --> A; // erste
+                     task Sample
+                     {
+                         init --> A; // erste
 
-            B --> Exit; // dritte
-        }
-        """;
+                         B --> Exit; // dritte
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A; // erste
+                       task Sample
+                       {
+                           init    --> A; // erste
 
-            B       --> Exit; // dritte
-        }
+                           B       --> Exit; // dritte
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -90,22 +90,22 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Eine kommentarlose Zeile ist kein Teilnehmer, bricht die Gruppe aber nicht: die beiden
         // kommentierten Zeilen richten sich weiterhin aus.
         var source = """
-        task Sample
-        {
-            init --> A; // erste
-            A --> B;
-            B --> Exit; // dritte
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // erste
+                         A --> B;
+                         B --> Exit; // dritte
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A;    // erste
-            A       --> B;
-            B       --> Exit; // dritte
-        }
+                       task Sample
+                       {
+                           init    --> A;    // erste
+                           A       --> B;
+                           B       --> Exit; // dritte
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -114,20 +114,20 @@ public class NavFormattingTrailingCommentGoldenTests {
     public void SingleTrailingCommentIsNotAligned() {
         // Nur eine Zeile der Gruppe trägt einen Trailing-Kommentar -> keine Ausrichtung, ein Space.
         var source = """
-        task Sample
-        {
-            init --> A; // only
-            A --> B;
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // only
+                         A --> B;
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A; // only
-            A       --> B;
-        }
+                       task Sample
+                       {
+                           init    --> A; // only
+                           A       --> B;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -137,22 +137,22 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Auch die Node-Grid-Zeilen richten ihre Trailing-Kommentare aus ("task Worker w;" = 17 ->
         // Spalte 18), nachdem das keyword|node|rest-Raster gesetzt ist.
         var source = """
-        task Sample
-        {
-            init Start; // i
-            choice Decide; // c
-            task Worker w; // w
-        }
-        """;
+                     task Sample
+                     {
+                         init Start; // i
+                         choice Decide; // c
+                         task Worker w; // w
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    Start;    // i
-            choice  Decide;   // c
-            task    Worker w; // w
-        }
+                       task Sample
+                       {
+                           init    Start;    // i
+                           choice  Decide;   // c
+                           task    Worker w; // w
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -162,22 +162,22 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Die Zeile mit Inline-Block-Kommentar wird aus der Kommentar-Spalte ausgeschlossen (die
         // Spaltenbreite darf nie an einer Kommentar-Textlänge hängen), bricht die Gruppe aber nicht.
         var source = """
-        task Sample
-        {
-            init --> A; // a
-            B /* x */ --> C; // b
-            D --> E; // c
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // a
+                         B /* x */ --> C; // b
+                         D --> E; // c
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A; // a
-            B /* x */ --> C; // b
-            D       --> E; // c
-        }
+                       task Sample
+                       {
+                           init    --> A; // a
+                           B /* x */ --> C; // b
+                           D       --> E; // c
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -186,22 +186,22 @@ public class NavFormattingTrailingCommentGoldenTests {
     public void OwnLineCommentBreaksTheBlock() {
         // Eine eigene Kommentarzeile zählt wie eine Leerzeile (interruptLines 1) und bricht den Block.
         var source = """
-        task Sample
-        {
-            init --> A; // erste
-            // section
-            B --> Exit; // dritte
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // erste
+                         // section
+                         B --> Exit; // dritte
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A; // erste
-            // section
-            B       --> Exit; // dritte
-        }
+                       task Sample
+                       {
+                           init    --> A; // erste
+                           // section
+                           B       --> Exit; // dritte
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -211,21 +211,21 @@ public class NavFormattingTrailingCommentGoldenTests {
         // Node-Deklarationen und Transitionen werden getrennt gruppiert (die grammatikalisch erzwungene
         // Leerzeile dazwischen trennt sie ohnehin) -> je eine Gruppe der Größe 1, keine Ausrichtung.
         var source = """
-        task Sample
-        {
-            init Start; // node
-            Start --> Exit; // transition
-        }
-        """;
+                     task Sample
+                     {
+                         init Start; // node
+                         Start --> Exit; // transition
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init Start; // node
+                       task Sample
+                       {
+                           init Start; // node
 
-            Start --> Exit; // transition
-        }
+                           Start --> Exit; // transition
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -233,20 +233,20 @@ public class NavFormattingTrailingCommentGoldenTests {
     [Test]
     public void TaskrefConnectionPointCommentsAlign() {
         var source = """
-        taskref Legacy
-        {
-            init I; // in
-            exit LongerOut; // out
-        }
-        """;
+                     taskref Legacy
+                     {
+                         init I; // in
+                         exit LongerOut; // out
+                     }
+                     """;
         var expected = """
-        taskref Legacy
-        {
-            init    I;         // in
-            exit    LongerOut; // out
-        }
+                       taskref Legacy
+                       {
+                           init    I;         // in
+                           exit    LongerOut; // out
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -255,20 +255,20 @@ public class NavFormattingTrailingCommentGoldenTests {
     public void TrailingCommentAlignmentCanBeTurnedOff() {
         var options = SpacesOptions with { AlignTrailingComments = false };
         var source = """
-        task Sample
-        {
-            init --> A; // erste
-            A --> B; // zweite
-        }
-        """;
+                     task Sample
+                     {
+                         init --> A; // erste
+                         A --> B; // zweite
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    --> A; // erste
-            A       --> B; // zweite
-        }
+                       task Sample
+                       {
+                           init    --> A; // erste
+                           A       --> B; // zweite
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected, options);
     }
