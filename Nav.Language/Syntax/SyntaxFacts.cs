@@ -115,7 +115,7 @@ public static class SyntaxFacts {
     // Init-Knotens ebenfalls in NavKeywords geführt wird.
     static readonly ImmutableDictionary<string, string> KeywordDescriptions = new Dictionary<string, string> {
         // Struktur-Keywords
-        [TaskKeyword]        = "Definiert einen Workflow (Task) als eigenständige Einheit — die oberste Ebene einer .nav-Datei.",
+        [TaskKeyword]        = "Definiert einen Workflow (Task) als eigenständige Einheit.",
         [TaskrefKeyword]     = "Bindet einen anderen Task als Unter-Workflow ein und macht dessen Ein-/Ausgänge (init/exit/end) referenzierbar.",
         [InitKeyword]        = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
         [InitKeywordAlt]     = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
