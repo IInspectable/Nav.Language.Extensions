@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Rendert die README-Wortmarke (Icon + Schriftzug „Nav Language Extensions") aus dem
+    Rendert die README-Wortmarke (Icon + Schriftzug „NavLanguage Extensions") aus dem
     Vektor-Icon-Master (NavActivityDiagram.xaml) in zwei hochauflösende PNGs — eine helle
     und eine dunkle Variante für GitHubs <picture>-Umschaltung (prefers-color-scheme).
 
@@ -11,6 +11,15 @@
 
         Light  → Logo.png       (dunkle Tinte, für hellen Hintergrund)
         Dark   → Logo-dark.png  (helle Tinte, für dunklen Hintergrund)
+
+    Der Schriftzug setzt sich zusammen aus „Nav" (fett) direkt gefolgt von „Language"
+    (leicht) — also die Wortmarke „NavLanguage" — und darunter, linksbündig unter „Language",
+    einem Akzentstrich plus gesperrtem „EXTENSIONS". Die Akzentfarbe ist variantenabhängig
+    (Teal im Hellen, Gold im Dunklen).
+
+    Verwendete Schrift ist **Plus Jakarta Sans** (SIL Open Font License) — muss installiert sein
+    (statische Schnitte Light/Regular/SemiBold/ExtraBold). Bezugsquelle: Google Fonts bzw.
+    https://github.com/tokotype/PlusJakartaSans.
 
     Die Nav-Akzentknoten (#FFC000 / #0097B6) und die weißen Innenflächen des Icons bleiben in
     beiden Varianten erhalten. Gerendert wird in 3× (288 DPI) für gestochen scharfe Darstellung;
@@ -33,10 +42,25 @@ $master   = Join-Path $PSScriptRoot 'NavActivityDiagram.xaml'
 $masterText  = [System.IO.File]::ReadAllText($master)
 $viewboxXaml = $masterText.Substring($masterText.IndexOf('<Viewbox'))
 
-# Zwei Varianten: Dateiname, Tintenfarbe (Strichgrafik + „Nav Language"), Akzent für „Extensions".
+# Plus Jakarta Sans muss installiert sein (siehe .DESCRIPTION); Fallback auf Segoe UI verhindert
+# nur einen harten Fehler, ergibt aber nicht das gewünschte Bild.
+$fontFamily = 'Plus Jakarta Sans, Segoe UI'
+
+# „EXTENSIONS" gesperrt setzen (WPF-TextBlock kennt kein Letter-Spacing): Buchstaben mit
+# schmalem Leerraum (U+2009 THIN SPACE) verbinden.
+$extensions = ('EXTENSIONS'.ToCharArray() -join ([char]0x2009))
+
+# Pro Variante:
+#   Ink     „Nav"-Textfarbe (kräftig)
+#   Lang    gedämpfte „Language"-Textfarbe
+#   IconInk Rahmen-/Strichfarbe des Icons — bewusst getrennt vom Text, damit im Dunklen ein
+#           hellgrauer Rand auf hellem „Nav" möglich ist
+#   Paper   Innenfüllung von Kreis + Raute; TRANSPARENT, damit der jeweilige Seiten-Hintergrund
+#           durchscheint („Füllung des Hintergrunds") statt einer weißen Fläche
+#   Accent  Akzentstrich + „EXTENSIONS"
 $variants = @(
-    @{ Path = 'images\Logo.png';      Ink = '#FF1B1B1B'; Accent = '#FF0097B6' }
-    @{ Path = 'images\Logo-dark.png'; Ink = '#FFEDEDED'; Accent = '#FF2BB8D6' }
+    @{ Path = 'images\Logo.png';      Ink = '#FF1A1A1A'; Lang = '#FF3D3D3D'; IconInk = '#FF1A1A1A'; Paper = '#00FFFFFF'; Accent = '#FF0097B6' }
+    @{ Path = 'images\Logo-dark.png'; Ink = '#FFF5F5F5'; Lang = '#FFC2C2C2'; IconInk = '#FFBFBFBF'; Paper = '#00FFFFFF'; Accent = '#FFFFC000' }
 )
 
 $scale = 3
@@ -44,7 +68,8 @@ $dpi   = 96 * $scale
 
 foreach ($v in $variants) {
     $out    = Join-Path $repoRoot $v.Path
-    $icon   = $viewboxXaml -replace '#FF202020', $v.Ink
+    # Strichgrafik → IconInk umfärben; die weißen Innenflächen (Kreis + Raute) → transparentes Paper.
+    $icon   = $viewboxXaml -replace '#FF202020', $v.IconInk -replace '#FFFFFFFF', $v.Paper
 
     $xaml = @"
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -54,13 +79,29 @@ foreach ($v in $variants) {
         TextOptions.TextRenderingMode="Grayscale">
   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
     <Grid Width="56" Height="56" VerticalAlignment="Center">$icon</Grid>
-    <StackPanel Orientation="Vertical" VerticalAlignment="Center" Margin="16,0,4,2">
-      <TextBlock Text="Nav Language" FontFamily="Segoe UI" FontWeight="SemiBold"
-                 FontSize="37" Foreground="$($v.Ink)" LineHeight="40"
-                 LineStackingStrategy="BlockLineHeight"/>
-      <TextBlock Text="Extensions" FontFamily="Segoe UI" FontWeight="SemiBold"
-                 FontSize="19" Foreground="$($v.Accent)" Margin="1,1,0,0"/>
-    </StackPanel>
+    <Grid VerticalAlignment="Center" Margin="18,0,4,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Nav" FontFamily="$fontFamily"
+                 FontWeight="ExtraBold" FontSize="38" Foreground="$($v.Ink)"
+                 LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
+      <TextBlock Grid.Row="0" Grid.Column="1" Text="Language" FontFamily="$fontFamily"
+                 FontWeight="Regular" FontSize="38" Foreground="$($v.Lang)"
+                 LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
+      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"
+                  VerticalAlignment="Center" Margin="1,3,0,2">
+        <Border Width="18" Height="2.5" CornerRadius="1.25" Background="$($v.Accent)"
+                VerticalAlignment="Center" Margin="0,0,9,0"/>
+        <TextBlock Text="$extensions" FontFamily="$fontFamily" FontWeight="SemiBold"
+                   FontSize="15.5" Foreground="$($v.Accent)"/>
+      </StackPanel>
+    </Grid>
   </StackPanel>
 </Border>
 "@
