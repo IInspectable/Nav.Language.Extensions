@@ -36,6 +36,11 @@
 > am Dateianfang und am Dateiende (ein Mechanismus `GapRenderer.CapBlankRuns`). **Nur ≥ 2 zulässig** (darunter
 > auf 2 geklemmt): der Boden 2 ist die Gruppenbruch-Schwelle selbst, ein Deckel ≥ 2 ist damit
 > gruppierungs-erhaltend und idempotent. Details s. „Optionen & Konfiguration".
+> **Nachtrag: Leerzeilen-Kollaps im Task-Kopf-Stapel** — Folgeblöcke (`[base]`/`[result]`/… gestapelt) und
+> mehrzeilige `[params]` kollabieren authored Leerzeilen zwischen sich (Kommentar-/Direktivzeilen bleiben):
+> `NewLineAlignedColumn` reicht `GapRenderer.CapBlankRuns` einen harten Deckel `0` herein. Die konsequente
+> Fortsetzung des Block-1-Pull-ups — der Kopf ist ein kanonisch erzwungenes Konstrukt, nicht Autoren-Layout;
+> die einzige Ausnahme von „kein Kollaps". Details s. „Task-Kopf-Ausrichtung".
 
 ## Motivation
 
@@ -573,6 +578,18 @@ Gegensatz zur sonstigen Umbruch-Erhaltung), weil mehrere schwere Blöcke auf ein
 mehrzeiliges `/* */`), kann Block 1 nicht hochgezogen werden (Renderer-Schranke, s. „Hand-gelegte
 Anweisungen") — er fällt dann wie ein Folgeblock auf `NewLineAlignedColumn(TaskHeadBlock)`; das ist
 konsistent, weil die Spalte kanonisch ist und nicht an der Ist-Position von Block 1 hängt.
+
+**Keine Leerzeilen zwischen gestapelten Blöcken (Kollaps).** Der Kopf-Stapel ist ein kanonisch
+erzwungenes Konstrukt — genau wie Block 1 per Pull-up seine authored Newlines verliert, **kollabieren die
+gestapelten Folgeblöcke authored Leerzeilen dazwischen** (`NewLineAlignedColumn` reicht dem Renderer einen
+lokalen Leerzeilen-Deckel `0` herein — die eine Ausnahme von der sonstigen „kein Kollaps"-Grundhaltung, die
+nur `MaxBlankLines` opt-in aufweicht). Das gilt gleichermaßen für mehrzeiliges `[params]` (Leerzeile
+zwischen Parametern). Es wäre inkonsistent, Block 1 den Umbruch zu nehmen, zwischen den Folgeblöcken aber
+eine Leerzeile zu bewahren — sie trennt hier keine Gruppen, sondern sitzt innerhalb des Kopfs **einer** Task
+und ist praktisch immer ein Editier-Artefakt. **Kommentar-/Direktivzeilen überleben** (der Kollaps zählt nur
+leere Zeilen; eine Kommentarzeile setzt den Lauf zurück, nur die Leerzeilen um sie herum entfallen). Der
+Mechanismus ist derselbe `GapRenderer.CapBlankRuns` wie beim `MaxBlankLines`-Deckel, nur mit hartem `0` statt
+Optionswert; idempotent (bereits kollabiert = Fixpunkt) und die Kopf-Spaltenbreite hängt nicht an Leerzeilen.
 
 Die **Kopf-Spalte ist kanonisch** und pro Task-Definition lokal: `col = "task ".Length + Id.Length + 1`
 (depth 0 → reine **Space**-Ausrichtung ab Spalte 0, kein Tab). Reine Funktion des kanonischen

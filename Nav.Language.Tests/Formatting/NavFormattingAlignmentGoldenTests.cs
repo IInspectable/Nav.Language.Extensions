@@ -643,6 +643,53 @@ public class NavFormattingAlignmentGoldenTests {
     }
 
     [Test]
+    public void BlankLinesBetweenStackedHeadBlocksAreCollapsed() {
+        // Der Task-Kopf ist ein kanonisch erzwungener Stapel — wie Block 1 per Pull-up seine authored
+        // Newlines verliert, kollabieren die gestapelten Folgeblöcke authored Leerzeilen dazwischen.
+        var source = """
+                     task BatchDisponieren        [base StandardWFS<TaskState> : IWFServiceBase]
+
+                                                 [result Ignore]
+                     {
+                     }
+                     """;
+        var expected = """
+                       task BatchDisponieren [base StandardWFS<TaskState>: IWFServiceBase]
+                                             [result Ignore]
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void CommentBetweenStackedHeadBlocksSurvivesWhileBlankLinesAreCollapsed() {
+        // Ein Kommentar zwischen den Blöcken bleibt (eigene Zeile auf der Kopf-Spalte) — nur die Leerzeilen
+        // um ihn herum entfallen (CapBlankRuns zählt nur leere Zeilen, Kommentarzeilen setzen den Lauf zurück).
+        var source = """
+                     task Sample [code Foo]
+
+                                 // Hinweis
+
+                                 [result bool]
+                     {
+                     }
+                     """;
+        var expected = """
+                       task Sample [code Foo]
+                                   // Hinweis
+                                   [result bool]
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
     public void BrokenFirstHeadBlockIsPulledUpBehindTheIdentifier() {
         // Kanonisierung: der erste Block wird hochgezogen — bloße authored Newlines sind keine
         // Renderer-Schranke (Pull-up-Ausnahme).
@@ -706,6 +753,28 @@ public class NavFormattingAlignmentGoldenTests {
     }
 
     [Test]
+    public void BlankLinesBetweenMultiLineParamsAreCollapsed() {
+        // Auch das mehrzeilige [params] ist ein kanonischer Stapel (NewLineAlignedColumn(ParamsList)) —
+        // eine Leerzeile zwischen zwei Parametern kollabiert wie zwischen Kopf-Blöcken.
+        var source = """
+                     task Other [params int x,
+
+                     string label]
+                     {
+                     }
+                     """;
+        var expected = """
+                       task Other [params int x,
+                                          string label]
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
     public void EmptyParamsBlockStaysTight() {
         // Grenzfall aus dem Korpus-Smoke: ein leeres [params] hat keinen ersten Parameter — die Lücke
         // params -> ']' gehört der PunctuationRule (tight), nicht dem Task-Kopf-Layout.
@@ -749,6 +818,32 @@ public class NavFormattingAlignmentGoldenTests {
         // gestapelt unter dem '[' des ersten; die Connection-Points nehmen am Node-Grid teil.
         var source = """
                      taskref Legacy [namespaceprefix Foo.Bar] [result bool r]
+                     {
+                         init I;
+                         exit O;
+                     }
+                     """;
+        var expected = """
+                       taskref Legacy [namespaceprefix Foo.Bar]
+                                      [result bool r]
+                       {
+                           init    I;
+                           exit    O;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void TaskrefHeadCollapsesBlankLinesBetweenStackedBlocks() {
+        // Symmetrie zum Task-Kopf: der Leerzeilen-Kollaps des gestapelten Kopfs gilt auch für taskref
+        // (dieselbe TaskHeadLayoutRule -> NewLineAlignedColumn(TaskHeadBlock)).
+        var source = """
+                     taskref Legacy [namespaceprefix Foo.Bar]
+
+                                    [result bool r]
                      {
                          init I;
                          exit O;

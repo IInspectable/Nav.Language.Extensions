@@ -69,7 +69,12 @@ sealed class GapRenderer {
             case GapLayout.NewLine newLine:
                 return RenderVertical(ctx, newLine.BlankLinesBefore, linePrefix: IndentString(newLine.IndentDepth));
             case GapLayout.NewLineAlignedColumn newLineAligned:
-                return RenderVertical(ctx, newLineAligned.BlankLinesBefore, linePrefix: AlignmentSpaces(ctx, fallback: IndentString(ctx.IndentDepth)));
+                // Der Task-Kopf-Block-Stapel (und mehrzeiliges [params]) ist ein kanonisch erzwungenes
+                // Konstrukt — wie Block 1 per Pull-up seine authored Newlines verliert, kollabieren die
+                // gestapelten Folgeblöcke authored Leerzeilen dazwischen (Kommentar-/Direktivzeilen bleiben).
+                return RenderVertical(ctx, newLineAligned.BlankLinesBefore,
+                                      linePrefix: AlignmentSpaces(ctx, fallback: IndentString(ctx.IndentDepth)),
+                                      blankLineCap: 0);
             default:
                 // Geschlossenes Vokabular — unbekanntes Layout gibt es nicht; verbatim ist die sichere Antwort.
                 return _sourceText.Substring(ctx.Extent);
@@ -112,7 +117,7 @@ sealed class GapRenderer {
     /// erhalten, Whitespace je Zeile normalisieren, fehlende Leerzeilen bis zum Minimum ergänzen,
     /// abschließend das Zeilen-Präfix (Einzug bzw. Spalte) vor <c>Next</c>.
     /// </summary>
-    string RenderVertical(in GapContext ctx, int blankLinesBefore, string linePrefix) {
+    string RenderVertical(in GapContext ctx, int blankLinesBefore, string linePrefix, int? blankLineCap = null) {
 
         var lines = SplitLines(ctx);
         var sb    = new StringBuilder();
@@ -138,17 +143,18 @@ sealed class GapRenderer {
             trailingCommentAligned = true;
         }
 
-        // Innenzeilen in authored Reihenfolge; Läufe von Leerzeilen auf MaxBlankLines kappen (Kommentar-/
-        // Direktivzeilen setzen den Lauf zurück). Danach die verbleibenden Leerzeilen zählen, um das Minimum
-        // zu ergänzen — BlankLinesBefore (≤ 1) liegt stets unter dem Deckel (≥ 2), das Minimum bleibt also
-        // erreichbar.
+        // Innenzeilen in authored Reihenfolge; Läufe von Leerzeilen auf den Deckel kappen (Kommentar-/
+        // Direktivzeilen setzen den Lauf zurück). Der Deckel ist normalerweise MaxBlankLines (≥ 2 oder aus);
+        // der Task-Kopf-Stapel reicht 0 herein und kollabiert damit jede authored Leerzeile zwischen den
+        // gestapelten Blöcken. Danach die verbleibenden Leerzeilen zählen, um das Minimum (BlankLinesBefore)
+        // zu ergänzen — es liegt nie über dem Deckel, bleibt also erreichbar.
         var interior = new List<string>();
         for (var i = 1; i < lines.Count - 1; i++) {
             interior.Add(RenderInteriorLine(lines[i], linePrefix));
         }
 
         var blankLines = 0;
-        foreach (var content in CapBlankRuns(interior)) {
+        foreach (var content in CapBlankRuns(interior, blankLineCap ?? _options.MaxBlankLines)) {
             if (content.Length == 0) {
                 blankLines++;
             }
@@ -193,7 +199,7 @@ sealed class GapRenderer {
             interior.Add(RenderInteriorLine(lines[i], prefix));
         }
 
-        foreach (var content in CapBlankRuns(interior)) {
+        foreach (var content in CapBlankRuns(interior, _options.MaxBlankLines)) {
             sb.Append(content).Append(_settings.NewLine);
         }
 
@@ -241,7 +247,7 @@ sealed class GapRenderer {
 
         // Leerzeilen-Läufe zwischen Kommentar-/Direktivzeilen am Dateiende auf den Deckel kappen (der
         // EOF-Trailing-Trim entfernt anschließend die Leerzeilen hinter dem letzten Inhalt ganz).
-        contents = CapBlankRuns(contents);
+        contents = CapBlankRuns(contents, _options.MaxBlankLines);
 
         // EOF-Trailing-Trim: Leerzeilen hinter dem letzten Inhalt entfallen — dann genau eine Final-Newline.
         while (contents.Count > 0 && contents[contents.Count - 1].Length == 0) {
@@ -299,16 +305,18 @@ sealed class GapRenderer {
     }
 
     /// <summary>
-    /// Kappt Läufe aufeinanderfolgender Leerzeilen (leere Einträge) auf
-    /// <see cref="NavFormattingOptions.MaxBlankLines"/> — der eine Deckel-Mechanismus für die Innenzeilen
-    /// mitten im Code (<see cref="RenderVertical"/>), am Dateianfang (<see cref="RenderLeadingGap"/>) und am
-    /// Dateiende (<see cref="RenderFinalGap"/>). Nicht-Leerzeilen (Kommentar/Direktive) setzen den Lauf
-    /// zurück. Kein Deckel (<c>null</c>) → die Liste bleibt unverändert (Referenz-identisch). Idempotent:
-    /// eine bereits gekappte Liste ist ein Fixpunkt.
+    /// Kappt Läufe aufeinanderfolgender Leerzeilen (leere Einträge) auf <paramref name="cap"/> — der eine
+    /// Deckel-Mechanismus für die Innenzeilen mitten im Code (<see cref="RenderVertical"/>), am Dateianfang
+    /// (<see cref="RenderLeadingGap"/>) und am Dateiende (<see cref="RenderFinalGap"/>). Der Deckel ist im
+    /// Regelfall <see cref="NavFormattingOptions.MaxBlankLines"/> (≥ 2 oder aus); der kanonische
+    /// Task-Kopf-Block-Stapel reicht <c>0</c> herein und kollabiert damit jede Leerzeile zwischen den
+    /// gestapelten Blöcken. Nicht-Leerzeilen (Kommentar/Direktive) setzen den Lauf zurück — sie überleben
+    /// auch bei Deckel <c>0</c>. Kein Deckel (<c>null</c>) → die Liste bleibt unverändert
+    /// (Referenz-identisch). Idempotent: eine bereits gekappte Liste ist ein Fixpunkt.
     /// </summary>
-    List<string> CapBlankRuns(List<string> lines) {
+    static List<string> CapBlankRuns(List<string> lines, int? cap) {
 
-        if (_options.MaxBlankLines is not { } cap) {
+        if (cap is not { } max) {
             return lines;
         }
 
@@ -316,7 +324,7 @@ sealed class GapRenderer {
         var blankRun  = 0;
         foreach (var line in lines) {
             if (line.Length == 0) {
-                if (++blankRun > cap) {
+                if (++blankRun > max) {
                     continue; // über dem Deckel: diese Leerzeile entfällt
                 }
             } else {
