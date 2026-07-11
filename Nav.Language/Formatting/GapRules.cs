@@ -28,24 +28,25 @@ static class GapRules {
     // (die Monotonie prüft EnsureRulesOrderedByTier beim Laden des Typs).
     static readonly IGapRule[] Rules = {
         // Safety
-        new VerbatimWhenSuppressedRule(),     // unterdrückte Region -> Verbatim
+        new VerbatimWhenSuppressedRule(),      // unterdrückte Region -> Verbatim
         // Structure
-        new BraceOnOwnLineRule(),             // vor '{'/'}' und nach '{' -> eigene Zeile (Allman)
-        new MemberBreakRule(),                // nach '}' und nach Top-Level-']' -> neuer Member auf Tiefe 0
-        new BlankLineBeforeTransitionsRule(), // Blockgrenze Deklarationen -> Transitionen: mindestens eine Leerzeile
-        new StatementBreakRule(),             // nach ';' -> nächste Anweisung auf eigener Zeile
+        new BraceOnOwnLineRule(),              // vor '{'/'}' und nach '{' -> eigene Zeile (Allman)
+        new BlankLineAroundBlockMembersRule(), // um task/taskref-Block-Member + nach [namespaceprefix] -> mindestens eine Leerzeile
+        new MemberBreakRule(),                 // nach '}' und nach Top-Level-']' -> neuer Member auf Tiefe 0
+        new BlankLineBeforeTransitionsRule(),  // Blockgrenze Deklarationen -> Transitionen: mindestens eine Leerzeile
+        new StatementBreakRule(),              // nach ';' -> nächste Anweisung auf eigener Zeile
         // TokenPair
-        new TightColonRule(),                 // Node ':' Port -> tight
-        new PunctuationRule(),                // tight vor ','/';', [-Innenränder, Typ-Interna
-        new TaskHeadLayoutRule(),             // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
+        new TightColonRule(),                  // Node ':' Port -> tight
+        new PunctuationRule(),                 // tight vor ','/';', [-Innenränder, Typ-Interna
+        new TaskHeadLayoutRule(),              // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
         // Alignment
-        new ArrowAlignmentRule(),             // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
-        new ContinuationAlignmentRule(),      // Ziel-Teil -> --^/o-^ in Gruppe -> Continuation-Spalte
-        new TriggerAlignmentRule(),           // Ziel-Teil -> on/spontaneous in Gruppe -> Trigger-Spalte
-        new ConditionAlignmentRule(),         // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
-        new NodeGridAlignmentRule(),          // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
+        new ArrowAlignmentRule(),              // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+        new ContinuationAlignmentRule(),       // Ziel-Teil -> --^/o-^ in Gruppe -> Continuation-Spalte
+        new TriggerAlignmentRule(),            // Ziel-Teil -> on/spontaneous in Gruppe -> Trigger-Spalte
+        new ConditionAlignmentRule(),          // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
+        new NodeGridAlignmentRule(),           // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
         // Default
-        new DefaultSingleSpaceRule(),         // Catch-all -> genau ein Space
+        new DefaultSingleSpaceRule(),          // Catch-all -> genau ein Space
     };
 
     static GapRules() {
@@ -174,6 +175,12 @@ sealed class MemberBreakRule: IGapRule {
             return null;
         }
 
+        // Die Top-Level-Block-/Namespace-Grenzen heben das Leerzeilen-Minimum an → dort ist die
+        // BlankLineAroundBlockMembersRule zuständig (Intra-Tier-Disjunktheit per Prädikat, nicht per Reihenfolge).
+        if (BlankLineAroundBlockMembersRule.RaisesTopLevelBlankLine(in ctx)) {
+            return null;
+        }
+
         var isMemberEnd = ctx.Prev.Type == SyntaxTokenType.CloseBrace ||
                           (ctx.Prev.Type == SyntaxTokenType.CloseBracket && IsTopLevelCodeDeclaration(ctx.PrevParent));
 
@@ -213,6 +220,72 @@ sealed class BlankLineBeforeTransitionsRule: IGapRule {
 }
 
 /// <summary>
+/// Structure: an den Grenzen der schwergewichtigen Top-Level-Member wird das Leerzeilen-<b>Minimum</b> auf 1
+/// angehoben (vorhandene Autoren-Leerzeilen bleiben erhalten, werden nie gekappt) — dieselbe Mechanik wie
+/// <see cref="BlankLineBeforeTransitionsRule"/>, nur eine Ebene höher. Zwei Fälle, beide die dominante
+/// Konvention im realen Bestand:
+/// <list type="bullet">
+///   <item><b>beidseitig</b> um einen Body-tragenden Block-Member (<c>task …{}</c> / <c>taskref Name …{}</c>):
+///   nach seinem <c>}</c> und vor seinem führenden Schlüsselwort;</item>
+///   <item><b>nach</b> dem Top-Level-<c>[namespaceprefix …]</c> (der einzigen Datei-Namespace-Deklaration).</item>
+/// </list>
+/// Flache Member (<c>[using …]</c>, <c>taskref "…";</c>-Includes) behalten unter sich ihr Autoren-Layout —
+/// dort setzen <see cref="MemberBreakRule"/>/<see cref="StatementBreakRule"/> nur den Umbruch, kein
+/// Leerzeilen-Minimum. Der <c>MaxBlankLines</c>-Deckel wirkt orthogonal: das erzwungene Minimum 1 liegt stets
+/// unter dem Deckel-Boden 2, beide Schranken komponieren kollisionsfrei.
+/// </summary>
+sealed class BlankLineAroundBlockMembersRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Structure;
+
+    public GapLayout? Apply(in GapContext ctx) =>
+        RaisesTopLevelBlankLine(in ctx)
+            ? new GapLayout.NewLine(BlankLinesBefore: 1, ctx.IndentDepth)
+            : null;
+
+    /// <summary>
+    /// Ob die Lücke eine Top-Level-Grenze ist, an der eine Leerzeile erzwungen wird — Grundlage sowohl der
+    /// Regel selbst als auch der Ausschluss-Guards in <see cref="MemberBreakRule"/> und
+    /// <see cref="StatementBreakRule"/> (Intra-Tier-Disjunktheit per Prädikat, nicht per Reihenfolge).
+    /// </summary>
+    internal static bool RaisesTopLevelBlankLine(in GapContext ctx) {
+
+        // Nach dem Top-Level-[namespaceprefix]: das schließende ']' der Datei-Namespace-Deklaration (der
+        // gleichnamige taskref-Kopf-Block ist ausgenommen — sein Elter ist die Task-Deklaration, nicht die Unit).
+        if (ctx.Prev.Type == SyntaxTokenType.CloseBracket &&
+            ctx.PrevParent is CodeNamespaceDeclarationSyntax { Parent: CodeGenerationUnitSyntax }) {
+            return true;
+        }
+
+        // Beidseitig um einen Body-Block-Member: Prev und Next gehören zu verschiedenen Top-Level-Membern,
+        // und mindestens einer davon ist ein task-/taskref-Block mit Body.
+        var prevMember = TopLevelMember(ctx.PrevParent);
+        var nextMember = TopLevelMember(ctx.NextParent);
+
+        return prevMember != null && nextMember != null && !ReferenceEquals(prevMember, nextMember) &&
+               (IsBlockMember(prevMember) || IsBlockMember(nextMember));
+    }
+
+    /// <summary>Der Top-Level-Member (direktes Kind der <see cref="CodeGenerationUnitSyntax"/>), der das Token enthält — <c>null</c>, wenn keiner.</summary>
+    static SyntaxNode? TopLevelMember(SyntaxNode? node) {
+
+        for (var current = node; current != null; current = current.Parent) {
+            if (current.Parent is CodeGenerationUnitSyntax) {
+                return current;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Ein Body-tragender Block-Member: <c>task …{}</c> oder <c>taskref Name …{}</c> — nicht der flache <c>taskref "…";</c>-Include.</summary>
+    static bool IsBlockMember(SyntaxNode? member) =>
+        member is TaskDefinitionSyntax { OpenBrace.IsMissing: false } or
+                  TaskDeclarationSyntax { OpenBrace.IsMissing: false };
+
+}
+
+/// <summary>
 /// Structure: nach einem <c>;</c> beginnt die nächste Anweisung auf eigener Zeile (Autoren-Leerzeilen
 /// bleiben erhalten). Ausgenommen sind Klammern (<see cref="BraceOnOwnLineRule"/> zuständig) und die
 /// Blockgrenze Deklarationen → Transitionen (<see cref="BlankLineBeforeTransitionsRule"/> hebt dort das
@@ -233,6 +306,12 @@ sealed class StatementBreakRule: IGapRule {
         }
 
         if (BlankLineBeforeTransitionsRule.IsDeclarationToTransitionBoundary(in ctx)) {
+            return null;
+        }
+
+        // Ein Top-Level-Include (taskref "…";) vor einem Block-Member: die Leerzeile setzt die
+        // BlankLineAroundBlockMembersRule (Intra-Tier-Disjunktheit per Prädikat).
+        if (BlankLineAroundBlockMembersRule.RaisesTopLevelBlankLine(in ctx)) {
             return null;
         }
 

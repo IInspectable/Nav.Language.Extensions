@@ -89,6 +89,7 @@ public class NavFormattingErrorGoldenTests {
 
                            I1 --> E;
                        }
+
                        task Broken
                        {
                            init   X;

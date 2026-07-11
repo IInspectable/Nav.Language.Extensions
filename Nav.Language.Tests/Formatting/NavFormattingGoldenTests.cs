@@ -42,6 +42,7 @@ public class NavFormattingGoldenTests {
     public void CanonicalFileIsAFixpoint() {
         var canonical = """
                         [namespaceprefix Sample.Namespace]
+
                         [using System]
 
                         taskref "Other.nav";
@@ -102,6 +103,9 @@ public class NavFormattingGoldenTests {
 
     [Test]
     public void MemberBreaksPutEveryTopLevelMemberOnItsOwnLine() {
+        // Jeder Member auf eigener Zeile; zusätzlich hebt BlankLineAroundBlockMembersRule das Leerzeilen-
+        // Minimum an: eine Leerzeile nach [namespaceprefix] und vor dem task-Block — die [using] unter sich
+        // bleiben tight (flach, kein erzwungenes Minimum).
         var source = """
                      [namespaceprefix N] [using A] [using B] task X
                      {
@@ -109,8 +113,10 @@ public class NavFormattingGoldenTests {
                      """;
         var expected = """
                        [namespaceprefix N]
+
                        [using A]
                        [using B]
+
                        task X
                        {
                        }
@@ -129,6 +135,116 @@ public class NavFormattingGoldenTests {
                      [using B]
 
                      task X
+                     {
+                     }
+
+                     """;
+
+        AssertFormat(source, source);
+    }
+
+    [Test]
+    public void BlankLineIsInsertedAfterNamespacePrefix() {
+        // Nach dem Top-Level-[namespaceprefix] wird eine Leerzeile erzwungen; die [using] unter sich bleiben tight.
+        var source = """
+                     [namespaceprefix N]
+                     [using A]
+                     [using B]
+                     """;
+        var expected = """
+                       [namespaceprefix N]
+
+                       [using A]
+                       [using B]
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void BlockMembersAreFlankedByBlankLines() {
+        // Ein Include unmittelbar vor einem task-Block und zwei direkt aufeinanderfolgende Block-Member
+        // bekommen je eine erzwungene Leerzeile (nach '}' bzw. vor dem führenden Schlüsselwort).
+        var source = """
+                     taskref "A.nav";
+                     task X
+                     {
+                     }
+                     task Y
+                     {
+                     }
+                     """;
+        var expected = """
+                       taskref "A.nav";
+
+                       task X
+                       {
+                       }
+
+                       task Y
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void TaskrefWithBodyIsABlockMemberAndGetsFlankedByBlankLines() {
+        // Auch die taskref-mit-Body-Form (TaskDeclarationSyntax) ist ein {}-Block-Member und wird geflankt.
+        var source = """
+                     taskref Ref
+                     {
+                     }
+                     task X
+                     {
+                     }
+                     """;
+        var expected = """
+                       taskref Ref
+                       {
+                       }
+
+                       task X
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ConsecutiveIncludesStayTightWithoutForcedBlankLine() {
+        // Flache Includes (taskref "…";) sind untereinander kein Block-Member -> nur Umbruch, keine Leerzeile.
+        var source = """
+                     taskref "A.nav";
+                     taskref "B.nav";
+                     taskref "C.nav";
+                     """;
+        var expected = """
+                       taskref "A.nav";
+                       taskref "B.nav";
+                       taskref "C.nav";
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ExtraBlankLinesAroundBlockMembersArePreserved() {
+        // Das erzwungene Minimum (1) kappt nie nach oben: drei Autoren-Leerzeilen zwischen zwei Blöcken bleiben.
+        var source = """
+                     task X
+                     {
+                     }
+
+
+
+                     task Y
                      {
                      }
 

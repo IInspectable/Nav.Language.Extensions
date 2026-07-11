@@ -41,6 +41,16 @@
 > `NewLineAlignedColumn` reicht `GapRenderer.CapBlankRuns` einen harten Deckel `0` herein. Die konsequente
 > Fortsetzung des Block-1-Pull-ups — der Kopf ist ein kanonisch erzwungenes Konstrukt, nicht Autoren-Layout;
 > die einzige Ausnahme von „kein Kollaps". Details s. „Task-Kopf-Ausrichtung".
+> **Nachtrag: Leerzeilen-Minimum um Top-Level-Block-Member** (`BlankLineAroundBlockMembersRule`, Structure)
+> — an zwei strukturellen Grenzen wird, wie bei `BlankLineBeforeTransitionsRule`, das Leerzeilen-*Minimum* von
+> 0 auf 1 angehoben (Autoren-Leerzeilen bleiben, kein Kollaps): (a) **beidseitig** um einen Body-tragenden
+> Block-Member (`task …{}` / `taskref Name …{}`) — nach dessen `}` und vor dessen führendem Schlüsselwort;
+> (b) **nach** dem Top-Level-`[namespaceprefix …]`. Empirisch die dominante Konvention im Korpus (`d:\tfs\main`):
+> nach Top-Level-`}` in **98 %** eine Leerzeile, nach `[namespaceprefix]` in **67 %**. Flache Member (`[using …]`,
+> `taskref "…";`-Includes) behalten unter sich ihr Autoren-Layout (`MemberBreakRule`/`StatementBreakRule` setzen
+> dort nur den Umbruch). Intra-Tier-Disjunktheit per Prädikat (`RaisesTopLevelBlankLine`, aus beiden anderen
+> Structure-Regeln ausgeschlossen); der `MaxBlankLines`-Deckel wirkt orthogonal (Minimum 1 < Deckel-Boden 2).
+> Hart verdrahtet (kein Schalter, wie `BlankLineBeforeTransitionsRule`).
 
 ## Motivation
 
@@ -74,8 +84,12 @@ repräsentatives Einzelstück daraus. Die folgenden Anteile sind die dominanten 
   dann `[using]`-Block, dann `taskref`, dann `task`-Block. Der Formatter **ordnet nie um** — als reiner
   Gap-Rewriter bewegt er keine signifikanten Token. `taskref` (`TaskDeclarationSyntax`) und `task`
   (`TaskDefinitionSyntax`) liegen zudem gemischt in *einer* `Members`-Liste in Quellreihenfolge und sind
-  grammatikalisch **frei anordbar** → ihre Reihenfolge bleibt unangetastet. Erzwungen wird nur der
-  **Whitespace** zwischen den Abschnitten, nie ihre Reihenfolge. Im Task ist „erst Node-Deklarationen,
+  grammatikalisch **frei anordbar** → ihre Reihenfolge bleibt unangetastet (es gibt **keine**
+  grammatikalischen `include → taskref → task`-Blöcke; ihre Gruppierung ist reiner Usus). Erzwungen wird
+  nur der **Whitespace** zwischen den Abschnitten, nie ihre Reihenfolge — und dort auch nur ein
+  Leerzeilen-*Minimum* an den strukturell tragenden Grenzen: **beidseitig** um die `{ }`-Block-Member
+  (`task`/`taskref …{}`) und **nach** dem Top-Level-`[namespaceprefix]` (`BlankLineAroundBlockMembersRule`);
+  flache Member (`[using]`, `taskref "…";`-Includes) behalten unter sich ihr Autoren-Layout. Im Task ist „erst Node-Deklarationen,
   dann Transitionen" bereits **grammatikalisch fix** (getrennte `NodeDeclarationBlock` /
   `TransitionDefinitionBlock`); Formatter-Sache ist dort einzig die **Leerzeile** dazwischen
   (`BlankLineBeforeTransitionsRule`). (Reihenfolge-Normalisierung wäre ein separates, opt-in
@@ -244,27 +258,34 @@ static readonly IReadOnlyList<IGapRule> Rules = [
     // Structure
     new BraceOnOwnLineRule(),            //  2. vor '{' und vor '}' -> NewLine(blank=Autorenzahl, depth)  (Allman;
                                          //     auch hier kein Leerzeilen-Kollaps)
-    new MemberBreakRule(),               //  3. nach '}' und nach Top-Level-']' ([namespaceprefix]/[using])
-                                         //     -> NewLine(blank=Autorenzahl, 0) — AUSSER Next == ';' ("};")
-    new BlankLineBeforeTransitionsRule(),//  4. Blockgrenze letzte Deklaration -> erste Transition:
+    new BlankLineAroundBlockMembersRule(),// 3. beidseitig um task/taskref-{}-Block-Member + nach Top-Level-
+                                         //     [namespaceprefix] -> NewLine(max(blank,1), 0); flache Member tight
+    new MemberBreakRule(),               //  4. nach '}' und nach Top-Level-']' ([namespaceprefix]/[using])
+                                         //     -> NewLine(blank=Autorenzahl, 0) — AUSSER Next == ';' ("};") und
+                                         //     die Block-/Namespace-Grenzen aus Regel 3 (Intra-Tier-Disjunktheit)
+    new BlankLineBeforeTransitionsRule(),//  5. Blockgrenze letzte Deklaration -> erste Transition:
                                          //     NewLine(max(blank,1), depth)
-    new StatementBreakRule(),            //  5. nach ';' -> NewLine(blank=Autorenzahl, depth) — exkludiert
-                                         //     die Blockgrenze aus Regel 4 (Intra-Tier-Disjunktheit)
+    new StatementBreakRule(),            //  6. nach ';' -> NewLine(blank=Autorenzahl, depth) — exkludiert
+                                         //     die Blockgrenze aus Regel 5 und die Include->Block-Grenze aus
+                                         //     Regel 3 (Intra-Tier-Disjunktheit)
     // TokenPair
-    new TightColonRule(),                //  6. Node ':' Port -> Nothing; Base-Doppelpunkt ([base X:Y])
+    new TightColonRule(),                //  7. Node ':' Port -> Nothing; Base-Doppelpunkt ([base X:Y])
                                          //     davor tight, danach Space (Gap fällt durch -> Catch-all)
-    new PunctuationRule(),               //  7. tight vor ','/';' , [-Innenränder, Typ-Interna (s.u.)
-    new TaskHeadLayoutRule(),            //  8. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
+    new PunctuationRule(),               //  8. tight vor ','/';' , [-Innenränder, Typ-Interna (s.u.)
+    new TaskHeadLayoutRule(),            //  9. Task-Kopf: Id->Block1 = SingleSpace; Block->Block =
                                          //     NewLineAlignedColumn(TaskHeadBlock); mehrzeiliges [params]:
                                          //     ','->Param = NewLineAlignedColumn(ParamsList)  (s. „Task-Kopf-Ausrichtung")
     // Alignment
-    new ArrowAlignmentRule(),            //  9. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
-    new NodeGridAlignmentRule(),         // 10. keyword->node -> AlignedColumn(Node);
+    new ArrowAlignmentRule(),            // 10. SourceNode -> Edge in Gruppe -> AlignedColumn(Arrow)
+    new NodeGridAlignmentRule(),         // 11. keyword->node -> AlignedColumn(Node);
                                          //     node->[params] -> AlignedColumn(NodeParams) (tight, eigene Spalte);
                                          //     node->rest -> AlignedColumn(DeclRest)  (Node-Raster)
     // Default
-    new DefaultSingleSpaceRule(),        // 11. Catch-all -> SingleSpace
+    new DefaultSingleSpaceRule(),        // 12. Catch-all -> SingleSpace
 ];
+
+(Die Alignment-Spalten Continuation/Trigger/Condition sind der Übersicht halber ausgelassen — die volle
+Liste steht in `GapRules.cs`; hier zählt nur die Struktur- und Tier-Systematik.)
 ```
 
 **`PunctuationRule` im Detail** (die Interpunktions-Grundwahrheiten, die sonst der Catch-all mit
