@@ -37,6 +37,12 @@ abstract record GapLayout {
     }
 
     /// <summary>Spaces bis zur vorberechneten Gruppenspalte (siehe <see cref="AlignmentMap"/>).</summary>
+    /// <param name="Column">
+    /// Benennt <b>welche</b> Spalte gemeint ist — reine Selbstdokumentation im Regel-Code. Der
+    /// <see cref="GapRenderer"/> wertet den Wert nicht aus, sondern schlägt die aufgelöste Space-Zahl
+    /// allein über <c>Extent.Start</c> in der <see cref="AlignmentMap"/> nach (der Vorpass hat die
+    /// spaltenspezifische Logik bereits erledigt).
+    /// </param>
     public sealed record AlignedColumn(ColumnId Column): GapLayout;
 
     /// <summary>
@@ -50,6 +56,11 @@ abstract record GapLayout {
     /// Zeilenumbruch, dann Spaces bis zur Gruppenspalte statt Tiefen-Einzug — für den
     /// Task-Kopf-Block-Stapel und mehrzeiliges <c>[params]</c>.
     /// </summary>
+    /// <param name="Column">
+    /// Benennt <b>welche</b> Spalte gemeint ist — reine Selbstdokumentation im Regel-Code; der
+    /// <see cref="GapRenderer"/> schlägt die absolute Spalte nach dem Umbruch allein über
+    /// <c>Extent.Start</c> in der <see cref="AlignmentMap"/> nach (vgl. <see cref="AlignedColumn"/>).
+    /// </param>
     public sealed record NewLineAlignedColumn(int BlankLinesBefore, ColumnId Column): GapLayout;
 
     /// <summary>Lücke unverändert lassen (unterdrückte Region) — es wird kein Change emittiert.</summary>

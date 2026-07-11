@@ -347,9 +347,13 @@ Zwei Bedeutungen von „mehrere Regeln greifen" auseinanderhalten:
 **nicht beliebig**, sondern folgt einem Prinzip: **Sicherheit/Verbatim zuerst, dann harte Struktur, dann
 spezifische Token-Paar-Regeln, dann Ausrichtung, zuletzt der Catch-all** („spezifisch schlägt generisch",
 wie Pattern-Match-Reihenfolge/CSS-Spezifität). Formalisiert als **Prioritäts-Tiers** (Enum `RulePriority`:
-`Safety > Structure > TokenPair > Alignment > Default`): der Dispatcher sortiert nach Tier, dann nach
-Deklarationsreihenfolge. Eine neue Regel einzufügen heißt damit, ihren **Tier zu wählen** (semantische
-Entscheidung) — nicht einen Listenindex zu raten (fragil).
+`Safety > Structure > TokenPair > Alignment > Default`): die Regelliste ist **von Hand nach Tier geordnet**
+(der Dispatcher sortiert **nicht** zur Laufzeit, er iteriert die Liste), dann nach
+Deklarationsreihenfolge. Dass diese Ordnung monoton aufsteigend ist, prüft der statische Konstruktor von
+`GapRules` (`EnsureRulesOrderedByTier`) beim Laden des Typs und **wirft** bei Verletzung — eine falsch
+einsortierte neue Regel bräche die Cross-Tier-Präzedenz sonst still (der Intra-Tier-Check fängt genau das
+nicht). Eine neue Regel einzufügen heißt damit, ihren **Tier zu wählen** (semantische Entscheidung) — nicht
+einen Listenindex zu raten (fragil).
 
 **Wie stiller Overlap verhindert wird:** ein Test-/Debug-Modus wertet für **jede** Lücke **alle** Prädikate
 aus und prüft: **innerhalb eines Tiers matcht höchstens eine Regel** (Intra-Tier-Disjunktheit).
@@ -417,12 +421,12 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
   Gruppenbildung ist — **wie bei den Trailing-Kommentaren und der Trigger-Spalte** — schon durch **eine
   einzelne** Leerzeile bzw. Kommentarzeile unterbrochen (`interruptLines ≥ 1`), nicht erst durch zwei wie
   bei Pfeil/Node-Grid. Über die Option `AlignConditions` schaltbar (Default `true`).
-- **Trailing-`//`-Kommentar-Spalte** (`ColumnId.TrailingComment`) = Lücke zwischen dem **letzten Token**
+- **Trailing-`//`-Kommentar-Spalte** = Lücke zwischen dem **letzten Token**
   einer Anweisung und ihrem Zeilenend-`//`-Kommentar. Richtet die Trailing-Kommentare eines
   zusammenhängenden Anweisungs-Blocks an einer gemeinsamen Spalte aus (Option `AlignTrailingComments`,
   Default `true`). Anders als die übrigen Spalten wird sie **nicht** über ein `GapLayout` nachgeschlagen,
   sondern direkt vom `GapRenderer` beim Setzen des Trailing-Kommentars (eigene Tabelle
-  `AlignmentMap.TryGetTrailingCommentSpaces`). Besonderheiten: (a) sie ist — wie Condition/`[params]` —
+  `AlignmentMap.TryGetTrailingCommentSpaces`) — sie hat deshalb bewusst **keinen** `ColumnId`-Wert. Besonderheiten: (a) sie ist — wie Condition/`[params]` —
   **immer tight** (`col = max(kanonische Zeilenbreite) + 1`, kein Tab-Stopp, keine
   `AlignmentColumnPolicy`); die breiteste Zeile bekommt genau einen Space. (b) Der Block bricht **schon
   bei einer einzelnen** Leerzeile bzw. eigenen Kommentarzeile (`interruptLines ≥ 1`) — nicht erst bei

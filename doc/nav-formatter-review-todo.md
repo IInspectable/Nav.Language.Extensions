@@ -29,8 +29,8 @@
 | # | Step | Größe | Status |
 |---|---|---|---|
 | S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | **umgesetzt** (committed 89154ba2) |
-| S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | **umgesetzt** (Commit ausstehend) |
-| S3 | Dispatcher-Tier-Assert + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | offen |
+| S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | **umgesetzt** (committed 4a8a2a35) |
+| S3 | Dispatcher-Tier-Prüfung + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | **umgesetzt** (Commit ausstehend) |
 | S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, Deckel 2) + Dateianfang | mittel | offen |
 | S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | offen |
 | S6 | Statement-Messung einmalig + geteiltes Hand-gelegt-Primitiv + Kleinkram (Perf) | mittel | offen |
@@ -156,6 +156,31 @@ Beide TFMs grün (net472 1672 passed/0 failed/3 skipped, net10 171/171 Formattin
 
 **Fertig, wenn:** Assert vorhanden (und bei absichtlich vertauschter Liste im Debug-Test feuernd),
 Enum-Wert weg, Kommentare gesetzt, beide TFMs grün.
+
+**Umgesetzt:**
+
+- **(1) Tier-Ordnung — statt Debug-Assert ein harter Wurf.** `GapRules` bekommt einen statischen
+  Konstruktor, der `EnsureRulesOrderedByTier` aufruft: ist die von Hand gelegte `Rules`-Liste nicht
+  monoton aufsteigend nach `RulePriority`, wirft er beim Laden des Typs `InvalidOperationException`
+  (Meldung listet die volle Regel→Tier-Folge). **Bewusst kein `Debug.Assert`/`[Conditional("DEBUG")]`** —
+  ausgeliefert wird ohnehin nur Debug, ein Assert-Dialog ist kein sauberer Fehler; „entweder ein Fehler
+  oder keiner". Die Prüfung läuft nur einmal beim Typ-Laden, der Wurf ist also gratis. Reine, testbare
+  Trennung: `internal static bool IsMonotonicByTier(IReadOnlyList<RulePriority>)` + `internal RuleTiers`
+  (echte Reihenfolge). Zwei Tests (`NavFormattingServiceTests`): `RuleListIsOrderedByTier` pinnt die echte
+  Liste, `MonotonicByTierRejectsSwappedList` belegt, dass ein Tier-Rückschritt erkannt wird. Doku „sortiert"
+  → „von Hand geordnet, geprüft" in `GapRules`, `RulePriority` und Spec.
+- **(2) `ColumnId.TrailingComment` entfernt.** Der Enum-Wert war nur an seiner eigenen Deklaration
+  referenziert (die Trailing-Kommentar-Tabelle läuft am `GapLayout` vorbei). Der wertvolle Doku-Teil
+  (tight unter längstem Zeileninhalt; einzige Spalte, die nicht über ein `GapLayout`/`ColumnId`
+  nachgeschlagen wird, sondern direkt vom Renderer) ist als `<remarks>` an
+  `AlignmentMap.TryGetTrailingCommentSpaces` gewandert; eine kurze Anmerkung in `ColumnId` erklärt die
+  bewusste Abwesenheit. Spec-Absatz angepasst (kein `ColumnId.TrailingComment` mehr).
+- **(3) `Column` als Selbstdokumentation ausgewiesen.** `<param name="Column">` an `GapLayout.AlignedColumn`
+  und `NewLineAlignedColumn`: benennt im Regel-Code, *welche* Spalte gemeint ist — der `GapRenderer`
+  wertet den Wert nicht aus, sondern schlägt die aufgelöste Space-Zahl allein über `Extent.Start` in der
+  `AlignmentMap` nach.
+
+Beide TFMs grün (net472 1674 passed/0 failed/3 explicit skipped, net10 173/173 Formatting).
 
 ---
 

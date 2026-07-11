@@ -46,6 +46,13 @@ sealed class AlignmentMap {
     /// Spalte seines Blocks sitzt — oder <c>false</c>, wenn der Kommentar an keiner Ausrichtung teilnimmt
     /// (dann rendert der <see cref="GapRenderer"/> das übliche eine Leerzeichen davor).
     /// </summary>
+    /// <remarks>
+    /// Die Trailing-Kommentar-Ausrichtung richtet die Kommentare eines zusammenhängenden Anweisungs-Blocks
+    /// tight unter dem längsten Zeileninhalt aus. Sie ist die einzige Spalte, die <b>nicht</b> über ein
+    /// <see cref="GapLayout"/>/<see cref="ColumnId"/> nachgeschlagen wird, sondern direkt vom
+    /// <see cref="GapRenderer"/> beim Setzen des Trailing-Kommentars — darum gibt es für sie keinen
+    /// <see cref="ColumnId"/>-Wert.
+    /// </remarks>
     public bool TryGetTrailingCommentSpaces(int gapStart, out int spaces) {
         return _trailingCommentSpacesByGapStart.TryGetValue(gapStart, out spaces);
     }

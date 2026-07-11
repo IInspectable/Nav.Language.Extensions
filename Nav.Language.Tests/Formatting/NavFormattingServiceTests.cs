@@ -281,4 +281,26 @@ public class NavFormattingServiceTests {
         return SignificantTokens(SyntaxTree.ParseText(text));
     }
 
+    // --- Dispatcher-Ordnung (GapRules): die Regelliste ist von Hand nach Tier geordnet; der Dispatcher
+    //     sortiert nicht zur Laufzeit, deshalb IST die Deklarationsreihenfolge die Cross-Tier-Präzedenz. ---
+
+    [Test]
+    public void RuleListIsOrderedByTier() {
+
+        // Die echte Regelliste muss monoton aufsteigend nach Tier geordnet sein — sonst bräche eine
+        // falsch einsortierte Regel die Cross-Tier-Präzedenz still (genau das wirft der statische
+        // Konstruktor von GapRules beim Laden des Typs).
+        Assert.That(GapRules.IsMonotonicByTier(GapRules.RuleTiers), Is.True,
+                    $"Regelliste nicht nach Tier geordnet: {string.Join(" → ", GapRules.RuleTiers)}.");
+    }
+
+    [Test]
+    public void MonotonicByTierRejectsSwappedList() {
+
+        // Belegt, dass die Prüfung eine absichtlich vertauschte Liste erkennt (der statische Konstruktor
+        // würfe): eine Structure-Regel vor einer Safety-Regel ist ein Tier-Rückschritt.
+        Assert.That(GapRules.IsMonotonicByTier([RulePriority.Structure, RulePriority.Safety]), Is.False,
+                    "Ein Tier-Rückschritt (Structure vor Safety) muss als nicht-monoton erkannt werden.");
+    }
+
 }

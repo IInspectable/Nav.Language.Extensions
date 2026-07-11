@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
@@ -13,13 +14,18 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// <remarks>
 /// Die Reihenfolge ist nicht beliebig, sondern folgt den <see cref="RulePriority"/>-Tiers
 /// (Safety &gt; Structure &gt; TokenPair &gt; Alignment &gt; Default): Tier wählen ist eine semantische
-/// Entscheidung, kein Listenindex-Raten. Cross-Tier-Overlaps sind gewollt (der höhere Tier preemptiert);
+/// Entscheidung, kein Listenindex-Raten. Der Dispatcher <b>sortiert nicht zur Laufzeit</b> — die Liste ist
+/// von Hand nach Tier geordnet; dass diese Ordnung monoton aufsteigend ist, prüft der statische Konstruktor
+/// beim Laden des Typs (<see cref="EnsureRulesOrderedByTier"/>) und <b>wirft</b> bei Verletzung, sodass eine
+/// falsch einsortierte neue Regel die Cross-Tier-Präzedenz nicht still bricht. Cross-Tier-Overlaps sind
+/// gewollt (der höhere Tier preemptiert);
 /// <b>innerhalb</b> eines Tiers darf höchstens eine Regel zuständig sein — im Debug-Lauf wird diese
 /// Intra-Tier-Disjunktheit für jede Lücke geprüft, damit stille Ordnungs-Abhängigkeiten nicht entstehen.
 /// </remarks>
 static class GapRules {
 
-    // Die geordnete Regelliste IST die Spezifikation — top-down lesbar, nach Tier geordnet.
+    // Die geordnete Regelliste IST die Spezifikation — top-down lesbar, von Hand nach Tier geordnet
+    // (die Monotonie prüft EnsureRulesOrderedByTier beim Laden des Typs).
     static readonly IGapRule[] Rules = {
         // Safety
         new VerbatimWhenSuppressedRule(),     // unterdrückte Region -> Verbatim
@@ -40,6 +46,10 @@ static class GapRules {
         // Default
         new DefaultSingleSpaceRule(),         // Catch-all -> genau ein Space
     };
+
+    static GapRules() {
+        EnsureRulesOrderedByTier();
+    }
 
     /// <summary>Die Layout-Entscheidung für die Lücke — genau eine, Totalität über den Catch-all garantiert.</summary>
     public static GapLayout Select(in GapContext ctx) {
@@ -81,6 +91,38 @@ static class GapRules {
 
             matchesPerTier[rule.Tier] = rule;
         }
+    }
+
+    /// <summary>
+    /// Prüft beim Laden des Typs die Invariante der von Hand gelegten <see cref="Rules"/>-Liste: monoton
+    /// aufsteigend nach <see cref="RulePriority"/>. Der Dispatcher iteriert die Liste unverändert (er sortiert
+    /// nicht), deshalb ist die Deklarationsreihenfolge die Cross-Tier-Präzedenz — eine falsch einsortierte
+    /// neue Regel bräche sie sonst still. Der Intra-Tier-Check fängt genau das nicht (er sieht nur Overlaps
+    /// innerhalb eines Tiers), darum diese eigene, lückenunabhängige Prüfung. Eine Verletzung ist ein
+    /// Programmierfehler → harter Wurf (kein Debug-Assert: ausgeliefert wird ohnehin nur Debug).
+    /// </summary>
+    static void EnsureRulesOrderedByTier() {
+
+        if (!IsMonotonicByTier(RuleTiers)) {
+            throw new InvalidOperationException(
+                $"GapRules.Rules ist nicht monoton nach Tier geordnet: " +
+                $"{string.Join(" → ", Rules.Select(rule => $"{rule.GetType().Name}({rule.Tier})"))}.");
+        }
+    }
+
+    /// <summary>Die Tiers der Regelliste in Deklarationsreihenfolge — Einstieg für die Ordnungsprüfung (auch im Test).</summary>
+    internal static IReadOnlyList<RulePriority> RuleTiers => Rules.Select(rule => rule.Tier).ToList();
+
+    /// <summary>Ob die Tier-Folge monoton aufsteigend ist (keine spätere Regel einen niedrigeren Tier hat als eine frühere).</summary>
+    internal static bool IsMonotonicByTier(IReadOnlyList<RulePriority> tiers) {
+
+        for (var i = 1; i < tiers.Count; i++) {
+            if (tiers[i] < tiers[i - 1]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }
