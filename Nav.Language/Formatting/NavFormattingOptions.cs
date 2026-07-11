@@ -66,11 +66,17 @@ public record NavFormattingOptions {
     /// </summary>
     public AlignmentColumnPolicy AlignmentColumnPolicy { get; init; } = AlignmentColumnPolicy.NextTabStop;
 
-    /// <summary>Am Dateiende genau eine abschließende Newline sicherstellen. Default: <c>true</c>.</summary>
+    /// <summary>
+    /// Ob hinter dem letzten Inhalt eine abschließende Newline ergänzt wird. Default: <c>true</c>.
+    /// </summary>
+    /// <remarks>
+    /// Steuert <b>nur</b> die abschließende Newline. Der Final-Gap wird immer normalisiert — EOF-Trailing-Trim
+    /// (Leerzeilen hinter dem letzten Inhalt entfallen) und die Normalisierung von Kommentar-/Direktivzeilen am
+    /// Dateiende greifen unabhängig von dieser Option; der Skiped-Guard (BOM etc.) bleibt davor unberührt.
+    /// Trailing-Whitespace-Trim ist kein eigener Schalter: der Gap-Rewriter schreibt jede angefasste Lücke
+    /// kanonisch neu, das Strippen ist ein bedingungsloses Nebenprodukt dieses Modells.
+    /// </remarks>
     public bool InsertFinalNewline { get; init; } = true;
-
-    /// <summary>Whitespace am Zeilenende entfernen (auch auf Leerzeilen). Default: <c>true</c>.</summary>
-    public bool TrimTrailingWhitespace { get; init; } = true;
 
     /// <summary>
     /// Ob der interne Achse-A-Wächter nach dem Formatieren mitläuft (Re-Parse des Ergebnisses + Vergleich des

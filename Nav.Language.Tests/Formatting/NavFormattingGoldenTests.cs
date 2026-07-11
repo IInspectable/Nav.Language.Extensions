@@ -348,6 +348,31 @@ public class NavFormattingGoldenTests {
         AssertFormat("task A   \r\n{\r\n}\r\n", "task A\r\n{\r\n}\r\n");
     }
 
+    // InsertFinalNewline = false ist von EOF-Trim und Kommentar-/Direktivzeilen-Normalisierung entkoppelt:
+    // nur die abschließende Newline entfällt, alles Übrige wird trotzdem kanonisiert. Escaptes Literal, weil
+    // die An-/Abwesenheit der Final-Newline der Prüfgegenstand ist.
+    static readonly NavFormattingOptions NoFinalNewlineOptions = SpacesOptions with { InsertFinalNewline = false };
+
+    [Test]
+    public void WithoutInsertFinalNewlineNoTrailingNewlineIsAddedAndBlankLinesAreStillTrimmed() {
+        // Fehlende Final-Newline wird nicht ergänzt …
+        AssertFormat("task A\r\n{\r\n}",             "task A\r\n{\r\n}", NoFinalNewlineOptions);
+        // … eine vorhandene wird als EOF-Trailing entfernt …
+        AssertFormat("task A\r\n{\r\n}\r\n",         "task A\r\n{\r\n}", NoFinalNewlineOptions);
+        // … ebenso überzählige Leerzeilen am Dateiende.
+        AssertFormat("task A\r\n{\r\n}\r\n\r\n\r\n", "task A\r\n{\r\n}", NoFinalNewlineOptions);
+    }
+
+    [Test]
+    public void WithoutInsertFinalNewlineTrailingCommentIsNormalizedButNotNewlineTerminated() {
+        AssertFormat("task A\r\n{\r\n}\r\n// Fußnote\r\n", "task A\r\n{\r\n}\r\n// Fußnote", NoFinalNewlineOptions);
+    }
+
+    [Test]
+    public void WithoutInsertFinalNewlineTrailingWhitespaceIsStillTrimmed() {
+        AssertFormat("task A   \r\n{\r\n}", "task A\r\n{\r\n}", NoFinalNewlineOptions);
+    }
+
     // ---- Einzugsstil ----------------------------------------------------------------------------
     // Ausnahme wie oben: der erwartete Tab-Einzug ('\t') ist der Prüfgegenstand und im Raw-String
     // unsichtbar — darum bleiben Ein- und Ausgabe hier escapte Literale.

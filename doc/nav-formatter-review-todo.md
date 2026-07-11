@@ -28,7 +28,7 @@
 
 | # | Step | Größe | Status |
 |---|---|---|---|
-| S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | offen |
+| S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | **umgesetzt** (Commit ausstehend) |
 | S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | offen |
 | S3 | Dispatcher-Tier-Assert + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | offen |
 | S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, Deckel 2) + Dateianfang | mittel | offen |

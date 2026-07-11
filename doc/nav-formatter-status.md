@@ -828,7 +828,14 @@ analog `NavCompletionService.TriggerCharacters`):
 - `AlignmentColumnPolicy` = `NextTabStop` (Default) | `Tight` | `PreserveDominant` — wie die Zielspalte
   aus den Zeilenbreiten folgt (s. „Spaltenausrichtung"). **Ausrichtungs-Padding ist immer Leerzeichen**
   (nie Tabs), unabhängig vom `IndentStyle` des Einzugs — in Stein gemeißelt.
-- `InsertFinalNewline = true`, `TrimTrailingWhitespace = true`. **Kein Leerzeilen-Kollaps** — die
+- `InsertFinalNewline = true` — steuert **nur**, ob hinter dem letzten Inhalt eine abschließende Newline
+  ergänzt wird. **Entkoppelt** von der Final-Gap-Normalisierung: EOF-Trailing-Trim (Leerzeilen hinter dem
+  letzten Inhalt entfallen) und die Normalisierung der Kommentar-/Direktivzeilen am Dateiende laufen
+  **immer** — auch bei `false` (dann endet die Datei ohne Newline); nur der Skiped-Guard (BOM) bleibt
+  davor verbatim. **Trailing-Whitespace-Trim ist kein eigener Schalter** (früher `TrimTrailingWhitespace`,
+  entfernt): der Gap-Rewriter schreibt jede angefasste Lücke kanonisch neu, das Strippen ist ein
+  bedingungsloses **Nebenprodukt** des Modells und keine schaltbare Regel.
+- **Kein Leerzeilen-Kollaps** — die
   Anzahl aufeinanderfolgender Leerzeilen wird nie reduziert; **jede** `NewLine`-Regel (auch vor `{`/`}`)
   reicht die Autorenzahl über `GapLayout.NewLine.BlankLinesBefore` unverändert weiter. Einzige
   strukturelle Ausnahme: die `BlankLineBeforeTransitionsRule` **stellt** zwischen Node-Deklarationen und

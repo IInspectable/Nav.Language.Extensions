@@ -198,11 +198,13 @@ sealed class GapRenderer {
     /// <summary>
     /// Rendert die Final-Lücke zwischen dem letzten realen Token (<c>null</c>, wenn die Datei keines hat)
     /// und dem Dateiende: Trailing-Kommentare bleiben auf der Zeile des letzten Tokens, Kommentar-/
-    /// Direktivzeilen und Leerzeilen dazwischen bleiben erhalten (Tiefe 0 bzw. Spalte 0) — aber hinter
-    /// dem letzten Inhalt endet die Datei mit <b>genau einer</b> Newline (EOF-Trailing-Trim). Eine Datei
-    /// ganz ohne Inhalt (leer bzw. nur Whitespace) bleibt bzw. wird leer.
+    /// Direktivzeilen und Leerzeilen dazwischen bleiben erhalten (Tiefe 0 bzw. Spalte 0) — der
+    /// EOF-Trailing-Trim (Leerzeilen hinter dem letzten Inhalt entfallen) läuft immer. Eine Datei ganz
+    /// ohne Inhalt (leer bzw. nur Whitespace) bleibt bzw. wird leer.
+    /// <paramref name="insertFinalNewline"/> steuert allein, ob hinter dem letzten Inhalt die
+    /// abschließende Newline ergänzt wird.
     /// </summary>
-    public string RenderFinalGap(SyntaxToken? lastToken, SyntaxToken endOfFile) {
+    public string RenderFinalGap(SyntaxToken? lastToken, SyntaxToken endOfFile, bool insertFinalNewline) {
 
         var lines = SplitLines(EnumerateFinalTrivia(lastToken, endOfFile));
         var sb    = new StringBuilder();
@@ -237,7 +239,7 @@ sealed class GapRenderer {
             sb.Append(contents[i]);
         }
 
-        if (lastToken != null || contents.Count > 0) {
+        if (insertFinalNewline && (lastToken != null || contents.Count > 0)) {
             sb.Append(_settings.NewLine);
         }
 

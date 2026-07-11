@@ -269,15 +269,12 @@ public static class NavFormattingService {
     /// <summary>
     /// Behandelt die Final-Lücke zwischen dem letzten realen Token und dem Dateiende — der einzige Ort
     /// für Final-Newline und EOF-Trailing-Trim (Kommentar-/Direktivzeilen am Dateiende bleiben erhalten,
-    /// hinter dem letzten Inhalt endet die Datei mit genau einer Newline). Bei
-    /// <see cref="NavFormattingOptions.InsertFinalNewline"/> = <c>false</c> bleibt die Lücke verbatim;
-    /// Skiped-Läufe bleiben immer verbatim.
+    /// hinter dem letzten Inhalt endet die Datei mit genau einer Newline). EOF-Trim und die Normalisierung
+    /// der Kommentar-/Direktivzeilen laufen immer; <see cref="NavFormattingOptions.InsertFinalNewline"/>
+    /// steuert nur, ob hinter dem letzten Inhalt die abschließende Newline ergänzt wird. Skiped-Läufe
+    /// bleiben immer verbatim.
     /// </summary>
     static TextChange? RenderFinalGap(SyntaxTree syntaxTree, GapRenderer renderer, NavFormattingOptions options) {
-
-        if (!options.InsertFinalNewline) {
-            return null;
-        }
 
         var tokens    = syntaxTree.Tokens;
         var endOfFile = tokens[tokens.Count - 1];
@@ -288,7 +285,7 @@ public static class NavFormattingService {
         }
 
         var extent    = TextExtent.FromBounds(lastToken?.End ?? 0, endOfFile.End);
-        var canonical = renderer.RenderFinalGap(lastToken, endOfFile);
+        var canonical = renderer.RenderFinalGap(lastToken, endOfFile, options.InsertFinalNewline);
 
         return canonical != syntaxTree.SourceText.Substring(extent)
             ? TextChange.NewReplace(extent, canonical)
