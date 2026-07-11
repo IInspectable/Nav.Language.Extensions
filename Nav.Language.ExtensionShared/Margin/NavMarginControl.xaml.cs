@@ -70,7 +70,7 @@ public partial class NavMarginControl {
 
         var tooltipText = commandName;
 
-        var keyBinding = KeyBindingHelper.GetGlobalKeyBinding(commandId.Guid, commandId.ID);
+        var keyBinding = NavKeyBindingHelper.GetKeyBinding(commandId.Guid, commandId.ID);
         if (!String.IsNullOrEmpty(keyBinding)) {
             tooltipText += $" ({keyBinding})";
         }
