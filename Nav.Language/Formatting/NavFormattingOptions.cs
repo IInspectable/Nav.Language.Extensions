@@ -79,6 +79,34 @@ public record NavFormattingOptions {
     public bool InsertFinalNewline { get; init; } = true;
 
     /// <summary>
+    /// Deckel für aufeinanderfolgende Leerzeilen: Läufe von mehr als so vielen Leerzeilen werden beim
+    /// Formatieren darauf gekappt (Kommentar-/Direktivzeilen zählen nicht als Leerzeile und setzen den
+    /// Lauf zurück). <c>null</c> (Default) = <b>kein</b> Deckel — die vom Autor gesetzte vertikale Trennung
+    /// bleibt vollständig erhalten (die dokumentierte „kein Kollaps"-Grundhaltung). Gilt gleichermaßen
+    /// mitten im Code, am Dateianfang und am Dateiende.
+    /// </summary>
+    /// <remarks>
+    /// <b>Nur ≥ 2 ist zulässig</b> (2, 3, 4, … — nicht 0/1). Der Deckel darf einen Leerzeilen-Lauf nie
+    /// <b>unter</b> die Gruppenbruch-Schwelle der Spaltenausrichtung drücken: eine Ausrichtungsgruppe
+    /// (Pfeile/Node-Raster) bricht bei <b>zwei</b> Leerzeilen (<c>interruptLines ≥ 2</c>). Ein Deckel bei 1
+    /// kappte einen 2-Leerzeilen-Lauf (= bewusster Gruppenbruch) auf eine Leerzeile (= kein Bruch) — vorher
+    /// getrennte Transitionen würden dann <b>zusammengruppiert</b> und ausgerichtet, und das erst im
+    /// <b>zweiten</b> Lauf (die Gruppen werden aus dem geparsten Baum gelesen, vor dem Kappen) → nicht mehr
+    /// idempotent. <b>Deshalb</b> ist 1 verboten.
+    /// <para>Jeder Deckel <b>≥ 2</b> ist dagegen unkritisch: er lässt jeden ≥ 2-Lauf ≥ 2 (Bruch bleibt Bruch)
+    /// und jeden 1-Lauf unberührt — die Gruppierung ändert sich nie, egal ob 2, 3 oder mehr. <b>2 ist also
+    /// nur der Boden</b> (die Bruch-Schwelle selbst), kein ausgezeichneter Wert; höhere Werte lassen bloß
+    /// mehr vertikale Luft stehen. Werte &lt; 2 werden still auf 2 geklemmt; <c>null</c> bleibt „kein
+    /// Deckel". Idempotent, weil kein Lauf die Schwelle überquert → ein zweiter Lauf klassifiziert identisch.</para>
+    /// </remarks>
+    public int? MaxBlankLines {
+        get => _maxBlankLines;
+        init => _maxBlankLines = value is { } v ? System.Math.Max(2, v) : null;
+    }
+
+    readonly int? _maxBlankLines;
+
+    /// <summary>
     /// Ob der interne Achse-A-Wächter nach dem Formatieren mitläuft (Re-Parse des Ergebnisses + Vergleich des
     /// signifikanten Token-Stroms, der Direktiven und der Diagnostics). Default: <c>false</c>.
     /// </summary>

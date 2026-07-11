@@ -31,7 +31,7 @@
 | S1 | Options-Hygiene: `TrimTrailingWhitespace` + `InsertFinalNewline` entkoppeln | klein | **umgesetzt** (committed 89154ba2) |
 | S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | **umgesetzt** (committed 4a8a2a35) |
 | S3 | Dispatcher-Tier-Prüfung + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | **umgesetzt** (Commit ausstehend) |
-| S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, Deckel 2) + Dateianfang | mittel | offen |
+| S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, ≥ 2) + Dateianfang/-ende | mittel | **umgesetzt** (Commit ausstehend) |
 | S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | offen |
 | S6 | Statement-Messung einmalig + geteiltes Hand-gelegt-Primitiv + Kleinkram (Perf) | mittel | offen |
 
@@ -218,6 +218,33 @@ stehen; ebenso führende Leerzeilen am Dateianfang. Der komplette Kollaps-Verzic
 **Fertig, wenn:** Goldens für Deckel an/aus (inkl. Grenzfall „Leerzeile + Kommentarzeile +
 Leerzeilen"), Idempotenz- und Gruppierungs-Property-Tests grün, Korpus-Smoke ohne
 Idempotenz-/Token-/Wächter-Brüche, Default entschieden + dokumentiert, beide TFMs grün.
+
+**Umgesetzt:**
+
+- **Option `MaxBlankLines` (`int?`, Default `null`).** `null` = kein Deckel — die dokumentierte „kein
+  Kollaps"-Grundhaltung bleibt der **Default**; der Deckel ist **opt-in**, damit keine bestehende Datei
+  ungefragt umbricht (Korpus-Einmal-Diff bei Default = 0). **Nur ≥ 2 zulässig**, Werte darunter werden im
+  `init`-Accessor **still auf 2 geklemmt** (ein Formatter wirft nicht an seiner Konfig; die Property
+  spiegelt immer den wirksamen Wert).
+- **Warum ≥ 2 (nicht bloß „gegen Kollaps auf 1"):** der Boden 2 **ist** die Gruppenbruch-Schwelle
+  (`interruptLines ≥ 2`). Ein Deckel ≥ 2 verschiebt **keinen** Lauf über die Schwelle (jeder ≥ 2-Lauf
+  bleibt ≥ 2, jeder 1-Lauf unberührt) → Gruppierung invariant, idempotent. Ein Deckel bei 1 zöge einen
+  bewussten 2-Leerzeilen-Gruppenbruch auf 1 (kein Bruch) → vorher getrennte Transitionen verschmölzen,
+  und zwar erst im **zweiten** Lauf (Gruppen aus dem geparsten Baum, vor dem Kappen) → nicht idempotent.
+  `2` vs. `3` ist reine Geschmackssache (beide sicher); Korpus-Einmal-Diff ggü. kein-Deckel: **382** (Deckel
+  2) vs. **86** (Deckel 3) vs. **8** (Deckel 5) der 1913 Dateien.
+- **Ein Mechanismus, drei Abnehmer:** `GapRenderer.CapBlankRuns(List<string>)` kappt Leerzeilen-Läufe
+  (Kommentar-/Direktivzeile setzt den Lauf zurück); genutzt von `RenderVertical` (mitten im Code),
+  `RenderLeadingGap` (Dateianfang) und `RenderFinalGap` (Dateiende). `BlankLinesBefore` bleibt
+  Minimum-Semantik (das Minimum ≤ 1 liegt stets unter dem Deckel ≥ 2, bleibt also erreichbar). **Dateianfang
+  entschieden:** demselben Deckel unterworfen (nicht auf 0 gezwungen).
+- **Tests:** sechs Goldens in `NavFormattingGoldenTests` (Klemm-/Default-Unit-Test, no-cap-Erhalt,
+  Kappen im Body, Kommentarzeile-als-Reset-Grenzfall, Dateiende zwischen Kommentaren, Dateianfang) — alle
+  mit `VerifyResult = true` (Achse-A-Wächter feuert nie). **Korpus-Smoke mit Deckel = 2** über 1913 `.nav`
+  × 2 Einzugsstile (3826 Läufe): **0 Crashes, 0 nicht-idempotent, 0 Token-Brüche, 0 neue Fehler**.
+- Beide TFMs grün (net472 1680 passed/0 failed/3 explicit skipped, net10 1620/0; Formatting 179/179).
+  Spec `doc/nav-formatter-status.md` (Optionen, „Kommentare & Direktiven", Spaltenausrichtungs-Absatz)
+  angeglichen.
 
 ---
 

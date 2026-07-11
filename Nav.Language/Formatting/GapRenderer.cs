@@ -138,10 +138,17 @@ sealed class GapRenderer {
             trailingCommentAligned = true;
         }
 
-        // Innenzeilen in authored Reihenfolge; Leerzeilen dabei zählen, um das Minimum zu ergänzen.
-        var blankLines = 0;
+        // Innenzeilen in authored Reihenfolge; Läufe von Leerzeilen auf MaxBlankLines kappen (Kommentar-/
+        // Direktivzeilen setzen den Lauf zurück). Danach die verbleibenden Leerzeilen zählen, um das Minimum
+        // zu ergänzen — BlankLinesBefore (≤ 1) liegt stets unter dem Deckel (≥ 2), das Minimum bleibt also
+        // erreichbar.
+        var interior = new List<string>();
         for (var i = 1; i < lines.Count - 1; i++) {
-            var content = RenderInteriorLine(lines[i], linePrefix);
+            interior.Add(RenderInteriorLine(lines[i], linePrefix));
+        }
+
+        var blankLines = 0;
+        foreach (var content in CapBlankRuns(interior)) {
             if (content.Length == 0) {
                 blankLines++;
             }
@@ -180,8 +187,14 @@ sealed class GapRenderer {
         var prefix = IndentString(indentDepth);
         var sb     = new StringBuilder();
 
+        // Führende Leerzeilen vor dem ersten Inhalt unterliegen demselben Deckel wie im Rest der Datei.
+        var interior = new List<string>();
         for (var i = 0; i < lines.Count - 1; i++) {
-            sb.Append(RenderInteriorLine(lines[i], prefix)).Append(_settings.NewLine);
+            interior.Add(RenderInteriorLine(lines[i], prefix));
+        }
+
+        foreach (var content in CapBlankRuns(interior)) {
+            sb.Append(content).Append(_settings.NewLine);
         }
 
         // Zeile des ersten Tokens: Einzug, dann etwaige Inline-Kommentare vor dem Token.
@@ -225,6 +238,10 @@ sealed class GapRenderer {
         for (var i = firstInteriorLine; i < lines.Count; i++) {
             contents.Add(RenderInteriorLine(lines[i], linePrefix: IndentString(0)));
         }
+
+        // Leerzeilen-Läufe zwischen Kommentar-/Direktivzeilen am Dateiende auf den Deckel kappen (der
+        // EOF-Trailing-Trim entfernt anschließend die Leerzeilen hinter dem letzten Inhalt ganz).
+        contents = CapBlankRuns(contents);
 
         // EOF-Trailing-Trim: Leerzeilen hinter dem letzten Inhalt entfallen — dann genau eine Final-Newline.
         while (contents.Count > 0 && contents[contents.Count - 1].Length == 0) {
@@ -279,6 +296,37 @@ sealed class GapRenderer {
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Kappt Läufe aufeinanderfolgender Leerzeilen (leere Einträge) auf
+    /// <see cref="NavFormattingOptions.MaxBlankLines"/> — der eine Deckel-Mechanismus für die Innenzeilen
+    /// mitten im Code (<see cref="RenderVertical"/>), am Dateianfang (<see cref="RenderLeadingGap"/>) und am
+    /// Dateiende (<see cref="RenderFinalGap"/>). Nicht-Leerzeilen (Kommentar/Direktive) setzen den Lauf
+    /// zurück. Kein Deckel (<c>null</c>) → die Liste bleibt unverändert (Referenz-identisch). Idempotent:
+    /// eine bereits gekappte Liste ist ein Fixpunkt.
+    /// </summary>
+    List<string> CapBlankRuns(List<string> lines) {
+
+        if (_options.MaxBlankLines is not { } cap) {
+            return lines;
+        }
+
+        var result   = new List<string>(lines.Count);
+        var blankRun  = 0;
+        foreach (var line in lines) {
+            if (line.Length == 0) {
+                if (++blankRun > cap) {
+                    continue; // über dem Deckel: diese Leerzeile entfällt
+                }
+            } else {
+                blankRun = 0;
+            }
+
+            result.Add(line);
+        }
+
+        return result;
     }
 
     /// <summary>

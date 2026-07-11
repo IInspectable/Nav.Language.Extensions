@@ -497,6 +497,155 @@ public class NavFormattingGoldenTests {
         AssertFormat("task A   \r\n{\r\n}", expected, NoFinalNewlineOptions);
     }
 
+    // ---- Leerzeilen-Deckel (MaxBlankLines) ------------------------------------------------------
+    // Default ist kein Deckel (null) — die „kein Kollaps"-Grundhaltung bleibt der Default; der Deckel ist
+    // opt-in und nur ≥ 2 zulässig (Werte darunter werden auf 2 geklemmt, s. MaxBlankLinesBelowTwoIsClampedToTwo).
+
+    static readonly NavFormattingOptions CapOptions = SpacesOptions with { MaxBlankLines = 2 };
+
+    [Test]
+    public void MaxBlankLinesBelowTwoIsClampedToTwo() {
+        Assert.That(NavFormattingOptions.Default.MaxBlankLines, Is.Null, "Default ist kein Deckel (opt-in).");
+        Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 0    }).MaxBlankLines, Is.EqualTo(2));
+        Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 1    }).MaxBlankLines, Is.EqualTo(2));
+        Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 5    }).MaxBlankLines, Is.EqualTo(5));
+        Assert.That((NavFormattingOptions.Default with { MaxBlankLines = null }).MaxBlankLines, Is.Null);
+    }
+
+    [Test]
+    public void WithoutMaxBlankLinesLargeRunsArePreserved() {
+        // Default (null): fünf Autoren-Leerzeilen bleiben stehen (kein Kollaps).
+        var source = """
+                     task Sample
+                     {
+                         init    I1;
+                         exit    E;
+
+                         I1 --> E;
+
+
+
+
+                         I1 --> E;
+                     }
+
+                     """;
+
+        AssertFormat(source, source);
+    }
+
+    [Test]
+    public void MaxBlankLinesCapsRunsInsideTheBody() {
+        // Fünf Leerzeilen zwischen zwei Transitionen -> auf den Deckel (2) gekappt.
+        var source = """
+                     task Sample
+                     {
+                         init    I1;
+                         exit    E;
+
+                         I1 --> E;
+
+
+
+
+                         I1 --> E;
+                     }
+
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           init    I1;
+                           exit    E;
+
+                           I1 --> E;
+
+
+                           I1 --> E;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected, CapOptions);
+    }
+
+    [Test]
+    public void MaxBlankLinesTreatsCommentLinesAsRunResetNotBlank() {
+        // Grenzfall „Leerzeilen + Kommentarzeile + Leerzeilen": die Kommentarzeile zählt nicht als
+        // Leerzeile und setzt den Lauf zurück -> jeder der beiden Läufe wird eigenständig auf 2 gekappt.
+        var source = """
+                     task Sample
+                     {
+                         init    I1;
+                         exit    E;
+
+                         I1 --> E;
+
+
+
+                         // Ende
+
+
+
+                         I1 --> E;
+                     }
+
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           init    I1;
+                           exit    E;
+
+                           I1 --> E;
+
+
+                           // Ende
+
+
+                           I1 --> E;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected, CapOptions);
+    }
+
+    [Test]
+    public void MaxBlankLinesCapsRunsBetweenTrailingCommentsAtFileEnd() {
+        // Leerzeilen-Läufe zwischen Kommentarzeilen am Dateiende werden ebenfalls gekappt (drei -> zwei);
+        // der EOF-Trailing-Trim (Leerzeilen hinter dem letzten Inhalt) läuft davon unabhängig.
+        var source = """
+                     task A
+                     {
+                     }
+                     // erste
+
+
+
+                     // zweite
+                     """;
+        var expected = """
+                       task A
+                       {
+                       }
+                       // erste
+
+
+                       // zweite
+
+                       """;
+
+        AssertFormat(source, expected, CapOptions);
+    }
+
+    [Test]
+    public void MaxBlankLinesCapsLeadingBlankLinesAtFileStart() {
+        // Führende Leerzeilen am Dateianfang unterliegen demselben Deckel (drei -> zwei). Escaped: führende
+        // Leerzeilen sind der Prüfgegenstand und im Raw-String-Präfix schwer eindeutig darstellbar.
+        AssertFormat("\r\n\r\n\r\ntask A\r\n{\r\n}\r\n", "\r\n\r\ntask A\r\n{\r\n}\r\n", CapOptions);
+    }
+
     // ---- Einzugsstil ----------------------------------------------------------------------------
 
     [Test]

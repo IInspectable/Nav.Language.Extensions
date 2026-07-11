@@ -31,6 +31,11 @@
 > **Host-Anbindung VS + VS Code erledigt** (VS Format-Document/Selection-Command + Symbolleisten-Schaltfläche;
 > LSP `textDocument/formatting`+`rangeFormatting`, siehe „Zurückgestellt"); offen bleiben nur noch MCP
 > `nav_format` und das CLI-`format`-Verb.
+> **Nachtrag: Leerzeilen-Deckel `MaxBlankLines`** (`int?`, Default `null` = kein Deckel) — opt-in kappt er
+> Läufe aufeinanderfolgender Leerzeilen (Kommentar-/Direktivzeilen setzen den Lauf zurück), mitten im Code,
+> am Dateianfang und am Dateiende (ein Mechanismus `GapRenderer.CapBlankRuns`). **Nur ≥ 2 zulässig** (darunter
+> auf 2 geklemmt): der Boden 2 ist die Gruppenbruch-Schwelle selbst, ein Deckel ≥ 2 ist damit
+> gruppierungs-erhaltend und idempotent. Details s. „Optionen & Konfiguration".
 
 ## Motivation
 
@@ -488,8 +493,9 @@ Trailing-Kommentar-Spalte** nutzen dagegen die strengere Schwelle `interruptLine
 wirklich zusammenhängenden Blocks fluchten). Zusätzlich brechen (wie gehabt) eine
 **unterdrückte** oder **hand-gelegte** (mehrzeilige) Anweisung die Gruppe; ebenfalls aus der Spalte
 ausgeschlossen: eine Transition mit **Inline-Block-Kommentar im Vor-Pfeil-Bereich** (s. „Kommentare").
-Weil Leerzeilen **nicht kollabiert** werden (s. „Optionen"), ist `interruptLines` formatierungs-invariant
-→ die Gruppierung ist ohne Sonderkniff idempotent.
+Weil Leerzeilen nie **unter die Gruppenbruch-Schwelle** kollabiert werden (kein Deckel, oder Deckel ≥ 2 —
+s. „Optionen"), bleibt die Schwellen-Klassifikation (`≥ 2` / `≥ 1`) formatierungs-invariant → die
+Gruppierung ist ohne Sonderkniff idempotent.
 (2) Pro Zeile die natürliche Vor-Spalten-Breite in **Zeichen** messen — **kanonisch**, nicht aus dem
 Ist-Text (s. Fallstrick unten). Spalten zählen **ab Inhaltsbeginn der Zeile** (nach dem Einzug); der
 Einzug geht nie in die Breite ein. (3) Zielspalte über die konfigurierte **`AlignmentColumnPolicy`**
@@ -704,10 +710,12 @@ Es gibt **keinen** Fall, in dem Verbatim-Durchreichen überlappende Edits erzeug
   jedes Einrücken oder Verschieben auf eine andere Zeile zerstörte die Direktive — ein Achse-A-Bruch, den
   auch der Laufzeit-Wächter erkennt (s. „Korrektheits-Modell"). Reformatierung des Direktiv-**Inneren**
   (Spacing zwischen `#pragma`, Keyword, Argument) ist zurückgestellt.
-- Leerzeilen werden **nicht kollabiert** — die vom Autor gesetzte vertikale Trennung bleibt erhalten
-  (nur Trailing-Whitespace auf Leerzeilen wird gestrippt). Grund: Leerzeilen tragen
-  seit dem `interruptLines`-Gruppierungskriterium **Bedeutung** (≥2 = Gruppenbruch); ein Kollaps würde
-  dieses Signal zerstören und die Gruppierung zwischen zwei Läufen kippen (nicht idempotent).
+- Leerzeilen werden **standardmäßig nicht kollabiert** — die vom Autor gesetzte vertikale Trennung bleibt
+  erhalten (nur Trailing-Whitespace auf Leerzeilen wird gestrippt). Grund: Leerzeilen tragen seit dem
+  `interruptLines`-Gruppierungskriterium **Bedeutung** (≥2 = Gruppenbruch); ein Kollaps **unter** diese
+  Schwelle zerstörte das Signal und kippte die Gruppierung zwischen zwei Läufen (nicht idempotent). Der
+  optionale Deckel `MaxBlankLines` (s. „Optionen") reduziert Läufe deshalb **nie unter 2** — er ist damit
+  gruppensemantik-erhaltend und idempotent; der Default bleibt „kein Deckel".
 
 ## Hand-gelegte Anweisungen (mehrzeilig / reich kommentiert)
 
@@ -839,11 +847,22 @@ analog `NavCompletionService.TriggerCharacters`):
   davor verbatim. **Trailing-Whitespace-Trim ist kein eigener Schalter** (früher `TrimTrailingWhitespace`,
   entfernt): der Gap-Rewriter schreibt jede angefasste Lücke kanonisch neu, das Strippen ist ein
   bedingungsloses **Nebenprodukt** des Modells und keine schaltbare Regel.
-- **Kein Leerzeilen-Kollaps** — die
-  Anzahl aufeinanderfolgender Leerzeilen wird nie reduziert; **jede** `NewLine`-Regel (auch vor `{`/`}`)
-  reicht die Autorenzahl über `GapLayout.NewLine.BlankLinesBefore` unverändert weiter. Einzige
-  strukturelle Ausnahme: die `BlankLineBeforeTransitionsRule` **stellt** zwischen Node-Deklarationen und
-  Transitionen **mindestens eine** Leerzeile sicher (fügt bei 0 eine ein), kappt aber nach oben nichts.
+- `MaxBlankLines` (`int?`, Default `null` = **kein Deckel**) — der **Leerzeilen-Deckel**. Ohne Deckel wird
+  die Anzahl aufeinanderfolgender Leerzeilen nie reduziert; **jede** `NewLine`-Regel (auch vor `{`/`}`)
+  reicht die Autorenzahl über `GapLayout.NewLine.BlankLinesBefore` unverändert weiter (die dokumentierte
+  „kein Kollaps"-Grundhaltung bleibt der **Default**). Ist ein Deckel gesetzt, kappt der Renderer
+  (`GapRenderer.CapBlankRuns`, ein Mechanismus für alle drei Emittier-Stellen) Läufe aufeinanderfolgender
+  Leerzeilen darauf — **mitten im Code, am Dateianfang und am Dateiende**; Kommentar-/Direktivzeilen zählen
+  nicht als Leerzeile und **setzen den Lauf zurück**. **Nur ≥ 2 ist zulässig** (Werte darunter still auf 2
+  geklemmt): der Boden 2 ist die **Gruppenbruch-Schwelle selbst** (`interruptLines ≥ 2`) — ein Deckel ≥ 2
+  lässt jeden ≥ 2-Lauf ≥ 2 (Bruch bleibt Bruch) und jeden 1-Lauf unberührt, die Ausrichtungs-Gruppierung
+  ändert sich also **nie** und der Deckel ist idempotent; ein Deckel bei 1 zöge einen 2-Leerzeilen-Lauf
+  (bewusster Gruppenbruch) auf eine Leerzeile (kein Bruch) → vorher getrennte Transitionen verschmölzen,
+  und das erst im zweiten Lauf (nicht idempotent) — darum verboten. `2` vs. `3` ist reine
+  Geschmackssache (beide gruppierungs-sicher; Korpus-Einmal-Diff ggü. kein-Deckel: 382 vs. 86 der 1913
+  Dateien). Einzige strukturelle Ausnahme in Gegenrichtung: die `BlankLineBeforeTransitionsRule` **stellt**
+  zwischen Node-Deklarationen und Transitionen **mindestens eine** Leerzeile sicher (fügt bei 0 eine ein) —
+  dieses Minimum (≤ 1) liegt stets unter dem Deckel (≥ 2), bleibt also immer erreichbar.
 
 `TextEditorSettings` (heute `{ TabSize, NewLine }`, geteilt/immutabel) wird **nicht** erweitert —
 `IndentStyle` lebt in `NavFormattingOptions`. Newline für emittierte Umbrüche = `settings.NewLine`.
