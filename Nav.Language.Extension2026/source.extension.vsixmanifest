@@ -5,7 +5,7 @@
     <DisplayName>Nav Language Extensions 2026</DisplayName>
     <Description xml:space="preserve">Support for the Pharmatechnik Nav language like syntax highlighting and semantic analysis.</Description>
     <MoreInfo>https://github.com/IInspectable/Nav.Language.Extensions</MoreInfo>
-    <Icon>Resources\ActivityDiagram_32x.png</Icon>
+    <Icon>Resources\Icon.png</Icon>
     <PreviewImage>Resources\Preview.png</PreviewImage>
   </Metadata>
   <Installation>
