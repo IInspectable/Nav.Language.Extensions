@@ -1,7 +1,7 @@
 {
   "name": "nav-language",
   "displayName": "Nav Language",
-  "description": "VS-Code-Client für den Nav-LSP-Server",
+  "description": "Editor-Unterstützung für die Nav-Workflow-Sprache der Pharmatechnik: Syntaxhervorhebung, semantische Analyse, IntelliSense, Navigation (Gehe zu / Referenzen / Aufrufhierarchie), Umbenennen und Code-Fixes.",
   "version": "0.0.0",
   "publisher": "Pharmatechnik",
   "icon": "images/icon.png",
