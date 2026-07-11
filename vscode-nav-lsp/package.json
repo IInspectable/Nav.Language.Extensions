@@ -1,13 +1,13 @@
 {
   "name": "nav-language",
   "displayName": "Nav Language",
-  "description": "Editor-Unterstützung für die Nav-Workflow-Sprache der Pharmatechnik: Syntaxhervorhebung, semantische Analyse, IntelliSense, Navigation (Gehe zu / Referenzen / Aufrufhierarchie), Umbenennen und Code-Fixes.",
+  "description": "Editor-Unterstützung für die Nav-Workflow-Sprache: Syntaxhervorhebung, semantische Analyse, IntelliSense, Navigation (Gehe zu / Referenzen / Aufrufhierarchie), Umbenennen und Code-Fixes.",
   "version": "0.0.0",
   "publisher": "Pharmatechnik",
   "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Pharmatechnik/Nav.Language.Extensions.git"
+    "url": "https://github.com/IInspectable/Nav.Language.Extensions.git"
   },
   "engines": {
     "vscode": "^1.82.0"

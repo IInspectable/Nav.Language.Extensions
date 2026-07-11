@@ -70,6 +70,11 @@ function Publish-VsCode {
     }
     finally { Pop-Location }
 
+    # 3b) Marketplace-README aus der Single Source (Repo-Root README.md) in die Extension spiegeln.
+    #     vsce paketiert die README aus $extDir; einzige Autorität ist die Root-README.md
+    #     (vscode-nav-lsp\README.md ist generiert und in .gitignore).
+    Copy-Item -Path (Join-Path $root 'README.md') -Destination (Join-Path $extDir 'README.md') -Force
+
     # 4) VSIX paketieren. Git-abgeleitete Version explizit setzen;
     #    --no-update-package-json/--no-git-tag-version halten package.json und git unangetastet,
     #    --skip-license unterdrückt die LICENSE-Warnung.

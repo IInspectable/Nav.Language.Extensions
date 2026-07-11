@@ -50,6 +50,8 @@
 /vscode-nav-lsp/server
 /vscode-nav-lsp/*.vsix
 /vscode-nav-lsp/package-lock.json
+# Marketplace-README wird beim Publish aus der Single Source (Root-README.md) generiert.
+/vscode-nav-lsp/README.md
 
 /Nav.Language.Tests/bin
 /Nav.Language.Tests/obj
