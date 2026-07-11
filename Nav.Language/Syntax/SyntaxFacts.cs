@@ -353,6 +353,46 @@ public static class SyntaxFacts {
         }
     }
 
+    // Reverse-Map Token-Typ → kanonisches Keyword-Literal. Gegenstück zu GetText, das nur die
+    // Punctuation-Literale kennt und für Keywords null liefert; zusammen decken beide alle Token-Typen
+    // mit festem Text ab. Autorität bleiben die Keyword-Konstanten oben (kein zweites Literal).
+    static readonly ImmutableDictionary<SyntaxTokenType, string> KeywordTexts = new Dictionary<SyntaxTokenType, string> {
+        [SyntaxTokenType.TaskKeyword]            = TaskKeyword,
+        [SyntaxTokenType.TaskrefKeyword]         = TaskrefKeyword,
+        [SyntaxTokenType.InitKeyword]            = InitKeyword,
+        [SyntaxTokenType.EndKeyword]             = EndKeyword,
+        [SyntaxTokenType.ChoiceKeyword]          = ChoiceKeyword,
+        [SyntaxTokenType.DialogKeyword]          = DialogKeyword,
+        [SyntaxTokenType.ViewKeyword]            = ViewKeyword,
+        [SyntaxTokenType.ExitKeyword]            = ExitKeyword,
+        [SyntaxTokenType.OnKeyword]              = OnKeyword,
+        [SyntaxTokenType.IfKeyword]              = IfKeyword,
+        [SyntaxTokenType.ElseKeyword]            = ElseKeyword,
+        [SyntaxTokenType.SpontaneousKeyword]     = SpontaneousKeyword,
+        [SyntaxTokenType.SpontKeyword]           = SpontKeyword,
+        [SyntaxTokenType.DoKeyword]              = DoKeyword,
+        [SyntaxTokenType.ResultKeyword]          = ResultKeyword,
+        [SyntaxTokenType.ParamsKeyword]          = ParamsKeyword,
+        [SyntaxTokenType.BaseKeyword]            = BaseKeyword,
+        [SyntaxTokenType.NamespaceprefixKeyword] = NamespaceprefixKeyword,
+        [SyntaxTokenType.UsingKeyword]           = UsingKeyword,
+        [SyntaxTokenType.CodeKeyword]            = CodeKeyword,
+        [SyntaxTokenType.GeneratetoKeyword]      = GeneratetoKeyword,
+        [SyntaxTokenType.NotimplementedKeyword]  = NotimplementedKeyword,
+        [SyntaxTokenType.AbstractmethodKeyword]  = AbstractmethodKeyword,
+        [SyntaxTokenType.DonotinjectKeyword]     = DonotinjectKeyword,
+    }.ToImmutableDictionary();
+
+    /// <summary>
+    /// Das kanonische Literal eines Keyword-Token-Typs (<c>namespaceprefix</c>, <c>using</c>, …) —
+    /// <c>null</c> für Typen ohne festes Keyword-Literal (Identifier, Literale, Punctuation, Edge-Operatoren).
+    /// Gegenstück zu <see cref="GetText"/> (Punctuation); beide zusammen liefern den Text jedes Token-Typs
+    /// mit festem Literal.
+    /// </summary>
+    public static string? GetKeywordText(SyntaxTokenType type) {
+        return KeywordTexts.TryGetValue(type, out var text) ? text : null;
+    }
+
     public static bool IsIdentifierCharacter(char c) {
 
         return c is >= 'a' and <= 'z' ||

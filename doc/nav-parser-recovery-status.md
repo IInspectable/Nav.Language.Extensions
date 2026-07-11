@@ -37,7 +37,7 @@ erwartet* — beim Tippen durchläuft jedes Keyword eine Vorstufe, die als gült
 |---|---|---|
 | 1 | **Zeilen-Anker** in `ClosesBracketRegion` | **FERTIG, committet `299eb806`** |
 | 2 | **Verschränkte Kopf-Recovery** (usings Klammer-für-Klammer) | **FERTIG, committet `840cb1d7`** |
-| 3 | **Keyword-Präfix-Rescue in Klammer-Wirten** (`EatKeywordOrSkip` + prefix-tolerantes `AtCodeDeclaration`) | offen |
+| 3 | **Keyword-Präfix-Rescue in Klammer-Wirten** (`EatKeywordOrSkip` + prefix-tolerantes `AtCodeDeclaration`) | **FERTIG, uncommittet** |
 | 4 | **Keyword-Präfix-Rescue Top-Level-Member** (`tas`→`task`) | offen |
 
 Workflow (CLAUDE.md): je Step Code-Review + Build/Test, dann **Commit-Message als Text** liefern —
@@ -119,74 +119,65 @@ Kein bestehender Golden-Output ändert sich.
 
 ---
 
-## Step 3 — OFFEN: Keyword-Präfix-Rescue in Klammer-Wirten
+## Step 3 — FERTIG (uncommittet): Keyword-Präfix-Rescue in Klammer-Wirten
 
-**Ziel**: `[namespace …]` → `namespaceprefix`, `[usin …]` → `using` (und analog `[bas]`/`[resul]`/…) als
-echte **„missing 'keyword'"**-Diagnose + Störtoken als Skip-Trivia, statt „unexpected input". Fixt
-**Bild 1** (danach greift die Step-2-Kopf-Schleife) und verbessert **Bild 2** von „unexpected input" auf
+**Erreicht**: `[namespace …]` → `namespaceprefix`, `[usin …]` → `using` (und analog `[bas …]`/`[resul …]`/…)
+als echte **„missing 'keyword'"**-Diagnose + Störtoken als Skip-Trivia, statt „unexpected input". **Bild 1
+gefixt** (danach greift die Step-2-Kopf-Schleife), **Bild 2** verbessert von „unexpected input" auf
 „missing 'using'".
 
-### Baustein A — Helfer `EatKeywordOrSkip`
+### Umgesetzte Bausteine
 
-Neben `Eat` (in der Region „Token-Strom: Cursor, Konsum, Trivia-Anhang", ~`NavParser.cs:2050`):
+**A — `SyntaxFacts.GetKeywordText(SyntaxTokenType)`** (neu): Reverse-Map Token-Typ → kanonisches
+Keyword-Literal (`NamespaceprefixKeyword`, `UsingKeyword`, …). Gegenstück zu `GetText` (nur Punctuation,
+für Keywords `null`); zusammen liefern beide den Text jedes Token-Typs mit festem Literal. `Describe`
+konsultiert jetzt beide (`GetText(type) ?? GetKeywordText(type)`), damit „missing 'namespaceprefix'"
+statt „missing 'NamespaceprefixKeyword'" gemeldet wird. (Kein bestehender Golden hatte eine Keyword-Typ-
+„missing"-Meldung — die Änderung ist an den Goldens verifiziert regressionsfrei.)
 
-```csharp
-// current ist ein verunglücktes Keyword (vom Dispatch per Präfix bereits so eingestuft):
-// überspringen (→ wird SkippedTokensTrivia), Keyword als missing synthetisieren. Eine Diagnose.
-RawToken? EatKeywordOrSkip(SyntaxTokenType keyword) {
-    if (At(keyword)) {
-        return Eat(keyword);
-    }
-    ReportMissing(Describe(keyword));       // "missing 'namespaceprefix'" — vor dem Skip verankert
-    if (At(SyntaxTokenType.Identifier)) {
-        _firstSignificantStart ??= CurrentStart;
-        _pos++; SkipHidden();                // 'namespace' NICHT via Tok() ⇒ SkippedTokensTrivia
-    }
-    return null;                             // missing keyword
-}
-```
-- **Wichtig**: Der Skip (`_pos++`) muss passieren, sonst konsumiert der folgende `Eat(Identifier)`/
-  `ParseIdentifierOrString` das Störtoken als Namen und die Kaskade kehrt zurück.
-- `_firstSignificantStart ??= …` wie in `Recover`/`ParseMalformedBracketDeclaration` (Root-Extent/
-  Versions-Direktiv-Platzierung).
+**B — `EatKeywordOrSkip(SyntaxTokenType keyword)`** (neu, neben `Eat`): steht das Keyword an → wie `Eat`;
+sonst `ReportMissing(Describe(keyword))` (nullbreit, an der Einfügestelle) und das als Identifier gelexte
+Störtoken überspringen (`_pos++` ohne `Tok()` ⇒ `SkippedTokensTrivia`). Der Skip **muss** geschehen,
+sonst schluckt der folgende Name-Parse (`ParseIdentifierOrString`/`ParseCodeType`/…) das Störtoken als
+Namen.
 
-### Baustein B — Präfix-tolerantes Erkennungs-Prädikat
+**C — Präfix-tolerantes `AtCodeDeclaration`**: zusätzlich zum exakten `PeekType(1) == keyword` ein
+Präfix-Zweig — `PeekType(1)` ist Identifier **und** sein Text ist **echtes Präfix** des Keywords
+(`IsKeywordPrefix`: nicht leer, kürzer, `StartsWith` Ordinal). Nach einem `[` an Code-Deklarations-
+Position ist ein Identifier strukturell nie gültig → gefahrlos als gemeintes, unfertiges Keyword deutbar.
+Neue Helfer `PeekRaw(int n)`/`PeekText(int n)` (analog `PeekType`) ziehen den Identifier-Text.
 
-`AtCodeDeclaration` (~`NavParser.cs:1987`) ist heute `At(OpenBracket) && PeekType(1) == keyword`.
-Erweitern um einen Präfix-Zweig: wenn `PeekType(1)` ein **Identifier** ist, dessen Text ein **echtes
-Präfix** (`keywordText.StartsWith(identText, Ordinal) && 0 < identText.Length < keywordText.Length`) des
-erwarteten Keywords ist. Dazu:
-- Ein `PeekRaw(int n)` analog `PeekType` (liefert das n-te sichtbare `RawToken`, um den Identifier-Text
-  über `_sourceText.Substring(raw.Extent)` zu ziehen). `PeekType` ist die Vorlage (`NavParser.cs:2023`).
-- Keyword-Text: die Konstanten in `SyntaxFacts` (`NamespaceprefixKeyword="namespaceprefix"`,
-  `UsingKeyword="using"`, …). **Achtung**: `SyntaxFacts.GetText(type)` liefert für Keywords `null` —
-  nicht darüber gehen. Am einfachsten eine kleine Map `SyntaxTokenType → kanonischer Text` (oder direkt
-  die Keyword-Konstante an der Aufrufstelle mitgeben).
+**Verkabelung**: **alle zehn** `ParseCode*Declaration` (namespace, using, notimplemented, donotinject,
+abstractmethod, code, base, generateto, params, result) stellen ihr Leit-`Eat(<keyword>)` auf
+`EatKeywordOrSkip(<keyword>)` um — sobald `AtCodeDeclaration` per Präfix matcht, **muss** die Deklaration
+das Störtoken skippen. Die Step-2-Kopf-Schleife und die `ParseCodeDeclarations`-Delegaten der Wirte
+(task/taskref/init/taskNode/choice) brauchten **keine** Änderung: der Rescue greift über `AtCodeDeclaration`
+automatisch mit.
 
-`ParseCodeNamespaceDeclaration`/`ParseCodeUsingDeclaration` (und die übrigen `ParseCode*Declaration`)
-das `Eat(<keyword>)` auf `EatKeywordOrSkip(<keyword>)` umstellen.
-
-### Verkabelung
-- Die Step-2-Kopf-Schleife braucht **keine** Code-Änderung: sobald `AtCodeDeclaration(NamespaceprefixKeyword)`
-  auch `[namespace …]` matcht, läuft `ParseCodeNamespaceDeclaration` (skippt `namespace`, missing
-  keyword), etabliert den Namespace, und die vorhandene `while`-Using-Schleife greift → **Bild 1 gefixt**.
-- Die Wirte `task`/`taskref`/`init`/`taskNode`/`choice` nutzen `AtCodeDeclaration` in ihren
-  `ParseCodeDeclarations`-Delegaten → Rescue greift dort automatisch mit (`[bas]`→base, `[resul]`→result …).
-
-### Ambiguität / Fallstricke
-- **`taskref`-Wirt**: `[n…]` ist Präfix von **namespaceprefix UND notimplemented**. Die Delegat-Reihenfolge
-  entscheidet deterministisch (erst geprüftes gewinnt). Dokumentieren; für Recovery unkritisch.
-- **`notimplemented`** ist ein **verstecktes** Keyword (`IsHiddenKeyword`) — es ist im Lexer trotzdem ein
-  echtes Keyword; Rescue nur für die **sichtbaren** anbieten oder bewusst mitnehmen (entscheiden).
-- Prüfen, dass der Präfix-Zweig **nicht** feuert, wenn `PeekType(1)` bereits das echte Keyword eines
-  **anderen** Decls ist (dort ist es ein Keyword-Token, kein Identifier → Zweig verlangt Identifier → ok).
+### Ambiguität / Fallstricke (umgesetzt)
+- **`taskref`-Wirt**: `[n…]` ist Präfix von **namespaceprefix UND notimplemented** — die Delegat-Reihenfolge
+  (`namespaceprefix` zuerst) entscheidet deterministisch. Beim Tippen harmlos: nur `[n` matcht
+  namespaceprefix (schon `[no` ist keins mehr), self-heilt mit jedem weiteren Zeichen.
+- **`notimplemented`** (verstecktes Keyword) nimmt am Rescue **bewusst mit** teil (generischer Zweig,
+  einheitlich); während des Tippens unkritisch.
+- Der Präfix-Zweig feuert nie auf das echte Keyword eines **anderen** Decls: dort steht ein Keyword-**Token**
+  (kein Identifier), der Zweig verlangt Identifier. Nach `[` ist ein Identifier ohnehin immer ein Fehler.
+- **Empty-Body-Trade** (akzeptiert): rein `[bas]` (ohne Inhalt) liefert jetzt zwei Diagnosen
+  (`missing 'base'` + `missing 'identifier'` aus dem Typ-Parse) statt der einen „unexpected input '[bas]'".
+  Der häufige Fall `[bas X:Y]` verbessert sich (eine treffende Diagnose); während des Tippens self-heilt es.
 
 ### Korpus (Step 3)
-- Neuer Fall für **Bild 1**: `[namespace Company.Product]` + valide usings → erwartet
-  `missing 'namespaceprefix'` (statt „unexpected input"), Namespace-Knoten entsteht, usings als Knoten,
-  `namespace` als Skip-Trivia. (Beim Umbau darauf achten: die **Step-2**-`.diag` von
-  `MalformedUsingBracketBleed.nav` ändert sich von „unexpected input '[usin …]'" auf „missing 'using'" —
-  Golden neu erzeugen und der Änderung zustimmen; das ist die beabsichtigte Verbesserung.)
+- **`MalformedNamespacePrefixBracket.nav`** (Bild 1): `[namespace Company.Product]` + valide usings →
+  **eine** Diagnose `missing 'namespaceprefix'` (1,2), Namespace-Knoten entsteht, beide usings als Knoten,
+  `namespace` als Skip-Trivia.
+- **`MalformedBaseKeywordPrefix.nav`** (generischer Wirt-Beweis): `task A [bas Foo: Bar] { … }` →
+  `missing 'base'` (1,9), `CodeBaseDeclarationSyntax` mit `Foo`/`Bar`, `bas` als Skip-Trivia.
+- **`MalformedUsingBracketBleed.nav`** (Step-2-Golden aktualisiert): `.diag` von „unexpected input
+  '[usin …]'" → **`missing 'using'`** (4,2); `.tree`/`.tokens`/`.trivia`: `[usin System.Linq]` parst jetzt
+  als `CodeUsingDeclarationSyntax`, `usin` als Skip-Trivia. Beabsichtigte Verbesserung.
+
+Verifiziert: net10 1715 grün, net472 1775 grün; `ParsesAndRoundTripsAllTypingPrefixes` (Tipp-Präfix-Stress)
+über den ganzen Korpus grün. Kein anderer Golden ändert Inhalt (nur die dokumentierte `.trivia`-EOL-Churn).
 
 ---
 

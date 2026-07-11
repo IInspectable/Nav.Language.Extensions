@@ -1,0 +1,41 @@
+﻿    0 OpenBracket
+    T SkippedTokensTrivia[1-10]        "namespace"
+    T Whitespace        [10-11]       " "
+   26 CloseBracket
+    T NewLine           [27-28]       "\n"
+    L NewLine           [28-29]       "\n"
+   29 OpenBracket
+   30 UsingKeyword
+    T Whitespace        [35-36]       " "
+   47 CloseBracket
+    T NewLine           [48-49]       "\n"
+   50 UsingKeyword
+    T Whitespace        [55-56]       " "
+   74 CloseBracket
+    T NewLine           [75-76]       "\n"
+    L NewLine           [76-77]       "\n"
+   77 TaskKeyword
+    T Whitespace        [81-82]       " "
+   82 Identifier
+    T NewLine           [83-84]       "\n"
+   84 OpenBrace
+    T NewLine           [85-86]       "\n"
+    L Whitespace        [86-90]       "    "
+   90 InitKeyword
+   94 Semicolon
+    T NewLine           [95-96]       "\n"
+    L Whitespace        [96-100]      "    "
+  100 ExitKeyword
+    T Whitespace        [104-105]     " "
+  108 Semicolon
+    T NewLine           [109-110]     "\n"
+    L NewLine           [110-111]     "\n"
+    L Whitespace        [111-115]     "    "
+  115 InitKeyword
+    T Whitespace        [119-120]     " "
+  120 GoToEdgeKeyword
+    T Whitespace        [123-124]     " "
+  127 Semicolon
+    T NewLine           [128-129]     "\n"
+  129 CloseBrace
+    T NewLine           [130-131]     "\n"

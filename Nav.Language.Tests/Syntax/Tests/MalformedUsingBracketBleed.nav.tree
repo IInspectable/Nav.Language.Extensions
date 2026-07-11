@@ -3,6 +3,8 @@
     IdentifierSyntax [17-32]  {Identifier}
   CodeUsingDeclarationSyntax [35-54]  {OpenBracket, UsingKeyword, CloseBracket}
     IdentifierSyntax [42-53]  {Identifier}
+  CodeUsingDeclarationSyntax [55-73]  {OpenBracket, CloseBracket}
+    IdentifierSyntax [61-72]  {Identifier}
   CodeUsingDeclarationSyntax [74-100]  {OpenBracket, UsingKeyword, CloseBracket}
     IdentifierSyntax [81-99]  {Identifier}
   TaskDefinitionSyntax [102-155]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}

@@ -433,7 +433,7 @@ sealed partial class NavParser {
     CodeNamespaceDeclarationSyntax ParseCodeNamespaceDeclaration() {
 
         var open      = Eat(SyntaxTokenType.OpenBracket);
-        var keyword   = Eat(SyntaxTokenType.NamespaceprefixKeyword);
+        var keyword   = EatKeywordOrSkip(SyntaxTokenType.NamespaceprefixKeyword);
         var nsSyntax  = ParseIdentifierOrString();
         var close     = EatCloseBracket();
 
@@ -455,7 +455,7 @@ sealed partial class NavParser {
     CodeUsingDeclarationSyntax ParseCodeUsingDeclaration() {
 
         var open     = Eat(SyntaxTokenType.OpenBracket);
-        var keyword  = Eat(SyntaxTokenType.UsingKeyword);
+        var keyword  = EatKeywordOrSkip(SyntaxTokenType.UsingKeyword);
         var nsSyntax = ParseIdentifierOrString();
         var close    = EatCloseBracket();
 
@@ -1447,7 +1447,7 @@ sealed partial class NavParser {
     CodeNotImplementedDeclarationSyntax ParseCodeNotImplementedDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.NotimplementedKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.NotimplementedKeyword);
         var close   = EatCloseBracket();
 
         var node = new CodeNotImplementedDeclarationSyntax(Span(open, keyword, close));
@@ -1468,7 +1468,7 @@ sealed partial class NavParser {
     CodeDoNotInjectDeclarationSyntax ParseCodeDoNotInjectDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.DonotinjectKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.DonotinjectKeyword);
         var close   = EatCloseBracket();
 
         var node = new CodeDoNotInjectDeclarationSyntax(Span(open, keyword, close));
@@ -1489,7 +1489,7 @@ sealed partial class NavParser {
     CodeAbstractMethodDeclarationSyntax ParseCodeAbstractMethodDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.AbstractmethodKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.AbstractmethodKeyword);
         var close   = EatCloseBracket();
 
         var node = new CodeAbstractMethodDeclarationSyntax(Span(open, keyword, close));
@@ -1510,7 +1510,7 @@ sealed partial class NavParser {
     CodeDeclarationSyntax ParseCodeDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.CodeKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.CodeKeyword);
 
         var literals = new List<RawToken>();
         while (TryEat(SyntaxTokenType.StringLiteral, out var literal)) {
@@ -1544,7 +1544,7 @@ sealed partial class NavParser {
     CodeBaseDeclarationSyntax ParseCodeBaseDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.BaseKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.BaseKeyword);
 
         var baseTypes = new List<CodeTypeSyntax> { ParseCodeType() };
 
@@ -1585,7 +1585,7 @@ sealed partial class NavParser {
     CodeGenerateToDeclarationSyntax ParseCodeGenerateToDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.GeneratetoKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.GeneratetoKeyword);
         var literal = Eat(SyntaxTokenType.StringLiteral);
         var close   = EatCloseBracket();
 
@@ -1608,7 +1608,7 @@ sealed partial class NavParser {
     CodeParamsDeclarationSyntax ParseCodeParamsDeclaration() {
 
         var open    = Eat(SyntaxTokenType.OpenBracket);
-        var keyword = Eat(SyntaxTokenType.ParamsKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.ParamsKeyword);
 
         var parameterList = At(SyntaxTokenType.Identifier) ? ParseParameterList() : null;
 
@@ -1632,7 +1632,7 @@ sealed partial class NavParser {
     CodeResultDeclarationSyntax ParseCodeResultDeclaration() {
 
         var open      = Eat(SyntaxTokenType.OpenBracket);
-        var keyword   = Eat(SyntaxTokenType.ResultKeyword);
+        var keyword   = EatKeywordOrSkip(SyntaxTokenType.ResultKeyword);
         var parameter = ParseParameter();
         var close     = EatCloseBracket();
 
@@ -1997,8 +1997,44 @@ sealed partial class NavParser {
 
     bool AtEof => At0 == SyntaxTokenType.EndOfFile;
 
+    /// <summary>
+    /// Ob an der aktuellen Position eine <c>[keyword …]</c>-Code-Deklaration mit dem erwarteten
+    /// <paramref name="keyword"/> beginnt: ein <c>[</c>, gefolgt vom Keyword selbst — <b>oder</b> (Präfix-
+    /// Rescue beim Tippen) von einem Identifier, dessen Text ein <b>echtes Präfix</b> des Keywords ist
+    /// (<c>[namespace …]</c> für <c>namespaceprefix</c>, <c>[usin …]</c> für <c>using</c>). Nach einem
+    /// <c>[</c> an einer Code-Deklarations-Position ist ein Identifier strukturell nie gültig; er kann daher
+    /// gefahrlos als das gemeinte, noch unvollständige Keyword gedeutet werden. Die zugehörige
+    /// <c>ParseCode*Declaration</c> konsumiert es dann über <see cref="EatKeywordOrSkip"/> (Missing-Keyword +
+    /// Skip-Trivia). Steht statt eines Identifiers das echte Keyword einer <b>anderen</b> Deklaration, ist es
+    /// ein Keyword-Token (kein Identifier) → der Präfix-Zweig greift nicht.
+    /// </summary>
     bool AtCodeDeclaration(SyntaxTokenType keyword) {
-        return At(SyntaxTokenType.OpenBracket) && PeekType(1) == keyword;
+
+        if (!At(SyntaxTokenType.OpenBracket)) {
+            return false;
+        }
+
+        if (PeekType(1) == keyword) {
+            return true;
+        }
+
+        return PeekType(1) == SyntaxTokenType.Identifier && IsKeywordPrefix(keyword, PeekText(1));
+    }
+
+    /// <summary>
+    /// Ob <paramref name="text"/> ein <b>echtes</b> Präfix des kanonischen Literals von
+    /// <paramref name="keyword"/> ist — nicht leer, kürzer als das Keyword und dessen Anfang (Ordinal). Das
+    /// vollständige Keyword ist kein Präfix seiner selbst (es lext ohnehin als Keyword-Token, nicht als
+    /// Identifier). Für Nicht-Keyword-Typen (kein kanonisches Literal) stets <c>false</c>.
+    /// </summary>
+    static bool IsKeywordPrefix(SyntaxTokenType keyword, string? text) {
+
+        var keywordText = SyntaxFacts.GetKeywordText(keyword);
+
+        return keywordText       != null &&
+               text is { Length: > 0 }    &&
+               text.Length < keywordText.Length &&
+               keywordText.StartsWith(text, StringComparison.Ordinal);
     }
 
     bool StartsConnectionPoint() {
@@ -2060,6 +2096,30 @@ sealed partial class NavParser {
         return SyntaxTokenType.EndOfFile;
     }
 
+    /// <summary>Das n-te parser-sichtbare Token ab der aktuellen Position (Trivia übersprungen) — <c>null</c> jenseits des Stroms.</summary>
+    RawToken? PeekRaw(int n) {
+        var index = _pos;
+        var seen  = 0;
+        while (index < _raw.Length) {
+            if (!IsHidden(_raw[index].Type)) {
+                if (seen == n) {
+                    return _raw[index];
+                }
+
+                seen++;
+            }
+
+            index++;
+        }
+
+        return null;
+    }
+
+    /// <summary>Der Quelltext des n-ten parser-sichtbaren Tokens — <c>null</c>, wenn keins existiert.</summary>
+    string? PeekText(int n) {
+        return PeekRaw(n) is { } token ? _sourceText.Substring(token.Extent) : null;
+    }
+
     /// <summary>
     /// Konsumiert das aktuelle Token, wenn es <paramref name="type"/> entspricht, und rückt auf das nächste
     /// sichtbare Token vor. Andernfalls (Insertion-Recovery) wird ein nullbreites Missing-Token
@@ -2082,6 +2142,37 @@ sealed partial class NavParser {
         SkipHidden();
 
         return token;
+    }
+
+    /// <summary>
+    /// Konsumiert das führende Schlüsselwort einer <c>[keyword …]</c>-Code-Deklaration. Steht das
+    /// erwartete Keyword an, verhält sich die Methode wie <see cref="Eat"/>. Andernfalls hat der Dispatch
+    /// (<see cref="AtCodeDeclaration"/>) die Klammer bereits per <b>echtem Keyword-Präfix</b> dieser
+    /// Deklaration zugeordnet — an dieser Position steht also ein beim Tippen noch unvollständiges Keyword,
+    /// das als Identifier lext (<c>namespace</c> vor <c>namespaceprefix</c>, <c>usin</c> vor <c>using</c>).
+    /// Statt das Keyword still zu synthetisieren <b>und</b> das Störtoken anschließend als Namen zu
+    /// verschlucken, wird ein nullbreites Missing-Keyword gemeldet (eine Diagnose, an der Einfügestelle
+    /// verankert) und das Störtoken übersprungen: nicht via <c>Tok(…)</c> angehängt, faltet es sich in
+    /// <see cref="FinalizeTrivia"/> zu <see cref="SyntaxTokenType.SkippedTokensTrivia"/> — der Round-Trip
+    /// bleibt vollständig. So parst der Rest der Deklaration (Name, <c>]</c>) normal weiter.
+    /// </summary>
+    RawToken? EatKeywordOrSkip(SyntaxTokenType keyword) {
+
+        if (At(keyword)) {
+            return Eat(keyword);
+        }
+
+        ReportMissing(Describe(keyword));
+
+        // Das verunglückte Keyword (als Identifier gelext) überspringen — der Skip muss geschehen, sonst
+        // konsumiert der folgende Name-Parse (ParseIdentifierOrString) das Störtoken als Namen.
+        if (At(SyntaxTokenType.Identifier)) {
+            _firstSignificantStart ??= CurrentStart;
+            _pos++;
+            SkipHidden();
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -2244,12 +2335,13 @@ sealed partial class NavParser {
     }
 
     /// <summary>
-    /// Lesbare Bezeichnung eines erwarteten Tokens für „missing …"-Diagnosen: der kanonische Text
-    /// (Autorität <see cref="SyntaxFacts.GetText"/>) in Quotes, sonst ein Kategorie-Wort für die
-    /// kategorischen Terminale.
+    /// Lesbare Bezeichnung eines erwarteten Tokens für „missing …"-Diagnosen: der kanonische Text —
+    /// Punctuation über <see cref="SyntaxFacts.GetText"/>, Keywords über <see cref="SyntaxFacts.GetKeywordText"/>
+    /// (Autorität für beide Literal-Familien) — in Quotes, sonst ein Kategorie-Wort für die kategorischen
+    /// Terminale.
     /// </summary>
     static string Describe(SyntaxTokenType type) {
-        var text = SyntaxFacts.GetText(type);
+        var text = SyntaxFacts.GetText(type) ?? SyntaxFacts.GetKeywordText(type);
         if (text != null) {
             return $"'{text}'";
         }

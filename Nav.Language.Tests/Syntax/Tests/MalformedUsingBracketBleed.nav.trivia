@@ -8,9 +8,11 @@
     T Whitespace        [41-42]       " "
    53 CloseBracket
     T NewLine           [54-55]       "\n"
-    L SkippedTokensTrivia[55-73]       "[usin System.Linq]"
-    L NewLine           [73-74]       "\n"
-   74 OpenBracket
+   55 OpenBracket
+    T SkippedTokensTrivia[56-60]       "usin"
+    T Whitespace        [60-61]       " "
+   72 CloseBracket
+    T NewLine           [73-74]       "\n"
    75 UsingKeyword
     T Whitespace        [80-81]       " "
    99 CloseBracket

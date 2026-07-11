@@ -1,0 +1,16 @@
+﻿CodeGenerationUnitSyntax [0-131]  {EndOfFile}
+  CodeNamespaceDeclarationSyntax [0-27]  {OpenBracket, CloseBracket}
+    IdentifierSyntax [11-26]  {Identifier}
+  CodeUsingDeclarationSyntax [29-48]  {OpenBracket, UsingKeyword, CloseBracket}
+    IdentifierSyntax [36-47]  {Identifier}
+  CodeUsingDeclarationSyntax [49-75]  {OpenBracket, UsingKeyword, CloseBracket}
+    IdentifierSyntax [56-74]  {Identifier}
+  TaskDefinitionSyntax [77-130]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [90-109]
+      InitNodeDeclarationSyntax [90-95]  {InitKeyword, Semicolon}
+      ExitNodeDeclarationSyntax [100-109]  {ExitKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [115-128]
+      TransitionDefinitionSyntax [115-128]  {Semicolon}
+        InitSourceNodeSyntax [115-119]  {InitKeyword}
+        GoToEdgeSyntax [120-123]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [124-127]  {Identifier}

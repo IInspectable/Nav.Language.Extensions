@@ -1,0 +1,7 @@
+﻿task A [bas Foo: Bar]
+{
+    init;
+    exit End;
+
+    init --> End;
+}

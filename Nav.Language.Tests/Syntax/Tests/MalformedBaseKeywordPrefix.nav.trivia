@@ -1,0 +1,32 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T Whitespace        [6-7]         " "
+    7 OpenBracket
+    T SkippedTokensTrivia[8-11]        "bas"
+    T Whitespace        [11-12]       " "
+   15 Colon
+    T Whitespace        [16-17]       " "
+   20 CloseBracket
+    T NewLine           [21-22]       "\n"
+   22 OpenBrace
+    T NewLine           [23-24]       "\n"
+    L Whitespace        [24-28]       "    "
+   28 InitKeyword
+   32 Semicolon
+    T NewLine           [33-34]       "\n"
+    L Whitespace        [34-38]       "    "
+   38 ExitKeyword
+    T Whitespace        [42-43]       " "
+   46 Semicolon
+    T NewLine           [47-48]       "\n"
+    L NewLine           [48-49]       "\n"
+    L Whitespace        [49-53]       "    "
+   53 InitKeyword
+    T Whitespace        [57-58]       " "
+   58 GoToEdgeKeyword
+    T Whitespace        [61-62]       " "
+   65 Semicolon
+    T NewLine           [66-67]       "\n"
+   67 CloseBrace
+    T NewLine           [68-69]       "\n"

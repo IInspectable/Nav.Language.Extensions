@@ -6,6 +6,9 @@
    36    5  UsingKeyword            Keyword                      CodeUsingDeclarationSyntax
    42   11  Identifier              Identifier                   IdentifierSyntax
    53    1  CloseBracket            Punctuation                  CodeUsingDeclarationSyntax
+   55    1  OpenBracket             Punctuation                  CodeUsingDeclarationSyntax
+   61   11  Identifier              Identifier                   IdentifierSyntax
+   72    1  CloseBracket            Punctuation                  CodeUsingDeclarationSyntax
    74    1  OpenBracket             Punctuation                  CodeUsingDeclarationSyntax
    75    5  UsingKeyword            Keyword                      CodeUsingDeclarationSyntax
    81   18  Identifier              Identifier                   IdentifierSyntax
