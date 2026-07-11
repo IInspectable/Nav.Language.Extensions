@@ -121,6 +121,49 @@ Nativen `.nav`-Dienst für den Content-Type stilllegen (MS-Empfehlung). Wie viel
 hängt an Punkt 6.1 (welche Features VS durchreicht). Classification/Folding ggf. via Self-Serve-Tagger
 (5a) statt nativ — oder nativ belassen, wenn der Aufwand größer als der Nutzen ist.
 
+### 5d. Die Roslyn-Brücke in der neuen Topologie
+
+Die Nav↔C#-Navigation (`Nav.Language.CodeAnalysis`) existiert **heute schon** und ist bereits **richtig
+geschichtet** — die Migration muss sie nicht neu bauen, sondern nur ihren Platz festlegen:
+
+- **Engine-Schicht** (`FindSymbols/LocationFinder`, `Annotation/`, `FindReferences/WfsReferenceFinder`)
+  ist VS-**frei**: sie arbeitet auf Roslyn-Typen (`Microsoft.CodeAnalysis`, `INamedTypeSymbol`,
+  `Project`), nicht auf VS-Editor-Typen. Portabel.
+- **VS-Adapter** (`Extension/GoToLocation/Provider/CodeAnalysisLocationInfoProvider` u.a.) ist der
+  einzige VS-gekoppelte Teil: er holt via `ITextBuffer.GetContainingProject()` /
+  `GetOpenDocumentInCurrentContextWithChanges()` einen Roslyn-`Project` aus dem lebenden
+  **`VisualStudioWorkspace`** und reicht ihn an die Engine.
+
+Die eigentliche Frage ist damit nicht „wie baut man die Brücke neu", sondern **wer füttert die Engine mit
+einem Roslyn-Workspace** — und das ist inhärent host-spezifisch, nicht protokoll-portabel. Fächert man die
+Konsumenten auf, zerfällt die scheinbar eine „harte Frage" in drei sehr unterschiedliche Familien:
+
+| Familie | Was | Roslyn-Workspace nötig? | Heimat |
+|---|---|---|---|
+| **A — Nav-intern** | Completion, Hover, Diagnostics, Folding, Rename, Formatting, Nav↔Nav-GoTo/Call-Hierarchy | Nein | **LSP** (Migration im Kern) |
+| **B — Nav → C#** | Aus dem `.nav`-Editor in generierten/handgeschriebenen C#-Code springen | **Ja** (C#-Semantik der Host-Solution) | **VS-nativer Satellit** (v1) |
+| **C — C# → Nav** | Adornments/GoTo **im `.cs`-Editor** zurück nach `.nav` (`CSharp/GoTo/*`, `[ContentType("csharp")]`) | **Ja** | **VS-nativ, außerhalb des LSP-Scopes** |
+
+- **Familie C** fällt sofort raus: ein `.nav`-LSP hat auf den C#-Editor-Buffer keinen Zugriff und soll ihn
+  nicht haben. Diese Tagger bleiben VS-nativ — unverändert, egal welche Migrationsstrategie. Kein
+  Kompromiss, sondern korrekt: sie hängen am C#-Editor, nicht an Nav.
+- **Familie B** ist die **einzige echte Entscheidung**. Beschluss: **bleibt für v1 ein kleiner
+  VS-nativer Satellit** in der Greenfield-Extension — der dünne Adapter + Referenz auf
+  `Nav.Language.CodeAnalysis` wandert nahezu verbatim mit, nur entkoppelt von den Nav-internen Features
+  (A), die zum LSP abgewandert sind. Gründe: der Code existiert, ist getestet
+  (`Nav.Language.CodeAnalysis.Tests`) und die Engine-Schicht ist bereits portabel; er hängt untrennbar am
+  `VisualStudioWorkspace` (VS-spezifisches Asset — in VS Code gäbe es diesen Workspace gar nicht); und er
+  **blockiert die Migration nicht**, weil er vom harten, unbestätigten Custom-RPC-Brocken entkoppelt ist.
+  Familie A (der Löwenanteil) zieht über den LSP um, während B als bewährter Satellit weiterläuft.
+- **Custom-RPC-Delegation** (LSP kennt die Nav-Seite → fragt den VS-Host per Custom-Request „löse
+  C#-Symbol X auf", Host antwortet aus seinem Roslyn-Workspace) ist die elegantere Fernlösung, aber nur
+  nötig, falls je ein Nicht-VS-Host Nav→C# braucht. **Späteres Opt-in, keine v1-Voraussetzung.**
+
+**Konsequenz für die Greenfield-Struktur:** die neue Extension ist bewusst **kein reiner LSP-Client**,
+sondern *thin LSP-Host + zwei VS-native Satelliten* (B und C), die es heute schon gibt und die den
+Roslyn-Workspace brauchen. Das ist die heutige Schichtung — nur wandern die Nav-internen Features (A) aus
+dem VS-Prozess in den LSP, während die roslyn-abhängigen Teile bleiben, wo der Workspace lebt.
+
 ## 6. Offene Fragen
 
 1. **Reicht VS `foldingRange`, `semanticTokens`/Classification, `callHierarchy`, `inlayHint` an die UI
@@ -129,11 +172,16 @@ hängt an Punkt 6.1 (welche Features VS durchreicht). Classification/Folding ggf
    `InitializationOptions`)? Empfohlenes Custom-Init-Muster? — **empirisch im Spike**.
 3. Funktioniert der **Custom-RPC-Kanal** (`ILanguageClientCustomMessage2`) zuverlässig im Solution-Modus?
    — Primärquelle + **Spike**. Linchpin für 5a **und** die Roslyn-Brücke.
-4. **In-Proc `ILanguageClient` vs. Out-of-Proc `LanguageServerProvider`** für VS 2026? Zielkonflikt:
-   In-Proc gäbe **Roslyn-Workspace-Zugriff** (für Nav↔generierter-C#-Navigation), Out-of-Proc isoliert
-   aber ohne `workspace/configuration`.
-5. **Roslyn-Brücke** (`Nav.Language.CodeAnalysis`: Nav ↔ generierter C#): ein stdio-LSP sieht den
-   Roslyn-Workspace nicht. Bleibt nativ, oder via In-Proc-LSP + Custom-Requests? Der harte Brocken.
+4. **In-Proc `ILanguageClient` vs. Out-of-Proc `LanguageServerProvider`** für VS 2026? Betrifft
+   `workspace/configuration` (Out-of-Proc-Lücke) u.ä. — **nicht** aber den Roslyn-Zugriff (siehe unten).
+   Randnotiz: `nav.lsp` ist **net10.0**, die VS-Extension **net472** → ein echter In-Proc-Server in der
+   VS-AppDomain ist ohnehin ausgeschlossen; `nav.lsp` läuft zwangsläufig out-of-proc.
+5. **Roslyn-Brücke** — **weitgehend geklärt (siehe §5d)**, kein Blocker mehr. Korrektur eines früheren
+   Trugschlusses: „In-Proc-LSP gäbe Roslyn-Workspace-Zugriff" trägt **nicht** — Workspace-Zugriff ist eine
+   Eigenschaft von **VS-nativem MEF-/Package-Code**, nicht davon, *wo der LSP-Server läuft* (und der
+   net10/net472-Split schließt einen In-Proc-Server ohnehin aus). Beschluss: Nav→C# (Familie B) bleibt v1
+   ein VS-nativer Satellit; C#→Nav (Familie C) ist ohnehin ein C#-Editor-Feature außerhalb des LSP-Scopes;
+   Custom-RPC-Delegation nur als späteres Opt-in.
 
 ## 7. Nächster Schritt: Spike (de-riskt 6.2 + 6.3 auf einmal)
 
