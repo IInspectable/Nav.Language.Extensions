@@ -51,12 +51,25 @@ task LoginFlow [base StandardWFS: IWFServiceBase]
 - **Umbenennen** (`F2`) — symbolweit mit Namensvalidierung.
 - **Code-Aktionen** (Lightbulb) — QuickFixes (z. B. fehlende Exit-Transition ergänzen, ungenutzte
   Knoten/Deklarationen/Includes entfernen) und Refactorings (z. B. *Introduce Choice*).
+- **Aufrufhierarchie** — eingehende und ausgehende Task-Aufrufe.
+- **Klammer-Hervorhebung & automatisches Schließen** zusammengehöriger `{}`, `()`, `[]` und `"`.
+- **Kommentieren / Auskommentieren** der Auswahl.
 - **Codefaltung** für Blöcke.
 - **Formatierung** — „Dokument formatieren" richtet Einrückung und Ausrichtung am Nav-Sprachmodell aus.
 
-Die **Visual-Studio-Extension** bietet zusätzlich **Aufrufhierarchie**, **CodeLens** und die
-**Navigation zwischen Nav und dem generierten C#-Code** (Sprung von der `.nav`-Definition zur
-erzeugten Klasse und zurück).
+Die **Visual-Studio-Extension** integriert sich zusätzlich tiefer in die IDE:
+
+- **Navigation zwischen Nav und dem generierten C#-Code** — Sprung von der `.nav`-Definition zur
+  erzeugten Klasse und zurück.
+- **Navigationsleiste** — Typ- und Member-Dropdowns am oberen Editor-Rand.
+- **Editor-Randleiste mit Schnellaktionen** — C#-Vorschau, Code generieren, Dokument formatieren.
+- **Diagnose-Übersicht** am Scrollbalken — Fehler-/Warnungszähler, Klick springt zur nächsten Stelle.
+- **`.nav`-Dateien per Drag & Drop oder Einfügen** übernehmen — legt automatisch eine
+  `taskref`-Direktive mit relativem Pfad an.
+- **Options-Seite** (*Tools ▸ Optionen*) — u. a. semantische Hervorhebung und Referenz-Hervorhebung
+  unter dem Cursor bzw. über Include-Grenzen hinweg.
+
+In **Visual Studio Code** stehen darüber hinaus **CodeLens**-Annotationen bereit.
 
 ## Installation & Nutzung
 
