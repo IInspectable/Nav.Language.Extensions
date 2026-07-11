@@ -1,14 +1,13 @@
 ﻿# Nav Language Extensions
 
-![Nav Language Extensions](https://raw.githubusercontent.com/IInspectable/Nav.Language.Extensions/master/images/Logo.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/IInspectable/Nav.Language.Extensions/master/images/Logo-dark.png">
+  <img alt="Nav Language Extensions" src="https://raw.githubusercontent.com/IInspectable/Nav.Language.Extensions/master/images/Logo.png" width="340">
+</picture>
 
 Sprachunterstützung für die **Nav Language** in **Visual Studio** und **Visual Studio Code** —
 mit Syntaxhervorhebung, semantischer Analyse, IntelliSense, Navigation und Refactorings aus einer
 gemeinsamen Sprach-Engine.
-
-[![Build](https://github.com/IInspectable/Nav.Language.Extensions/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/IInspectable/Nav.Language.Extensions/actions/workflows/build.yml)
-
-## Über die Nav Language
 
 Die **Nav Language** ist eine DSL zur Beschreibung von Workflows im Stil von
 UML-Aktivitätsdiagrammen. Sie beschreibt Zustände (Views, Tasks, Choices) und die Übergänge
