@@ -24,6 +24,8 @@ public partial class NavMarginControl {
     private readonly ITextChangeService _textChangeService;
 
     internal NavMarginControl(IWpfTextView textView, ITextChangeService textChangeService) {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
         _textView          = textView;
         _textChangeService = textChangeService;
         InitializeComponent();
@@ -40,6 +42,8 @@ public partial class NavMarginControl {
     }
 
     void UpdateTooltips() {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
         NavPreviewButton.ToolTip  = GetTooltipText(KnownCommandIds.ViewCode,           "View Code");
         GenerateNavButton.ToolTip = GetTooltipText(KnownCommandIds.NavGenerateCommand, "C# Code aus .nav-Dateien generieren");
         FormatButton.ToolTip      = GetTooltipText(KnownCommandIds.FormatDocument,     "Nav-Dokument formatieren");
@@ -67,6 +71,7 @@ public partial class NavMarginControl {
     }
 
     static string GetTooltipText(CommandID commandId, string commandName) {
+        ThreadHelper.ThrowIfNotOnUIThread();
 
         var tooltipText = commandName;
 
