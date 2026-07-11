@@ -33,7 +33,7 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// </remarks>
 static class AlignmentMapBuilder {
 
-    public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options) {
+    public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts) {
 
         if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks &&
             !options.AlignTriggers && !options.AlignConditions && !options.AlignTrailingComments) {
@@ -50,11 +50,11 @@ static class AlignmentMapBuilder {
             }
 
             if (options.AlignNodeGrid) {
-                AddNodeGridColumns(syntaxTree, options, task.NodeDeclarationBlock.NodeDeclarations, spaces);
+                AddNodeGridColumns(syntaxTree, options, facts, task.NodeDeclarationBlock.NodeDeclarations, spaces);
             }
 
             if (options.AlignArrows) {
-                AddArrowColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
+                AddArrowColumns(syntaxTree, options, facts, task.TransitionDefinitionBlock, spaces);
             }
 
             // Nach der Pfeil-Spalte: die Trigger-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
@@ -64,7 +64,7 @@ static class AlignmentMapBuilder {
             // Pfeil-/Condition-Spalte bleibt.
             if (options.AlignTriggers) {
                 AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
-                                      s => MeasureTransitionClause(syntaxTree, options, s, TriggerOf, spaces), spaces);
+                                      s => MeasureTransitionClause(syntaxTree, options, facts, s, TriggerOf, spaces), spaces);
             }
 
             // Nach der Trigger-Spalte: die Condition-Spalte steht in Quellreihenfolge rechts vom Trigger
@@ -72,7 +72,7 @@ static class AlignmentMapBuilder {
             // bedingungslose Transition ist kein Teilnehmer, bricht die Gruppe aber nicht.
             if (options.AlignConditions) {
                 AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
-                                      s => MeasureTransitionClause(syntaxTree, options, s, ConditionOf, spaces), spaces);
+                                      s => MeasureTransitionClause(syntaxTree, options, facts, s, ConditionOf, spaces), spaces);
             }
 
             // Trailing-Kommentare zuletzt: ihre Zeilenbreite baut auf allen bereits aufgelösten Spalten
@@ -82,9 +82,9 @@ static class AlignmentMapBuilder {
             // idempotent, wenn der Autor keine Leerzeile gesetzt hatte.
             if (options.AlignTrailingComments) {
                 AddTightClauseColumns(syntaxTree, task.NodeDeclarationBlock.NodeDeclarations,
-                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
+                                      s => MeasureTrailingComment(syntaxTree, options, facts, s, spaces), trailingCommentSpaces);
                 AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
-                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
+                                      s => MeasureTrailingComment(syntaxTree, options, facts, s, spaces), trailingCommentSpaces);
             }
         }
 
@@ -95,12 +95,12 @@ static class AlignmentMapBuilder {
             }
 
             if (options.AlignNodeGrid) {
-                AddNodeGridColumns(syntaxTree, options, taskref.ConnectionPoints, spaces);
+                AddNodeGridColumns(syntaxTree, options, facts, taskref.ConnectionPoints, spaces);
             }
 
             if (options.AlignTrailingComments) {
                 AddTightClauseColumns(syntaxTree, taskref.ConnectionPoints,
-                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
+                                      s => MeasureTrailingComment(syntaxTree, options, facts, s, spaces), trailingCommentSpaces);
             }
         }
 
@@ -262,16 +262,16 @@ static class AlignmentMapBuilder {
 
     }
 
-    static void AddArrowColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
+    static void AddArrowColumns(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
 
         var candidates = new List<ArrowCandidate>();
 
         foreach (var transition in block.TransitionDefinitions) {
-            candidates.Add(CreateArrowCandidate(syntaxTree, options, transition, transition.Edge, transition.Semicolon));
+            candidates.Add(CreateArrowCandidate(syntaxTree, options, facts, transition, transition.Edge, transition.Semicolon));
         }
 
         foreach (var exitTransition in block.ExitTransitionDefinitions) {
-            candidates.Add(CreateArrowCandidate(syntaxTree, options, exitTransition, exitTransition.Edge, exitTransition.Semicolon));
+            candidates.Add(CreateArrowCandidate(syntaxTree, options, facts, exitTransition, exitTransition.Edge, exitTransition.Semicolon));
         }
 
         candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
@@ -298,7 +298,7 @@ static class AlignmentMapBuilder {
     /// Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die Gruppe; ein
     /// Inline-Block-Kommentar im Vor-Pfeil-Bereich ⇒ nur aus der Spalte ausgeschlossen.
     /// </summary>
-    static ArrowCandidate CreateArrowCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
+    static ArrowCandidate CreateArrowCandidate(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
                                                SyntaxNode statement, EdgeSyntax? edge, SyntaxToken semicolon) {
 
         var candidate   = new ArrowCandidate(statement);
@@ -309,11 +309,13 @@ static class AlignmentMapBuilder {
             return candidate;
         }
 
-        var tokens = syntaxTree.Tokens[statement.Extent].ToList();
-        if (IsHandLaid(syntaxTree, tokens)) {
+        var statementFacts = facts.For(statement);
+        if (statementFacts.BreaksSingleLineForm) {
             candidate.BreaksGroup = true;
             return candidate;
         }
+
+        var tokens = statementFacts.Tokens;
 
         var preArrow = tokens.TakeWhile(t => t.Start < edgeKeyword.Start).ToList();
         if (preArrow.Count == 0) {
@@ -407,8 +409,8 @@ static class AlignmentMapBuilder {
     /// bricht die Gruppe aber nicht; ein Kommentar/eine Direktive im Vor-Klausel-Bereich ⇒ nur aus der
     /// Spalte ausgeschlossen.
     /// </summary>
-    static ClauseCandidate MeasureTransitionClause(SyntaxTree syntaxTree, NavFormattingOptions options, SyntaxNode statement,
-                                                   Func<SyntaxNode, SyntaxNode?> clauseOf, Dictionary<int, int> spaces) {
+    static ClauseCandidate MeasureTransitionClause(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
+                                                   SyntaxNode statement, Func<SyntaxNode, SyntaxNode?> clauseOf, Dictionary<int, int> spaces) {
 
         var candidate                = new ClauseCandidate(statement);
         var (edgeKeyword, semicolon) = TransitionHead(statement);
@@ -418,11 +420,13 @@ static class AlignmentMapBuilder {
             return candidate;
         }
 
-        var tokens = syntaxTree.Tokens[statement.Extent].ToList();
-        if (IsHandLaid(syntaxTree, tokens)) {
+        var statementFacts = facts.For(statement);
+        if (statementFacts.BreaksSingleLineForm) {
             candidate.BreaksGroup = true;
             return candidate;
         }
+
+        var tokens = statementFacts.Tokens;
 
         var clause = clauseOf(statement);
         if (clause == null) {
@@ -503,13 +507,14 @@ static class AlignmentMapBuilder {
     /// (bricht nicht); eine nicht einzeilig-kanonische innere Lücke (z.B. Inline-Block-Kommentar) ⇒ aus der
     /// Spalte ausgeschlossen (die Spaltenbreite darf nie an einer Kommentar-Textlänge hängen).
     /// </summary>
-    static ClauseCandidate MeasureTrailingComment(SyntaxTree syntaxTree, NavFormattingOptions options,
+    static ClauseCandidate MeasureTrailingComment(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
                                                   SyntaxNode statement, Dictionary<int, int> spaces) {
 
-        var candidate = new ClauseCandidate(statement);
-        var tokens    = syntaxTree.Tokens[statement.Extent].ToList();
+        var candidate      = new ClauseCandidate(statement);
+        var statementFacts = facts.For(statement);
+        var tokens         = statementFacts.Tokens;
 
-        if (tokens.Count == 0 || IsHandLaid(syntaxTree, tokens)) {
+        if (tokens.Count == 0 || statementFacts.BreaksSingleLineForm) {
             candidate.BreaksGroup = true;
             return candidate;
         }
@@ -572,11 +577,11 @@ static class AlignmentMapBuilder {
 
     }
 
-    static void AddNodeGridColumns(SyntaxTree syntaxTree, NavFormattingOptions options,
+    static void AddNodeGridColumns(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
                                    IEnumerable<NodeDeclarationSyntax> declarations, Dictionary<int, int> spaces) {
 
         var candidates = declarations.OrderBy(d => d.Start)
-                                     .Select(d => CreateNodeGridCandidate(syntaxTree, options, d))
+                                     .Select(d => CreateNodeGridCandidate(syntaxTree, options, facts, d))
                                      .ToList();
 
         foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Declaration, c => c.BreaksGroup)) {
@@ -627,12 +632,13 @@ static class AlignmentMapBuilder {
     /// Hand-gelegt/defekt ⇒ bricht die Gruppe (fällt wie eine hand-gelegte Anweisung aus dem Raster);
     /// ein Inline-Block-Kommentar in einer Raster-Lücke ⇒ nur aus der jeweiligen Spalte ausgeschlossen.
     /// </summary>
-    static NodeGridCandidate CreateNodeGridCandidate(SyntaxTree syntaxTree, NavFormattingOptions options, NodeDeclarationSyntax declaration) {
+    static NodeGridCandidate CreateNodeGridCandidate(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts, NodeDeclarationSyntax declaration) {
 
-        var candidate = new NodeGridCandidate(declaration);
-        var tokens    = syntaxTree.Tokens[declaration.Extent].ToList();
+        var candidate      = new NodeGridCandidate(declaration);
+        var statementFacts = facts.For(declaration);
+        var tokens         = statementFacts.Tokens;
 
-        if (tokens.Count == 0 || tokens[tokens.Count - 1].Type != SyntaxTokenType.Semicolon || IsHandLaid(syntaxTree, tokens)) {
+        if (tokens.Count == 0 || !statementFacts.EndsWithSemicolon || statementFacts.BreaksSingleLineForm) {
             candidate.BreaksGroup = true;
             return candidate;
         }
@@ -719,23 +725,6 @@ static class AlignmentMapBuilder {
         var nextToken = syntaxTree.Tokens.FindAtPosition(next.Start);
 
         return GapTrivia.Create(prevToken, nextToken, syntaxTree.SourceText).NewLineCount - 1;
-    }
-
-    /// <summary>
-    /// Hand-gelegt-Primitive (dieselbe Erkennung wie die spätere S4-Unterdrückung): eine <b>innere</b>
-    /// Lücke der Anweisung enthält einen Newline, einen zeilen-erzwingenden Kommentar, eine Direktive
-    /// oder einen Skiped-Lauf — die Anweisung ist nie einzeilig-kanonisch.
-    /// </summary>
-    static bool IsHandLaid(SyntaxTree syntaxTree, IReadOnlyList<SyntaxToken> tokens) {
-
-        for (var i = 1; i < tokens.Count; i++) {
-            var trivia = GapTrivia.Create(tokens[i - 1], tokens[i], syntaxTree.SourceText);
-            if (trivia.NewLineCount > 0 || trivia.HasLineBreakingComment || trivia.HasDirective || trivia.HasSkippedTokens) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>

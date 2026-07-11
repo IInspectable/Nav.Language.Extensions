@@ -57,10 +57,14 @@ public static class NavFormattingService {
         Debug.Assert(tokens[tokens.Count - 1].Type == SyntaxTokenType.EndOfFile,
                      "Der Lexer terminiert den Token-Strom stets mit dem nullbreiten EndOfFile.");
 
-        var changes     = new List<TextChange>();
-        var renderer    = new GapRenderer(syntaxTree.SourceText, settings, options);
-        var alignment   = AlignmentMapBuilder.Build(syntaxTree, options); // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
-        var suppression = FormatterSuppression.Compute(syntaxTree, options); // Fehler-Toleranz-Vorpass: verbatim vs. hand-gelegt.
+        var changes  = new List<TextChange>();
+        var renderer = new GapRenderer(syntaxTree.SourceText, settings, options);
+
+        // Pro Anweisung einmal Token-Liste + Trivia-Befund erheben; beide Vorpässe teilen sich diese
+        // Messung (früher las jeder Vorpass sie selbst — pro Transition bis zu fünfmal).
+        var statementFacts = StatementFacts.Compute(syntaxTree);
+        var alignment      = AlignmentMapBuilder.Build(syntaxTree, options, statementFacts);   // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
+        var suppression    = FormatterSuppression.Compute(syntaxTree, options, statementFacts); // Fehler-Toleranz-Vorpass: verbatim vs. hand-gelegt.
 
         // Datei-Anfang: die Leading-Trivia des ersten realen Tokens liegt vor der ersten Paar-Lücke und
         // wird gesondert normalisiert. Skiped-Läufe (insbesondere ein führendes BOM, das als Unknown ->
@@ -247,21 +251,14 @@ public static class NavFormattingService {
     /// </summary>
     static IEnumerable<SyntaxNode> FormattableNodes(SyntaxTree syntaxTree) {
 
-        var root = syntaxTree.Root;
-
-        foreach (var node in root.DescendantNodes<TransitionDefinitionSyntax>()) {
+        // Die statement-/member-granulare Einheit — derselbe Aufzähler, den die Vorpässe (Suppression,
+        // Ausrichtung über StatementFacts) nutzen — plus das Task-Kopf-[params] (steckt nicht in einer
+        // Node-Deklaration). Reihenfolge ist für die Range-Ausweitung (Min/Max) belanglos.
+        foreach (var node in StatementFacts.EnumerateStatements(syntaxTree)) {
             yield return node;
         }
 
-        foreach (var node in root.DescendantNodes<ExitTransitionDefinitionSyntax>()) {
-            yield return node;
-        }
-
-        foreach (var node in root.DescendantNodes<NodeDeclarationSyntax>()) {
-            yield return node;
-        }
-
-        foreach (var node in root.DescendantNodes<CodeParamsDeclarationSyntax>()) {
+        foreach (var node in syntaxTree.Root.DescendantNodes<CodeParamsDeclarationSyntax>()) {
             yield return node;
         }
     }

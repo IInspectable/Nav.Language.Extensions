@@ -33,7 +33,7 @@
 | S3 | Dispatcher-Tier-Prüfung + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | **umgesetzt** (Commit ausstehend) |
 | S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, ≥ 2) + Dateianfang/-ende | mittel | **umgesetzt** (Commit ausstehend) |
 | S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | **umgesetzt** (Commit ausstehend) |
-| S6 | Statement-Messung einmalig + geteiltes Hand-gelegt-Primitiv + Kleinkram (Perf) | mittel | offen |
+| S6 | Statement-Messung einmalig + geteiltes Hand-gelegt-Primitiv + Kleinkram (Perf) | mittel | **umgesetzt** (Commit ausstehend) |
 
 Reihenfolge: S1–S3 sind unabhängige Quick-Wins, S4 ist das einzige neue Verhalten, S5/S6 sind
 Refactorings (S6 baut sinnvollerweise auf S5 auf, weil beide den `AlignmentMapBuilder` anfassen).
@@ -329,6 +329,44 @@ Korpus-Smoke diff-frei gegen vorher), beide TFMs grün.
 
 **Fertig, wenn:** reines Refactoring — byte-identische Ausgabe (Goldens + Korpus-Smoke diff-frei),
 Perf-Zahlen erhoben, beide TFMs grün.
+
+**Umgesetzt:**
+
+- **(1)+(2) Eine geteilte Statement-Messung `StatementFacts`.** Neuer interner Typ
+  (`Nav.Language/Formatting/StatementFacts.cs`), der pro Anweisung **einmal** die Token-Liste
+  (`syntaxTree.Tokens[statement.Extent]`) holt und ihre inneren Lücken **einmal** scannt. Er hält drei
+  formatierungs-invariante Fakten — `EndsWithSemicolon`, `HasStructuralBreakTrivia` (Skiped/Direktive
+  innen) und `SpansMultipleLines` (Newline/zeilen-erzwingender Kommentar innen) — aus denen beide
+  Konsumenten ihre Sicht ableiten: die Suppression über `Classify` (Strukturbruch → verbatim vs.
+  mehrzeilig → hand-gelegt), der Ausrichtungs-Vorpass über `BreaksSingleLineForm`
+  (`= HasStructuralBreakTrivia || SpansMultipleLines`, deckt exakt die frühere `IsHandLaid`-Erkennung
+  ab). Damit fallen die zwei fast-gleichen Hand-gelegt-Detektoren (`FormatterSuppression.Classify` vs.
+  `AlignmentMapBuilder.IsHandLaid`) und die bis zu **fünffache** Token-Listen-/Trivia-Erhebung pro
+  Transition zu **einer** zusammen. Berechnet wird sie einmal im Service (`StatementFacts.Compute`) und
+  an beide Pässe durchgereicht (`AlignmentMapBuilder.Build(…, facts)`,
+  `FormatterSuppression.Compute(…, facts)`). Der Ausrichtungs-Vorpass adressiert die Anweisungen block-
+  weit über `facts.For(node)` — per Konstruktion vollständig, weil beide Sichten aus derselben
+  `EnumerateStatements`-Aufzählung stammen (`ConnectionPointNodeSyntax : NodeDeclarationSyntax`, also
+  sind auch die `taskref`-Verbindungspunkte enthalten).
+- **(3) Ein gemeinsamer Statement-Enumerations-Helper.** `StatementFacts.EnumerateStatements` ist der
+  einzige Aufzähler des flachen Anweisungs-Sets (Transition + Exit-Transition + Node-Deklaration);
+  `NavFormattingService.FormattableNodes` nutzt ihn (+ Task-Kopf-`[params]`), die dreifache
+  Concat/`yield`-Duplikation entfällt.
+- **(4) Bewusst zurückhaltend.** `FormatterSuppression.IsSuppressed` bleibt die Linearsuche: sie
+  iteriert `_verbatimExtents`, das für fehlerfreie Dateien **leer** ist (die Schleife läuft 0-mal) — die
+  Perf-Messung zeigt keinen Beitrag, die O(n·m)-Sorge ist rein theoretisch (nur diagnostikreiche
+  Dateien), eine Binärsuche wäre unnötige Komplexität. `NavFormattingService.HasSkippedTokens` bleibt
+  der kleine Einzel-Trivia-Listen-Helfer: `GapTrivia` kennt Skiped nur über ein **Token-Paar**
+  (`prev.Trailing ++ next.Leading`), der Rand-Fall (nur Leading des ersten Tokens; Trailing des letzten
+  vor EOF, wobei `lastToken` fehlen kann) passt nicht verlustfrei auf diese Paar-Sicht — ein erzwungenes
+  Zusammenlegen läse schlechter, nicht besser.
+- **Byte-identisch belegt:** alle Goldens unverändert grün (net472 1680 passed/0 failed/3 explicit
+  skipped, net10 1620/0; Formatting 179/179); Korpus-Smoke über `d:\tfs\main` (1913 `.nav` × 2
+  Einzugsstile): SHA-256-Ausgabe-Manifest **byte-für-byte gleich** zur Baseline
+  (`4B1527A6…273ABB9EA`, 0 Crashes, 0 nicht-idempotent, 0 Token-Brüche).
+- **Perf (FormatPerf, Release, Korpus, best-of-3):** Phase *Format* **549,9 → 491,2 ms/Iter** (−10,7 %),
+  Allokation **1282,8 → 1137,3 MB/Iter** (−145 MB, −11,3 %). Die Alloc-Senkung ist der deterministische
+  Beleg: die entdoppelten `ToList()` + Trivia-Scans entfallen.
 
 ---
 

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -69,7 +68,7 @@ sealed class FormatterSuppression {
         return _handLaidShiftByGapStart.TryGetValue(gapStart, out delta);
     }
 
-    public static FormatterSuppression Compute(SyntaxTree syntaxTree, NavFormattingOptions options) {
+    public static FormatterSuppression Compute(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map statementFacts) {
 
         var verbatim = new List<TextExtent>();
 
@@ -102,24 +101,19 @@ sealed class FormatterSuppression {
         }
 
         // (3) Anweisungen (Transitionen, Exit-Transitionen, Node-Deklarationen): fehlendes ';',
-        //     Skiped/Direktive in einer inneren Lücke -> verbatim; sonst mehrzeilig -> hand-gelegt.
-        var handLaid = new Dictionary<int, int>();
-        var statements = syntaxTree.Root.DescendantNodes<TransitionDefinitionSyntax>().Cast<SyntaxNode>()
-                                  .Concat(syntaxTree.Root.DescendantNodes<ExitTransitionDefinitionSyntax>())
-                                  .Concat(syntaxTree.Root.DescendantNodes<NodeDeclarationSyntax>());
+        //     Skiped/Direktive in einer inneren Lücke -> verbatim; sonst mehrzeilig -> hand-gelegt. Die
+        //     Token-Liste und der Trivia-Befund stammen aus der einmal erhobenen, geteilten Messung.
+        var handLaid           = new Dictionary<int, int>();
+        var handLaidCandidates = new List<StatementFacts>();
 
-        var handLaidCandidates = new List<(SyntaxNode Statement, IReadOnlyList<SyntaxToken> Tokens)>();
+        foreach (var facts in statementFacts.All) {
 
-        foreach (var statement in statements) {
-
-            var tokens = syntaxTree.Tokens[statement.Extent].ToList();
-
-            switch (Classify(syntaxTree, tokens)) {
+            switch (Classify(facts)) {
                 case StatementClass.Suppressed:
-                    verbatim.Add(statement.Extent);
+                    verbatim.Add(facts.Statement.Extent);
                     break;
                 case StatementClass.HandLaid:
-                    handLaidCandidates.Add((statement, tokens));
+                    handLaidCandidates.Add(facts);
                     break;
             }
         }
@@ -128,13 +122,14 @@ sealed class FormatterSuppression {
 
         // Hand-gelegt-Deltas erst nach dem Sammeln aller Verbatim-Regionen: eine hand-gelegte Anweisung in
         // einem defekten Task-Body ist bereits unterdrückt und bekommt keinen (widersprüchlichen) Shift.
-        foreach (var (statement, tokens) in handLaidCandidates) {
+        foreach (var facts in handLaidCandidates) {
 
-            if (suppression.IsSuppressed(statement.Extent)) {
+            if (suppression.IsSuppressed(facts.Statement.Extent)) {
                 continue;
             }
 
-            var delta = HandLaidDelta(syntaxTree, options, tokens[0]);
+            var tokens = facts.Tokens;
+            var delta  = HandLaidDelta(syntaxTree, options, tokens[0]);
             for (var i = 1; i < tokens.Count; i++) {
                 handLaid[tokens[i - 1].End] = delta;
             }
@@ -159,34 +154,18 @@ sealed class FormatterSuppression {
     }
 
     /// <summary>
-    /// Klassifiziert eine Anweisung anhand ihrer signifikanten Token und der Trivia ihrer inneren Lücken —
-    /// rein formatierungs-invariant.
+    /// Klassifiziert eine Anweisung aus ihren geteilten <see cref="StatementFacts"/> — rein
+    /// formatierungs-invariant. Fehlendes <c>;</c> oder Skiped/Direktive im Inneren ⇒ Strukturbruch
+    /// (verbatim; eine Direktive mitten in der Anweisung ließe sich nicht per Delta-Shift auf Spalte 0
+    /// halten); sonst mehrzeilig ⇒ hand-gelegt, andernfalls normal.
     /// </summary>
-    static StatementClass Classify(SyntaxTree syntaxTree, IReadOnlyList<SyntaxToken> tokens) {
+    static StatementClass Classify(StatementFacts facts) {
 
-        // Fehlendes ';' (das letzte reale Token ist kein Semikolon) -> Strukturbruch.
-        if (tokens.Count == 0 || tokens[tokens.Count - 1].Type != SyntaxTokenType.Semicolon) {
+        if (!facts.EndsWithSemicolon || facts.HasStructuralBreakTrivia) {
             return StatementClass.Suppressed;
         }
 
-        var multiLine = false;
-
-        for (var i = 1; i < tokens.Count; i++) {
-
-            var trivia = GapTrivia.Create(tokens[i - 1], tokens[i], syntaxTree.SourceText);
-
-            // Skiped oder Direktive im Inneren -> Strukturbruch (verbatim); eine Direktive mitten in der
-            // Anweisung ließe sich nicht per Delta-Shift auf Spalte 0 halten.
-            if (trivia.HasSkippedTokens || trivia.HasDirective) {
-                return StatementClass.Suppressed;
-            }
-
-            if (trivia.NewLineCount > 0 || trivia.HasLineBreakingComment) {
-                multiLine = true;
-            }
-        }
-
-        return multiLine ? StatementClass.HandLaid : StatementClass.Normal;
+        return facts.SpansMultipleLines ? StatementClass.HandLaid : StatementClass.Normal;
     }
 
     /// <summary>
