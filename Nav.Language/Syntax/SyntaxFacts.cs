@@ -8,7 +8,7 @@ using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 public static class SyntaxFacts {
 
@@ -120,7 +120,7 @@ public static class SyntaxFacts {
         [InitKeyword]        = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
         [InitKeywordAlt]     = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
         [EndKeyword]         = "Endknoten — regulärer Abschluss des Workflows.",
-        [ExitKeyword]        = "Exit-Knoten — benannter Ausgang eines Tasks, von außen über :ExitName ansprechbar.",
+        [ExitKeyword]        = "Exit-Knoten — benannter Ausgang eines Tasks, von außen referenzierbar.",
         [ChoiceKeyword]      = "Verzweigungsknoten — wählt anhand von Bedingungen (if/else) einen von mehreren Folgewegen.",
         [DialogKeyword]      = "GUI-Knoten: zeigt einen Dialog an.",
         [ViewKeyword]        = "GUI-Knoten: zeigt eine View (Ansicht) an.",
@@ -131,16 +131,16 @@ public static class SyntaxFacts {
         [SpontKeyword]       = "Kurzform von spontaneous — spontaner Übergang ohne explizites Signal.",
         [DoKeyword]          = "Freie Handlungsanweisung zur Aktion einer Transition — rein dokumentierend, ohne Einfluss auf den generierten Code.",
         // Code-Keywords (in [ … ]-Deklarationen)
-        [ResultKeyword]          = "Rückgabewert eines Tasks/Init-Knotens: [result Typ name].",
-        [ParamsKeyword]          = "Parameterliste eines init-Knotens (bzw. choice ab Version 2): [params T1 p1, …].",
-        [BaseKeyword]            = "Basisklasse und Interfaces der generierten WFS-Klasse: [base StandardWFS<…> : …].",
-        [NamespaceprefixKeyword] = "Namespace-Präfix für den generierten Code: [namespaceprefix Namespace].",
-        [UsingKeyword]           = "Zusätzliche using-Direktive im generierten Code: [using Namespace].",
-        [CodeKeyword]            = "Wörtlich einzufügender Code-Schnipsel: [code \"…\"].",
-        [GeneratetoKeyword]      = "Zielort für den generierten Code: [generateto \"…\"].",
-        [AbstractmethodKeyword]  = "Erzeugt eine abstrakte Methode — die Implementierung obliegt der abgeleiteten Klasse: [abstractmethod].",
-        [NotimplementedKeyword]  = "Markiert den Member als noch nicht implementiert: [notimplemented].",
-        [DonotinjectKeyword]     = "Unterbindet die Dependency-Injection für diesen Member: [donotinject].",
+        [ResultKeyword]          = "Rückgabewert eines Tasks bzw. Init-Knotens.",
+        [ParamsKeyword]          = "Parameterliste eines Init-Knotens.",
+        [BaseKeyword]            = "Basisklasse und Interfaces der generierten WFS-Klasse.",
+        [NamespaceprefixKeyword] = "Namespace-Präfix für den generierten Code.",
+        [UsingKeyword]           = "Zusätzliche using-Direktive im generierten Code.",
+        [CodeKeyword]            = "Wörtlich einzufügender Code-Schnipsel.",
+        [GeneratetoKeyword]      = "Zielort für den generierten Code.",
+        [AbstractmethodKeyword]  = "Erzeugt eine abstrakte Methode — die Implementierung obliegt der abgeleiteten Klasse.",
+        [NotimplementedKeyword]  = "Markiert den Member als noch nicht implementiert.",
+        [DonotinjectKeyword]     = "Unterbindet die Dependency-Injection für diesen Member.",
         // Präprozessor-Direktiven (hinter #)
         [VersionDirectiveKeyword] = "Legt die Nav-Sprachversion der Datei fest und schaltet versionsgebundene Features frei.",
         [PragmaDirectiveKeyword]  = "Pragma-Direktive zur Feinsteuerung (z.B. Diagnosen).",
@@ -169,8 +169,8 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsKeywordClassification(TextClassification classification) {
         return classification is TextClassification.Keyword
-                              or TextClassification.ControlKeyword
-                              or TextClassification.PreprocessorKeyword;
+            or TextClassification.ControlKeyword
+            or TextClassification.PreprocessorKeyword;
     }
 
     public static readonly ImmutableHashSet<string> HiddenKeywords = new[] {
@@ -203,8 +203,8 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsEdgeKeyword(SyntaxTokenType type) {
         return type is SyntaxTokenType.GoToEdgeKeyword
-                    or SyntaxTokenType.ModalEdgeKeyword
-                    or SyntaxTokenType.NonModalEdgeKeyword;
+            or SyntaxTokenType.ModalEdgeKeyword
+            or SyntaxTokenType.NonModalEdgeKeyword;
     }
 
     // Die Continuation-Kanten (ab Sprachversion 2). Eigene Menge, getrennt von den regulären
@@ -226,7 +226,7 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsContinuationEdgeKeyword(SyntaxTokenType type) {
         return type is SyntaxTokenType.ContinuationGoToEdgeKeyword
-                    or SyntaxTokenType.ContinuationModalEdgeKeyword;
+            or SyntaxTokenType.ContinuationModalEdgeKeyword;
     }
 
     // Die Zeichen, aus denen sich Edge-Keywords zusammensetzen (`-`, `>`, `o`, `*`). Einzige Autorität für
@@ -341,7 +341,7 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsCommentTrivia(SyntaxTokenType type) {
         return type is SyntaxTokenType.SingleLineComment
-                    or SyntaxTokenType.MultiLineComment;
+            or SyntaxTokenType.MultiLineComment;
     }
 
     /// <summary>
@@ -351,7 +351,7 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsLexicalTrivia(SyntaxTokenType type) {
         return type is SyntaxTokenType.Whitespace
-                    or SyntaxTokenType.NewLine ||
+                   or SyntaxTokenType.NewLine ||
                IsCommentTrivia(type);
     }
 
@@ -363,12 +363,12 @@ public static class SyntaxFacts {
     /// </summary>
     public static bool IsPreprocessorToken(SyntaxTokenType type) {
         return type is SyntaxTokenType.HashToken
-                    or SyntaxTokenType.PreprocessorKeyword
-                    or SyntaxTokenType.PreprocessorText
-                    or SyntaxTokenType.PreprocessorNewLine
-                    or SyntaxTokenType.PreprocessorNumber
-                    or SyntaxTokenType.PragmaKeyword
-                    or SyntaxTokenType.VersionKeyword;
+            or SyntaxTokenType.PreprocessorKeyword
+            or SyntaxTokenType.PreprocessorText
+            or SyntaxTokenType.PreprocessorNewLine
+            or SyntaxTokenType.PreprocessorNumber
+            or SyntaxTokenType.PragmaKeyword
+            or SyntaxTokenType.VersionKeyword;
     }
 
     /// <summary>
@@ -380,7 +380,7 @@ public static class SyntaxFacts {
     public static bool IsTrivia(SyntaxTokenType type) {
         return IsLexicalTrivia(type) ||
                type is SyntaxTokenType.DirectiveTrivia
-                    or SyntaxTokenType.SkippedTokensTrivia;
+                   or SyntaxTokenType.SkippedTokensTrivia;
     }
 
 }
