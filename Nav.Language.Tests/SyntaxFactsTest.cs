@@ -380,6 +380,18 @@ public class SyntaxFactsTest {
     }
 
     [Test]
+    public void GetKeywordDescription_IsHostSpecific_ForTask() {
+
+        // `task` meint am Definitionskopf und am Task-Knoten Verschiedenes.
+        var taskDefinition = SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword, CodeBlockHost.TaskDefinition);
+        var taskNode       = SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword, CodeBlockHost.TaskNode);
+
+        Assert.That(taskNode, Is.Not.EqualTo(taskDefinition));
+        // Der Definitionskopf hat keinen Override → host-neutraler Fallback.
+        Assert.That(taskDefinition, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword)));
+    }
+
+    [Test]
     public void GetKeywordDescription_FallsBackToHostNeutral_WhenNoHostOverride() {
 
         // Wirt ohne Override (`params` gibt es am Datei-Kopf nicht) → host-neutraler Fallback.
