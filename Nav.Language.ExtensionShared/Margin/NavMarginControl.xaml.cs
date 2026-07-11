@@ -50,7 +50,6 @@ public partial class NavMarginControl {
 
         _textView.VisualElement.Focus();
         NavLanguagePackage.InvokeCommand(KnownCommandIds.NavGenerateCommand);
-        UpdateTooltips();
     }
 
     private void OnNavPreviewClick(object sender, RoutedEventArgs e) {
@@ -58,7 +57,6 @@ public partial class NavMarginControl {
 
         _textView.VisualElement.Focus();
         NavLanguagePackage.InvokeCommand(KnownCommandIds.ViewCode);
-        UpdateTooltips();
     }
 
     private void OnFormatButtonClick(object sender, RoutedEventArgs e) {
@@ -66,7 +64,6 @@ public partial class NavMarginControl {
 
         _textView.VisualElement.Focus();
         NavFormatCommand.FormatDocument(_textView, _textChangeService);
-        UpdateTooltips();
     }
 
     static string GetTooltipText(CommandID commandId, string commandName) {
