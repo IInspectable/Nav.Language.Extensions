@@ -290,7 +290,7 @@ sealed partial class NavParser {
         while (!AtEof) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword)) {
+            if (At(SyntaxTokenType.TaskrefKeyword) || At(SyntaxTokenType.TaskKeyword) || AtMemberKeywordPrefix()) {
                 members.Add(ParseMemberDeclaration());
                 continue;
             }
@@ -409,6 +409,13 @@ sealed partial class NavParser {
     /// ]]></code>
     /// Disambiguierung per Lookahead: <c>taskref</c> + StringLiteral ⇒ <c>includeDirective</c>; <c>taskref</c> +
     /// Identifier ⇒ <c>taskDeclaration</c>; <c>task</c> ⇒ <c>taskDefinition</c>.
+    /// <para/>
+    /// Beim Tippen kann das Leit-Schlüsselwort noch unvollständig sein und als Identifier lexen
+    /// (<c>tas</c> vor <c>task</c>/<c>taskref</c>); <see cref="AtMemberKeywordPrefix"/> hat die Position dann
+    /// bereits als gemeinten Member erkannt. Tie-Break: fester Vorrang <c>task</c> (der häufigere Fall);
+    /// <c>taskref</c> greift nur bei einem eindeutigen Präfix <c>taskr…</c>, das kein Präfix von <c>task</c>
+    /// mehr ist. Die gewählte <c>ParseTask*</c>-Methode konsumiert das Schlüsselwort über
+    /// <see cref="EatKeywordOrSkip"/> (Missing-Keyword + Störtoken als Skip-Trivia).
     /// </remarks>
     MemberDeclarationSyntax ParseMemberDeclaration() {
         if (At(SyntaxTokenType.TaskrefKeyword)) {
@@ -417,7 +424,13 @@ sealed partial class NavParser {
                 : ParseTaskDeclaration();
         }
 
-        return ParseTaskDefinition();
+        if (At(SyntaxTokenType.TaskKeyword)) {
+            return ParseTaskDefinition();
+        }
+
+        return IsKeywordPrefix(SyntaxTokenType.TaskKeyword, PeekText(0))
+            ? ParseTaskDefinition()
+            : ParseTaskDeclaration();
     }
 
     #endregion
@@ -512,7 +525,7 @@ sealed partial class NavParser {
     /// </remarks>
     TaskDeclarationSyntax ParseTaskDeclaration() {
 
-        var keyword = Eat(SyntaxTokenType.TaskrefKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.TaskrefKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
 
         CodeNamespaceDeclarationSyntax?      codeNamespace  = null;
@@ -597,7 +610,7 @@ sealed partial class NavParser {
     /// </remarks>
     TaskDefinitionSyntax ParseTaskDefinition() {
 
-        var keyword = Eat(SyntaxTokenType.TaskKeyword);
+        var keyword = EatKeywordOrSkip(SyntaxTokenType.TaskKeyword);
         var name    = Eat(SyntaxTokenType.Identifier);
 
         CodeDeclarationSyntax?           code       = null;
@@ -2035,6 +2048,29 @@ sealed partial class NavParser {
                text is { Length: > 0 }    &&
                text.Length < keywordText.Length &&
                keywordText.StartsWith(text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Ob an der aktuellen Top-Level-Position ein Member beginnt, dessen Leit-Schlüsselwort beim Tippen
+    /// noch unvollständig ist (als Identifier gelext) — ein Identifier, dessen Text ein <b>echtes Präfix</b>
+    /// von <c>task</c> oder <c>taskref</c> ist (<c>tas SimpleTask …</c>). Auf Top-Level beginnt ein Member
+    /// nur mit <c>task</c>/<c>taskref</c>; ein Identifier ist dort strukturell nie gültig und kann daher als
+    /// das gemeinte, noch unvollständige Schlüsselwort gedeutet werden. Die <b>Form-Bestätigung</b>
+    /// (dem Identifier folgt ein weiterer Identifier — der Task-Name) hält einen losen Top-Level-Identifier
+    /// ohne folgenden Namen aus dem Rescue heraus; der bleibt dem Panic-Mode (<see cref="_atMemberOrEof"/>)
+    /// überlassen. Die Tie-Break-/Konsum-Semantik liegt in <see cref="ParseMemberDeclaration"/> bzw.
+    /// <see cref="EatKeywordOrSkip"/>.
+    /// </summary>
+    bool AtMemberKeywordPrefix() {
+
+        if (!At(SyntaxTokenType.Identifier) || PeekType(1) != SyntaxTokenType.Identifier) {
+            return false;
+        }
+
+        var text = PeekText(0);
+
+        return IsKeywordPrefix(SyntaxTokenType.TaskKeyword,    text) ||
+               IsKeywordPrefix(SyntaxTokenType.TaskrefKeyword, text);
     }
 
     bool StartsConnectionPoint() {

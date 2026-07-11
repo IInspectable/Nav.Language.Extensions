@@ -1,0 +1,7 @@
+﻿tas SimpleTask [base Foo: Bar]
+{
+    init;
+    exit End;
+
+    init --> End;
+}

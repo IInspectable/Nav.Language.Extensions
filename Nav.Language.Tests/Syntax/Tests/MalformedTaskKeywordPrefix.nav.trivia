@@ -1,0 +1,31 @@
+﻿    L SkippedTokensTrivia[0-3]         "tas"
+    L Whitespace        [3-4]         " "
+    4 Identifier
+    T Whitespace        [14-15]       " "
+   16 BaseKeyword
+    T Whitespace        [20-21]       " "
+   24 Colon
+    T Whitespace        [25-26]       " "
+   29 CloseBracket
+    T NewLine           [30-32]       "\r\n"
+   32 OpenBrace
+    T NewLine           [33-35]       "\r\n"
+    L Whitespace        [35-39]       "    "
+   39 InitKeyword
+   43 Semicolon
+    T NewLine           [44-46]       "\r\n"
+    L Whitespace        [46-50]       "    "
+   50 ExitKeyword
+    T Whitespace        [54-55]       " "
+   58 Semicolon
+    T NewLine           [59-61]       "\r\n"
+    L NewLine           [61-63]       "\r\n"
+    L Whitespace        [63-67]       "    "
+   67 InitKeyword
+    T Whitespace        [71-72]       " "
+   72 GoToEdgeKeyword
+    T Whitespace        [75-76]       " "
+   79 Semicolon
+    T NewLine           [80-82]       "\r\n"
+   82 CloseBrace
+    T NewLine           [83-85]       "\r\n"

@@ -37,8 +37,8 @@ erwartet* — beim Tippen durchläuft jedes Keyword eine Vorstufe, die als gült
 |---|---|---|
 | 1 | **Zeilen-Anker** in `ClosesBracketRegion` | **FERTIG, committet `299eb806`** |
 | 2 | **Verschränkte Kopf-Recovery** (usings Klammer-für-Klammer) | **FERTIG, committet `840cb1d7`** |
-| 3 | **Keyword-Präfix-Rescue in Klammer-Wirten** (`EatKeywordOrSkip` + prefix-tolerantes `AtCodeDeclaration`) | **FERTIG, uncommittet** |
-| 4 | **Keyword-Präfix-Rescue Top-Level-Member** (`tas`→`task`) | offen |
+| 3 | **Keyword-Präfix-Rescue in Klammer-Wirten** (`EatKeywordOrSkip` + prefix-tolerantes `AtCodeDeclaration`) | **FERTIG, committet `dfeacefd`** |
+| 4 | **Keyword-Präfix-Rescue Top-Level-Member** (`tas`→`task`) | **FERTIG, uncommittet** |
 
 Workflow (CLAUDE.md): je Step Code-Review + Build/Test, dann **Commit-Message als Text** liefern —
 **nie selbst committen**. Der Nutzer committet nach seinem Review.
@@ -119,7 +119,7 @@ Kein bestehender Golden-Output ändert sich.
 
 ---
 
-## Step 3 — FERTIG (uncommittet): Keyword-Präfix-Rescue in Klammer-Wirten
+## Step 3 — FERTIG (committet `dfeacefd`): Keyword-Präfix-Rescue in Klammer-Wirten
 
 **Erreicht**: `[namespace …]` → `namespaceprefix`, `[usin …]` → `using` (und analog `[bas …]`/`[resul …]`/…)
 als echte **„missing 'keyword'"**-Diagnose + Störtoken als Skip-Trivia, statt „unexpected input". **Bild 1
@@ -181,29 +181,44 @@ Verifiziert: net10 1715 grün, net472 1775 grün; `ParsesAndRoundTripsAllTypingP
 
 ---
 
-## Step 4 — OFFEN: Keyword-Präfix-Rescue Top-Level-Member
+## Step 4 — FERTIG (uncommittet): Keyword-Präfix-Rescue Top-Level-Member
 
-**Ziel**: `tas SimpleTask [base …] { … }` → `task`-Definition mit **missing** `task`-Keyword, `tas` als
-Skip-Trivia; der ganze Task-Body parst normal. Fixt **Bild 6**.
+**Erreicht**: `tas SimpleTask [base …] { … }` → `task`-Definition mit **missing** `task`-Keyword (`missing
+'task'` bei 1,1), `tas` als Skip-Trivia; der ganze Task-Body parst normal. Fixt **Bild 6**.
 
-Stelle: die Member-Schleife in `ParseCodeGenerationUnit` (~`NavParser.cs:277`), Bedingung
-`At(TaskrefKeyword) || At(TaskKeyword)`. Ergänzen: wenn `At(Identifier)` und der Identifier-Text **echtes
-Präfix** von `task`/`taskref` ist **und die Form bestätigt** (Folge-Token ist Identifier — der Task-Name),
-als Member behandeln. `ParseMemberDeclaration`/`ParseTaskDefinition`/`ParseTaskDeclaration` müssen ihr
-Leit-Keyword über `EatKeywordOrSkip` konsumieren.
+### Umgesetzte Bausteine
+- **`AtMemberKeywordPrefix()`** (neu, neben `AtCodeDeclaration`/`IsKeywordPrefix`): `At(Identifier)` **und**
+  `PeekType(1) == Identifier` (Form-Bestätigung: der Task-Name folgt) **und** der Identifier-Text ist echtes
+  Präfix von `task` **oder** `taskref` (`IsKeywordPrefix`). Die Member-Schleife in `ParseCodeGenerationUnit`
+  (~`NavParser.cs:293`) hängt `|| AtMemberKeywordPrefix()` an ihre Bedingung.
+- **`ParseMemberDeclaration`** dispatcht im Rescue-Zweig per Tie-Break: `IsKeywordPrefix(TaskKeyword, …)` ⇒
+  `ParseTaskDefinition`, sonst (nur `taskr…`, kein Präfix von `task` mehr) ⇒ `ParseTaskDeclaration`. Der
+  reguläre Pfad (`At(TaskrefKeyword)`/`At(TaskKeyword)`) bleibt unverändert vorn.
+- **`ParseTaskDefinition`** (`Eat(TaskKeyword)` → `EatKeywordOrSkip(TaskKeyword)`) und **`ParseTaskDeclaration`**
+  (`Eat(TaskrefKeyword)` → `EatKeywordOrSkip(TaskrefKeyword)`) konsumieren ihr Leit-Keyword rescue-fähig. Der
+  `ParseIncludeDirective`-Pfad (`taskref` + StringLiteral) bleibt bei `Eat` — er wird nie über den Rescue
+  erreicht (Form-Guard verlangt Identifier als Folge-Token).
 
-### Ambiguität / Form-Bestätigung
-- `tas` ist Präfix von **task UND taskref**. Tie-Break: fester Vorrang **`task`** (häufiger; `taskref` erst
-  ab eindeutigem Präfix `taskr…`). Dokumentieren.
-- Form-Guard `At(Identifier) && PeekType(1) == Identifier` verhindert, dass ein loser Top-Level-Identifier
-  (ohne folgenden Namen) fälschlich als Task-Kopf gilt — sonst normal in `Recover(_atMemberOrEof)`.
-- Für `taskref` zusätzlich die bestehende Include-vs-Decl-Disambiguierung beachten (`ParseMemberDeclaration`:
-  `taskref` + StringLiteral ⇒ include, sonst decl). Beim Rescue steht kein echtes `taskref`-Token; sinnvoll
-  ist, den Rescue auf `task`-Definition zu beschränken (häufigster Fall) oder die Folge-Form auszuwerten.
+### Ambiguität / Form-Bestätigung (umgesetzt)
+- `tas` ist Präfix von **task UND taskref**. Tie-Break: fester Vorrang **`task`** (häufiger); `taskref` greift
+  erst ab eindeutigem Präfix `taskr…` (das kein Präfix von `task` mehr ist).
+- Form-Guard `At(Identifier) && PeekType(1) == Identifier` hält einen losen Top-Level-Identifier (ohne
+  folgenden Namen) aus dem Rescue heraus → normal in `Recover(_atMemberOrEof)`.
+- **taskref-Include self-heilt** ohne Fehl-Rescue: `tas "file";` hat StringLiteral als Folge-Token → Form-Guard
+  greift nicht → nicht gerescued (bleibt Panic-Mode); erst das vollständige `taskref` parst als Include.
+- Fortschritts-Garantie: der Rescue skippt via `EatKeywordOrSkip` den Identifier und `Eat`t danach den Namen —
+  der Cursor rückt stets vor, keine Endlosschleife.
+- Anker (`BreaksBody`/`_atMemberOrEof`) **bewusst unangetastet**: Step 4 deckt den Top-Level-Member-Einstieg;
+  ein mistyped Task, der aus einem malformen Vorgänger-Body heraus als äußerer Anker gelten müsste, ist nicht im
+  Scope (vermeidet Regressionsrisiko).
 
 ### Korpus (Step 4)
-- Neuer Fall: `tas SimpleTask [base X: Y] { init; exit End; init --> End; }` → `missing 'task'`, `tas` als
-  Skip-Trivia, TaskDefinition mit vollständigem Body.
+- **`MalformedTaskKeywordPrefix.nav`** (Bild 6): `tas SimpleTask [base Foo: Bar] { init; exit End; init --> End; }`
+  → **eine** Diagnose `missing 'task'` (1,1), TaskDefinition mit vollständigem Body (Base-Decl, Nodes,
+  Transition), `tas` als Skip-Trivia (Leading des Namens-Identifiers).
+
+Verifiziert: net10 1724 grün, net472 1784 grün; `ParsesAndRoundTripsAllTypingPrefixes` über den ganzen Korpus
+grün. Kein bestehender Golden ändert Inhalt.
 
 ---
 
