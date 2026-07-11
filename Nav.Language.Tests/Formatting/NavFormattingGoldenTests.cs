@@ -32,7 +32,7 @@ public class NavFormattingGoldenTests {
     }
 
     static void AssertFormat(string source, string expected, NavFormattingOptions options = null) {
-        Assert.That(Format(source, options), Is.EqualTo(expected));
+        Assert.That(Format(source,   options), Is.EqualTo(expected));
         Assert.That(Format(expected, options), Is.EqualTo(expected), "Das Golden selbst muss ein Fixpunkt sein (Idempotenz).");
     }
 
@@ -41,22 +41,22 @@ public class NavFormattingGoldenTests {
     [Test]
     public void CanonicalFileIsAFixpoint() {
         var canonical = """
-        [namespaceprefix Sample.Namespace]
-        [using System]
+                        [namespaceprefix Sample.Namespace]
+                        [using System]
 
-        taskref "Other.nav";
+                        taskref "Other.nav";
 
-        task Sample [params string label]
-        {
-            init    I1;
-            task    Worker w;
-            exit    E;
+                        task Sample [params string label]
+                        {
+                            init    I1;
+                            task    Worker w;
+                            exit    E;
 
-            I1      --> E;
-            w:Out   --> E;
-        }
+                            I1      --> E;
+                            w:Out   --> E;
+                        }
 
-        """;
+                        """;
 
         Assert.That(NavFormattingService.FormatDocument(SyntaxTree.ParseText(canonical), Settings, SpacesOptions),
                     Is.Empty, "Eine bereits kanonische Datei liefert 0 Changes.");
@@ -65,18 +65,18 @@ public class NavFormattingGoldenTests {
     [Test]
     public void SingleLineTaskIsBrokenIntoAllmanLayout() {
         var source = """
-        task Sample{init I1;exit E;I1-->E;}
-        """;
+                     task Sample{init I1;exit E;I1-->E;}
+                     """;
         var expected = """
-        task Sample
-        {
-            init    I1;
-            exit    E;
+                       task Sample
+                       {
+                           init    I1;
+                           exit    E;
 
-            I1 --> E;
-        }
+                           I1 --> E;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -85,17 +85,17 @@ public class NavFormattingGoldenTests {
     public void BlankLineBeforeTransitionsIsToppedUpButNeverCollapsed() {
         // Drei Autoren-Leerzeilen bleiben erhalten (Minimum 1 kappt nie nach oben).
         var source = """
-        task Sample
-        {
-            init    I1;
-            exit    E;
+                     task Sample
+                     {
+                         init    I1;
+                         exit    E;
 
 
 
-            I1 --> E;
-        }
+                         I1 --> E;
+                     }
 
-        """;
+                     """;
 
         AssertFormat(source, source);
     }
@@ -103,19 +103,19 @@ public class NavFormattingGoldenTests {
     [Test]
     public void MemberBreaksPutEveryTopLevelMemberOnItsOwnLine() {
         var source = """
-        [namespaceprefix N] [using A] [using B] task X
-        {
-        }
-        """;
+                     [namespaceprefix N] [using A] [using B] task X
+                     {
+                     }
+                     """;
         var expected = """
-        [namespaceprefix N]
-        [using A]
-        [using B]
-        task X
-        {
-        }
+                       [namespaceprefix N]
+                       [using A]
+                       [using B]
+                       task X
+                       {
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -123,16 +123,16 @@ public class NavFormattingGoldenTests {
     [Test]
     public void BlankLinesBetweenMembersArePreserved() {
         var source = """
-        [using A]
+                     [using A]
 
 
-        [using B]
+                     [using B]
 
-        task X
-        {
-        }
+                     task X
+                     {
+                     }
 
-        """;
+                     """;
 
         AssertFormat(source, source);
     }
@@ -143,27 +143,27 @@ public class NavFormattingGoldenTests {
         // (Renderer-Schranke). Die erste Zeile (I1) sitzt bereits auf dem Block-Einzug (Delta 0) — die
         // Fortsetzungszeile behält daher ihre relative (tiefere) Einrückung (Hand-gelegt-Delta-Shift, S4).
         var source = """
-        task Sample
-        {
-            init I1;
-            exit E;
+                     task Sample
+                     {
+                         init I1;
+                         exit E;
 
-            I1
-                    --> E;
-        }
+                         I1
+                                 --> E;
+                     }
 
-        """;
+                     """;
         var expected = """
-        task Sample
-        {
-            init    I1;
-            exit    E;
+                       task Sample
+                       {
+                           init    I1;
+                           exit    E;
 
-            I1
-                    --> E;
-        }
+                           I1
+                                   --> E;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -173,24 +173,24 @@ public class NavFormattingGoldenTests {
     [Test]
     public void ColonAndPunctuationAreTight() {
         var source = """
-        task Sample
-        {
-            task B I1 ;
-            exit E;
+                     task Sample
+                     {
+                         task B I1 ;
+                         exit E;
 
-            I1  :  Out-->E;
-        }
-        """;
+                         I1  :  Out-->E;
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            task    B I1;
-            exit    E;
+                       task Sample
+                       {
+                           task    B I1;
+                           exit    E;
 
-            I1:Out --> E;
-        }
+                           I1:Out --> E;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -198,24 +198,24 @@ public class NavFormattingGoldenTests {
     [Test]
     public void BaseColonGetsSpaceAfterButNodePortStaysTight() {
         var source = """
-        task Sample [base StandardWFS<TS>:IWFServiceBase,IBeginWFSType]
-        {
-            task    Worker w;
-            exit    E;
+                     task Sample [base StandardWFS<TS>:IWFServiceBase,IBeginWFSType]
+                     {
+                         task    Worker w;
+                         exit    E;
 
-            w:Out --> E;
-        }
-        """;
+                         w:Out --> E;
+                     }
+                     """;
         var expected = """
-        task Sample [base StandardWFS<TS>: IWFServiceBase, IBeginWFSType]
-        {
-            task    Worker w;
-            exit    E;
+                       task Sample [base StandardWFS<TS>: IWFServiceBase, IBeginWFSType]
+                       {
+                           task    Worker w;
+                           exit    E;
 
-            w:Out --> E;
-        }
+                           w:Out --> E;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -223,24 +223,24 @@ public class NavFormattingGoldenTests {
     [Test]
     public void TypeInternalsAreTightAndParameterListsGetCommaSpace() {
         var source = """
-        task Sample
-        {
-            init I1 [params List < int > numbers,Dict<string,List<int>>map,T6 [ ] [ ] raw,int ? maybe];
-            exit E;
+                     task Sample
+                     {
+                         init I1 [params List < int > numbers,Dict<string,List<int>>map,T6 [ ] [ ] raw,int ? maybe];
+                         exit E;
 
-            I1 --> E;
-        }
-        """;
+                         I1 --> E;
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init    I1 [params List<int> numbers, Dict<string, List<int>> map, T6[][] raw, int? maybe];
-            exit    E;
+                       task Sample
+                       {
+                           init    I1 [params List<int> numbers, Dict<string, List<int>> map, T6[][] raw, int? maybe];
+                           exit    E;
 
-            I1 --> E;
-        }
+                           I1 --> E;
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
@@ -250,138 +250,267 @@ public class NavFormattingGoldenTests {
     [Test]
     public void CommentsAreNormalizedButNeverMoved() {
         var source = """
-        task Sample
-        {
-            init I1;      // Start
-              // Banner ----
+                     task Sample
+                     {
+                         init I1;      // Start
+                           // Banner ----
 
-            exit E;
+                         exit E;
 
-            I1 --> E;// fertig
-        }
-        """;
+                         I1 --> E;// fertig
+                     }
+                     """;
         var expected = """
-        task Sample
-        {
-            init I1; // Start
-            // Banner ----
+                       task Sample
+                       {
+                           init I1; // Start
+                           // Banner ----
 
-            exit E;
+                           exit E;
 
-            I1 --> E; // fertig
-        }
+                           I1 --> E; // fertig
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
 
     [Test]
     public void DirectiveIsResetToColumnZero() {
-        var source = "    #pragma version 1\r\ntask A\r\n{\r\n}\r\n";
-        var expected = """
-        #pragma version 1
-        task A
-        {
-        }
+        var source = """
+                         #pragma version 1
+                     task A
+                     {
+                     }
 
-        """;
+                     """;
+        var expected = """
+                       #pragma version 1
+                       task A
+                       {
+                       }
+
+                       """;
 
         AssertFormat(source, expected);
     }
 
     // ---- Datei-Anfang & Datei-Ende --------------------------------------------------------------
-    // Ausnahme von der Raw-String-Regel: Prüfgegenstand ist hier die *unsichtbare* Whitespace selbst
-    // (führende/abschließende Spaces, An-/Abwesenheit der Final-Newline, gezählte Leerzeilen). Als
-    // escaptes Literal ist der Defekt exakt sichtbar; ein Raw-String ließe ihn im Layout verschwinden.
+    // Raw-Strings: die Fixtures sind normaler Nav-Code. Newlines am Dateiende (Final-Newline, überzählige
+    // End-Leerzeilen) drücken Leerzeilen vor dem schließenden """ aus, deren Fehlen der direkte Abschluss
+    // an """ — führender Einzug über zusätzliche Einrückung relativ zu """. Escapt bleibt NUR, wo literale
+    // Trailing-Space-*Zeichen* der Prüfgegenstand sind (im .cs-Raw-String unsichtbar und vom Editor/Tooling
+    // getilgt) oder die reine-Whitespace-Datei -> leer (kein sinnvoller Raw-String).
 
     [Test]
     public void LeadingWhitespaceBeforeFirstTokenIsRemoved() {
-        AssertFormat("   task A\r\n{\r\n}\r\n", "task A\r\n{\r\n}\r\n");
+        var source = """
+                        task A
+                     {
+                     }
+
+                     """;
+        var expected = """
+                       task A
+                       {
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
     }
 
     [Test]
     public void HeaderCommentIsKeptAtColumnZero() {
         var source = """
-          // Kopf-Kommentar
+                       // Kopf-Kommentar
 
-        task A
-        {
-        }
+                     task A
+                     {
+                     }
 
-        """;
+                     """;
         var expected = """
-        // Kopf-Kommentar
+                       // Kopf-Kommentar
 
-        task A
-        {
-        }
+                       task A
+                       {
+                       }
 
-        """;
+                       """;
 
         AssertFormat(source, expected);
     }
 
     [Test]
     public void FinalNewlineIsInsertedAndTrailingBlankLinesAreTrimmed() {
-        AssertFormat("task A\r\n{\r\n}", "task A\r\n{\r\n}\r\n");
-        AssertFormat("task A\r\n{\r\n}\r\n\r\n\r\n", "task A\r\n{\r\n}\r\n");
+        var expected = """
+                       task A
+                       {
+                       }
+
+                       """;
+
+        // Fehlende Final-Newline (Raw-String endet direkt an """) …
+        var missingNewline = """
+                             task A
+                             {
+                             }
+                             """;
+
+        // … und überzählige End-Leerzeilen (drei Leerzeilen vor """) führen beide auf genau eine Final-Newline.
+        var extraBlankLines = """
+                              task A
+                              {
+                              }
+
+
+
+                              """;
+
+        AssertFormat(missingNewline,  expected);
+        AssertFormat(extraBlankLines, expected);
     }
 
     [Test]
     public void TrailingCommentAtEndOfFileIsPreserved() {
-        AssertFormat("task A\r\n{\r\n}\r\n// Fußnote", "task A\r\n{\r\n}\r\n// Fußnote\r\n");
+        // Kommentar am Dateiende ohne Final-Newline -> genau eine wird ergänzt.
+        var source = """
+                     task A
+                     {
+                     }
+                     // Fußnote
+                     """;
+        var expected = """
+                       task A
+                       {
+                       }
+                       // Fußnote
+
+                       """;
+
+        AssertFormat(source, expected);
     }
 
     [Test]
     public void CommentOnlyFileIsKeptWithFinalNewline() {
-        AssertFormat("   // nur Kommentar", "// nur Kommentar\r\n");
+        var expected = """
+                       // nur Kommentar
+
+                       """;
+
+        AssertFormat("   // nur Kommentar", expected);
     }
 
     [Test]
     public void WhitespaceOnlyFileBecomesEmpty() {
+        // Escaped: reine-Whitespace-Datei (Trailing-Spaces + Leerzeilen) -> leer; als Raw-String nicht darstellbar.
         AssertFormat("   \r\n\r\n  ", "");
     }
 
     [Test]
     public void TrailingWhitespaceIsTrimmedOnEveryRewrittenLine() {
-        AssertFormat("task A   \r\n{\r\n}\r\n", "task A\r\n{\r\n}\r\n");
+        var expected = """
+                       task A
+                       {
+                       }
+
+                       """;
+
+        // Escaped: die Trailing-Spaces hinter "task A" sind der Prüfgegenstand (im Raw-String unsichtbar,
+        // würden vom Editor/Tooling getilgt).
+        AssertFormat("task A   \r\n{\r\n}\r\n", expected);
     }
 
     // InsertFinalNewline = false ist von EOF-Trim und Kommentar-/Direktivzeilen-Normalisierung entkoppelt:
-    // nur die abschließende Newline entfällt, alles Übrige wird trotzdem kanonisiert. Escaptes Literal, weil
-    // die An-/Abwesenheit der Final-Newline der Prüfgegenstand ist.
+    // nur die abschließende Newline entfällt (der Erwartungs-Raw-String endet darum direkt an """), alles
+    // Übrige wird trotzdem kanonisiert.
     static readonly NavFormattingOptions NoFinalNewlineOptions = SpacesOptions with { InsertFinalNewline = false };
 
     [Test]
     public void WithoutInsertFinalNewlineNoTrailingNewlineIsAddedAndBlankLinesAreStillTrimmed() {
-        // Fehlende Final-Newline wird nicht ergänzt …
-        AssertFormat("task A\r\n{\r\n}",             "task A\r\n{\r\n}", NoFinalNewlineOptions);
-        // … eine vorhandene wird als EOF-Trailing entfernt …
-        AssertFormat("task A\r\n{\r\n}\r\n",         "task A\r\n{\r\n}", NoFinalNewlineOptions);
-        // … ebenso überzählige Leerzeilen am Dateiende.
-        AssertFormat("task A\r\n{\r\n}\r\n\r\n\r\n", "task A\r\n{\r\n}", NoFinalNewlineOptions);
+        var expected = """
+                       task A
+                       {
+                       }
+                       """;
+
+        // Keine End-Newline (Raw-String endet direkt an """) …
+        var noNewline = """
+                        task A
+                        {
+                        }
+                        """;
+
+        // … eine Final-Newline (eine Leerzeile vor """) …
+        var oneNewline = """
+                         task A
+                         {
+                         }
+
+                         """;
+
+        // … und überzählige End-Leerzeilen (drei vor """) führen alle auf genau dieses newline-lose Ergebnis.
+        var extraBlankLines = """
+                              task A
+                              {
+                              }
+
+
+
+                              """;
+
+        AssertFormat(noNewline,       expected, NoFinalNewlineOptions);
+        AssertFormat(oneNewline,      expected, NoFinalNewlineOptions);
+        AssertFormat(extraBlankLines, expected, NoFinalNewlineOptions);
     }
 
     [Test]
     public void WithoutInsertFinalNewlineTrailingCommentIsNormalizedButNotNewlineTerminated() {
-        AssertFormat("task A\r\n{\r\n}\r\n// Fußnote\r\n", "task A\r\n{\r\n}\r\n// Fußnote", NoFinalNewlineOptions);
+        var source = """
+                     task A
+                     {
+                     }
+                     // Fußnote
+
+                     """;
+        var expected = """
+                       task A
+                       {
+                       }
+                       // Fußnote
+                       """;
+
+        AssertFormat(source, expected, NoFinalNewlineOptions);
     }
 
     [Test]
     public void WithoutInsertFinalNewlineTrailingWhitespaceIsStillTrimmed() {
-        AssertFormat("task A   \r\n{\r\n}", "task A\r\n{\r\n}", NoFinalNewlineOptions);
+        var expected = """
+                       task A
+                       {
+                       }
+                       """;
+
+        // Escaped: die Trailing-Spaces hinter "task A" sind der Prüfgegenstand (im Raw-String unsichtbar).
+        AssertFormat("task A   \r\n{\r\n}", expected, NoFinalNewlineOptions);
     }
 
     // ---- Einzugsstil ----------------------------------------------------------------------------
-    // Ausnahme wie oben: der erwartete Tab-Einzug ('\t') ist der Prüfgegenstand und im Raw-String
-    // unsichtbar — darum bleiben Ein- und Ausgabe hier escapte Literale.
 
     [Test]
     public void TabsAreTheDefaultIndentStyle() {
-        AssertFormat("task A\r\n{\r\ninit I1;\r\n}\r\n",
-                     "task A\r\n{\r\n\tinit I1;\r\n}\r\n",
-                     NavFormattingOptions.Default);
+        var source = """
+                     task A
+                     {
+                     init I1;
+                     }
+
+                     """;
+
+        // Escaped: der erwartete Tab-Einzug ('\t' vor init) ist der Prüfgegenstand und im Raw-String unsichtbar.
+        AssertFormat(source, "task A\r\n{\r\n\tinit I1;\r\n}\r\n", NavFormattingOptions.Default);
     }
 
 }
