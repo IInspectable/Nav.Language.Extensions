@@ -363,6 +363,34 @@ public class SyntaxFactsTest {
         Assert.That(SyntaxFacts.GetKeywordDescription("Max"), Is.Empty);
     }
 
+    [Test]
+    public void GetKeywordDescription_IsHostSpecific_ForParamsAndResult() {
+
+        // `params`/`result` sind wirt-abhängig — je Code-Block-Wirt eine eigene Bedeutung.
+        var taskParams   = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.TaskDefinition);
+        var initParams   = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.InitNode);
+        var choiceParams = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.ChoiceNode);
+
+        Assert.That(new[] {taskParams, initParams, choiceParams}, Is.Unique);
+        Assert.That(initParams, Does.Contain("Init"));
+        Assert.That(choiceParams, Does.Contain("Choice"));
+
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskDefinition),
+                    Is.Not.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskRef)));
+    }
+
+    [Test]
+    public void GetKeywordDescription_FallsBackToHostNeutral_WhenNoHostOverride() {
+
+        // Wirt ohne Override (`params` gibt es am Datei-Kopf nicht) → host-neutraler Fallback.
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.CompilationUnit),
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword)));
+
+        // Host-unabhängiges Keyword bleibt in jedem Wirt bei seiner einen Bedeutung.
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.BaseKeyword, CodeBlockHost.TaskDefinition),
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.BaseKeyword)));
+    }
+
         
     [Test]
     public void PunctuationsTest() {

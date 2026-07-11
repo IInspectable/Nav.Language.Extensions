@@ -348,7 +348,7 @@ public static class NavCompletionService {
         foreach (var keyword in CodeBlockFacts.AvailableDeclarationKeywords(context.Host, context.PresentCodeKeywords)
                                               .Where(keyword => IsCodeKeywordAvailable(context.Host, keyword, version))
                                               .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(KeywordItem(keyword));
+            items.Add(KeywordItem(keyword, context.Host));
         }
 
         return items;
@@ -444,15 +444,18 @@ public static class NavCompletionService {
 
     static IReadOnlyList<NavCompletionItem> KeywordItems(params string[] keywords) {
         return keywords.OrderBy(k => k, StringComparer.Ordinal)
-                       .Select(KeywordItem)
+                       .Select(k => KeywordItem(k))
                        .ToList();
     }
 
     // Ein Keyword-Vorschlag samt seiner Bedeutung (die einzige Autorität ist SyntaxFacts; auch die
-    // Edge-Operatoren sind dort hinterlegt). Eine fehlende Beschreibung wird zu null normalisiert, damit
-    // der Host das Doku-Panel gar nicht erst befüllt.
-    static NavCompletionItem KeywordItem(string keyword) {
-        var description = SyntaxFacts.GetKeywordDescription(keyword);
+    // Edge-Operatoren sind dort hinterlegt). Der Code-Block-Wirt — sofern bekannt — wählt die kontextgenaue
+    // Bedeutung wirt-abhängiger Keywords (`params`/`result`); ohne Wirt gilt die host-neutrale Fassung. Eine
+    // fehlende Beschreibung wird zu null normalisiert, damit der Host das Doku-Panel gar nicht erst befüllt.
+    static NavCompletionItem KeywordItem(string keyword, CodeBlockHost? host = null) {
+        var description = host is { } h
+                              ? SyntaxFacts.GetKeywordDescription(keyword, h)
+                              : SyntaxFacts.GetKeywordDescription(keyword);
         return new NavCompletionItem(keyword, NavCompletionItemKind.Keyword,
                                      description: description.Length == 0 ? null : description);
     }

@@ -549,6 +549,65 @@ public class NavHoverServiceTests {
         Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.DoKeyword)));
     }
 
+    // `params`/`result` sind wirt-abhängig: dasselbe Literal an Task-Definition, Init- bzw. Choice-Knoten
+    // (und `result` an taskref) bedeutet je etwas anderes. Marker sitzen jeweils direkt vor dem Keyword.
+    static readonly NavMarkup HostKeywordM = NavMarkup.Parse(
+        """
+        #version 2
+        taskref TR [|trResult:|result bool r]
+        {
+            init ti;
+            exit te;
+        }
+        task A [base B]
+               [|taskParams:|params int x]
+               [|taskResult:|result R res]
+        {
+            init I1 [|initParams:|params int y];
+            choice C1 [|choiceParams:|params int z];
+            exit e1;
+
+            I1 --> C1;
+            C1 --> e1;
+        }
+
+        """);
+
+    [Test]
+    public void Hover_OnParamsKeyword_ShowsHostSpecificMeaning() {
+
+        var unit = ParseModel(HostKeywordM.Source, @"n:\av\hk.nav");
+
+        var taskParams   = NavHoverService.GetHover(unit, HostKeywordM.Position("taskParams"));
+        var initParams   = NavHoverService.GetHover(unit, HostKeywordM.Position("initParams"));
+        var choiceParams = NavHoverService.GetHover(unit, HostKeywordM.Position("choiceParams"));
+
+        Assert.That(taskParams?.Documentation,
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.TaskDefinition)));
+        Assert.That(initParams?.Documentation,
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.InitNode)));
+        Assert.That(choiceParams?.Documentation,
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.ChoiceNode)));
+
+        // Der Kern der Sache: der Task-Kopf-`params` zeigt NICHT mehr die Init-Bedeutung.
+        Assert.That(taskParams?.Documentation, Is.Not.EqualTo(initParams?.Documentation));
+    }
+
+    [Test]
+    public void Hover_OnResultKeyword_ShowsHostSpecificMeaning() {
+
+        var unit = ParseModel(HostKeywordM.Source, @"n:\av\hk.nav");
+
+        var taskResult = NavHoverService.GetHover(unit, HostKeywordM.Position("taskResult"));
+        var trResult   = NavHoverService.GetHover(unit, HostKeywordM.Position("trResult"));
+
+        Assert.That(taskResult?.Documentation,
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskDefinition)));
+        Assert.That(trResult?.Documentation,
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskRef)));
+        Assert.That(taskResult?.Documentation, Is.Not.EqualTo(trResult?.Documentation));
+    }
+
     [Test]
     public void Hover_OnKeywordCarriesTokenLocation() {
 

@@ -130,9 +130,10 @@ public static class SyntaxFacts {
         [SpontaneousKeyword] = "Spontaner Übergang ohne explizites Signal.",
         [SpontKeyword]       = "Kurzform von spontaneous — spontaner Übergang ohne explizites Signal.",
         [DoKeyword]          = "Freie Handlungsanweisung zur Aktion einer Transition — rein dokumentierend, ohne Einfluss auf den generierten Code.",
-        // Code-Keywords (in [ … ]-Deklarationen)
-        [ResultKeyword]          = "Rückgabewert eines Tasks bzw. Init-Knotens.",
-        [ParamsKeyword]          = "Parameterliste eines Init-Knotens.",
+        // Code-Keywords (in [ … ]-Deklarationen). `params`/`result` sind wirt-abhängig — die flachen Einträge
+        // hier sind der host-neutrale Fallback; die konkrete Bedeutung je Wirt liefert KeywordDescriptionsByHost.
+        [ResultKeyword]          = "Rückgabewert eines Tasks.",
+        [ParamsKeyword]          = "Parameterliste einer Deklaration (Task, Init- oder Choice-Knoten).",
         [BaseKeyword]            = "Basisklasse und Interfaces der generierten WFS-Klasse.",
         [NamespaceprefixKeyword] = "Namespace-Präfix für den generierten Code.",
         [UsingKeyword]           = "Zusätzliche using-Direktive im generierten Code.",
@@ -152,14 +153,61 @@ public static class SyntaxFacts {
         [ContinuationModalEdgeKeyword] = "Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."
     }.ToImmutableDictionary();
 
+    // Wirt-abhängige Bedeutung eines Keywords: dasselbe Literal meint je Code-Block-Wirt etwas anderes
+    // (`[params]` am Task-Kopf = Parameter des Workflows, am Init-Knoten = dessen Parameter usw.). Diese
+    // Tabelle überschreibt die flache KeywordDescriptions für die betroffenen Wirte; wo kein Eintrag steht,
+    // gilt der host-neutrale Fallback aus KeywordDescriptions. Der Wirt selbst ist die Autorität von
+    // CodeBlockFacts (dieselbe, die die Gültigkeit je Wirt bestimmt).
+    static readonly ImmutableDictionary<(CodeBlockHost Host, string Keyword), string> KeywordDescriptionsByHost =
+        new Dictionary<(CodeBlockHost, string), string> {
+            [(CodeBlockHost.TaskDefinition, ParamsKeyword)] = "Parameterliste des Workflows (WFS).",
+            [(CodeBlockHost.InitNode,       ParamsKeyword)] = "Parameterliste eines Init-Knotens.",
+            [(CodeBlockHost.ChoiceNode,     ParamsKeyword)] = "Parameterliste eines Choice-Knotens.",
+            [(CodeBlockHost.TaskDefinition, ResultKeyword)] = "Rückgabewert des Workflows.",
+            [(CodeBlockHost.TaskRef,        ResultKeyword)] = "Rückgabewert des referenzierten Tasks (taskref)."
+        }.ToImmutableDictionary();
+
     /// <summary>
     /// Die menschenlesbare Bedeutung eines Keywords — <see cref="System.String.Empty"/>, wenn
     /// <paramref name="keyword"/> keins ist bzw. keine hinterlegte Beschreibung hat. Umfasst auch die
     /// Edge-Operatoren (je Literal eine feste Bedeutung); <see cref="IEdgeModeSymbol.Description"/>
-    /// delegiert für eine konkrete Kante hierher.
+    /// delegiert für eine konkrete Kante hierher. Host-neutral: für die wirt-abhängigen Keywords
+    /// (<c>params</c>/<c>result</c>) liefert diese Überladung den Fallback — die kontextgenaue Bedeutung
+    /// geben <see cref="GetKeywordDescription(SyntaxToken)"/> bzw. <see cref="GetKeywordDescription(string, CodeBlockHost)"/>.
     /// </summary>
     public static string GetKeywordDescription(string keyword) {
         return KeywordDescriptions.TryGetValue(keyword, out var description) ? description : "";
+    }
+
+    /// <summary>
+    /// Die kontextabhängige Bedeutung eines Keyword-Tokens — die Variante für die betreffende Position im
+    /// Syntaxbaum (Hover/QuickInfo). Der Code-Block-Wirt wird aus der Ancestor-Kette des Tokens abgeleitet
+    /// (<see cref="CodeBlockFacts.HostKindOf"/>); für wirt-abhängige Keywords (<c>params</c>/<c>result</c>)
+    /// wählt er die passende Erläuterung, sonst gilt die host-neutrale <see cref="GetKeywordDescription(string)"/>.
+    /// <see cref="System.String.Empty"/>, wenn das Token kein Keyword mit hinterlegter Beschreibung ist.
+    /// </summary>
+    public static string GetKeywordDescription(SyntaxToken token) {
+
+        var keyword = token.ToString();
+
+        foreach (var node in token.Parent?.AncestorsAndSelf() ?? Enumerable.Empty<SyntaxNode>()) {
+            if (CodeBlockFacts.HostKindOf(node) is { } host) {
+                return GetKeywordDescription(keyword, host);
+            }
+        }
+
+        return GetKeywordDescription(keyword);
+    }
+
+    /// <summary>
+    /// Die Bedeutung eines Keywords im angegebenen Code-Block-Wirt — die kontextgenaue Variante für die
+    /// Completion, die den Wirt bereits kennt (<c>NavCompletionContext.Host</c>). Für wirt-abhängige
+    /// Keywords die passende Erläuterung, sonst die host-neutrale <see cref="GetKeywordDescription(string)"/>.
+    /// </summary>
+    internal static string GetKeywordDescription(string keyword, CodeBlockHost host) {
+        return KeywordDescriptionsByHost.TryGetValue((host, keyword), out var description)
+                   ? description
+                   : GetKeywordDescription(keyword);
     }
 
     /// <summary>

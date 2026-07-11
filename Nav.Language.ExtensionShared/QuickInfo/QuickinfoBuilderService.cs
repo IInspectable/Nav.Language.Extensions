@@ -44,16 +44,17 @@ sealed partial class QuickinfoBuilderService {
         return SymbolQuickInfoVisitor.Build(source, this);
     }
 
-    public UIElement BuildKeywordQuickInfoContent(string keyword) {
+    public UIElement BuildKeywordQuickInfoContent(string keyword, string description) {
         var control = new SymbolQuickInfoControl {
             CrispImage  = {Moniker = ImageMonikers.Keyword},
             TextContent = {Content = $"keyword {keyword}"}
         };
 
-        // Die Bedeutung des Keywords (einzige Autorität: SyntaxFacts) als Doku-Zeile unter den Kopf —
-        // analog zu AppendDocumentation für Symbole. Ohne hinterlegte Beschreibung bleibt es beim Kopf.
-        var description = SyntaxFacts.GetKeywordDescription(keyword);
-        if (description.Length == 0) {
+        // Die (bereits kontextabhängig aufgelöste) Bedeutung des Keywords als Doku-Zeile unter den Kopf —
+        // analog zu AppendDocumentation für Symbole. Die Auflösung liegt beim Aufrufer, der den Kontext kennt
+        // (Editor-Hover: das Token samt Wirt; Completion-Tooltip: die Beschreibung des Engine-Items). Ohne
+        // Beschreibung bleibt es beim Kopf.
+        if (string.IsNullOrEmpty(description)) {
             return control;
         }
 

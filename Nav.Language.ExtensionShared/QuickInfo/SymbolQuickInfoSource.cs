@@ -74,8 +74,9 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
             return null;
         }
 
-        var keyword = token.ToString();
-        if (SyntaxFacts.GetKeywordDescription(keyword).Length == 0) {
+        var keyword     = token.ToString();
+        var description = SyntaxFacts.GetKeywordDescription(token);
+        if (description.Length == 0) {
             return null;
         }
 
@@ -87,7 +88,7 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
         return new QuickInfoItem(applicableToSpan: applicableToSpan,
-                                 item: QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword));
+                                 item: QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword, description));
     }
 
 }

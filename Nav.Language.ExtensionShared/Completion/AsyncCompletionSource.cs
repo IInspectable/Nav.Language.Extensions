@@ -71,7 +71,8 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         }
 
         if (item.Properties.TryGetProperty<string>(KeywordPropertyName, out var keyword)) {
-            return QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword);
+            item.Properties.TryGetProperty<string>(KeywordDescriptionPropertyName, out var description);
+            return QuickinfoBuilderService.BuildKeywordQuickInfoContent(keyword, description ?? "");
         }
 
         if (item.Properties.TryGetProperty<FileInfo>(NavFileInfoPropertyName, out var fileInfo)) {
@@ -132,7 +133,7 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
 
         var completionItem = item.Symbol != null
             ? CreateSymbolCompletion(item.Symbol, item.Label)
-            : CreateKeywordCompletion(item.Label);
+            : CreateKeywordCompletion(item.Label, item.Description);
 
         if (item.ReplacementExtent is { } extent) {
             ApplyReplacementExtent(completionItem, snapshot, extent);
@@ -141,7 +142,7 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         return completionItem;
     }
 
-    protected CompletionItem CreateKeywordCompletion(string keyword) {
+    protected CompletionItem CreateKeywordCompletion(string keyword, [CanBeNull] string description = null) {
 
         var completionItem = new CompletionItem(displayText: keyword,
                                                 source: this,
@@ -150,6 +151,9 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         );
 
         completionItem.Properties.AddProperty(KeywordPropertyName, keyword);
+        // Die (bereits kontextabhängig aufgelöste) Bedeutung des Engine-Items mitführen, damit der Tooltip
+        // sie NICHT aus dem bloßen Keyword-Literal rekonstruieren muss (was den Wirt-Kontext verlöre).
+        completionItem.Properties.AddProperty(KeywordDescriptionPropertyName, description ?? "");
 
         return completionItem;
     }
@@ -198,9 +202,10 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
     }
 
     // ReSharper disable InconsistentNaming
-    public static string SymbolPropertyName      => nameof(SymbolPropertyName);
-    public static string KeywordPropertyName     => nameof(KeywordPropertyName);
-    public static string NavFileInfoPropertyName => nameof(NavFileInfoPropertyName);
+    public static string SymbolPropertyName            => nameof(SymbolPropertyName);
+    public static string KeywordPropertyName           => nameof(KeywordPropertyName);
+    public static string KeywordDescriptionPropertyName => nameof(KeywordDescriptionPropertyName);
+    public static string NavFileInfoPropertyName       => nameof(NavFileInfoPropertyName);
 
     public static string ReplacementTrackingSpanProperty => nameof(ReplacementTrackingSpanProperty);
     // ReSharper restore InconsistentNaming

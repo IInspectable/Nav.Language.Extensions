@@ -433,12 +433,10 @@ sealed class NavCompletionContext {
 
         if (anchor != null) {
             foreach (var node in anchor.AncestorsAndSelf()) {
-                switch (node) {
-                    case InitNodeDeclarationSyntax:   return (CodeBlockHost.InitNode,       node);
-                    case ChoiceNodeDeclarationSyntax: return (CodeBlockHost.ChoiceNode,     node);
-                    case TaskNodeDeclarationSyntax:   return (CodeBlockHost.TaskNode,       node);
-                    case TaskDefinitionSyntax:        return (CodeBlockHost.TaskDefinition, node);
-                    case TaskDeclarationSyntax:       return (CodeBlockHost.TaskRef,        node);
+                // Knotentyp → Wirt ist die Autorität von CodeBlockFacts (dieselbe, die die kontextabhängige
+                // Keyword-Bedeutung nutzt) — hier nur um den innersten tragenden Knoten angereichert.
+                if (CodeBlockFacts.HostKindOf(node) is { } host) {
+                    return (host, node);
                 }
             }
         }

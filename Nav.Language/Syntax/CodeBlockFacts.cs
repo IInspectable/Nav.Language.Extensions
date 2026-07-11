@@ -46,6 +46,24 @@ enum CodeBlockHost {
 static class CodeBlockFacts {
 
     /// <summary>
+    /// Der <see cref="CodeBlockHost"/>, dessen Deklarations-Knoten dieser Syntax-Knoten <b>ist</b> —
+    /// <c>null</c>, wenn er keiner der Wirt-Deklarationsknoten ist. Die <em>einzige</em> Autorität für die
+    /// Zuordnung Knotentyp → Wirt: sowohl die Completion (Wirt eines gerade getippten <c>[</c>, siehe
+    /// <c>NavCompletionContext.CodeBlockHostAt</c>) als auch die kontextabhängige Keyword-Bedeutung
+    /// (<see cref="SyntaxFacts.GetKeywordDescription(SyntaxToken)"/>) laufen über diesen Schalter, statt ihn
+    /// zu duplizieren. Der Datei-Kopf (<see cref="CodeBlockHost.CompilationUnit"/>) hat bewusst keinen
+    /// eigenen Knotentyp — er ist die <em>Abwesenheit</em> eines umschließenden Wirt-Knotens.
+    /// </summary>
+    public static CodeBlockHost? HostKindOf(SyntaxNode node) => node switch {
+        InitNodeDeclarationSyntax   => CodeBlockHost.InitNode,
+        ChoiceNodeDeclarationSyntax => CodeBlockHost.ChoiceNode,
+        TaskNodeDeclarationSyntax   => CodeBlockHost.TaskNode,
+        TaskDefinitionSyntax        => CodeBlockHost.TaskDefinition,
+        TaskDeclarationSyntax       => CodeBlockHost.TaskRef,
+        _                           => null
+    };
+
+    /// <summary>
     /// Die im Wirt zulässigen Code-Deklarations-Schlüsselwörter in <b>Grammatik-Reihenfolge</b> — spiegelt
     /// die optionalen <c>code*</c>-Deklarationen der jeweiligen Parse-Regel im <c>NavParser</c>. Enthält auch
     /// versteckte Schlüsselwörter (z.B. <c>notimplemented</c>); für nutzerseitige Ausgaben stattdessen

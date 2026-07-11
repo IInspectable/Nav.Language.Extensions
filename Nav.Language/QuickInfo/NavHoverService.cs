@@ -64,7 +64,7 @@ public static class NavHoverService {
             return null;
         }
 
-        var description = SyntaxFacts.GetKeywordDescription(token.ToString());
+        var description = SyntaxFacts.GetKeywordDescription(token);
         if (description.Length == 0) {
             return null;
         }
