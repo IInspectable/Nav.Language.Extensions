@@ -197,7 +197,84 @@ Minimaler `ILanguageClient` im VSIX, der:
 Wird im **reinen Solution-Modus** (kein Open Folder) getestet, neben bzw. mit stillgelegter nativer
 Extension. Danach ist empirisch klar, ob die Strategie trägt.
 
-## 8. Quellen (Auswahl)
+## 8. Greenfield: Projektlayout
+
+Die Migration legt eine **neue Extension neben die bestehende native** (`Nav.Language.Extension2026` +
+`Nav.Language.ExtensionShared`), statt letztere in-place umzubauen — Grund: das Koexistenz-Verbot
+(nativer Dienst + LSP am selben Content-Type, §4) macht ein inkrementelles Feature-für-Feature-*Umbauen*
+im laufenden Produkt unsauber. Greenfield dreht das um: „Schritt für Schritt" gilt für die **Entwicklung**
+(Feature um Feature im noch nicht ausgelieferten Host), der Wechsel für den Endnutzer ist ein sauberer
+**Cutover** (alte deinstallieren, neue installieren). Die alte Extension bleibt bis zum letzten Tag ein
+voller Fallback. Der Spike (§7) ist bereits der erste Commit dieses Projekts, kein Wegwerf-Code.
+
+### 8a. Name
+
+Familie **`Nav.Language.Lsp.VisualStudio`** — bewusst *mit* `Lsp` im Namen: es reiht sich in die
+LSP-Geschichte ein (Server `Nav.Language.Lsp`, VS-Code-Client `vscode-nav-lsp`, jetzt der VS-Client
+`…Lsp.VisualStudio` = „das VS-Stück des LSP") und benennt genau den architektonischen Unterschied zur
+alten `Extension2026`, der die Parallel-Existenz rechtfertigt: LSP-*Client* statt nativer Language Service.
+`RootNamespace` bleibt konventionsgemäß `Pharmatechnik.Nav.Language.Lsp.VisualStudio`.
+
+Das Hauptprojekt-+-shared-Muster der Legacy-Extension wird eins zu eins gespiegelt:
+
+| Rolle | Legacy (nativ) | Neu (LSP-Client) |
+|---|---|---|
+| Head (VSIX, net472) | `Nav.Language.Extension2026` | **`Nav.Language.Lsp.VisualStudio2026`** |
+| Shared-Code (`.shproj`) | `Nav.Language.ExtensionShared` | **`Nav.Language.Lsp.VisualStudioShared`** |
+| Tests | `Nav.Language.Extension.Tests` | **`Nav.Language.Lsp.VisualStudio.Tests`** |
+
+**Jahres-Suffix am Head — Beschluss: mit Jahr (`…VisualStudio2026`) + `.shproj`.** Der `.shproj`-Split
+existiert, um mehrere VS-versionsspezifische Heads über *einen* Code-Body zu bedienen. Ein dünner
+LSP-Client ist zwar weit weniger versionsempfindlich (hängt fast nur an der stabilen
+`ILanguageClient`-API), als dass er den Split zwingend bräuchte — wir spiegeln das Muster dennoch treu,
+weil es risikolos ist und den Multi-Head für künftige VS-Versionen offenhält. Fällt der Multi-Head nie an,
+lässt sich jederzeit auf ein einzelnes `Nav.Language.Lsp.VisualStudio.csproj` (ohne `.shproj`, ohne Jahr)
+kollabieren.
+
+### 8b. Ordnerstruktur (flach im Repo-Root, wie alle anderen Projekte)
+
+```
+Nav.Language.Lsp.VisualStudio2026/            # Head — VSIX, net472
+  Nav.Language.Lsp.VisualStudio2026.csproj    #   importiert …Shared.projitems
+  source.extension.vsixmanifest
+  Properties/AssemblyInfo.cs
+  Icons.imagemanifest, Resources/…            #   VSIX-Beiwerk (wie Legacy)
+
+Nav.Language.Lsp.VisualStudioShared/          # Shared — .shproj + .projitems
+  Nav.Language.Lsp.VisualStudioShared.shproj
+  Nav.Language.Lsp.VisualStudioShared.projitems
+  LanguageClient/                             # das Herz: LSP-Client (Familie A)
+    NavLanguageClient.cs                       #   ILanguageClient (Lifecycle)
+    NavContentTypeDefinitions.cs               #   ContentType + FileExtension→ContentType (MEF)
+    NavServerProcess.cs                        #   startet nav.lsp, stdio-Connection
+    InitializationOptionsProvider.cs           #   Solution-Root via NavSolutionProvider (§5b)
+  CustomMessages/                             # Custom-RPC-Kanal (§5a) — der Linchpin
+    NavCustomMessageTarget.cs                  #   ILanguageClientCustomMessage2
+    NavRpcClient.cs                            #   selbst abgesetzte Requests (semanticTokens, …)
+  Classification/                             # Self-Serve-Tagger via semanticTokens (§5a)
+  CodeLens/                                   # Custom-RPC-Tagger, falls VS es nicht durchreicht
+  CSharp/                                     # Familie C: C#→Nav-Adornments
+    GoTo/                                      #   nahezu verbatim aus Legacy übernommen
+  NavToCSharp/                                # Familie B: Nav→C#-Satellit
+    …LocationInfoProvider.cs                   #   Adapter, füttert Nav.Language.CodeAnalysis
+  Common/                                     # geteilte Helfer (URI-/Snapshot-Mapping)
+
+Nav.Language.Lsp.VisualStudio.Tests/          # Tests (net10 bevorzugt)
+```
+
+Zwei Struktur-Prinzipien:
+
+1. **`LanguageClient/` + `CustomMessages/` + `Classification/` sind exakt der Spike aus §7** — der POC ist
+   der erste Commit dieses Projekts.
+2. **`CSharp/` und `NavToCSharp/` sind die zwei VS-nativen Satelliten aus §5d** (Familien C und B), aus der
+   Legacy übernommen. Der Rest des großen Legacy-`ExtensionShared` (Outlining, QuickInfo-WPF,
+   FindReferences-Presenter, Command-Handler, Margin, NavigationBar …) fällt weg oder wird vom LSP
+   abgedeckt — deshalb ist das neue Shared-Projekt ein Bruchteil der ~270 Legacy-Dateien.
+
+Solution-Einhängung: die drei Projekte als `<Project>` im `Nav.Language.Extensions.slnx` auf Root-Ebene
+(neben `Nav.Language.Lsp`/`Nav.Language.Mcp`).
+
+## 9. Quellen (Auswahl)
 
 - Adding an LSP extension — https://learn.microsoft.com/en-us/visualstudio/extensibility/adding-an-lsp-extension
 - Language Server Protocol (VS) — https://learn.microsoft.com/en-us/visualstudio/extensibility/language-server-protocol
