@@ -44,6 +44,34 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void KeywordItems_CarryTheirDescription() {
+
+        // Auf Member-Ebene werden `task`/`taskref` angeboten — jedes Keyword-Item trägt seine Bedeutung
+        // (einzige Autorität: SyntaxFacts), damit LSP-/VS-Client sie im Doku-Panel zeigen können.
+        var r = At("|");
+
+        r.Item("task")   .HasDescription(SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword));
+        r.Item("taskref").HasDescription(SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskrefKeyword));
+    }
+
+    [Test]
+    public void EdgeKeywordItems_CarryTheirDescription() {
+
+        // Hinter einem Quellknoten werden die Edge-Operatoren angeboten — jede Kante ist ein konkretes
+        // Keyword-Literal mit fester Bedeutung, also trägt auch das Edge-Item seine Beschreibung.
+        At("""
+           task Main
+           {
+               init i;
+               exit e;
+               i |
+           }
+
+           """)
+            .Item("-->").HasDescription(SyntaxFacts.GetKeywordDescription(SyntaxFacts.GoToEdgeKeyword));
+    }
+
+    [Test]
     public void AfterNodeColon_OffersExitConnectionPoints() {
 
         // Task-Knoten Sub (Typ taskref Sub mit exit se); Caret (|) direkt hinter `Sub:`. Nach dem

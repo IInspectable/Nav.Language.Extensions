@@ -49,7 +49,19 @@ sealed partial class QuickinfoBuilderService {
             CrispImage  = {Moniker = ImageMonikers.Keyword},
             TextContent = {Content = $"keyword {keyword}"}
         };
-        return control;
+
+        // Die Bedeutung des Keywords (einzige Autorität: SyntaxFacts) als Doku-Zeile unter den Kopf —
+        // analog zu AppendDocumentation für Symbole. Ohne hinterlegte Beschreibung bleibt es beim Kopf.
+        var description = SyntaxFacts.GetKeywordDescription(keyword);
+        if (description.Length == 0) {
+            return control;
+        }
+
+        var panel = new StackPanel {Orientation = Orientation.Vertical};
+        panel.Children.Add(control);
+        panel.Children.Add(CreateDocumentationTextBlock(description));
+
+        return panel;
     }
 
     public UIElement BuildNavFileInfoQuickInfoContent(FileInfo fileInfo) {

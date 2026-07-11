@@ -1,6 +1,7 @@
 ﻿#region Using Directives
 
 using System.Linq;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 
 using Pharmatechnik.Nav.Language.Text;
@@ -103,6 +104,62 @@ public static class SyntaxFacts {
 
     public static bool IsKeyword(string value) {
         return Keywords.Contains(value);
+    }
+
+    // Menschenlesbare Bedeutung je Keyword — die Erläuterungszeile für Keyword-QuickInfo und
+    // Completion-Tooltips, und zugleich die einzige Autorität für die Kanten-Bedeutung:
+    // IEdgeModeSymbol.Description leitet ihr Literal aus EdgeMode+IsContinuation ab und delegiert hierher.
+    // Jedes Edge-Literal hat eine feste Bedeutung (`--^` ist bereits „Goto+Continuation"), daher stehen die
+    // Edge-Operatoren hier gleichberechtigt neben den Wort-Keywords. Schlüssel sind die kanonischen Literale
+    // (aus den Keyword-Konstanten oben) — inkl. der Pascal-Case-Variante `Init`, die als Symbol-Name des
+    // Init-Knotens ebenfalls in NavKeywords geführt wird.
+    static readonly ImmutableDictionary<string, string> KeywordDescriptions = new Dictionary<string, string> {
+        // Struktur-Keywords
+        [TaskKeyword]        = "Definiert einen Workflow (Task) als eigenständige Einheit — die oberste Ebene einer .nav-Datei.",
+        [TaskrefKeyword]     = "Bindet einen anderen Task als Unter-Workflow ein und macht dessen Ein-/Ausgänge (init/exit/end) referenzierbar.",
+        [InitKeyword]        = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
+        [InitKeywordAlt]     = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
+        [EndKeyword]         = "Endknoten — regulärer Abschluss des Workflows.",
+        [ExitKeyword]        = "Exit-Knoten — benannter Ausgang eines Tasks, von außen über :ExitName ansprechbar.",
+        [ChoiceKeyword]      = "Verzweigungsknoten — wählt anhand von Bedingungen (if/else) einen von mehreren Folgewegen.",
+        [DialogKeyword]      = "GUI-Knoten: zeigt einen Dialog an.",
+        [ViewKeyword]        = "GUI-Knoten: zeigt eine View (Ansicht) an.",
+        [OnKeyword]          = "Trigger einer Transition — das Signal, das den Übergang auslöst.",
+        [IfKeyword]          = "Bedingung (Guard) einer Transition — der Übergang gilt nur, wenn sie zutrifft.",
+        [ElseKeyword]        = "Alternativzweig zu einer if-Bedingung.",
+        [SpontaneousKeyword] = "Spontaner Übergang ohne explizites Signal.",
+        [SpontKeyword]       = "Kurzform von spontaneous — spontaner Übergang ohne explizites Signal.",
+        [DoKeyword]          = "Freie Handlungsanweisung zur Aktion einer Transition — rein dokumentierend, ohne Einfluss auf den generierten Code.",
+        // Code-Keywords (in [ … ]-Deklarationen)
+        [ResultKeyword]          = "Rückgabewert eines Tasks/Init-Knotens: [result Typ name].",
+        [ParamsKeyword]          = "Parameterliste eines init-Knotens (bzw. choice ab Version 2): [params T1 p1, …].",
+        [BaseKeyword]            = "Basisklasse und Interfaces der generierten WFS-Klasse: [base StandardWFS<…> : …].",
+        [NamespaceprefixKeyword] = "Namespace-Präfix für den generierten Code: [namespaceprefix Namespace].",
+        [UsingKeyword]           = "Zusätzliche using-Direktive im generierten Code: [using Namespace].",
+        [CodeKeyword]            = "Wörtlich einzufügender Code-Schnipsel: [code \"…\"].",
+        [GeneratetoKeyword]      = "Zielort für den generierten Code: [generateto \"…\"].",
+        [AbstractmethodKeyword]  = "Erzeugt eine abstrakte Methode — die Implementierung obliegt der abgeleiteten Klasse: [abstractmethod].",
+        [NotimplementedKeyword]  = "Markiert den Member als noch nicht implementiert: [notimplemented].",
+        [DonotinjectKeyword]     = "Unterbindet die Dependency-Injection für diesen Member: [donotinject].",
+        // Präprozessor-Direktiven (hinter #)
+        [VersionDirectiveKeyword] = "Legt die Nav-Sprachversion der Datei fest und schaltet versionsgebundene Features frei.",
+        [PragmaDirectiveKeyword]  = "Pragma-Direktive zur Feinsteuerung (z.B. Diagnosen).",
+        // Kanten (Edge-Operatoren) — je Literal eine feste Bedeutung (Autorität auch für IEdgeModeSymbol).
+        [GoToEdgeKeyword]              = "Ruft das Ziel auf (nicht modal).",
+        [ModalEdgeKeyword]             = "Ruft das Ziel modal auf.",
+        [NonModalEdgeKeyword]          = "Ruft das Ziel nicht-modal auf.",
+        [ContinuationGoToEdgeKeyword]  = "Zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal).",
+        [ContinuationModalEdgeKeyword] = "Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."
+    }.ToImmutableDictionary();
+
+    /// <summary>
+    /// Die menschenlesbare Bedeutung eines Keywords — <see cref="System.String.Empty"/>, wenn
+    /// <paramref name="keyword"/> keins ist bzw. keine hinterlegte Beschreibung hat. Umfasst auch die
+    /// Edge-Operatoren (je Literal eine feste Bedeutung); <see cref="IEdgeModeSymbol.Description"/>
+    /// delegiert für eine konkrete Kante hierher.
+    /// </summary>
+    public static string GetKeywordDescription(string keyword) {
+        return KeywordDescriptions.TryGetValue(keyword, out var description) ? description : "";
     }
 
     public static readonly ImmutableHashSet<string> HiddenKeywords = new[] {

@@ -267,7 +267,7 @@ public static class NavCompletionService {
     static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol and not IEndNodeSymbol);
-        items.Add(new NavCompletionItem(SyntaxFacts.EndKeyword, NavCompletionItemKind.Keyword));
+        items.Add(KeywordItem(SyntaxFacts.EndKeyword));
         return items;
     }
 
@@ -298,7 +298,7 @@ public static class NavCompletionService {
         foreach (var keyword in NodeDeclarationKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(KeywordItem(keyword));
         }
 
         return items;
@@ -314,7 +314,7 @@ public static class NavCompletionService {
         foreach (var keyword in TransitionSourceKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(KeywordItem(keyword));
         }
 
         return items;
@@ -330,7 +330,7 @@ public static class NavCompletionService {
         foreach (var keyword in SyntaxFacts.NavKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(KeywordItem(keyword));
         }
 
         items.AddRange(VisibleEdgeKeywordItems());
@@ -348,7 +348,7 @@ public static class NavCompletionService {
         foreach (var keyword in CodeBlockFacts.AvailableDeclarationKeywords(context.Host, context.PresentCodeKeywords)
                                               .Where(keyword => IsCodeKeywordAvailable(context.Host, keyword, version))
                                               .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(KeywordItem(keyword));
         }
 
         return items;
@@ -394,7 +394,7 @@ public static class NavCompletionService {
         foreach (var keyword in SyntaxFacts.EdgeKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
+            items.Add(KeywordItem(keyword));
         }
 
         return items;
@@ -444,8 +444,17 @@ public static class NavCompletionService {
 
     static IReadOnlyList<NavCompletionItem> KeywordItems(params string[] keywords) {
         return keywords.OrderBy(k => k, StringComparer.Ordinal)
-                       .Select(k => new NavCompletionItem(k, NavCompletionItemKind.Keyword))
+                       .Select(KeywordItem)
                        .ToList();
+    }
+
+    // Ein Keyword-Vorschlag samt seiner Bedeutung (die einzige Autorität ist SyntaxFacts; auch die
+    // Edge-Operatoren sind dort hinterlegt). Eine fehlende Beschreibung wird zu null normalisiert, damit
+    // der Host das Doku-Panel gar nicht erst befüllt.
+    static NavCompletionItem KeywordItem(string keyword) {
+        var description = SyntaxFacts.GetKeywordDescription(keyword);
+        return new NavCompletionItem(keyword, NavCompletionItemKind.Keyword,
+                                     description: description.Length == 0 ? null : description);
     }
 
     // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch. Über <paramref name="roleFilter"/>

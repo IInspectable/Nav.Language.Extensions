@@ -45,7 +45,39 @@ public static class NavHoverService {
             }
         }
 
-        return null;
+        // Kein Symbol unter dem Caret — steht dort ein Keyword-Token, erklärt der Hover dessen Bedeutung.
+        // Kanten tragen als IEdgeModeSymbol bereits oben ein Symbol; hierher fallen die reinen Wort-Keywords
+        // (task/init/if/do/…) und — mangels tragender Kante — vereinzelt ein blanker Edge-Operator.
+        return GetKeywordHover(unit, position);
+    }
+
+    /// <summary>
+    /// Hover für ein Keyword-Token unter dem Caret: seine Bedeutung aus <see cref="SyntaxFacts"/> (die
+    /// einzige Autorität). <c>null</c>, wenn dort kein Keyword-Token steht bzw. keine Beschreibung
+    /// hinterlegt ist. Die Klassifikations-Prüfung grenzt echte Keyword-Token von gleichnamigen
+    /// Bezeichnern ab (die Direktiv-Keywords <c>version</c>/<c>pragma</c> sind nicht reserviert).
+    /// </summary>
+    static NavHoverInfo? GetKeywordHover(CodeGenerationUnit unit, int position) {
+
+        var token = unit.Syntax.SyntaxTree.Tokens.FindAtPosition(position);
+        if (token.IsMissing || !IsKeywordClassification(token.Classification)) {
+            return null;
+        }
+
+        var description = SyntaxFacts.GetKeywordDescription(token.ToString());
+        if (description.Length == 0) {
+            return null;
+        }
+
+        var parts = ImmutableArray.Create(new ClassifiedText(token.ToString(), token.Classification));
+
+        return new NavHoverInfo(parts, token.GetLocation(), Array.Empty<Call>(), description);
+    }
+
+    static bool IsKeywordClassification(TextClassification classification) {
+        return classification is TextClassification.Keyword
+                              or TextClassification.ControlKeyword
+                              or TextClassification.PreprocessorKeyword;
     }
 
     static ImmutableArray<ClassifiedText> GetDisplayParts(ISymbol symbol) {

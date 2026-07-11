@@ -366,4 +366,13 @@ public sealed class ItemAssertion {
     /// <summary>Prüft, dass der Vorschlag KEINEN eigenen Ersetzungsbereich trägt und ihn dem Host überlässt.</summary>
     /// <returns>Diese Zusicherung, damit weitere Prüfungen verkettet werden können.</returns>
     public ItemAssertion LeavesSpanToHost()                  { Assert.That(_item.ReplacementExtent, Is.Null);    return this; }
+
+    /// <summary>Prüft die am Vorschlag hinterlegte Erläuterung (<see cref="NavCompletionItem.Description"/>).</summary>
+    /// <param name="description">Die erwartete Beschreibung.</param>
+    /// <returns>Diese Zusicherung, damit weitere Prüfungen verkettet werden können.</returns>
+    public ItemAssertion HasDescription(string description)  { Assert.That(_item.Description, Is.EqualTo(description)); return this; }
+
+    /// <summary>Prüft, dass der Vorschlag keine Erläuterung trägt (<see cref="NavCompletionItem.Description"/> ist <c>null</c>).</summary>
+    /// <returns>Diese Zusicherung, damit weitere Prüfungen verkettet werden können.</returns>
+    public ItemAssertion HasNoDescription()                  { Assert.That(_item.Description, Is.Null); return this; }
 }

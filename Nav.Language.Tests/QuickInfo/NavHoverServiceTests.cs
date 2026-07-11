@@ -499,6 +499,67 @@ public class NavHoverServiceTests {
         Assert.That(info.Documentation, Is.EqualTo("Doku der Task A"));
     }
 
+    //   |on:|  Trigger-Keyword 'on'
+    //   |if:|  Bedingungs-Keyword 'if'
+    //   |do:|  Handlungs-Keyword 'do'
+    static readonly NavMarkup KeywordM = NavMarkup.Parse(
+        """
+        task A
+        {
+            init I1;
+            dialog D1;
+            exit e1;
+            I1 --> D1 |on:|on Something |if:|if "c" |do:|do "act";
+            D1 --> e1;
+        }
+
+        """);
+
+    [Test]
+    public void Hover_OnTriggerKeyword_ShowsMeaning() {
+
+        var unit = ParseModel(KeywordM.Source, @"n:\av\k.nav");
+        var info = NavHoverService.GetHover(unit, KeywordM.Position("on"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("on"));
+        Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.OnKeyword)));
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnConditionKeyword_ShowsMeaning() {
+
+        var unit = ParseModel(KeywordM.Source, @"n:\av\k.nav");
+        var info = NavHoverService.GetHover(unit, KeywordM.Position("if"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("if"));
+        Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.IfKeyword)));
+    }
+
+    [Test]
+    public void Hover_OnDoKeyword_ShowsMeaning() {
+
+        var unit = ParseModel(KeywordM.Source, @"n:\av\k.nav");
+        var info = NavHoverService.GetHover(unit, KeywordM.Position("do"));
+
+        Assert.That(info,               Is.Not.Null);
+        Assert.That(Signature(info),    Is.EqualTo("do"));
+        Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.DoKeyword)));
+    }
+
+    [Test]
+    public void Hover_OnKeywordCarriesTokenLocation() {
+
+        var unit = ParseModel(KeywordM.Source, @"n:\av\k.nav");
+        var info = NavHoverService.GetHover(unit, KeywordM.Position("do"));
+
+        Assert.That(info,          Is.Not.Null);
+        Assert.That(info.Location, Is.Not.Null);
+        Assert.That(info.Location.Start, Is.EqualTo(KeywordM.Position("do")));
+    }
+
     #region Helpers
 
     static string Signature(NavHoverInfo info) {

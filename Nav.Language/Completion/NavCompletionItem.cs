@@ -23,13 +23,14 @@ public enum NavCompletionItemKind {
 /// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie + optional Einfügetext/Ersetzungsbereich).</summary>
 public sealed class NavCompletionItem {
 
-    public NavCompletionItem(string label, NavCompletionItemKind kind, string? insertText = null, TextExtent? replacementExtent = null, string? detail = null, ISymbol? symbol = null) {
+    public NavCompletionItem(string label, NavCompletionItemKind kind, string? insertText = null, TextExtent? replacementExtent = null, string? detail = null, ISymbol? symbol = null, string? description = null) {
         Label             = label;
         Kind              = kind;
         InsertText        = insertText ?? label;
         ReplacementExtent = replacementExtent;
         Detail            = detail;
         Symbol            = symbol;
+        Description        = description;
     }
 
     /// <summary>Der angezeigte Text (Symbol-/Keyword-Name bzw. Datei-/Verzeichnisname).</summary>
@@ -43,6 +44,13 @@ public sealed class NavCompletionItem {
 
     /// <summary>Optionaler Zusatztext (vom Client rechts/grau dargestellt) — bei Pfad-Vorschlägen der relative Pfad.</summary>
     public string? Detail { get; }
+
+    /// <summary>
+    /// Optionale Erläuterung des Vorschlags (das ausführliche Doku-Panel des Clients) — bei
+    /// Keyword-Vorschlägen (inkl. der Edge-Operatoren) die Bedeutung des Keywords
+    /// (<see cref="SyntaxFacts.GetKeywordDescription"/>). <c>null</c>, wenn es keine gibt (Namen, Pfade).
+    /// </summary>
+    public string? Description { get; }
 
     /// <summary>
     /// Der zu ersetzende Bereich (absolute Dokument-Offsets) — gesetzt bei Pfad-Vorschlägen, damit der
@@ -64,7 +72,7 @@ public sealed class NavCompletionItem {
     /// <c>NavCompletionService.WithOperatorReplacements</c>.
     /// </summary>
     public NavCompletionItem WithReplacementExtent(TextExtent extent) {
-        return new NavCompletionItem(Label, Kind, InsertText, extent, Detail, Symbol);
+        return new NavCompletionItem(Label, Kind, InsertText, extent, Detail, Symbol, Description);
     }
 
 }

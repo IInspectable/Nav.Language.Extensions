@@ -337,6 +337,32 @@ public class SyntaxFactsTest {
         Assert.That(SyntaxFacts.IsKeyword(notAKeyword), Is.False, $"'{notAKeyword}' should NOT be a keyword");
     }
 
+    // Jedes Keyword — inkl. der Edge-Operatoren — trägt eine Beschreibung; verhindert, dass ein neu
+    // ergänztes Keyword ohne Erläuterung durchrutscht.
+    [Test]
+    [TestCaseSource(nameof(ExpectedKeywords))]
+    public void KeywordHasDescription(string keyword) {
+        Assert.That(SyntaxFacts.GetKeywordDescription(keyword), Is.Not.Empty, $"Keyword '{keyword}' should have a description");
+    }
+
+    // Auch die Continuation-Kanten (--^/o-^) — nicht Teil von SyntaxFacts.Keywords — tragen ihre Bedeutung.
+    [Test]
+    [TestCaseSource(nameof(ExpectedContinuationEdgeKeywords))]
+    public void ContinuationEdgeKeywordHasDescription(string keyword) {
+        Assert.That(SyntaxFacts.GetKeywordDescription(keyword), Is.Not.Empty, $"Continuation edge '{keyword}' should have a description");
+    }
+
+    [Test]
+    public void DirectiveKeywordsHaveDescription() {
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.VersionDirectiveKeyword), Is.Not.Empty);
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.PragmaDirectiveKeyword),  Is.Not.Empty);
+    }
+
+    [Test]
+    public void GetKeywordDescriptionForNonKeywordIsEmpty() {
+        Assert.That(SyntaxFacts.GetKeywordDescription("Max"), Is.Empty);
+    }
+
         
     [Test]
     public void PunctuationsTest() {

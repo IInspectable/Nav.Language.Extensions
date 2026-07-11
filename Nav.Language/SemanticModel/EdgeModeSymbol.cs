@@ -37,16 +37,22 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
 
     /// <summary>
     /// Ein Satz, der die Bedeutung des Kantenmodus erklärt — die Erläuterungszeile der QuickInfo (Doku-Stil).
+    /// Delegiert an <see cref="SyntaxFacts.GetKeywordDescription"/>: jede Kante ist ein konkretes
+    /// Keyword-Literal mit fester Bedeutung, dort liegt die einzige Autorität.
     /// </summary>
-    public string Description => EdgeMode switch {
-        EdgeMode.Modal => IsContinuation
-            ? "Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."
-            : "Ruft das Ziel modal auf.",
-        EdgeMode.NonModal => "Ruft das Ziel nicht-modal auf.",
-        EdgeMode.Goto => IsContinuation
-            ? "Zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal)."
-            : "Ruft das Ziel auf (nicht modal).",
-        _ => ""
+    public string Description => SyntaxFacts.GetKeywordDescription(EdgeKeyword);
+
+    /// <summary>
+    /// Das konkrete Kanten-Keyword dieses Modus — die Continuation-Varianten (<c>--^</c>/<c>o-^</c>)
+    /// eingeschlossen. Ein Non-Modal-Continuation gibt es in der Sprache nicht (<c>==></c> ist stets eine
+    /// reguläre Kante), daher fällt <see cref="EdgeMode.NonModal"/> unabhängig von <see cref="IsContinuation"/>
+    /// auf <c>==></c>.
+    /// </summary>
+    string EdgeKeyword => EdgeMode switch {
+        EdgeMode.Modal    => IsContinuation ? SyntaxFacts.ContinuationModalEdgeKeyword : SyntaxFacts.ModalEdgeKeyword,
+        EdgeMode.NonModal => SyntaxFacts.NonModalEdgeKeyword,
+        EdgeMode.Goto     => IsContinuation ? SyntaxFacts.ContinuationGoToEdgeKeyword : SyntaxFacts.GoToEdgeKeyword,
+        _                 => Name
     };
 
 }

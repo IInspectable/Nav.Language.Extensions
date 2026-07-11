@@ -897,6 +897,15 @@ class NavLanguageServer {
                 lspItem.Detail = item.Detail;
             }
 
+            // Die Keyword-Bedeutung ins ausführliche Doku-Panel des Clients (Markdown), z.B. beim Hovern
+            // über einen Vorschlag in der Vorschlagsliste.
+            if (item.Description != null) {
+                lspItem.Documentation = new Protocol.MarkupContent {
+                    Kind  = Protocol.MarkupKind.Markdown,
+                    Value = item.Description
+                };
+            }
+
             // Pfad-Vorschläge ersetzen den gesamten Inhalt zwischen den "" (relativer Pfad ≠ Anzeigename),
             // daher ein expliziter TextEdit statt des Default-Wortersatzes des Clients. Eingefügt wird der
             // relative Pfad; GEFILTERT wird aber — wie in VS — über den DATEINAMEN (Label), nicht über den
