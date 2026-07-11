@@ -473,6 +473,177 @@ public class NavFormattingAlignmentGoldenTests {
         AssertFormat(source, expected, options);
     }
 
+    // ---- Continuation-Spalte (--^ / o-^) --------------------------------------------------------
+
+    [Test]
+    public void ContinuationsAlignTightBehindTheLongestTarget() {
+        // Continuation-Spalte tight hinter dem längsten Ziel-Teil ("Src --> LongTarget" = 18 -> Spalte 19);
+        // die breiteste Zeile bekommt genau einen Space. Pfeile richten sich unabhängig davon aus.
+        var source = """
+                     task Sample
+                     {
+                         Src --> A o-^ Task1;
+                         Src --> LongTarget --^ Task2;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> A          o-^ Task1;
+                           Src --> LongTarget --^ Task2;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleContinuationIsNotAligned() {
+        // Nur eine Transition der Gruppe trägt eine Continuation -> kein Padding, Single-Space.
+        var source = """
+                     task Sample
+                     {
+                         Src --> LongTarget o-^ Task1;
+                         Src --> B;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> LongTarget o-^ Task1;
+                           Src --> B;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void SingleBlankLineBreaksTheContinuationGroup() {
+        // Wie bei den Trailing-Kommentaren bricht bereits eine einzelne Leerzeile den Continuation-Block:
+        // jede Gruppe rechnet ihre eigene Spalte (19 bzw. 11). Die Pfeile bleiben eine Gruppe (dort
+        // bricht erst die zweite Leerzeile) — hier trivial, weil alle Quell-Teile "Src" sind.
+        var source = """
+                     task Sample
+                     {
+                         Src --> A o-^ T1;
+                         Src --> LongTarget o-^ T2;
+
+                         Src --> Bb o-^ T3;
+                         Src --> C o-^ T4;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> A          o-^ T1;
+                           Src --> LongTarget o-^ T2;
+
+                           Src --> Bb o-^ T3;
+                           Src --> C  o-^ T4;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ArrowContinuationTriggerAndConditionBuildOnEachOther() {
+        // Die Spalten stapeln in Quellreihenfolge: die Continuation-Spalte baut auf die Pfeil-Spalte auf,
+        // die Trigger-Spalte auf beide, die Condition-Spalte auf alle drei. '--^'/'o-^' fluchten auf
+        // Spalte 19, 'on' auf Spalte 28, 'if' auf Spalte 34.
+        var source = """
+                     task Sample
+                     {
+                         Src --> A o-^ T1 on E1 if "a";
+                         Src --> LongTarget --^ Trg2 on E2 if "b";
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> A          o-^ T1   on E1 if "a";
+                           Src --> LongTarget --^ Trg2 on E2 if "b";
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ExitTransitionContinuationsAreAligned() {
+        // Exit-Transitionen tragen den tighten ':ExitPort' im Quell-Teil (in der kanonischen Breite
+        // enthalten) und können ebenfalls eine Continuation tragen. Nach der (ebenfalls ausgerichteten)
+        // Pfeil-Spalte rasten die Continuations tight hinter dem längsten Ziel-Teil ein.
+        var source = """
+                     task Sample
+                     {
+                         A:Done --> Foo o-^ C1;
+                         Longer:Cancel --> B --^ C2;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           A:Done          --> Foo o-^ C1;
+                           Longer:Cancel   --> B   --^ C2;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
+    }
+
+    [Test]
+    public void ContinuationsAlignEvenWhenArrowsAreNotAligned() {
+        // Unabhängige Optionen: Pfeile bleiben Single-Space, die Continuations richten sich trotzdem aus
+        // (tight hinter "LongSrc --> B" = 13 -> Spalte 14).
+        var options = SpacesOptions with { AlignArrows = false };
+        var source = """
+                     task Sample
+                     {
+                         Src --> A o-^ Task1;
+                         LongSrc --> B --^ Task2;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> A     o-^ Task1;
+                           LongSrc --> B --^ Task2;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected, options);
+    }
+
+    [Test]
+    public void ContinuationAlignmentCanBeTurnedOff() {
+        var options = SpacesOptions with { AlignContinuations = false };
+        var source = """
+                     task Sample
+                     {
+                         Src --> A o-^ Task1;
+                         Src --> LongTarget --^ Task2;
+                     }
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           Src --> A o-^ Task1;
+                           Src --> LongTarget --^ Task2;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected, options);
+    }
+
     // ---- Node-Grid (keyword | node | rest) ------------------------------------------------------
 
     [Test]

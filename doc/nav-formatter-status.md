@@ -403,14 +403,29 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
   (`Source:ExitPort --> Ziel;`, Quell-Teil inkl. tightem `:ExitPort`). Alle Edge-Keywords sind
   **3 Zeichen** breit (`-->`/`o->`/`==>`, Fortsetzungen `--^`/`o-^`) → die Spalte hinter dem Pfeil
   fluchtet automatisch mit.
+- **Continuation-Spalte** (`ColumnId.Continuation`) = Lücke vor der **führenden** Fortsetzungs-Kante
+  (`--^`/`o-^` einer `ContinuationTransitionSyntax`, dem Continuation-Start). Sie richtet
+  aufeinanderfolgende Continuations unter dem längsten Ziel-Teil aus. Sowohl `TransitionDefinitionSyntax`
+  **als auch** `ExitTransitionDefinitionSyntax` können eine Continuation tragen — eine Transition **ohne**
+  Continuation ist kein Teilnehmer, **bricht die Gruppe aber nicht** (deckungsgleiche Gruppierung zu
+  Pfeil-/Trigger-/Condition-Spalte). Die Breite wird **kanonisch ab Zeilenanfang** gemessen und **baut auf
+  die bereits aufgelöste Pfeil-Spalte auf**; die Continuation sitzt in Quellreihenfolge **zwischen**
+  Ziel-Teil und Trigger, deshalb fügt der Vorpass die Continuation-Spalte **nach** der Pfeil- und **vor**
+  der Trigger-Spalte hinzu (Trigger und Condition bauen wiederum auf ihr auf). Die Spalte ist — wie
+  Trigger/Condition/`[params]` — **immer tight** (`col = max(Breite) + 1`, **kein** Tab-Stopp, keine
+  `AlignmentColumnPolicy`); die interne Lücke der Continuation (`--^`/`o-^` → Ziel-Task) bleibt
+  Single-Space. Anders als Pfeil/Node-Grid — aber **wie die Trailing-Kommentare** — bricht der Block
+  **schon bei einer einzelnen** Leerzeile bzw. Kommentarzeile (`interruptLines ≥ 1`). Ausrichtung nur bei
+  ≥ 2 Teilnehmern je Gruppe. Über die Option `AlignContinuations` schaltbar (Default `true`).
 - **Trigger-Spalte** (`ColumnId.Trigger`) = Lücke vor dem **führenden** `on`/`spontaneous` einer
   `TriggerSyntax` (dem Trigger-Start). Sie richtet aufeinanderfolgende Trigger unter dem längsten Ziel-Teil
   aus. Nur `TransitionDefinitionSyntax` trägt einen Trigger — Exit-Transitionen laufen als
   **Nicht-Teilnehmer** mit (sie **brechen die Gruppe nicht**), damit die Gruppierung deckungsgleich zur
   Pfeil-/Condition-Spalte bleibt; eine **triggerlose** Transition ist ebenfalls kein Teilnehmer, bricht die
   Gruppe aber nicht. Die Breite wird **kanonisch ab Zeilenanfang** gemessen und **baut auf die bereits
-  aufgelöste Pfeil-Spalte auf** (der Trigger sitzt in derselben Zeile rechts vom Pfeil; der Vorpass fügt die
-  Trigger-Spalte **nach** der Pfeil- und **vor** der Condition-Spalte hinzu). Die Spalte ist — wie
+  aufgelösten Pfeil- und Continuation-Spalten auf** (der Trigger sitzt in derselben Zeile rechts davon; der
+  Vorpass fügt die Trigger-Spalte **nach** der Pfeil-/Continuation- und **vor** der Condition-Spalte hinzu).
+  Die Spalte ist — wie
   Condition/`[params]` — **immer tight** (`col = max(Breite) + 1`, **kein** Tab-Stopp, keine
   `AlignmentColumnPolicy`); die breiteste Zeile bekommt genau einen Space. Anders als Pfeil/Node-Grid — aber
   **wie die Trailing-Kommentare** — bricht der Block **schon bei einer einzelnen** Leerzeile bzw.
@@ -421,9 +436,9 @@ Jede Spalte ist eine Entscheidung auf **einem bestimmten Lückentyp**:
   richtet aufeinanderfolgende Bedingungen unter dem längsten Ziel-Teil aus (im Korpus das häufige Muster
   „mehrere Kanten vom selben Choice, je mit einer Bedingung"). Die Breite wird **kanonisch ab
   Zeilenanfang** gemessen (Token-Texte + regel-entschiedene Lücken) und **baut auf die bereits aufgelösten
-  Pfeil- und Trigger-Spalten auf** — die Condition-Lücke sitzt in derselben Zeile rechts von Pfeil und
-  Trigger, deshalb übernimmt die Breitenmessung deren Padding aus der `AlignmentMap` (der Vorpass fügt die
-  Condition-Spalte **nach** Pfeil- und Trigger-Spalte hinzu). Eine **bedingungslose** Transition ist kein
+  Pfeil-, Continuation- und Trigger-Spalten auf** — die Condition-Lücke sitzt in derselben Zeile rechts von
+  Pfeil, Continuation und Trigger, deshalb übernimmt die Breitenmessung deren Padding aus der `AlignmentMap`
+  (der Vorpass fügt die Condition-Spalte **nach** Pfeil-, Continuation- und Trigger-Spalte hinzu). Eine **bedingungslose** Transition ist kein
   Teilnehmer, **bricht die Gruppe aber nicht** (nur `do` bleibt zurückgestellt). Die Spalte ist — anders als
   Pfeil/Node-Grid — **immer tight** (`col = max(Breite) + 1`, **kein** Tab-Stopp, keine
   `AlignmentColumnPolicy`, wie die `[params]`-Spalte `ColumnId.NodeParams`): die nachgestellte Klausel soll
@@ -844,10 +859,11 @@ analog `NavCompletionService.TriggerCharacters`):
   (Korpus-Mehrheit).
 - `AlignArrows = true`, `AlignNodeGrid = true` (das 3-Spalten-Deklarations-Raster `keyword | node |
   rest`, s. „Spaltenausrichtung").
-- `AlignTriggers = true`, `AlignConditions = true` — die nachgestellten `on`/`spontaneous`- bzw.
-  `if`/`else`/`else if`-Klauseln einer Transitions-Gruppe je tight an einer gemeinsamen Spalte ausrichten
-  (s. „Spaltenausrichtung"). Beide brechen — wie die Trailing-Kommentare — schon bei einer einzelnen
-  Leerzeile/Kommentarzeile. Padding immer Spaces.
+- `AlignContinuations = true`, `AlignTriggers = true`, `AlignConditions = true` — die nachgestellten
+  Fortsetzungs-Kanten (`--^`/`o-^`) bzw. `on`/`spontaneous`- und `if`/`else`/`else if`-Klauseln einer
+  Transitions-Gruppe je tight an einer gemeinsamen Spalte ausrichten (s. „Spaltenausrichtung"). Alle drei
+  brechen — wie die Trailing-Kommentare — schon bei einer einzelnen Leerzeile/Kommentarzeile. Padding
+  immer Spaces.
 - `AlignTaskHeadBlocks = true` — Task-Kopf-Code-Blöcke stapeln (Block 1 inline, weitere je Zeile
   darunter) **und** mehrzeilige `[params]` unter dem ersten Parameter ausrichten (s. „Task-Kopf-
   Ausrichtung"). Padding immer Spaces.

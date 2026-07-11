@@ -40,6 +40,7 @@ static class GapRules {
         new TaskHeadLayoutRule(),             // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
         // Alignment
         new ArrowAlignmentRule(),             // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+        new ContinuationAlignmentRule(),      // Ziel-Teil -> --^/o-^ in Gruppe -> Continuation-Spalte
         new TriggerAlignmentRule(),           // Ziel-Teil -> on/spontaneous in Gruppe -> Trigger-Spalte
         new ConditionAlignmentRule(),         // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
         new NodeGridAlignmentRule(),          // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
@@ -410,7 +411,7 @@ sealed class TaskHeadLayoutRule: IGapRule {
 /// (<see cref="AlignmentMap"/>); ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
 /// Lücke als Single-Space. Alle Edge-Keywords sind 3 Zeichen breit — die Spalte hinter dem Pfeil
 /// fluchtet automatisch mit. Fortsetzungs-Kanten (<c>--^</c>/<c>o-^</c>) sind kein
-/// <see cref="EdgeSyntax"/> und bleiben beim Single-Space-Idiom des Catch-all.
+/// <see cref="EdgeSyntax"/> — sie haben ihre eigene Spalte (<see cref="ContinuationAlignmentRule"/>).
 /// </summary>
 sealed class ArrowAlignmentRule: IGapRule {
 
@@ -421,6 +422,45 @@ sealed class ArrowAlignmentRule: IGapRule {
         ctx.NextParent is EdgeSyntax { Parent: TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax }
             ? new GapLayout.AlignedColumn(ColumnId.Arrow)
             : null;
+
+}
+
+/// <summary>
+/// Alignment: die Lücke vor der führenden Fortsetzungs-Kante (<c>--^</c>/<c>o-^</c> einer
+/// <see cref="ContinuationTransitionSyntax"/>) nimmt an der Continuation-Spalte ihrer Transitions-Gruppe
+/// teil (sowohl <see cref="TransitionDefinitionSyntax"/> als auch <see cref="ExitTransitionDefinitionSyntax"/>
+/// können eine Continuation tragen). Ob und wie weit, hat der Vorpass entschieden
+/// (<see cref="AlignmentMap"/>) — ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
+/// Lücke als Single-Space. Die interne Lücke der Continuation (<c>--^</c>/<c>o-^</c> → Ziel-Task) bleibt
+/// beim Single-Space-Idiom des Catch-all.
+/// </summary>
+sealed class ContinuationAlignmentRule: IGapRule {
+
+    public RulePriority Tier => RulePriority.Alignment;
+
+    public GapLayout? Apply(in GapContext ctx) =>
+        ctx.Options.AlignContinuations && StartsContinuation(in ctx)
+            ? new GapLayout.AlignedColumn(ColumnId.Continuation)
+            : null;
+
+    /// <summary>
+    /// Ob <c>ctx.Next</c> das <b>erste</b> Token der <see cref="ContinuationTransitionSyntax"/> einer
+    /// (Exit-)Transition ist (das führende <c>--^</c> bzw. <c>o-^</c> der Fortsetzungs-Kante).
+    /// </summary>
+    static bool StartsContinuation(in GapContext ctx) {
+
+        if (ctx.NextParent == null) {
+            return false;
+        }
+
+        foreach (var continuation in ctx.NextParent.AncestorsAndSelf().OfType<ContinuationTransitionSyntax>()) {
+            if (continuation.Parent is TransitionDefinitionSyntax or ExitTransitionDefinitionSyntax) {
+                return ctx.Next.Start == continuation.Start;
+            }
+        }
+
+        return false;
+    }
 
 }
 

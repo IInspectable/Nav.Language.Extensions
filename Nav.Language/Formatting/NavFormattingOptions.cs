@@ -26,6 +26,14 @@ public record NavFormattingOptions {
     public bool AlignArrows { get; init; } = true;
 
     /// <summary>
+    /// Aufeinanderfolgende Fortsetzungs-Kanten (<c>--^</c>/<c>o-^</c>) einer Transitions-Gruppe
+    /// spaltenweise ausrichten (tight unter dem längsten Ziel-Teil, in Quellreihenfolge zwischen Ziel-Teil
+    /// und Trigger). Wie bei den Trailing-Kommentaren bricht bereits <b>eine einzelne</b> Leerzeile (bzw.
+    /// eine eigene Kommentarzeile) den Block. Default: <c>true</c>.
+    /// </summary>
+    public bool AlignContinuations { get; init; } = true;
+
+    /// <summary>
     /// Aufeinanderfolgende Trigger (<c>on …</c>/<c>spontaneous</c>) einer Transitions-Gruppe spaltenweise
     /// ausrichten (tight unter dem längsten Ziel-Teil). Wie bei den Trailing-Kommentaren bricht bereits
     /// <b>eine einzelne</b> Leerzeile (bzw. eine eigene Kommentarzeile) den Block. Default: <c>true</c>.

@@ -12,11 +12,21 @@ enum ColumnId {
     Arrow,
 
     /// <summary>
+    /// Continuation-Spalte einer Transitions-Gruppe: Lücke vor der führenden Fortsetzungs-Kante
+    /// (<c>--^</c>/<c>o-^</c> der <see cref="ContinuationTransitionSyntax"/>). Richtet aufeinanderfolgende
+    /// Continuations unter dem längsten Ziel-Teil aus; steht in Quellreihenfolge zwischen Ziel-Teil und
+    /// Trigger, misst kanonisch ab Zeilenanfang und baut dabei auf die bereits aufgelöste Pfeil-Spalte auf.
+    /// Die Gruppenbildung ist — wie bei den Trailing-Kommentaren — bereits durch <b>eine einzelne</b>
+    /// Leerzeile bzw. Kommentarzeile unterbrochen.
+    /// </summary>
+    Continuation,
+
+    /// <summary>
     /// Trigger-Spalte einer Transitions-Gruppe: Lücke vor dem führenden <c>on</c>/<c>spontaneous</c> der
     /// <see cref="TriggerSyntax"/>. Richtet aufeinanderfolgende Trigger unter dem längsten Ziel-Teil aus;
-    /// misst kanonisch ab Zeilenanfang und baut dabei auf die bereits aufgelöste Pfeil-Spalte auf. Die
-    /// Gruppenbildung ist — wie bei den Trailing-Kommentaren — bereits durch <b>eine einzelne</b>
-    /// Leerzeile bzw. Kommentarzeile unterbrochen.
+    /// misst kanonisch ab Zeilenanfang und baut dabei auf die bereits aufgelösten Pfeil- und
+    /// Continuation-Spalten auf. Die Gruppenbildung ist — wie bei den Trailing-Kommentaren — bereits durch
+    /// <b>eine einzelne</b> Leerzeile bzw. Kommentarzeile unterbrochen.
     /// </summary>
     Trigger,
 
@@ -24,7 +34,7 @@ enum ColumnId {
     /// Condition-Spalte einer Transitions-Gruppe: Lücke vor dem <c>if</c>/<c>else</c>/<c>else if</c> der
     /// <see cref="ConditionClauseSyntax"/> (das führende Keyword der Klausel). Richtet aufeinanderfolgende
     /// Bedingungen unter dem längsten Ziel-Teil aus; misst kanonisch ab Zeilenanfang und baut dabei auf
-    /// die bereits aufgelösten Pfeil- und Trigger-Spalten auf. Die Gruppenbildung ist — wie bei den
+    /// die bereits aufgelösten Pfeil-, Continuation- und Trigger-Spalten auf. Die Gruppenbildung ist — wie bei den
     /// Trailing-Kommentaren — bereits durch <b>eine einzelne</b> Leerzeile bzw. Kommentarzeile unterbrochen.
     /// </summary>
     Condition,

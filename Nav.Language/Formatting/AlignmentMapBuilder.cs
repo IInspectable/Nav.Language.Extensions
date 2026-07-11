@@ -36,7 +36,8 @@ static class AlignmentMapBuilder {
     public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts) {
 
         if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks &&
-            !options.AlignTriggers && !options.AlignConditions && !options.AlignTrailingComments) {
+            !options.AlignContinuations && !options.AlignTriggers && !options.AlignConditions &&
+            !options.AlignTrailingComments) {
             return AlignmentMap.Empty;
         }
 
@@ -57,9 +58,20 @@ static class AlignmentMapBuilder {
                 AddArrowColumns(syntaxTree, options, facts, task.TransitionDefinitionBlock, spaces);
             }
 
-            // Nach der Pfeil-Spalte: die Trigger-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
-            // auf (sie steckt in derselben Zeile rechts vom Pfeil) — daher zwingend nach AddArrowColumns.
-            // Nur TransitionDefinitionSyntax trägt einen Trigger; Exit-Transitionen laufen als
+            // Nach der Pfeil-Spalte, vor der Trigger-Spalte: die Continuation-Spalte (--^/o-^) steht in
+            // Quellreihenfolge zwischen Ziel-Teil und Trigger. Sie baut auf die aufgelösten Pfeil-Paddings
+            // auf; Trigger und Condition bauen wiederum auf ihr auf — daher zwingend nach AddArrowColumns
+            // und vor der Trigger-Spalte. Sowohl Transitions- als auch Exit-Transitionen können eine
+            // Continuation tragen; eine Transition ohne Continuation ist kein Teilnehmer, bricht die Gruppe
+            // aber nicht (deckungsgleiche Gruppierung zu Pfeil-/Trigger-/Condition-Spalte).
+            if (options.AlignContinuations) {
+                AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
+                                      s => MeasureTransitionClause(syntaxTree, options, facts, s, ContinuationOf, spaces), spaces);
+            }
+
+            // Nach der Continuation-Spalte: die Trigger-Spalte baut auf die bereits aufgelösten Pfeil- und
+            // Continuation-Paddings auf (sie steckt in derselben Zeile rechts davon) — daher zwingend
+            // danach. Nur TransitionDefinitionSyntax trägt einen Trigger; Exit-Transitionen laufen als
             // Nicht-Teilnehmer mit (brechen die Gruppe nicht), damit die Gruppierung deckungsgleich zur
             // Pfeil-/Condition-Spalte bleibt.
             if (options.AlignTriggers) {
@@ -400,14 +412,14 @@ static class AlignmentMapBuilder {
     }
 
     /// <summary>
-    /// Vermisst eine (Exit-)Transition für eine nachgestellte Klausel-Spalte (Trigger bzw. Condition,
-    /// gewählt über <paramref name="clauseOf"/>): kanonische Breite ab Zeilenanfang bis zur führenden
-    /// Klausel — die inneren Lücken kommen aus der Regelentscheidung, eine bereits aufgelöste Pfeil-/
-    /// Trigger-Spalte aus <paramref name="spaces"/> (damit die Ausrichtungen nicht auseinanderlaufen).
-    /// Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die Gruppe; fehlt die Klausel
-    /// (triggerlose bzw. bedingungslose Transition, jede Exit-Transition beim Trigger) ⇒ kein Teilnehmer,
-    /// bricht die Gruppe aber nicht; ein Kommentar/eine Direktive im Vor-Klausel-Bereich ⇒ nur aus der
-    /// Spalte ausgeschlossen.
+    /// Vermisst eine (Exit-)Transition für eine nachgestellte Klausel-Spalte (Continuation, Trigger bzw.
+    /// Condition, gewählt über <paramref name="clauseOf"/>): kanonische Breite ab Zeilenanfang bis zur
+    /// führenden Klausel — die inneren Lücken kommen aus der Regelentscheidung, eine bereits aufgelöste
+    /// Pfeil-/Continuation-/Trigger-Spalte aus <paramref name="spaces"/> (damit die Ausrichtungen nicht
+    /// auseinanderlaufen). Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die
+    /// Gruppe; fehlt die Klausel (Transition ohne Continuation, triggerlose bzw. bedingungslose Transition,
+    /// jede Exit-Transition beim Trigger) ⇒ kein Teilnehmer, bricht die Gruppe aber nicht; ein Kommentar/
+    /// eine Direktive im Vor-Klausel-Bereich ⇒ nur aus der Spalte ausgeschlossen.
     /// </summary>
     static ClauseCandidate MeasureTransitionClause(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
                                                    SyntaxNode statement, Func<SyntaxNode, SyntaxNode?> clauseOf, Dictionary<int, int> spaces) {
@@ -452,6 +464,13 @@ static class AlignmentMapBuilder {
         TransitionDefinitionSyntax t     => (t.Edge?.Keyword ?? SyntaxToken.Missing, t.Semicolon),
         ExitTransitionDefinitionSyntax e => (e.Edge?.Keyword ?? SyntaxToken.Missing, e.Semicolon),
         _                                => (SyntaxToken.Missing, SyntaxToken.Missing),
+    };
+
+    /// <summary>Die Continuation (<c>--^</c>/<c>o-^</c>) einer (Exit-)Transition — beide können eine tragen.</summary>
+    static SyntaxNode? ContinuationOf(SyntaxNode statement) => statement switch {
+        TransitionDefinitionSyntax t     => t.ContinuationTransition,
+        ExitTransitionDefinitionSyntax e => e.ContinuationTransition,
+        _                                => null,
     };
 
     /// <summary>Der Trigger einer Transition (nur <see cref="TransitionDefinitionSyntax"/> trägt einen).</summary>
