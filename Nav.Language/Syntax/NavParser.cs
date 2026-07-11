@@ -2010,13 +2010,22 @@ sealed partial class NavParser {
     /// äußeren Body-Anker von <see cref="BreaksBody"/>). So bleibt der Schaden einer unvollständigen
     /// <c>[ … ]</c>-Deklaration auf die Klammer beschränkt, statt in die folgenden Deklarationen
     /// auszubluten (das Klammer-Pendant zu <see cref="TargetStartsNextTransition"/> bei Transitionen).
+    /// <para/>
+    /// Zusätzlicher Zeilen-Anker: beginnt eine <b>neue Zeile</b> mit einem <c>[</c>, gehört dieses zu
+    /// einer neuen <c>[ … ]</c>-Deklaration — der laufenden Klammer fehlt also nur das <c>]</c>. Statt
+    /// über die Zeilengrenze in die (für sich korrekte) nächste Deklaration hineinzulaufen (dort dann
+    /// irreführend „unexpected input '['"), bricht die Recovery hier ab; <see cref="EatCloseBracket"/>
+    /// meldet danach das treffende „missing ']'" am Ende der laufenden Zeile. Innerhalb einer Klammer
+    /// steht auf einer Folgezeile nie legitim ein <c>[</c> (mehrzeilige Inhalte wie <c>[code …]</c>-
+    /// Literale sind bereits konsumiert, bevor das <c>]</c> gesucht wird).
     /// </summary>
     bool ClosesBracketRegion() {
-        return At(SyntaxTokenType.CloseBracket) ||
-               At(SyntaxTokenType.Semicolon)    ||
-               At(SyntaxTokenType.OpenBrace)    ||
-               StartsNodeDeclaration()          ||
-               BreaksBody();
+        return At(SyntaxTokenType.CloseBracket)          ||
+               At(SyntaxTokenType.Semicolon)             ||
+               At(SyntaxTokenType.OpenBrace)             ||
+               StartsNodeDeclaration()                   ||
+               BreaksBody()                              ||
+               (OnNewLine() && At(SyntaxTokenType.OpenBracket));
     }
 
     /// <summary>Typ des n-ten parser-sichtbaren Tokens ab der aktuellen Position (Trivia übersprungen).</summary>
