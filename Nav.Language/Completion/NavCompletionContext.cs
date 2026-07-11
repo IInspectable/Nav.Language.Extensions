@@ -667,9 +667,21 @@ sealed class NavCompletionContext {
         // EdgeSlot. (Die mehrzeichigen Edges werden zeichenweise als eigene Unknown-Token gelext, daher der
         // Rücklauf über den ganzen zusammenhängenden Lauf.)
         if (IsPartialEdgeToken(token) && position <= token.End) {
+            var leftmost = token;
             var previous = TokenLeftOf(tree, token.Start);
             while (IsPartialEdgeToken(previous)) {
+                leftmost = previous;
                 previous = TokenLeftOf(tree, previous.Start);
+            }
+
+            // Das führende `o` von `o->`/`o-^` lext der Lexer als Identifier (ein `o` allein bildet kein
+            // Edge-Token) und der Parser hängt es — lückenlos an die Edge-Zeichen geklebt — als Zielknoten in
+            // den Baum. Zählt es so zum angefangenen Edge-Lauf, ist es dessen Auftakt und KEIN Ziel: mit
+            // überspringen, damit der Kontext der Quellknoten links davon bleibt (→ EdgeSlot) statt fälschlich
+            // AfterTarget am vermeintlichen Ziel `o`. Die Lückenlosigkeit (End == Start) grenzt das gegen einen
+            // echten, durch Whitespace getrennten Knoten `o` ab.
+            if (IsEdgeStarterIdentifier(previous) && previous.End == leftmost.Start) {
+                return TokenLeftOf(tree, previous.Start);
             }
 
             return previous;
@@ -731,6 +743,20 @@ sealed class NavCompletionContext {
     static bool IsPartialEdgeToken(SyntaxToken token) {
 
         if (token.IsMissing || token.Type != SyntaxTokenType.Unknown) {
+            return false;
+        }
+
+        var text = token.ToString();
+        return text.Length > 0 && text.All(SyntaxFacts.IsEdgeCharacter);
+    }
+
+    // Das als Identifier gelexte führende Edge-Zeichen einer angefangenen `o->`/`o-^`-Kante: `o` ist zugleich
+    // ein Bezeichner-Zeichen, ein `o` allein bildet daher kein Edge-Token, sondern einen Identifier. Nur als
+    // lückenlos geklebter Auftakt eines Edge-Laufs relevant (siehe ContextToken) — die reguläre Kontext-
+    // Bestimmung eines freistehenden Knotens `o` bleibt unberührt.
+    static bool IsEdgeStarterIdentifier(SyntaxToken token) {
+
+        if (token.IsMissing || token.Type != SyntaxTokenType.Identifier) {
             return false;
         }
 

@@ -513,6 +513,62 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void EdgeSlot_AfterPartialModalEdge_OffersEdgeKeywordsNotClauses() {
+
+        // `View o-|`: der Cursor klebt an der gerade angefangenen modalen Kante `o->`. Das führende `o` lext der
+        // Lexer als Identifier (ein `o` allein bildet kein Edge-Token), und der Parser hängt es als vermeintliches
+        // Ziel `o` in den Baum. Lückenlos an das `-` geklebt ist es aber der Auftakt der Kante — der Kontext bleibt
+        // der Quellknoten `View` (EdgeSlot), nicht das Ziel. Angeboten werden daher die Edge-Keywords (der Host
+        // filtert per `o-`-Präfix auf `o->`), NICHT die Folge-Klauseln do/on/if/else.
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               view View;
+               dialog MsgExit;
+               i --> View;
+               View o-|
+           }
+
+           """)
+            .Offers(Keyword(SyntaxFacts.GoToEdgeKeyword),
+                    Keyword(SyntaxFacts.ModalEdgeKeyword));
+    }
+
+    [Test]
+    public void EdgeSlot_CommitModalEdge_AfterPartialModalEdge_ReplacesTypedChars() {
+
+        // Commit von `o->` an `View o-|` ersetzt die bereits getippten Zeichen `o-`, statt sie zu `o-o->` zu
+        // verdoppeln — der Operator-Ersetzungsbereich deckt den ganzen Edge-Lauf (inkl. des führenden `o`) ab.
+        At("""
+           task A
+           {
+               init i;
+               exit e;
+               view View;
+               dialog MsgExit;
+               i --> View;
+               View o-|
+           }
+
+           """)
+            .Commit(SyntaxFacts.ModalEdgeKeyword)
+            .Produces("""
+                      task A
+                      {
+                          init i;
+                          exit e;
+                          view View;
+                          dialog MsgExit;
+                          i --> View;
+                          View o->
+                      }
+
+                      """);
+    }
+
+    [Test]
     public void AfterFilledDo_OffersNothing() {
 
         // Vollständige `do Aufruf`-Klausel: Anker ist der Aufruf-Wert, tragende Rolle die do-Klausel darüber
