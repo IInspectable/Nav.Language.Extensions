@@ -59,14 +59,20 @@ static class AlignmentMapBuilder {
 
             // Nach der Pfeil-Spalte: die Trigger-Spalte baut auf die bereits aufgelösten Pfeil-Paddings
             // auf (sie steckt in derselben Zeile rechts vom Pfeil) — daher zwingend nach AddArrowColumns.
+            // Nur TransitionDefinitionSyntax trägt einen Trigger; Exit-Transitionen laufen als
+            // Nicht-Teilnehmer mit (brechen die Gruppe nicht), damit die Gruppierung deckungsgleich zur
+            // Pfeil-/Condition-Spalte bleibt.
             if (options.AlignTriggers) {
-                AddTriggerColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
+                AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
+                                      s => MeasureTransitionClause(syntaxTree, options, s, TriggerOf, spaces), spaces);
             }
 
             // Nach der Trigger-Spalte: die Condition-Spalte steht in Quellreihenfolge rechts vom Trigger
-            // und baut auf dessen (sowie auf das Pfeil-) Padding auf — daher nach AddTriggerColumns.
+            // und baut auf dessen (sowie auf das Pfeil-) Padding auf — daher nach der Trigger-Spalte. Eine
+            // bedingungslose Transition ist kein Teilnehmer, bricht die Gruppe aber nicht.
             if (options.AlignConditions) {
-                AddConditionColumns(syntaxTree, options, task.TransitionDefinitionBlock, spaces);
+                AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
+                                      s => MeasureTransitionClause(syntaxTree, options, s, ConditionOf, spaces), spaces);
             }
 
             // Trailing-Kommentare zuletzt: ihre Zeilenbreite baut auf allen bereits aufgelösten Spalten
@@ -75,8 +81,10 @@ static class AlignmentMapBuilder {
             // trennt sie ohnehin, aber die getrennten Sequenzen machen die Gruppierung auch dann
             // idempotent, wenn der Autor keine Leerzeile gesetzt hatte.
             if (options.AlignTrailingComments) {
-                AddTrailingCommentColumns(syntaxTree, options, task.NodeDeclarationBlock.NodeDeclarations, spaces, trailingCommentSpaces);
-                AddTrailingCommentColumns(syntaxTree, options, Transitions(task.TransitionDefinitionBlock), spaces, trailingCommentSpaces);
+                AddTightClauseColumns(syntaxTree, task.NodeDeclarationBlock.NodeDeclarations,
+                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
+                AddTightClauseColumns(syntaxTree, Transitions(task.TransitionDefinitionBlock),
+                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
             }
         }
 
@@ -91,7 +99,8 @@ static class AlignmentMapBuilder {
             }
 
             if (options.AlignTrailingComments) {
-                AddTrailingCommentColumns(syntaxTree, options, taskref.ConnectionPoints, spaces, trailingCommentSpaces);
+                AddTightClauseColumns(syntaxTree, taskref.ConnectionPoints,
+                                      s => MeasureTrailingComment(syntaxTree, options, s, spaces), trailingCommentSpaces);
             }
         }
 
@@ -334,11 +343,18 @@ static class AlignmentMapBuilder {
         return candidate;
     }
 
-    // ---- Trigger-Spalte (on … / spontaneous) -----------------------------------------------------
+    // ---- Nachgestellte tight-Spalten (Trigger / Condition / Trailing-Kommentar) ------------------
 
-    sealed class TriggerCandidate {
+    /// <summary>
+    /// Der gemeinsame Kandidat der drei <b>tight</b> ausgerichteten Spalten (Trigger, Condition,
+    /// Trailing-Kommentar): eine auszurichtende Anweisung mit ihrer kanonischen Vor-Spalten-Breite und der
+    /// Startposition der zu paddenden Lücke. <see cref="BreaksGroup"/> = defekt/hand-gelegt (bricht die
+    /// Ausrichtungsgruppe), <see cref="IsAligned"/> = trägt die Spalte tatsächlich (Nicht-Teilnehmer laufen
+    /// als Gruppen-erhaltende Mitläufer mit).
+    /// </summary>
+    sealed class ClauseCandidate {
 
-        public TriggerCandidate(SyntaxNode statement) {
+        public ClauseCandidate(SyntaxNode statement) {
             Statement = statement;
         }
 
@@ -351,28 +367,20 @@ static class AlignmentMapBuilder {
     }
 
     /// <summary>
-    /// Richtet die <c>on …</c>/<c>spontaneous</c>-Trigger aufeinanderfolgender Transitionen spaltenweise
-    /// aus. Nur <see cref="TransitionDefinitionSyntax"/> trägt einen Trigger; Exit-Transitionen laufen als
-    /// Nicht-Teilnehmer mit (sie brechen die Gruppe nicht), damit die Gruppierung deckungsgleich zur
-    /// Pfeil-/Condition-Spalte bleibt. Eine triggerlose Transition ist ebenfalls kein Teilnehmer, bricht
-    /// die Gruppe aber nicht. Anders als Pfeil/Node-Grid — aber wie die Trailing-Kommentare — bricht die
-    /// Gruppe bereits bei <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>).
-    /// Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten
-    /// Zeile, kein Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die Condition-Spalte).
+    /// Der generische Tight-Spalten-Baustein für die drei nachgestellten Klausel-Spalten (Trigger,
+    /// Condition, Trailing-<c>//</c>-Kommentar). Er vermisst je Anweisung einen <see cref="ClauseCandidate"/>
+    /// über den übergebenen <paramref name="measure"/>-Selektor, partitioniert bei
+    /// <c>interruptThreshold: 1</c> (anders als Pfeil/Node-Grid bricht schon <b>eine einzelne</b> Leerzeile
+    /// bzw. Kommentarzeile die Gruppe) und löst jede Gruppe mit ≥ 2 Teilnehmern <b>tight</b> auf: ein Space
+    /// hinter der längsten Zeile (<c>max(Breite) + 1</c>, kein Tab-Stopp/keine
+    /// <see cref="AlignmentColumnPolicy"/>). Das Padding landet in <paramref name="target"/> — für Trigger/
+    /// Condition ist das die Haupt-<c>spaces</c>-Tabelle, für den Trailing-Kommentar die eigene
+    /// <c>trailingCommentSpaces</c>-Tabelle (der Renderer schlägt ihn dort direkt nach).
     /// </summary>
-    static void AddTriggerColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
+    static void AddTightClauseColumns(SyntaxTree syntaxTree, IEnumerable<SyntaxNode> statements,
+                                      Func<SyntaxNode, ClauseCandidate> measure, Dictionary<int, int> target) {
 
-        var candidates = new List<TriggerCandidate>();
-
-        foreach (var transition in block.TransitionDefinitions) {
-            candidates.Add(CreateTriggerCandidate(syntaxTree, options, transition, transition.Edge, transition.Semicolon, transition.Trigger, spaces));
-        }
-
-        foreach (var exitTransition in block.ExitTransitionDefinitions) {
-            candidates.Add(CreateTriggerCandidate(syntaxTree, options, exitTransition, exitTransition.Edge, exitTransition.Semicolon, trigger: null, spaces));
-        }
-
-        candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
+        var candidates = statements.OrderBy(s => s.Start).Select(measure).ToList();
 
         foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
 
@@ -384,24 +392,26 @@ static class AlignmentMapBuilder {
             var targetCol = participants.Max(c => c.Width) + 1;
 
             foreach (var participant in participants) {
-                spaces[participant.GapStart] = targetCol - participant.Width;
+                target[participant.GapStart] = targetCol - participant.Width;
             }
         }
     }
 
     /// <summary>
-    /// Vermisst eine (Exit-)Transition für die Trigger-Spalte: kanonische Breite ab Zeilenanfang bis zum
-    /// führenden Trigger-Keyword — die inneren Lücken kommen aus der Regelentscheidung, die bereits
-    /// aufgelöste Pfeil-Spalte aus <paramref name="spaces"/>. Defekt (fehlende Kante / fehlendes <c>;</c>)
-    /// oder hand-gelegt ⇒ bricht die Gruppe; kein Trigger ⇒ kein Teilnehmer (bricht nicht); ein Kommentar/
-    /// eine Direktive im Vor-Trigger-Bereich ⇒ nur aus der Spalte ausgeschlossen.
+    /// Vermisst eine (Exit-)Transition für eine nachgestellte Klausel-Spalte (Trigger bzw. Condition,
+    /// gewählt über <paramref name="clauseOf"/>): kanonische Breite ab Zeilenanfang bis zur führenden
+    /// Klausel — die inneren Lücken kommen aus der Regelentscheidung, eine bereits aufgelöste Pfeil-/
+    /// Trigger-Spalte aus <paramref name="spaces"/> (damit die Ausrichtungen nicht auseinanderlaufen).
+    /// Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die Gruppe; fehlt die Klausel
+    /// (triggerlose bzw. bedingungslose Transition, jede Exit-Transition beim Trigger) ⇒ kein Teilnehmer,
+    /// bricht die Gruppe aber nicht; ein Kommentar/eine Direktive im Vor-Klausel-Bereich ⇒ nur aus der
+    /// Spalte ausgeschlossen.
     /// </summary>
-    static TriggerCandidate CreateTriggerCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
-                                                   SyntaxNode statement, EdgeSyntax? edge, SyntaxToken semicolon,
-                                                   TriggerSyntax? trigger, Dictionary<int, int> spaces) {
+    static ClauseCandidate MeasureTransitionClause(SyntaxTree syntaxTree, NavFormattingOptions options, SyntaxNode statement,
+                                                   Func<SyntaxNode, SyntaxNode?> clauseOf, Dictionary<int, int> spaces) {
 
-        var candidate   = new TriggerCandidate(statement);
-        var edgeKeyword = edge?.Keyword ?? SyntaxToken.Missing;
+        var candidate                = new ClauseCandidate(statement);
+        var (edgeKeyword, semicolon) = TransitionHead(statement);
 
         if (edgeKeyword.IsMissing || semicolon.IsMissing) {
             candidate.BreaksGroup = true;
@@ -414,12 +424,14 @@ static class AlignmentMapBuilder {
             return candidate;
         }
 
-        if (trigger == null) {
-            // Triggerlose Transition (oder Exit-Transition) — kein Teilnehmer, aber die Gruppe bleibt.
+        var clause = clauseOf(statement);
+        if (clause == null) {
+            // Keine Klausel (triggerlose/bedingungslose Transition, Exit beim Trigger) — kein Teilnehmer,
+            // aber die Gruppe bleibt bestehen.
             return candidate;
         }
 
-        var width = WidthUpToColumn(syntaxTree, options, tokens, trigger.Start, spaces, out var gapStart);
+        var width = WidthUpToColumn(syntaxTree, options, tokens, clause.Start, spaces, out var gapStart);
         if (width < 0) {
             return candidate;
         }
@@ -431,104 +443,22 @@ static class AlignmentMapBuilder {
         return candidate;
     }
 
-    // ---- Condition-Spalte (if / else if / else) --------------------------------------------------
+    /// <summary>Kante-Keyword (bzw. <see cref="SyntaxToken.Missing"/>) und <c>;</c> einer (Exit-)Transition.</summary>
+    static (SyntaxToken EdgeKeyword, SyntaxToken Semicolon) TransitionHead(SyntaxNode statement) => statement switch {
+        TransitionDefinitionSyntax t     => (t.Edge?.Keyword ?? SyntaxToken.Missing, t.Semicolon),
+        ExitTransitionDefinitionSyntax e => (e.Edge?.Keyword ?? SyntaxToken.Missing, e.Semicolon),
+        _                                => (SyntaxToken.Missing, SyntaxToken.Missing),
+    };
 
-    sealed class ConditionCandidate {
+    /// <summary>Der Trigger einer Transition (nur <see cref="TransitionDefinitionSyntax"/> trägt einen).</summary>
+    static SyntaxNode? TriggerOf(SyntaxNode statement) => (statement as TransitionDefinitionSyntax)?.Trigger;
 
-        public ConditionCandidate(SyntaxNode statement) {
-            Statement = statement;
-        }
-
-        public SyntaxNode Statement   { get; }
-        public bool       BreaksGroup { get; set; }
-        public bool       IsAligned   { get; set; }
-        public int        GapStart    { get; set; }
-        public int        Width       { get; set; }
-
-    }
-
-    /// <summary>
-    /// Richtet die <c>if</c>/<c>else if</c>/<c>else</c>-Bedingungen aufeinanderfolgender (Exit-)Transitionen
-    /// spaltenweise aus. Nur Transitionen <b>mit</b> <see cref="ConditionClauseSyntax"/> nehmen teil; eine
-    /// bedingungslose Transition ist kein Teilnehmer, bricht die Gruppe aber nicht (im Korpus die häufige
-    /// erste, unbedingte Kante). Anders als Pfeil/Node-Grid — aber wie die Trailing-Kommentare — bricht die
-    /// Gruppe bereits bei <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>).
-    /// Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe — und <b>immer tight</b> (ein Space hinter der längsten
-    /// Zeile, kein Tab-Stopp/keine <see cref="AlignmentColumnPolicy"/>, wie die <see cref="ColumnId.NodeParams"/>-Spalte):
-    /// die nachgestellte Klausel soll minimal sitzen, nicht unnötig weit nach rechts.
-    /// </summary>
-    static void AddConditionColumns(SyntaxTree syntaxTree, NavFormattingOptions options, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
-
-        var candidates = new List<ConditionCandidate>();
-
-        foreach (var transition in block.TransitionDefinitions) {
-            candidates.Add(CreateConditionCandidate(syntaxTree, options, transition, transition.Edge, transition.Semicolon, transition.ConditionClause, spaces));
-        }
-
-        foreach (var exitTransition in block.ExitTransitionDefinitions) {
-            candidates.Add(CreateConditionCandidate(syntaxTree, options, exitTransition, exitTransition.Edge, exitTransition.Semicolon, exitTransition.ConditionClause, spaces));
-        }
-
-        candidates.Sort((a, b) => a.Statement.Start.CompareTo(b.Statement.Start));
-
-        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
-
-            var participants = group.Where(c => c.IsAligned).ToList();
-            if (participants.Count < 2) {
-                continue;
-            }
-
-            var targetCol = participants.Max(c => c.Width) + 1;
-
-            foreach (var participant in participants) {
-                spaces[participant.GapStart] = targetCol - participant.Width;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Vermisst eine (Exit-)Transition für die Condition-Spalte: kanonische Breite ab Zeilenanfang bis zum
-    /// führenden Klausel-Keyword — die inneren Lücken kommen aus der Regelentscheidung, die bereits
-    /// aufgelöste Pfeil-Spalte aus <paramref name="spaces"/> (damit Pfeil- und Condition-Ausrichtung nicht
-    /// auseinanderlaufen). Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die
-    /// Gruppe; keine Condition ⇒ kein Teilnehmer (bricht nicht); ein Kommentar/eine Direktive im
-    /// Vor-Condition-Bereich ⇒ nur aus der Spalte ausgeschlossen.
-    /// </summary>
-    static ConditionCandidate CreateConditionCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
-                                                       SyntaxNode statement, EdgeSyntax? edge, SyntaxToken semicolon,
-                                                       ConditionClauseSyntax? conditionClause, Dictionary<int, int> spaces) {
-
-        var candidate   = new ConditionCandidate(statement);
-        var edgeKeyword = edge?.Keyword ?? SyntaxToken.Missing;
-
-        if (edgeKeyword.IsMissing || semicolon.IsMissing) {
-            candidate.BreaksGroup = true;
-            return candidate;
-        }
-
-        var tokens = syntaxTree.Tokens[statement.Extent].ToList();
-        if (IsHandLaid(syntaxTree, tokens)) {
-            candidate.BreaksGroup = true;
-            return candidate;
-        }
-
-        if (conditionClause == null) {
-            // Bedingungslose Transition — kein Teilnehmer, aber die Gruppe bleibt bestehen.
-            return candidate;
-        }
-
-        var conditionStart = conditionClause.Start;
-        var width          = WidthUpToColumn(syntaxTree, options, tokens, conditionStart, spaces, out var gapStart);
-        if (width < 0) {
-            return candidate;
-        }
-
-        candidate.IsAligned = true;
-        candidate.GapStart  = gapStart;
-        candidate.Width     = width;
-
-        return candidate;
-    }
+    /// <summary>Die Bedingungsklausel einer (Exit-)Transition.</summary>
+    static SyntaxNode? ConditionOf(SyntaxNode statement) => statement switch {
+        TransitionDefinitionSyntax t     => t.ConditionClause,
+        ExitTransitionDefinitionSyntax e => e.ConditionClause,
+        _                                => null,
+    };
 
     /// <summary>
     /// Kanonische Breite ab Zeilenanfang (erstes Token) bis zum Token, das bei
@@ -565,62 +495,18 @@ static class AlignmentMapBuilder {
 
     // ---- Trailing-//-Kommentar-Spalte -----------------------------------------------------------
 
-    sealed class TrailingCommentCandidate {
-
-        public TrailingCommentCandidate(SyntaxNode statement) {
-            Statement = statement;
-        }
-
-        public SyntaxNode Statement   { get; }
-        public bool       BreaksGroup { get; set; }
-        public bool       IsAligned   { get; set; }
-        public int        GapStart    { get; set; }
-        public int        Width       { get; set; }
-
-    }
-
     /// <summary>
-    /// Richtet die Trailing-<c>//</c>-Kommentare aufeinanderfolgender Anweisungen an einer gemeinsamen
-    /// Spalte aus — <b>tight</b> (ein Space hinter der längsten Zeile der Gruppe, kein Tab-Stopp/keine
-    /// <see cref="AlignmentColumnPolicy"/>). Anders als die übrigen Spalten bricht die Gruppe bereits bei
-    /// <b>einer einzelnen</b> Leerzeile bzw. Kommentarzeile (<c>interruptThreshold: 1</c>). Nur Zeilen mit
-    /// einem sauberen Trailing-<c>//</c> (nur Whitespace davor) nehmen teil; eine kommentarlose Zeile ist
-    /// kein Teilnehmer, bricht die Gruppe aber nicht. Ausrichtung nur bei ≥ 2 Teilnehmern je Gruppe.
+    /// Vermisst eine Anweisung für die Trailing-<c>//</c>-Kommentar-Spalte (tight über
+    /// <see cref="AddTightClauseColumns"/> aufgelöst): kanonische Zeilenbreite bis zum letzten Token (die
+    /// inneren Lücken kommen aus den bereits aufgelösten Spalten bzw. der Regelentscheidung). Hand-gelegt/
+    /// leer ⇒ bricht die Gruppe; kein sauberer Trailing-<c>//</c> (nur Whitespace davor) ⇒ kein Teilnehmer
+    /// (bricht nicht); eine nicht einzeilig-kanonische innere Lücke (z.B. Inline-Block-Kommentar) ⇒ aus der
+    /// Spalte ausgeschlossen (die Spaltenbreite darf nie an einer Kommentar-Textlänge hängen).
     /// </summary>
-    static void AddTrailingCommentColumns(SyntaxTree syntaxTree, NavFormattingOptions options,
-                                          IEnumerable<SyntaxNode> statements, Dictionary<int, int> spaces,
-                                          Dictionary<int, int> trailingCommentSpaces) {
+    static ClauseCandidate MeasureTrailingComment(SyntaxTree syntaxTree, NavFormattingOptions options,
+                                                  SyntaxNode statement, Dictionary<int, int> spaces) {
 
-        var candidates = statements.OrderBy(s => s.Start)
-                                   .Select(s => CreateTrailingCommentCandidate(syntaxTree, options, s, spaces))
-                                   .ToList();
-
-        foreach (var group in GroupCandidates(syntaxTree, candidates, c => c.Statement, c => c.BreaksGroup, interruptThreshold: 1)) {
-
-            var participants = group.Where(c => c.IsAligned).ToList();
-            if (participants.Count < 2) {
-                continue;
-            }
-
-            var targetCol = participants.Max(c => c.Width) + 1;
-
-            foreach (var participant in participants) {
-                trailingCommentSpaces[participant.GapStart] = targetCol - participant.Width;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Vermisst eine Anweisung für die Trailing-Kommentar-Spalte: kanonische Zeilenbreite bis zum letzten
-    /// Token (die inneren Lücken kommen aus den bereits aufgelösten Spalten bzw. der Regelentscheidung).
-    /// Hand-gelegt/leer ⇒ bricht die Gruppe; kein sauberer Trailing-<c>//</c> ⇒ kein Teilnehmer (bricht
-    /// nicht); eine nicht einzeilig-kanonische innere Lücke (z.B. Inline-Block-Kommentar) ⇒ aus der Spalte
-    /// ausgeschlossen (die Spaltenbreite darf nie an einer Kommentar-Textlänge hängen).
-    /// </summary>
-    static TrailingCommentCandidate CreateTrailingCommentCandidate(SyntaxTree syntaxTree, NavFormattingOptions options,
-                                                                   SyntaxNode statement, Dictionary<int, int> spaces) {
-
-        var candidate = new TrailingCommentCandidate(statement);
+        var candidate = new ClauseCandidate(statement);
         var tokens    = syntaxTree.Tokens[statement.Extent].ToList();
 
         if (tokens.Count == 0 || IsHandLaid(syntaxTree, tokens)) {

@@ -32,7 +32,7 @@
 | S2 | Achse-A-Wächter an die Spec angleichen (Direktiv-Position, Diagnostics-Vergleich, Granularität) | klein | **umgesetzt** (committed 4a8a2a35) |
 | S3 | Dispatcher-Tier-Prüfung + tote Deklarationen (`ColumnId.TrailingComment`, `AlignedColumn.Column`) | klein | **umgesetzt** (Commit ausstehend) |
 | S4 | Leerzeilen-Deckel: Option `MaxBlankLines` (gruppensemantik-erhaltend, ≥ 2) + Dateianfang/-ende | mittel | **umgesetzt** (Commit ausstehend) |
-| S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | offen |
+| S5 | `AlignmentMapBuilder` entdoppeln (ein Candidate-Typ + generischer Tight-Spalten-Baustein) | mittel | **umgesetzt** (Commit ausstehend) |
 | S6 | Statement-Messung einmalig + geteiltes Hand-gelegt-Primitiv + Kleinkram (Perf) | mittel | offen |
 
 Reihenfolge: S1–S3 sind unabhängige Quick-Wins, S4 ist das einzige neue Verhalten, S5/S6 sind
@@ -271,6 +271,28 @@ schreiben" steht dreimal wörtlich da.
 
 **Fertig, wenn:** reines Refactoring — **byte-identische** Ausgabe (alle Goldens unverändert grün,
 Korpus-Smoke diff-frei gegen vorher), beide TFMs grün.
+
+**Umgesetzt:**
+
+- **Ein gemeinsamer Kandidat `ClauseCandidate`** ersetzt die feldidentischen `TriggerCandidate`,
+  `ConditionCandidate` und `TrailingCommentCandidate` (`Statement`, `BreaksGroup`, `IsAligned`,
+  `GapStart`, `Width`). `ArrowCandidate` (mit `AuthoredColumn`) und `NodeGridCandidate` (drei
+  Teilspalten) bleiben separat — sie sind policy-gesteuert und passen nicht in die tight-Abstraktion.
+- **Ein generischer Tight-Spalten-Baustein `AddTightClauseColumns(statements, measure, target)`** trägt
+  den dreifach wörtlich duplizierten Block „`OrderBy(Start)` → `GroupCandidates(interruptThreshold: 1)`
+  → Teilnehmer ≥ 2 → `max(Width) + 1` → Spaces schreiben". Die drei Aufrufer parametrieren ihn nur noch
+  über den Vermessungs-Selektor (`Func<SyntaxNode, ClauseCandidate>`) und die Ziel-Tabelle (`spaces`
+  für Trigger/Condition, `trailingCommentSpaces` für den Trailing-Kommentar).
+- **Trigger und Condition teilen `MeasureTransitionClause(…, clauseOf, spaces)`** — identische Gate-Logik
+  (Kante/`;` fehlt bzw. hand-gelegt ⇒ Gruppenbruch; Klausel fehlt ⇒ Nicht-Teilnehmer; Kommentar davor ⇒
+  aus der Spalte), der einzige Unterschied ist der Klausel-Selektor `TriggerOf`/`ConditionOf`. Die
+  (Exit-)Transitions-Fallunterscheidung (Kante + `;`) sitzt gebündelt in `TransitionHead`. Der
+  Trailing-Kommentar behält sein eigenes `MeasureTrailingComment` (anderes Gate: sauberer Trailing-`//`
+  statt Kante/`;`), speist aber denselben generischen Baustein.
+- **Byte-identisch belegt:** alle Goldens unverändert grün (net472 1680 passed/0 failed/3 explicit
+  skipped, net10 Formatting 179/179); Korpus-Smoke über `d:\tfs\main` (1913 `.nav` × 2 Einzugsstile =
+  3826 Läufe): die SHA-256-Ausgabe-Manifeste von **vor** und **nach** S5 sind **byte-für-byte gleich**
+  (0 Differenzen, 0 Crashes, 0 nicht-idempotent). Datei von 945 → 831 Zeilen (−114).
 
 ---
 
