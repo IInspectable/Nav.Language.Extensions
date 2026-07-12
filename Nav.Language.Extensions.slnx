@@ -86,6 +86,7 @@
     <File Path="doc/nav-kolibri.md" />
     <File Path="doc/nav-lsp-status.md" />
     <File Path="doc/nav-mcp-status.md" />
+    <File Path="doc/nav-nre-analysis-prompt.md" />
     <File Path="doc/nav-nullable-status.md" />
     <File Path="doc/nav-parser-recovery-status.md" />
     <File Path="doc/nav-parser-test-plan.md" />
