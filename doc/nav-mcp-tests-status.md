@@ -12,7 +12,7 @@ Smoke): `doc/nav-mcp-status.md`.
 | 1 | Projekt-Setup + Test-Infrastruktur (`McpTestWorkspace`) + Grammar-Smoke | ☑ fertig |
 | 2 | Namens-Auflösung (`NavNameResolution`) & `nav_find_symbol` | ☑ fertig |
 | 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☑ fertig |
-| 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☐ offen |
+| 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☑ fertig |
 | 5 | Format, GoTo, References, Outline, Workspace | ☐ offen |
 | 6 | *(optional)* In-Memory-Protokolltest (Wiring-Wächter) | ☐ offen |
 | 7 | Doku (`nav-mcp-status.md` §4) & `Invoke-Test.ps1`-Anbindung | ☐ offen |
@@ -157,6 +157,14 @@ Quer-Check vergleicht Codes/Counts direkt zwischen den beiden Tools statt Codes 
   byte-identisch.
 - Fehlerpfade: `NotFound` (mit Meldung `NavNameResolution.NotFoundMessage`), `Ambiguous` mit
   Kandidatenliste (je `kind` + enthaltender `task`).
+
+**☑ erledigt.** `NavEditDtoTests` (7) + `NavRenameToolTests` (4) + `NavCodeActionsToolTests` (4) = **15 Tests**,
+alle grün (MCP-Projekt gesamt 54). Neuer Helfer `Infrastructure/EditApplier.cs` wendet ein Edit-Set über die
+`SourceText`-Zeilenliste (1-basiert → Offset) absteigend an — so wird „angewandtes Edit-Set ergibt erwarteten
+Text" geprüft. Für die DTO-Offset-Tests bewusst **escapte** Strings (LF-Breite ist Prüfgegenstand, mit
+Begründungskommentar). Rename-Fixture nutzt einen **exit**-Verbindungspunkt (`exit e1` + `I1 --> e1`) — init-Knoten
+sind nicht umbenennbar (empirisch: „cannot be renamed"), exit-Knoten wie im Engine-`NavRenameServiceTests`. CodeActions
+zielt auf einen ungenutzten `view v;` → „Remove Unused Nodes". Read-only via Byte-Vergleich der Platte vor/nach.
 
 ## Step 5 — Format, GoTo, References, Outline, Workspace
 
