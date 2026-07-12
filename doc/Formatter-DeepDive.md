@@ -4,8 +4,9 @@ Dieses Dokument erklärt die **Ausrichtungs-Maschinerie** des Nav-Formatters von
 vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, bis hinunter zu den
 elementaren, formatierungs-invarianten Rohdaten und schließlich zur Konsumseite, die die Map wieder
 ausliest. Der Fokus liegt auf dem Ausrichtungs-Teil (Pfeile, Trigger, Bedingungen, Task-Köpfe,
-Node-Raster, Trailing-Kommentare). Der Fehler-Toleranz-Vorpass ist als [§7](#7-der-fehler-toleranz-vorpass-formattersuppression)
-angehängt; die übrigen Kapitel (Treiber-Loop, Regel-Tiers) reichen wir nach.
+Node-Raster, Trailing-Kommentare). Das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority))
+und der Fehler-Toleranz-Vorpass ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) sind ergänzt;
+nur der Treiber-Loop (`NavFormattingService`) folgt noch.
 
 Alle Datei- und Zeilenangaben beziehen sich auf `Nav.Language/Formatting/`.
 
@@ -70,7 +71,7 @@ noch Leerzeichen ausstoßen. Ausrichtungs-Padding ist immer Leerzeichen, nie Tab
 Task-Köpfe) landen in `_spacesByGapStart` und werden über das reguläre `GapLayout.AlignedColumn`-
 Nachschlagen abgeholt. Die **Trailing-`//`-Kommentar-Spalte** ist der Sonderfall: Sie wird nicht über
 die normale Gap-Layout-Maschinerie aufgelöst, sondern der `GapRenderer` greift beim Setzen des
-Kommentars *direkt* auf `_trailingCommentSpacesByGapStart` zu (siehe [§5](#5-die-konsumseite-der-gaprenderer)
+Kommentars *direkt* auf `_trailingCommentSpacesByGapStart` zu (siehe [§6](#6-die-konsumseite-der-gaprenderer)
 und [§3.5](#warum-trailing-kommentare-anders-behandelt-werden)).
 
 Auf dieser Ebene ist das Ganze also nur eine reine Lookup-Tabelle `Lücke → Leerzeichen`, die die eine
@@ -349,7 +350,7 @@ Daraus folgt jede Abweichung:
 - **Kein `ColumnId`:** `ColumnId` benennt nur Spalten, die über `GapLayout.AlignedColumn` nachgeschlagen
   werden — der Trailing-Kommentar wird nie so nachgeschlagen.
 - **Eigene Tabelle + direkter Read:** Der Renderer holt den Wert dort ab, wo er das Trailing-Segment
-  schreibt (mitten in `RenderVertical`, siehe [§5](#5-die-konsumseite-der-gaprenderer)).
+  schreibt (mitten in `RenderVertical`, siehe [§6](#6-die-konsumseite-der-gaprenderer)).
 
 Geteilt bleibt trotzdem alles Wesentliche: dieselbe Schlüssel-Konvention (`Prev.End`), dieselbe
 Vermessung (`WidthUpToColumn` mit `columnStart: int.MaxValue`), derselbe `AddTightClauseColumns`-
@@ -519,7 +520,200 @@ Whitespace-Fall, auf Kontext-Ebene gehoben.
 
 ---
 
-## 5. Die Konsumseite: der GapRenderer
+## 5. Das Regel-System: GapRules und RulePriority
+
+[§4.3](#43-gapcontext) endete mit der Zusicherung, dass eine `IGapRule.Apply` nichts außer einem
+`GapContext` sieht — und darum *beweisbar pur* ist. Dieses Kapitel zeigt die Regeln selbst: die mittlere
+Pipeline-Stufe `GapRules.Select(ctx) → GapLayout`, die aus dem Kontext genau eine Layout-Entscheidung
+wählt, bevor der Renderer ([§6](#6-die-konsumseite-der-gaprenderer)) sie zu Text macht.
+
+### 5.1 Das Layout-Vokabular (GapLayout)
+
+Eine Regel wählt nicht frei, sondern aus einem **geschlossenen Vokabular** — dem `abstract record
+GapLayout` (`GapLayout.cs`). Es gibt keinen Solver und keine Fernwirkung: eine Regel liefert direkt eine
+dieser sechs Entscheidungen.
+
+| Layout | Bedeutung |
+|---|---|
+| `Nothing` | kein Whitespace, Token kleben (`Node:Port`) |
+| `SingleSpace` | genau ein Space; Variante `PullUp` zieht bloße authored Newlines hoch (Kopf-Kanonisierung) |
+| `AlignedColumn(ColumnId)` | Spaces bis zur vorberechneten Gruppenspalte (die Zahl liest der Renderer aus der [`AlignmentMap`](#2-die-alignmentmap--das-ergebnis-des-vorpasses)) |
+| `NewLine(BlankLinesBefore, IndentDepth)` | Umbruch auf Einzugstiefe; `BlankLinesBefore` ist ein Minimum, nie ein Kollaps |
+| `NewLineAlignedColumn(BlankLinesBefore, ColumnId)` | Umbruch, dann Spalten-Einzug statt Tiefe (Kopf-Block-Stapel, mehrzeiliges `[params]`) |
+| `Verbatim` | Lücke unverändert — es wird kein Change emittiert |
+
+Der springende Punkt: **eine Regel → genau ein vollständiges Layout**, nie eine Kombination. Das ist die
+[Ein-Change-pro-Lücke-Invariante](#43-gapcontext) auf Entscheidungsebene — dieselbe, die geometrisch im
+disjunkten `Extent` wohnt. Die `ColumnId` in den beiden Aligned-Varianten ist reine Selbstdokumentation
+im Regel-Code; der Renderer wertet sie nicht aus, sondern schlägt die Space-Zahl allein über
+`Extent.Start` nach (der Vorpass hat die spaltenspezifische Logik längst erledigt).
+
+### 5.2 Die Regel als reine Mini-Funktion (IGapRule)
+
+Eine `IGapRule` (`IGapRule.cs`) ist eine isoliert testbare Mini-Funktion `GapContext → GapLayout?`:
+
+```csharp
+GapLayout? Apply(in GapContext ctx);   // null = „nicht zuständig", sonst genau ein Layout
+RulePriority Tier { get; }             // der Prioritäts-Tier (§5.4)
+```
+
+`null` heißt „nicht zuständig — nächste Regel fragen". Weil eine Regel **ausschließlich
+formatierungs-invariante Fakten** aus dem Kontext liest (Token-Typen, Baumstruktur, Newline-Anzahl — nie
+das Ist-Whitespace), ist Idempotenz laut Klassen-Kommentar „eine *lokale* Eigenschaft jeder Regel statt
+einer emergenten des Gesamtsystems". Das ist die Regel-Ebene des Leitmotivs: fünfzehn lokal-pure
+Entscheidungen, keine davon kann vom Whitespace abhängen.
+
+### 5.3 Die geordnete Liste IST die Spezifikation
+
+Der Dispatcher `GapRules` (`GapRules.cs:25`) ist kein Regel-Solver, sondern eine **feste, von Hand nach
+Tier geordnete Liste**, die top-down gelesen die ganze Spezifikation ist:
+
+```csharp
+static readonly IGapRule[] Rules = {
+    // Safety
+    new VerbatimWhenSuppressedRule(),      // unterdrückte Region -> Verbatim
+    // Structure
+    new BraceOnOwnLineRule(),              // vor '{'/'}' und nach '{' -> eigene Zeile (Allman)
+    new BlankLineAroundBlockMembersRule(), // um task/taskref-Block-Member + nach [namespaceprefix] -> Leerzeile
+    new MemberBreakRule(),                 // nach '}' und nach Top-Level-']' -> neuer Member auf Tiefe 0
+    new BlankLineBeforeTransitionsRule(),  // Deklarationen -> Transitionen -> mindestens eine Leerzeile
+    new StatementBreakRule(),              // nach ';' -> nächste Anweisung auf eigener Zeile
+    // TokenPair
+    new TightColonRule(),                  // Node ':' Port -> tight
+    new PunctuationRule(),                 // tight vor ','/';', [-Innenränder, Typ-Interna
+    new TaskHeadLayoutRule(),              // Task-/taskref-Kopf: Block 1 inline, Folgeblöcke gestapelt
+    // Alignment
+    new ArrowAlignmentRule(),              // Quell-Teil -> Edge-Keyword -> Pfeil-Spalte
+    new ContinuationAlignmentRule(),       // Ziel-Teil -> --^/o-^ -> Continuation-Spalte
+    new TriggerAlignmentRule(),            // Ziel-Teil -> on/spontaneous -> Trigger-Spalte
+    new ConditionAlignmentRule(),          // Ziel-Teil -> if/else if/else -> Condition-Spalte
+    new NodeGridAlignmentRule(),           // keyword -> node -> rest -> 3-Spalten-Raster
+    // Default
+    new DefaultSingleSpaceRule(),          // Catch-all -> genau ein Space
+};
+```
+
+Fünfzehn Regeln in fünf Tiers. Der Tier — `RulePriority` (`RulePriority.cs`) — ist eine **semantische**
+Einordnung, kein Listenindex-Raten, und folgt dem Prinzip **„spezifisch schlägt generisch"**:
+
+| Tier | Regeln | typische Ausgabe | Rolle |
+|---|---|---|---|
+| **Safety** | `VerbatimWhenSuppressedRule` | `Verbatim` | unterdrückte Region unangetastet — preemptiert alles |
+| **Structure** | `BraceOnOwnLineRule`, `MemberBreakRule`, `StatementBreakRule`, `BlankLineBeforeTransitionsRule`, `BlankLineAroundBlockMembersRule` | `NewLine` | das vertikale Gerüst (Umbrüche, Leerzeilen-Minima) |
+| **TokenPair** | `TightColonRule`, `PunctuationRule`, `TaskHeadLayoutRule` | `Nothing` / `SingleSpace.PullUp` / `NewLineAlignedColumn` | spezifische Token-Nachbarschaften + Kopf-Kanonisierung |
+| **Alignment** | `ArrowAlignmentRule`, `ContinuationAlignmentRule`, `TriggerAlignmentRule`, `ConditionAlignmentRule`, `NodeGridAlignmentRule` | `AlignedColumn` | die Spalten-Familien aus §2/§3 |
+| **Default** | `DefaultSingleSpaceRule` | `SingleSpace` | Catch-all — garantiert Totalität |
+
+- **Safety (1).** `VerbatimWhenSuppressedRule` liest `ctx.IsSuppressed` — das Verdikt des
+  Fehler-Toleranz-Vorpasses ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) — und liefert
+  `Verbatim`, sobald die Lücke in einer unterdrückten Region liegt. Als höchster Tier preemptiert sie
+  *jede* Layout-Regel: in einem kaputten Task-Body ist belanglos, dass ein Pfeil-Gap „eigentlich"
+  ausgerichtet würde.
+- **Structure (5).** Das vertikale Gerüst — wo ein Umbruch beginnt und wie viele Leerzeilen mindestens
+  stehen. Die Umbruch-Setzer (`BraceOnOwnLineRule` Allman, `MemberBreakRule` nach `}`/Top-Level-`]`,
+  `StatementBreakRule` nach `;`) und die zwei Leerzeilen-Minimum-Heber (`BlankLineBeforeTransitionsRule`
+  Deklarationen → Transitionen, `BlankLineAroundBlockMembersRule` um Body-Block-Member). Alle liefern
+  `NewLine`; keine kappt je Autoren-Leerzeilen — `BlankLinesBefore` ist nur ein Boden.
+- **TokenPair (3).** Spezifische Token-Nachbarschaften, die sonst der Catch-all mit falschen Spaces
+  flutete: `TightColonRule` (`Node:Port` tight), `PunctuationRule` (tight vor `,`/`;`, `[…]`-Innenränder,
+  Typ-Interna) und `TaskHeadLayoutRule` (Kopf-Kanonisierung: Block 1 inline per Pull-up, Folgeblöcke
+  gestapelt, mehrzeiliges `[params]`).
+- **Alignment (5).** Die Spalten-Familien aus [§2](#2-die-alignmentmap--das-ergebnis-des-vorpasses)/[§3](#3-der-ausrichtungs-vorpass-alignmentmapbuilder).
+  Jede liefert *bedingungslos* `AlignedColumn(…)`, sobald die Lücke *strukturell* eine Ausrichtungs-Lücke
+  ist — ob sie **wirklich** teilnimmt, entscheidet allein die Anwesenheit eines Map-Eintrags (sonst
+  Single-Space-Fallback, [§6](#6-die-konsumseite-der-gaprenderer)). Die Regel stellt die Frage, Map +
+  Fallback geben die Antwort; genau deshalb dürfen diese Regeln „dumm" sein.
+- **Default (1).** `DefaultSingleSpaceRule` liefert bedingungslos `SingleSpace` und garantiert
+  **Totalität**: jede Lücke bekommt eine Entscheidung. Der `return GapLayout.Verbatim.Instance` am Ende
+  von `Select` ist damit unerreichbar, solange der Catch-all in der Liste steht — er ist nur die sichere
+  Antwort für den unmöglichen Fall.
+
+`Select` selbst ist dann nur noch der Short-Circuit „erste passende Regel gewinnt":
+
+```csharp
+public static GapLayout Select(in GapContext ctx) {
+    AssertIntraTierDisjoint(ctx);
+    foreach (var rule in Rules) {
+        var layout = rule.Apply(in ctx);
+        if (layout != null) {
+            return layout;
+        }
+    }
+    return GapLayout.Verbatim.Instance;   // unerreichbar (Catch-all)
+}
+```
+
+### 5.4 Die zwei Ordnungs-Invarianten
+
+Die Reihenfolge ist von Hand gelegt und wird **nie zur Laufzeit sortiert** — die Deklarationsreihenfolge
+*ist* die Cross-Tier-Präzedenz.
+
+**`RulePriority` steuert die Auswahl nicht — es prüft sie.** `Select` liest `.Tier` nie; die Präzedenz
+lebt allein in der Array-Reihenfolge, die erste passende Regel gewinnt. Der Tier ist ausschließlich der
+Prüfstein der beiden folgenden Wächter (und einer Test-Assertion) — ohne ihn liefe der Dispatch
+byte-für-byte gleich, nur ungeschützt gegen eine falsch einsortierte Regel. Zwei Wächter halten die
+händische Ordnung ehrlich:
+
+**(a) Cross-Tier: monoton nach Tier — harter Wurf.** `EnsureRulesOrderedByTier` (`GapRules.cs:106`) läuft
+im statischen Konstruktor beim Laden des Typs und wirft eine `InvalidOperationException`, falls eine
+spätere Regel einen niedrigeren Tier trägt als eine frühere. Weil der Dispatcher die Liste unverändert
+iteriert, bräche eine falsch einsortierte neue Regel die Präzedenz sonst *still*. Die Prüfung ist
+lücken-unabhängig — sie sieht nur die statische Liste, nicht einen konkreten Kontext.
+
+**(b) Intra-Tier: höchstens eine Regel pro Tier zuständig — Debug-Assert.** `AssertIntraTierDisjoint`
+(`:79`, `[Conditional("DEBUG")]`) wertet für *jede* Lücke *alle* Prädikate aus und schlägt fehl
+(`Debug.Fail`), wenn zwei Regeln desselben Tiers dieselbe Lücke matchen. Cross-Tier-Overlaps sind
+**gewollt** (der höhere Tier preemptiert); ein Intra-Tier-Overlap dagegen heißt: die Prädikate sind nicht
+scharf genug.
+
+Die Designregel dahinter — **„Prädikat verschärfen, nicht die Reihenfolge zurechtschieben"** — ist im
+Structure-Tier direkt sichtbar. Nach einem `;` an der Grenze Deklarationen → Transitionen könnten
+`StatementBreakRule` *und* `BlankLineBeforeTransitionsRule` (beide Structure) feuern. Statt sich auf die
+Listenposition zu verlassen, zieht sich `StatementBreakRule` per Prädikat zurück:
+
+```csharp
+if (BlankLineBeforeTransitionsRule.IsDeclarationToTransitionBoundary(in ctx)) {
+    return null;   // die Leerzeile setzt die andere Regel — Disjunktheit per Prädikat, nicht per Reihenfolge
+}
+```
+
+So besitzt genau eine Regel die Lücke, und die Disjunktheit ist eine *geprüfte* Eigenschaft, keine stille
+Ordnungs-Abhängigkeit. Mehrere Structure-Regeln tragen darum solche wechselseitigen Guards
+(`RaisesTopLevelBlankLine`, `IsDeclarationToTransitionBoundary`).
+
+### 5.5 Durchgerechnet: ein Dispatch und seine Preemption
+
+Nehmen wir die Pfeil-Lücke `(A, -->)` aus [§3.3](#33-durchgerechnet-pfeil--trigger--condition). `Select`
+läuft die Liste ab:
+
+```
+VerbatimWhenSuppressedRule    IsSuppressed? nein               -> null
+BraceOnOwnLineRule …          Prev/Next kein {/}/; …           -> null   (5x Structure)
+TightColonRule, Punctuation   kein ':'/',' …                   -> null
+TaskHeadLayoutRule            kein Kopf-Block                  -> null
+ArrowAlignmentRule            NextParent = EdgeSyntax unter     -> AlignedColumn(Arrow)   ✋ return
+                              TransitionDefinitionSyntax
+```
+
+Zwölf Regeln sagen „nicht zuständig", die dreizehnte trifft. Der Renderer liest dann `spaces[A.End] = 4`
+aus der Map und macht daraus vier Leerzeichen ([§6](#6-die-konsumseite-der-gaprenderer)).
+
+**Cross-Tier-Preemption.** Dieselbe Lücke, aber in einem defekten (klammer-losen) Task-Body: Jetzt greift
+schon die **erste** Regel — `VerbatimWhenSuppressedRule` (Safety) sieht `ctx.IsSuppressed == true` und
+liefert `Verbatim`. `Select` kehrt sofort zurück, `ArrowAlignmentRule` wird nie gefragt. Der höhere Tier
+short-circuitet vor dem niedrigeren — und der Treiber lässt für ein `Verbatim`-Layout den Change ganz weg
+([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)). Genau so setzt „spezifisch schlägt generisch"
+die Rangfolge **Sicherheit vor Ausrichtung** durch, ohne dass die Ausrichtungs-Regel etwas davon wissen
+muss.
+
+Der Bogen zum Leitmotiv: Der Dispatcher komponiert fünfzehn lokal-pure, whitespace-blinde Regeln zu
+*einer* totalen Funktion `GapContext → GapLayout` mit *einer* geprüften Präzedenz. Kein Solver, keine
+Fernwirkung, kein Ist-Whitespace — die Idempotenz jeder einzelnen Regel trägt sich per Konstruktion bis
+ins Gesamtergebnis.
+
+---
+
+## 6. Die Konsumseite: der GapRenderer
 
 Der `GapRenderer` schließt den Kreis: alles, was der Builder mit `spaces[gapStart] = …` gefüllt hat,
 wird hier über *eine* Methode wieder ausgelesen:
@@ -580,7 +774,7 @@ Belt-and-Suspenders: der Builder hat solche Gaps via `CanonicalGapWidth → −1
 
 ---
 
-## 6. Der Bogen
+## 7. Der Bogen
 
 Die Ausrichtungs-Maschinerie top-down zusammengefasst:
 
@@ -600,7 +794,7 @@ No-Op.
 
 ---
 
-## 7. Der Fehler-Toleranz-Vorpass (FormatterSuppression)
+## 8. Der Fehler-Toleranz-Vorpass (FormatterSuppression)
 
 Die bisherige Maschinerie lief unter einer stillen Doppel-Annahme: der Syntaxbaum ist intakt, und jede
 Anweisung steht auf einer Zeile. `FormatterSuppression` ist der Vorpass, der genau diese Annahme
@@ -627,7 +821,7 @@ _handLaidShiftByGapStart  : Lücke → Einrück-Delta einer hand-gelegten Zeile 
 HasUsableMembers          : trägt die Datei überhaupt Member?              → Global-Fallback im Treiber
 ```
 
-### 7.1 Die drei Quellen der Unterdrückung
+### 8.1 Die drei Quellen der Unterdrückung
 
 `Compute` (`FormatterSuppression.cs:71`) sammelt Verbatim-Regionen aus drei unabhängigen Quellen.
 
@@ -684,7 +878,7 @@ Der `AlignmentMapBuilder` *ver-ODER-t* dieselben zwei Primitive zu `BreaksSingle
 Unterscheidung egal — jede nicht mehr einzeilige Anweisung fällt aus der Spalte); die Suppression
 *unterscheidet* sie. Zwei Konsumenten, zwei Kombinationen, dieselben Rohdaten.
 
-### 7.2 Zwei Phasen: warum die Deltas *nach* den Verbatim-Regionen kommen
+### 8.2 Zwei Phasen: warum die Deltas *nach* den Verbatim-Regionen kommen
 
 `Compute` sammelt in *einem* Durchlauf die Verbatim-Regionen (aus allen drei Quellen) **und** die
 hand-gelegten Kandidaten, konstruiert die `FormatterSuppression`, und rechnet die Deltas erst in einem
@@ -714,7 +908,7 @@ Der Delta wird pro innerer Lücke der Anweisung unter deren `Prev.End` abgelegt 
 Schlüssel-Konvention wie in der `AlignmentMap` ([§2](#2-die-alignmentmap--das-ergebnis-des-vorpasses)),
 sodass der Treiber später mit `extent.Start` genau diesen Eintrag trifft.
 
-### 7.3 Durchgerechnet: der Delta-Shift
+### 8.3 Durchgerechnet: der Delta-Shift
 
 `HandLaidDelta` (`:176`) ist eine kleine, exakte Rechnung: **Ziel-Einzug des Blocks − authored
 Einrückung des ersten Tokens**. Der authored-Teil zählt die Whitespace-Zeichen unmittelbar vor dem
@@ -748,7 +942,7 @@ delta     = target - authored     = 4 - 8 = -4
 Der Delta (`−4`) wird an die einzige innere Lücke der Anweisung geschrieben: Schlüssel `(-->).End`.
 
 **Beim Rendern** trifft der Treiber das Paar `(-->, B)`, findet über `TryGetHandLaidShift((-->).End)` den
-Delta `−4` und ruft `RenderRawShifted(ctx, −4)` ([§5](#5-die-konsumseite-der-gaprenderer),
+Delta `−4` und ruft `RenderRawShifted(ctx, −4)` ([§6](#6-die-konsumseite-der-gaprenderer),
 `GapRenderer.cs:346`). Der rendert `ctx.Extent` — den Text `"\n············"` (Newline + 12 Leerzeichen)
 — verbatim, verschiebt aber das Innenzeilen-Präfix um `−4` → `"\n········"` (Newline + 8). `B` landet auf
 Spalte 8.
@@ -775,7 +969,7 @@ nach links übersetzt, ihre innere Form byte-identisch.
 ist ein **Fixpunkt** — genau wie `PreserveDominant` in [§3.6](#36-die-policy-schicht-resolvetargetcolumn),
 nur auf den Einzug statt die Spalte angewandt.
 
-### 7.4 HasUsableMembers — der Global-Fallback
+### 8.4 HasUsableMembers — der Global-Fallback
 
 Der dritte Ausgang ist ein einzelnes Bool. `ComputeHasUsableMembers` (`:227`) prüft, ob die Datei
 überhaupt Member, Usings oder einen Namespace trägt. Trägt sie nichts (reiner Müll, leere Datei), wäre
@@ -784,7 +978,7 @@ dann in einen **Global-Fallback**: nur die zwei konservativen Rand-Lücken (Date
 Final-Newline/EOF-Trim) werden angefasst, die gesamte Paar-Schleife entfällt. So bleibt eine kaputte
 Datei erhalten, statt von einem sinnlosen Formatierlauf zerpflügt zu werden.
 
-### 7.5 Zwei Ausgänge, zwei Konsum-Pfade
+### 8.5 Zwei Ausgänge, zwei Konsum-Pfade
 
 `IsSuppressed` und `TryGetHandLaidShift` fließen **auf verschiedenen Wegen** in den Treiber-Loop
 (`NavFormattingService.cs:88`) — das ist die strukturelle Pointe des Vorpasses:
@@ -793,8 +987,8 @@ Datei erhalten, statt von einem sinnlosen Formatierlauf zerpflügt zu werden.
   als `ctx.IsSuppressed` ein (`:311`); die allererste, höchstpriore Regel `VerbatimWhenSuppressedRule`
   (`GapRules.cs:31`, Safety-Tier) liefert dann bedingungslos `GapLayout.Verbatim`. Der Treiber sieht das
   Verbatim-Layout und **lässt den `TextChange` einfach weg** (`NavFormattingService.cs:106`) — keine
-  Änderung heißt byte-genau erhalten. (Warum diese Regel im Safety-Tier ganz vorn steht, ist Thema des
-  noch offenen Regel-Kapitels.)
+  Änderung heißt byte-genau erhalten. (Warum diese Regel im Safety-Tier ganz vorn steht, erklärt
+  [§5](#5-das-regel-system-gaprules-und-rulepriority).)
 
 - **Hand-gelegt** *umgeht* die Regel-Pipeline. Noch vor `GapRules.Select` fragt der Treiber
   `TryGetHandLaidShift(extent.Start)` (`:93`); trifft er einen Delta, rendert er sofort per
@@ -810,9 +1004,7 @@ sich per Definition nie, der Hand-gelegt-Delta ist im zweiten Lauf 0.
 
 ## Noch offen (folgt)
 
-Diese Kapitel sind in dieser Session nur am Rand gestreift worden und werden nachgereicht:
+Dieses Kapitel ist in dieser Session nur am Rand gestreift worden und wird nachgereicht:
 
 - **Der Treiber-Loop (`NavFormattingService`)** — Leading-Gap, Paar-Schleife, Final-Gap; wer pro Lücke
   `GapRules.Select` + `renderer` aufruft und die `TextChange`s zusammensetzt.
-- **Das Regel-System (`GapRules` / `RulePriority`)** — die geordnete Regelliste, die Tier-Präzedenz
-  (Safety > Structure > TokenPair > Alignment > Default) und die Disjunktheits-Prüfungen.
