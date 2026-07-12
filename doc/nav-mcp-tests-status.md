@@ -189,15 +189,22 @@ Festbeißen.
 
 - `doc/nav-mcp-status.md` §4 umschreiben: automatisierte Suite (`Nav.Language.Mcp.Tests`) statt
   manueller Smoke-Liste; Smoke bleibt nur noch für stdio-Transport/Single-File-Publish erwähnt.
+  **☐ offen.**
 - `Tools\Commands\Functions\Invoke-Test.ps1` um einen `dotnet test`-Schritt für
   `Nav.Language.Mcp.Tests` erweitern (Skip mit Hinweis, wenn nicht gebaut — Muster der
-  bestehenden DLL-Liste), damit `nav test` wieder „alles" bedeutet.
+  bestehenden DLL-Liste), damit `nav test` wieder „alles" bedeutet. **☑ erledigt (vorgezogen):**
+  nach dem NUnit-Lauf ruft `Invoke-Test` `dotnet test <csproj> -c <Configuration> --no-build`, gated
+  auf die gebaute `bin\<Configuration>\net10.0\Nav.Language.Mcp.Tests.dll` (sonst DarkYellow-Hinweis);
+  die NUnit-`$RemainingArgs` (z.B. `--where`) werden bewusst nicht durchgereicht. Verifiziert:
+  `nav build` + `nav test` → NUnit 1797 grün **und** MCP 22/22 grün im selben Lauf.
 - Dieses Dokument: Status-Tabelle finalisieren, ggf. Erkenntnisse/Abweichungen nachtragen.
 
 ## Bekannte Fallen
 
-- **`nav test` deckt die MCP-Tests bis Step 7 nicht ab** — immer zusätzlich
-  `dotnet test Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj` laufen lassen.
+- **`nav test` deckt die MCP-Tests seit der Step-7-Runner-Anbindung mit ab** (via `dotnet test`,
+  nach dem NUnit-Lauf). Direkt aufrufen geht weiterhin:
+  `dotnet test Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj`. Voraussetzung fürs Mitlaufen in
+  `nav test` ist ein vorheriges `nav build` (sonst überspringt der Runner mit Hinweis).
 - In frischer Shell zuerst `. .\Tools\Commands\Import-NavCommands.ps1`, sonst gibt es kein `nav`.
 - `Nav.Language.Mcp` ist net10.0-only — **nie** versuchen, das Testprojekt multi-target zu machen
   oder von `Nav.Language.Tests` (net472-Zweig) aus zu referenzieren.

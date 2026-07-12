@@ -11,6 +11,10 @@
     weil sie noch nicht gebaut wurde). Der Repo-Root wird zur Aufruf-Zeit aufgelöst
     (Resolve-Root).
 
+    Ergänzend läuft Nav.Language.Mcp.Tests (net10.0-only) über `dotnet test` — der net472-
+    NUnit-Console-Runner kann diese Assembly nicht ausführen. Auch dieser Schritt wird nur
+    ausgeführt, wenn die Assembly bereits gebaut ist (sonst Hinweis statt Fehler).
+
 .PARAMETER Configuration
     Build-Konfiguration der Test-Assemblies. Default: Debug.
 
@@ -58,4 +62,18 @@ function Invoke-Test {
 
     & $runner @assemblies @RemainingArgs
     if ($LASTEXITCODE) { throw "Tests fehlgeschlagen (Exit $LASTEXITCODE)." }
+
+    # Nav.Language.Mcp.Tests ist net10.0-only und läuft nicht über den net472-NUnit-Console-Runner,
+    # sondern über `dotnet test` (die csproj ist eigens so gesetzt, dass die `nav build`-Ausgabe direkt
+    # ausführbar ist → --no-build). Analog zur DLL-Liste oben: nur ausführen, wenn die Assembly bereits
+    # gebaut ist, sonst ein Hinweis statt eines Fehlers. Die NUnit-spezifischen $RemainingArgs (z. B.
+    # --where) werden hier bewusst NICHT durchgereicht — VSTest kennt eine andere Filtersyntax.
+    $mcpTestsDll = Join-Path $root "Nav.Language.Mcp.Tests\bin\$Configuration\net10.0\Nav.Language.Mcp.Tests.dll"
+    if (Test-Path $mcpTestsDll) {
+        $mcpTestsProject = Join-Path $root 'Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj'
+        & dotnet test $mcpTestsProject -c $Configuration --no-build --nologo
+        if ($LASTEXITCODE) { throw "MCP-Tests fehlgeschlagen (Exit $LASTEXITCODE)." }
+    } else {
+        Write-Host "  Übersprungen (nicht gebaut): $mcpTestsDll" -ForegroundColor DarkYellow
+    }
 }
