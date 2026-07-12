@@ -1,12 +1,14 @@
 ﻿# Inside Code Formatting: Technical Deep Dive
 
-Dieses Dokument erklärt die **Ausrichtungs-Maschinerie** des Nav-Formatters von oben nach unten —
-vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, bis hinunter zu den
-elementaren, formatierungs-invarianten Rohdaten und schließlich zur Konsumseite, die die Map wieder
-ausliest. Der Fokus liegt auf dem Ausrichtungs-Teil (Pfeile, Trigger, Bedingungen, Task-Köpfe,
-Node-Raster, Trailing-Kommentare). Das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority)),
-der Fehler-Toleranz-Vorpass ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) und der Treiber-Loop,
-der alles orchestriert ([§9](#9-der-treiber-loop-navformattingservice)), schließen das Bild ab.
+Dieses Dokument erklärt den **Nav-Formatter** von oben nach unten. Als **Leitfaden** dient die
+Ausrichtung (Pfeile, Trigger, Bedingungen, Task-Köpfe, Node-Raster, Trailing-Kommentare) — sie ist die
+eine Zutat, die die sonst rein *lokale* Formatierung durchbricht und damit die gesamte Architektur (ein
+Vorpass plus eine pure Entscheidungsschicht) überhaupt erzwingt. An ihr entlang bauen wir das Bild auf:
+vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, hinunter zu den elementaren,
+formatierungs-invarianten Rohdaten und zur Konsumseite, die die Map wieder ausliest — und weiter zu den
+Ebenen, die *alle* Lücken tragen: das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority)),
+der Fehler-Toleranz-Vorpass ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) und der
+Treiber-Loop, der alles orchestriert ([§9](#9-der-treiber-loop-navformattingservice)).
 
 Alle Datei- und Zeilenangaben beziehen sich auf `Nav.Language/Formatting/`.
 
