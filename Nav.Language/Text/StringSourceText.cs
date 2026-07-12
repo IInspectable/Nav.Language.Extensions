@@ -9,6 +9,11 @@ using System.Collections.Immutable;
 
 namespace Pharmatechnik.Nav.Language.Text;
 
+/// <summary>
+/// String-basierte Implementierung von <see cref="SourceText"/>. Der Zeilenindex (die Start-Offsets
+/// aller Zeilen) wird verzögert und thread-sicher (<see cref="LazyThreadSafetyMode.PublicationOnly"/>)
+/// beim ersten Zugriff aus dem Text berechnet.
+/// </summary>
 sealed class StringSourceText: SourceText {
 
     readonly string                    _text;
@@ -32,6 +37,14 @@ sealed class StringSourceText: SourceText {
 
     public override char this[int index] => _memory.Span[index];
 
+    /// <summary>
+    /// Baut die <see cref="SourceTextLine"/> für die angegebene Zeilennummer. Der Zeilenanfang ist der
+    /// Start-Offset aus <paramref name="lineStarts"/>; das Zeilenende ist der Start der Folgezeile bzw.
+    /// <see cref="SourceText.Length"/> für die letzte Zeile (Ende exklusiv, inklusive Zeilenumbruch).
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="line"/> liegt außerhalb von <c>[0, lineStarts.Length)</c>.
+    /// </exception>
     SourceTextLine GetTextLine(int line, ImmutableArray<int> lineStarts) {
 
         if (line < 0 || line >= lineStarts.Length) {
@@ -44,6 +57,9 @@ sealed class StringSourceText: SourceText {
         return new SourceTextLine(this, line: line, lineStart: start, lineEnd: end);
     }
 
+    /// <summary>
+    /// <see cref="SourceTextLineList"/> über den verzögert berechneten Zeilenindex des <see cref="StringSourceText"/>.
+    /// </summary>
     sealed class StringTextLineList: SourceTextLineList {
 
         private readonly StringSourceText _sourceText;

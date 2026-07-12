@@ -11,12 +11,18 @@ namespace Pharmatechnik.Nav.Language.Internal;
 
 static class ExtentExtensions {
 
+    /// <summary>
+    /// Liefert – ausgehend von <paramref name="currentToken"/> – das nächste bzw. vorige Element innerhalb
+    /// des angegebenen <paramref name="extent"/>. Liegt kein solches Element vor oder verlässt es den Extent,
+    /// wird <paramref name="missing"/> zurückgegeben.
+    /// </summary>
     public static TElement NextOrPreviousElement<TExtent, TElement>(this IReadOnlyList<TElement> tokens, TExtent? extent, TElement currentToken, bool nextToken, TElement missing)
-        where TExtent : IExtent where TElement : IExtent {
+        where TExtent : IExtent
+        where TElement : IExtent {
 
         // Defensiv: `currentToken` ist zwar non-null annotiert, der Guard bleibt bewusst stehen.
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if(extent ==null || currentToken ==null) {
+        if (extent == null || currentToken == null) {
             return missing;
         }
 
@@ -40,6 +46,11 @@ static class ExtentExtensions {
         return resultToken;
     }
 
+    /// <summary>
+    /// Liefert die Elemente, die im angegebenen <paramref name="extent"/> liegen. Mit
+    /// <paramref name="includeOverlapping"/> werden auch Elemente einbezogen, die den Extent nur
+    /// überlappen; andernfalls nur vollständig enthaltene Elemente.
+    /// </summary>
     public static IEnumerable<TElement> GetElements<TElement, TExtent>(this IReadOnlyList<TElement> tokens,
                                                                        TExtent extent, bool includeOverlapping)
         where TElement : IExtent
@@ -52,6 +63,10 @@ static class ExtentExtensions {
         return GetElementsIncludeOverlapping(tokens, extent);
     }
 
+    /// <summary>
+    /// Liefert alle Elemente, die den angegebenen <paramref name="extent"/> berühren oder überlappen.
+    /// Für eine Punktsuche (<c>Start == End</c>) wird das an dieser Position liegende Element geliefert.
+    /// </summary>
     static IEnumerable<TElement> GetElementsIncludeOverlapping<TElement, TExtent>(this IReadOnlyList<TElement> tokens,
                                                                                   TExtent extent)
         where TElement : IExtent
@@ -63,8 +78,9 @@ static class ExtentExtensions {
         }
 
         // Sonderlocke für "Punktsuche"
-        if(extent.Start == extent.End) {
+        if (extent.Start == extent.End) {
             yield return tokens[startIndex];
+
             yield break;
         }
 
@@ -73,19 +89,24 @@ static class ExtentExtensions {
             if (token.Start >= extent.End) {
                 break;
             }
+
             yield return token;
         }
     }
 
-    static IEnumerable<TElement> GetElementsInside<TElement, TExtent>(this IReadOnlyList<TElement> tokens, 
-                                                                      TExtent extent) 
-        where TElement: IExtent
+    /// <summary>
+    /// Liefert alle Elemente, die vollständig innerhalb des angegebenen <paramref name="extent"/> liegen.
+    /// </summary>
+    static IEnumerable<TElement> GetElementsInside<TElement, TExtent>(this IReadOnlyList<TElement> tokens,
+                                                                      TExtent extent)
+        where TElement : IExtent
         where TExtent : IExtent {
 
         int startIndex = tokens.FindIndexAtOrBeforePosition(extent.Start);
         if (startIndex < 0) {
             yield break;
         }
+
         for (int index = startIndex; index < tokens.Count; index++) {
             var token = tokens[index];
 
@@ -95,20 +116,31 @@ static class ExtentExtensions {
             if (token.Start < extent.Start) {
                 continue;
             }
+
             if (token.End > extent.End) {
                 break;
             }
+
             yield return token;
         }
     }
 
-    public static T? FindElementAtPosition<T>(this IReadOnlyList<T> tokens, int position, bool defaultIfNotFound=false) where T : IExtent {
+    /// <summary>
+    /// Liefert das Element, das die angegebene Position enthält (<c>Start &lt;= position &lt; End</c>).
+    /// Wird kein solches Element gefunden, wird bei <paramref name="defaultIfNotFound"/> = <c>true</c>
+    /// <c>default</c> zurückgegeben, andernfalls eine <see cref="ArgumentOutOfRangeException"/> geworfen.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Kein Element enthält <paramref name="position"/> und <paramref name="defaultIfNotFound"/> ist <c>false</c>.
+    /// </exception>
+    public static T? FindElementAtPosition<T>(this IReadOnlyList<T> tokens, int position, bool defaultIfNotFound = false) where T : IExtent {
 
         int index = tokens.FindIndexAtOrBeforePosition(position);
         if (index < 0) {
-            if(defaultIfNotFound) {
+            if (defaultIfNotFound) {
                 return default;
             }
+
             throw new ArgumentOutOfRangeException(nameof(position));
         }
 
@@ -120,6 +152,7 @@ static class ExtentExtensions {
         if (defaultIfNotFound) {
             return default;
         }
+
         throw new ArgumentOutOfRangeException(nameof(position));
     }
 
@@ -134,11 +167,14 @@ static class ExtentExtensions {
         if (index < 0) {
             index = ~index - 1;
         }
+
         return index;
     }
 
     /// <summary>
-    /// Findet den Index des ersten Tokens, dessen Start gleich der angegebenen Position ist. 
+    /// Binärsuche nach dem Token, dessen Start exakt der angegebenen Position entspricht. Liefert dessen
+    /// Index oder – bei fehlendem Treffer – das bitweise Komplement des Einfüge-Index (analog zu
+    /// <see cref="System.Collections.Generic.List{T}.BinarySearch(T)"/>), also stets einen negativen Wert.
     /// </summary>
     public static int FindIndexAtPosition<T>(this IReadOnlyList<T> tokens, int pos) where T : IExtent {
 
@@ -162,4 +198,5 @@ static class ExtentExtensions {
 
         return ~iMin;
     }
+
 }

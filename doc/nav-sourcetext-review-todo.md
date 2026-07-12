@@ -42,7 +42,7 @@
 | S6 | `SourceTextLine`-Konstruktor: sinnfreien Guard `line > lineEnd` bereinigen | klein | **erledigt** |
 | S7 | `SourceTextLineList.Enumerator`: `Current` außerhalb des Bereichs härten | klein | **erledigt** |
 | S8 | Stil-Refactorings (Slice-Default-Impl, `GetTextLine`-Ternary, explizites `string`-Feld, Spacing) | klein | **erledigt** |
-| S9 | Vollständige XML-Doku über die gesamte SourceText-Fläche | mittel | offen |
+| S9 | Vollständige XML-Doku über die gesamte SourceText-Fläche | mittel | **erledigt** |
 
 Reihenfolge: **S1 zuerst** (Sicherheitsnetz für alles Folgende), danach sind S2–S8 unabhängig
 voneinander und einzeln committbar. S5 und S6 liegen außerhalb von `SourceText.cs`, gehören aber zum
