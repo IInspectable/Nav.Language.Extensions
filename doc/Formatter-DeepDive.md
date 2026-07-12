@@ -1,9 +1,9 @@
 ﻿# Inside Code Formatting: Technical Deep Dive
 
 Dieses Dokument erklärt den **Nav-Formatter** von oben nach unten. Als **Leitfaden** dient die
-Ausrichtung (Pfeile, Trigger, Bedingungen, Task-Köpfe, Node-Raster, Trailing-Kommentare) — sie ist die
-eine Zutat, die die sonst rein *lokale* Formatierung durchbricht und damit die gesamte Architektur (ein
-Vorpass plus eine pure Entscheidungsschicht) überhaupt erzwingt. An ihr entlang bauen wir das Bild auf:
+Ausrichtung (Pfeile, Continuations, Trigger, Bedingungen, Task-Köpfe, Node-Raster, Trailing-Kommentare) —
+sie ist die eine Zutat, die die sonst rein *lokale* Formatierung durchbricht und damit die
+Vorpass-Architektur (vorab rechnen, dann pur entscheiden) überhaupt erzwingt. An ihr entlang bauen wir das Bild auf:
 vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, hinunter zu den elementaren,
 formatierungs-invarianten Rohdaten und zur Konsumseite, die die Map wieder ausliest — und weiter zu den
 Ebenen, die *alle* Lücken tragen: das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority)),
@@ -66,11 +66,14 @@ Wert ist die **fertig aufgelöste Anzahl Leerzeichen**, die an dieser Lücke ger
 
 **Warum Space-Zahl und nicht Zielspalte?** Nur der Vorpass kennt die kanonischen Breiten des
 Zeileninhalts vor der Lücke. Für eine ausgerichtete Spalte ist die Space-Zahl `Zielspalte − kanonische
-Vor-Breite` (das Padding, immer ≥ 1). Der Renderer soll gar nicht mehr rechnen müssen — er soll nur
-noch Leerzeichen ausstoßen. Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs.
+Vor-Breite` (das Padding, immer ≥ 1); für die Umbruch-Varianten des Task-Kopfs (`NewLineAlignedColumn`,
+[§6](#6-die-konsumseite-der-gaprenderer)) ist der Wert die absolute Spalte nach dem Umbruch — numerisch
+wieder genau die Space-Zahl, die nach dem Umbruch auszustoßen ist. Der Renderer soll gar nicht mehr
+rechnen müssen — er soll nur noch Leerzeichen ausstoßen. Ausrichtungs-Padding ist immer Leerzeichen,
+nie Tabs.
 
-**Warum zwei Tabellen?** Fast alle Ausrichtungen (Pfeile, Node-Raster, Trigger, Bedingungen,
-Task-Köpfe) landen in `_spacesByGapStart` und werden über das reguläre `GapLayout.AlignedColumn`-
+**Warum zwei Tabellen?** Fast alle Ausrichtungen (Pfeile, Continuations, Node-Raster, Trigger,
+Bedingungen, Task-Köpfe) landen in `_spacesByGapStart` und werden über das reguläre `GapLayout.AlignedColumn`-
 Nachschlagen abgeholt. Die **Trailing-`//`-Kommentar-Spalte** ist der Sonderfall: Sie wird nicht über
 die normale Gap-Layout-Maschinerie aufgelöst, sondern der `GapRenderer` greift beim Setzen des
 Kommentars *direkt* auf `_trailingCommentSpacesByGapStart` zu (siehe [§6](#6-die-konsumseite-der-gaprenderer)
@@ -102,7 +105,13 @@ Ja — das Problem ist real. Und der Builder löst es, indem er **die Regeln tat
 Der Kern steckt in `CanonicalGapWidth`:
 
 ```csharp
+var trivia = GapTrivia.Create(prev, next, syntaxTree.SourceText);
+if (trivia.HasComment || trivia.HasDirective || trivia.HasSkippedTokens) {
+    return -1;
+}
+
 var ctx = new GapContext(prev, next, indentDepth: 0, trivia, isSuppressed: false, AlignmentMap.Empty, options);
+
 return GapRules.Select(in ctx) switch {
     GapLayout.Nothing       => 0,
     GapLayout.SingleSpace   => 1,
@@ -115,12 +124,21 @@ Das ist wörtlich „lass die Regeln laufen und miss, was rauskommt". Der Builde
 parallele Breiten-Logik — er befragt *dieselbe* `GapRules.Select`, die später auch der Renderer
 befragt. Damit können Messung und Rendering per Konstruktion nicht auseinanderlaufen.
 
+Der vorgeschaltete Trivia-Guard ist der eine Fall, in dem gar nicht erst gefragt wird: Trägt die Lücke
+einen Kommentar, eine Direktive oder Skipped-Trivia, ist sie nicht einzeilig-kanonisch vermessbar — ein
+einzeiliger `/* … */` etwa würde mit seiner Textlänge in die Spaltenbreite eingehen. Solche Lücken
+liefern `−1`, und der Kandidat fällt aus der Spalte (er wird zum Mitläufer,
+[§3.5](#35-gruppenbildung-welche-zeilen-teilen-eine-spalte-groupcandidates)).
+
 Dass das nicht in eine Endlosschleife läuft, hat zwei Entkopplungen plus eine Topologie:
 
 **(a) Das Rule-Verdikt hängt nicht von der Map ab, nur die Breite eines `AlignedColumn`.**
 `GapRules.Select` entscheidet nur, *welches* Layout eine Lücke bekommt (`Nothing`, `SingleSpace`,
-`AlignedColumn(Arrow)`, …). Diese Entscheidung fällt allein aus dem Token-Paar und den Eltern-Knoten.
-Nur die *gerenderte Breite* eines `AlignedColumn` steht in der Map. Deshalb darf der Builder beim
+`AlignedColumn(Arrow)`, … — das geschlossene Vokabular erklärt
+[§5.1](#51-das-layout-vokabular-gaplayout)). Diese Entscheidung fällt allein aus dem Token-Paar und den
+Eltern-Knoten — mit einer Ausnahme: die `TaskHeadLayoutRule` fragt für das mehrzeilige `[params]` die
+Map selbst ab; dieser Lückentyp liegt aber nie auf einem Messpfad des Builders, die Entkopplung trägt
+also überall dort, wo gemessen wird. Nur die *gerenderte Breite* eines `AlignedColumn` steht in der Map. Deshalb darf der Builder beim
 Messen `AlignmentMap.Empty` reinreichen und `AlignedColumn` → `1` mappen (den Single-Space-Fallback,
 den auch der Renderer nimmt, wenn kein Map-Eintrag existiert).
 
@@ -259,7 +277,17 @@ Gründen:
 
 Der Task-Kopf etwa rechnet `headColumn = keyword.Length + 1 + identifier.Length + 1` und
 `paramsColumn = headColumn + "[params ".Length` — eine interne Abhängigkeit, aber über lokale
-Variablen, nie über `spaces`. Das Node-Raster leitet Spalte 3 aus `nodeCol + node.Length` ab, wieder
+Variablen, nie über `spaces`. Für `task Login [code MyCode] [result LoginResult r]` heißt das
+`headColumn = 4 + 1 + 5 + 1 = 11`: Block 1 bleibt inline (genau ein Space hinter `Login`), jeder
+Folgeblock landet nach dem Umbruch linksbündig unter dem `[` des ersten — der Map-Wert `11` ist hier
+die absolute Spalte nach dem Umbruch ([§2](#2-die-alignmentmap--das-ergebnis-des-vorpasses)):
+
+```
+task Login [code MyCode]
+           [result LoginResult r]
+```
+
+Das Node-Raster leitet Spalte 3 aus `nodeCol + node.Length` ab, wieder
 lokal. Deshalb ist beides „selbst-tragend".
 
 ### 3.5 Gruppenbildung: welche Zeilen teilen eine Spalte? (GroupCandidates)
@@ -288,6 +316,11 @@ Gruppe `[A, B, C]`, Teilnehmer `[A, C]` → `on` von A und C fluchten. `B` läuf
 die Gruppe zu zerreißen und ohne selbst Padding zu bekommen. Würde `B` *brechen*, zerfiele die Gruppe
 in `[A]` und `[C]` — keine Ausrichtung. Genau das ist der Unterschied: **Nicht-Teilnahme zerreißt
 nicht, Defekt zerreißt.**
+
+Nicht-Teilnahme hat zwei Ursachen: Die Klausel fehlt (wie bei `B`) — oder eine Mess-Lücke trägt einen
+Inline-Block-Kommentar (`A /* x */ --> …`) und die Anweisung wird nur aus der Spalte genommen, weil die
+Spaltenbreite sonst an der Kommentar-Textlänge hinge (der Trivia-Guard aus
+[§3.2](#32-die-auflösung-rules-mitlaufen-lassen--topologie)). Beides zerreißt nicht.
 
 **Zwei Bruch-Achsen.**
 
@@ -329,8 +362,8 @@ Der Gedanke: Der Pfeil ist das dominante visuelle Gerüst eines Transitions-Bloc
 einen neuen Absatz, und die Spalte fängt frisch an.
 
 **Idempotenz.** `InterruptLines` liest den Ist-Whitespace, aber die *Entscheidung* ist invariant:
-Leerzeilen werden nie unter den Deckel `MaxBlankLines` (≥ 2 oder aus) kollabiert, und beide Schwellen
-(1, 2) liegen auf oder unter diesem Boden. Ein Gap mit ≥ 2 Interrupt-Zeilen bleibt ≥ 2, eines mit
+Leerzeilen zwischen den gruppierten Anweisungen werden nie unter den Deckel `MaxBlankLines` (≥ 2 oder
+aus) kollabiert, und beide Schwellen (1, 2) liegen auf oder unter diesem Boden. Ein Gap mit ≥ 2 Interrupt-Zeilen bleibt ≥ 2, eines mit
 genau 1 bleibt 1. Die Klassifikation ändert sich nie durch einen Formatierlauf.
 
 #### Warum Trailing-Kommentare anders behandelt werden
@@ -428,7 +461,7 @@ Das flache Anweisungs-Set (`EnumerateStatements`) sind Transitionen, Exit-Transi
 Node-Deklarationen — Letztere schließen die `taskref`-Verbindungspunkte mit ein, weil
 `ConnectionPointNodeSyntax` von `NodeDeclarationSyntax` erbt.
 
-Die Fakten — drei Primitive + ein abgeleitetes:
+Der Inhalt — die Token-Liste plus drei primitive Fakten und ein abgeleiteter:
 
 - **`Tokens`** — die signifikanten Token der Anweisung.
 - **`EndsWithSemicolon`** — letztes Token ist `;` (prüft das Node-Raster).
@@ -541,7 +574,7 @@ dieser sechs Entscheidungen.
 | `SingleSpace` | genau ein Space; Variante `PullUp` zieht bloße authored Newlines hoch (Kopf-Kanonisierung) |
 | `AlignedColumn(ColumnId)` | Spaces bis zur vorberechneten Gruppenspalte (die Zahl liest der Renderer aus der [`AlignmentMap`](#2-die-alignmentmap--das-ergebnis-des-vorpasses)) |
 | `NewLine(BlankLinesBefore, IndentDepth)` | Umbruch auf Einzugstiefe; `BlankLinesBefore` ist ein Minimum, nie ein Kollaps |
-| `NewLineAlignedColumn(BlankLinesBefore, ColumnId)` | Umbruch, dann Spalten-Einzug statt Tiefe (Kopf-Block-Stapel, mehrzeiliges `[params]`) |
+| `NewLineAlignedColumn(BlankLinesBefore, ColumnId)` | Umbruch, dann Spalten-Einzug statt Tiefe (Kopf-Block-Stapel, mehrzeiliges `[params]`); als kanonisch erzwungenes Konstrukt kollabiert der Stapel authored Leerzeilen — die eine Ausnahme vom Nie-Kollabieren (Kommentar-/Direktivzeilen bleiben) |
 | `Verbatim` | Lücke unverändert — es wird kein Change emittiert |
 
 Der springende Punkt: **eine Regel → genau ein vollständiges Layout**, nie eine Kombination. Das ist die
@@ -576,20 +609,20 @@ static readonly IGapRule[] Rules = {
     new VerbatimWhenSuppressedRule(),      // unterdrückte Region -> Verbatim
     // Structure
     new BraceOnOwnLineRule(),              // vor '{'/'}' und nach '{' -> eigene Zeile (Allman)
-    new BlankLineAroundBlockMembersRule(), // um task/taskref-Block-Member + nach [namespaceprefix] -> Leerzeile
+    new BlankLineAroundBlockMembersRule(), // um task/taskref-Block-Member + nach [namespaceprefix] -> mindestens eine Leerzeile
     new MemberBreakRule(),                 // nach '}' und nach Top-Level-']' -> neuer Member auf Tiefe 0
-    new BlankLineBeforeTransitionsRule(),  // Deklarationen -> Transitionen -> mindestens eine Leerzeile
+    new BlankLineBeforeTransitionsRule(),  // Blockgrenze Deklarationen -> Transitionen: mindestens eine Leerzeile
     new StatementBreakRule(),              // nach ';' -> nächste Anweisung auf eigener Zeile
     // TokenPair
     new TightColonRule(),                  // Node ':' Port -> tight
     new PunctuationRule(),                 // tight vor ','/';', [-Innenränder, Typ-Interna
-    new TaskHeadLayoutRule(),              // Task-/taskref-Kopf: Block 1 inline, Folgeblöcke gestapelt
+    new TaskHeadLayoutRule(),              // Task-/taskref-Kopf: Block 1 inline (Pull-up), Folgeblöcke gestapelt, mehrzeiliges [params]
     // Alignment
-    new ArrowAlignmentRule(),              // Quell-Teil -> Edge-Keyword -> Pfeil-Spalte
-    new ContinuationAlignmentRule(),       // Ziel-Teil -> --^/o-^ -> Continuation-Spalte
-    new TriggerAlignmentRule(),            // Ziel-Teil -> on/spontaneous -> Trigger-Spalte
-    new ConditionAlignmentRule(),          // Ziel-Teil -> if/else if/else -> Condition-Spalte
-    new NodeGridAlignmentRule(),           // keyword -> node -> rest -> 3-Spalten-Raster
+    new ArrowAlignmentRule(),              // Quell-Teil -> Edge-Keyword in Gruppe -> Pfeil-Spalte
+    new ContinuationAlignmentRule(),       // Ziel-Teil -> --^/o-^ in Gruppe -> Continuation-Spalte
+    new TriggerAlignmentRule(),            // Ziel-Teil -> on/spontaneous in Gruppe -> Trigger-Spalte
+    new ConditionAlignmentRule(),          // Ziel-Teil -> if/else if/else in Gruppe -> Condition-Spalte
+    new NodeGridAlignmentRule(),           // keyword -> node bzw. node -> rest -> 3-Spalten-Raster
     // Default
     new DefaultSingleSpaceRule(),          // Catch-all -> genau ein Space
 };
@@ -697,7 +730,7 @@ ArrowAlignmentRule            NextParent = EdgeSyntax unter     -> AlignedColumn
                               TransitionDefinitionSyntax
 ```
 
-Zwölf Regeln sagen „nicht zuständig", die dreizehnte trifft. Der Renderer liest dann `spaces[A.End] = 4`
+Neun Regeln sagen „nicht zuständig", die zehnte trifft. Der Renderer liest dann `spaces[A.End] = 4`
 aus der Map und macht daraus vier Leerzeichen ([§6](#6-die-konsumseite-der-gaprenderer)).
 
 **Cross-Tier-Preemption.** Dieselbe Lücke, aber in einem defekten (klammer-losen) Task-Body: Jetzt greift
@@ -722,9 +755,8 @@ wird hier über *eine* Methode wieder ausgelesen:
 
 ```csharp
 string AlignmentSpaces(in GapContext ctx, string fallback) {
-    return ctx.Alignment.TryGetSpaces(ctx.Extent.Start, out var spaces)
-        ? new string(' ', spaces)
-        : fallback;
+    // Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs — unabhängig vom Einzugsstil.
+    return ctx.Alignment.TryGetSpaces(ctx.Extent.Start, out var spaces) ? new string(' ', spaces) : fallback;
 }
 ```
 
@@ -770,13 +802,14 @@ folgerichtig der normale Tiefen-Einzug.
 ihrer Newline-Trivia in Trailing-Segment / Innenzeilen / Leading-Segment (`SplitLines`), erhält die
 *authored* Zeilenstruktur, normalisiert pro Zeile nur den Whitespace, kappt Leerzeilen-Läufe
 (`CapBlankRuns`) und ergänzt fehlende bis zum Minimum. Die **Renderer-Schranke** (`RequiresLineBreak`)
-degradiert ein Same-Line-Layout zum Umbruch, wenn die Lücke einen `//`-Kommentar/eine Direktive/einen
-Umbruch trägt — sonst würde ein Token hinter einem `//` verschluckt. Für Ausrichtungs-Gaps ist das
+degradiert ein Same-Line-Layout zum Umbruch, wenn die Lücke einen `//`-Kommentar, einen mehrzeiligen
+Block-Kommentar, eine Direktive oder einen Umbruch trägt — sonst würde ein Token hinter einem `//`
+verschluckt. Für Ausrichtungs-Gaps ist das
 Belt-and-Suspenders: der Builder hat solche Gaps via `CanonicalGapWidth → −1` ohnehin ausgeschlossen.
 
 ---
 
-## 7. Der Bogen
+## 7. Der Bogen der Ausrichtung
 
 Die Ausrichtungs-Maschinerie top-down zusammengefasst:
 
@@ -789,10 +822,14 @@ Die Ausrichtungs-Maschinerie top-down zusammengefasst:
 - **`GapRules` → `GapRenderer`** — die pure Entscheidung und ihre einzige Materialisierung, die die Map
   über `Extent.Start` wieder ausliest und zum Whitespace macht.
 
-Der rote Faden durch alles ist **Idempotenz durch Invarianz**: jede Ebene liest nur kanonische Fakten,
+Der rote Faden bis hierher ist **Idempotenz durch Invarianz**: jede Ebene liest nur kanonische Fakten,
 nie den Ist-Zustand — von `GapTrivia`s verschlucktem Whitespace über die threshold-stabile
 Gruppenbildung bis zu `PreserveDominant`s Fixpunkt. Deshalb ist ein zweiter Formatierlauf immer ein
 No-Op.
+
+Zwei Ebenen stehen noch aus: der Vorpass, der entscheidet, welche Lücken überhaupt angefasst werden
+dürfen ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)), und die imperative Schale, die
+alles zu *einem* Durchlauf sequenziert ([§9](#9-der-treiber-loop-navformattingservice)).
 
 ---
 
@@ -810,8 +847,8 @@ Sein Verdikt je Anweisung ist eines von dreien:
 | Klasse | Auslöser | Behandlung |
 |---|---|---|
 | **Normal** | einzeilig, strukturell gültig | voll formatiert — der Regelfall, kein Eintrag nötig |
-| **Hand-gelegt** | mehrzeilig, aber gültig (endet mit `;`, kein Skiped/Direktive) | Inneres **byte-genau**, nur der äußere Einzug per **Delta-Shift** re-gesetzt |
-| **Verbatim** | Strukturbruch: fehlendes Token, Skiped/Direktive, Error-Diagnostik | komplett unangetastet — dem Baum wird nicht getraut |
+| **Hand-gelegt** | mehrzeilig, aber gültig (endet mit `;`, keine Skipped-Trivia/Direktive) | Inneres **byte-genau**, nur der äußere Einzug per **Delta-Shift** re-gesetzt |
+| **Verbatim** | Strukturbruch: fehlendes Token, Skipped-Trivia/Direktive, Error-Diagnostik | komplett unangetastet — dem Baum wird nicht getraut |
 
 Der Vorpass produziert daraus drei Ausgänge, die alle nur *invariante* Fakten (fehlende Token,
 Trivia-Klasse, Diagnostics) lesen — die Klassifikation ist damit selbst formatier-invariant, ganz im
@@ -847,8 +884,9 @@ Severity `Error` zieht die sie umschließende Anweisung ins Verbatim (`:87-101`)
 bewusst hier:
 
 - **BOM-`Nav0000` bei Offset 0** ist ausgenommen (`:93`) — ein führendes U+FEFF wird als `Unknown`
-  gelext und meldet sich als Fehler, ist aber kein Strukturbruch (der Leading-Gap-Renderer trimmt es
-  ohnehin sauber).
+  gelext und meldet sich als Fehler, ist aber kein Strukturbruch. Das BOM selbst schützt der BOM-Guard
+  des Treibers: trägt die Leading-Trivia Skipped-Läufe, bleibt der Datei-Anfang verbatim und es
+  entsteht nie ein Change an Offset 0 ([§9.2](#92-formatdocument-vorpässe-und-drei-zonen)).
 - **Fehler *im Inhalt eines Code-Blocks*** (`CodeSyntax`) unterdrücken nicht. `FindEnclosingStatement`
   (`:204`) läuft die Ahnenkette hoch und liefert `null`, sobald es auf einen `CodeSyntax` trifft: ein
   kaputtes eingebettetes C#-Fragment (`[code Foo]`, ein defekter `[params]`-Typ) lässt die *Nav*-Struktur
@@ -928,9 +966,9 @@ task T
 }
 ```
 
-Die Anweisung `A --> B;` ist strukturell gültig (endet mit `;`, kein Skiped/Direktive), trägt aber einen
-Newline in der inneren Lücke zwischen `-->` und `B` → `Classify` = **HandLaid**. `A` ist mit 8
-Leerzeichen eingerückt, `B` mit 12.
+Die Anweisung `A --> B;` ist strukturell gültig (endet mit `;`, keine Skipped-Trivia/Direktive), trägt
+aber einen Newline in der inneren Lücke zwischen `-->` und `B` → `Classify` = **HandLaid**. `A` ist mit
+8 Leerzeichen eingerückt, `B` mit 12.
 
 **Delta-Rechnung** für `firstToken = A`:
 
@@ -941,7 +979,10 @@ target    = depth * IndentSize    = 1 * 4 = 4
 delta     = target - authored     = 4 - 8 = -4
 ```
 
-Der Delta (`−4`) wird an die einzige innere Lücke der Anweisung geschrieben: Schlüssel `(-->).End`.
+Der Delta (`−4`) wird an **alle drei** inneren Lücken der Anweisung geschrieben (Schlüssel `A.End`,
+`(-->).End`, `B.End`) — so umgeht jede innere Lücke die Regel-Pipeline und bleibt byte-genau. Wirksam
+wird er nur an der Newline-Lücke `(-->).End`; für die einzeiligen Lücken ist der Shift ein No-Op
+(`ShiftInteriorLines` gibt Text ohne `\n` unverändert zurück).
 
 **Beim Rendern** trifft der Treiber das Paar `(-->, B)`, findet über `TryGetHandLaidShift((-->).End)` den
 Delta `−4` und ruft `RenderRawShifted(ctx, −4)` ([§6](#6-die-konsumseite-der-gaprenderer),
@@ -951,7 +992,8 @@ Spalte 8.
 
 Die Zeile von `A` selbst wird *nicht* hier re-eingerückt: die Lücke *vor* `A` (zwischen `{` und `A`)
 gehört nicht zur Anweisung, sie ist eine **normale** Lücke und rendert über den regulären
-`StatementBreakRule → NewLine`-Pfad auf Tiefe 1 → Spalte 4. Der Clou: dieser normale Pfad verschiebt `A`
+`BraceOnOwnLineRule → NewLine`-Pfad (nach `{` beginnt der Body auf eigener Zeile) auf Tiefe 1 →
+Spalte 4. Der Clou: dieser normale Pfad verschiebt `A`
 um exakt `target − authored = −4` — **denselben** Delta. Weil beide Zeilen um denselben Betrag wandern,
 bleibt ihre *relative* Struktur erhalten:
 
@@ -1058,7 +1100,7 @@ var suppression    = FormatterSuppression.Compute(syntaxTree, options, statement
 
 **Zone 1 — der Leading-Gap.** Die Leading-Trivia des ersten realen Tokens liegt *vor* der ersten
 Paar-Lücke und wird gesondert über `RenderLeadingGap` normalisiert. Der **BOM-Guard**: trägt diese Trivia
-Skiped-Läufe — insbesondere ein führendes BOM, das als `Unknown` → `SkippedTokensTrivia` gelext wird —
+Skipped-Läufe — insbesondere ein führendes BOM, das als `Unknown` → `SkippedTokensTrivia` gelext wird —
 bleibt sie verbatim, sodass nie ein Change an Offset 0 entsteht, der das BOM anfasste.
 
 **Zone 2 — die Paar-Schleife** `for (i = 0; i < tokens.Count - 2; i++)` (`:88`), geschützt durch
@@ -1084,7 +1126,8 @@ Rand-Lücken laufen (Global-Fallback, [§8](#8-der-fehler-toleranz-vorpass-forma
 
 **Zone 3 — der Final-Gap.** `RenderFinalGap` (`:274`) behandelt die eine Lücke `[letztes reales Token,
 EOF)` — der einzige Ort für Final-Newline und EOF-Trailing-Trim (Kommentar-/Direktivzeilen am Dateiende
-bleiben; dahinter endet die Datei mit genau einer Newline). Skiped-Läufe bleiben auch hier verbatim.
+bleiben; dahinter endet die Datei mit genau einer Newline — ob sie ergänzt wird, steuert allein
+`InsertFinalNewline`, der EOF-Trim läuft immer). Skipped-Läufe bleiben auch hier verbatim.
 
 Zum Schluss: `return options.VerifyResult ? Guard(…) : changes` — der optionale Selbsttest
 ([§9.5](#95-der-wächter-achse-a-selbsttest)). Die drei Zonen sind exakt die Kachelung aus §9.1: Leading,
@@ -1131,6 +1174,11 @@ die **Subset-/Monotonie-Garantien**: `FormatRange(x, ganzeDatei) == FormatDocume
 Voll-Format verschiebt nie, was ein Range-Format schon platziert hat (Range-Format ist eine Teilanwendung
 desselben Ergebnisses). Der Final-Gap unterliegt demselben `⊆`-Filter (eine Auswahl ohne das Dateiende
 fügt dort keine Newline ein).
+
+Eine Kehrseite bleibt: Zerschneidet die Auswahl eine Ausrichtungsgruppe, bleiben Out-of-Range-Nachbarn
+gegebenenfalls unausgerichtet stehen (erwartete Editor-Konvention „nur die Auswahl anfassen"). Die
+Spalte selbst ist dank kanonischer Breitenmessung trotzdem identisch zum Voll-Modus — der nächste
+Voll-Format zieht die Nachbarn nach, ohne das schon Platzierte zu verschieben.
 
 `ExpandRange` (`:190`) erweitert die rohe Auswahl: (1) auf ganze Zeilen einrasten, (2) auf ganze
 Anweisungs-/Member-Knoten ausweiten, die der Range *echt* schneidet — bis zum Knoten-Ende und nach vorn
