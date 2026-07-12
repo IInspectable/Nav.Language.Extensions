@@ -4,8 +4,8 @@ Dieses Dokument erklärt die **Ausrichtungs-Maschinerie** des Nav-Formatters von
 vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, bis hinunter zu den
 elementaren, formatierungs-invarianten Rohdaten und schließlich zur Konsumseite, die die Map wieder
 ausliest. Der Fokus liegt auf dem Ausrichtungs-Teil (Pfeile, Trigger, Bedingungen, Task-Köpfe,
-Node-Raster, Trailing-Kommentare); die übrigen Kapitel (Fehler-Toleranz-Vorpass, Treiber-Loop,
-Regel-Tiers) reichen wir nach.
+Node-Raster, Trailing-Kommentare). Der Fehler-Toleranz-Vorpass ist als [§7](#7-der-fehler-toleranz-vorpass-formattersuppression)
+angehängt; die übrigen Kapitel (Treiber-Loop, Regel-Tiers) reichen wir nach.
 
 Alle Datei- und Zeilenangaben beziehen sich auf `Nav.Language/Formatting/`.
 
@@ -600,12 +600,218 @@ No-Op.
 
 ---
 
+## 7. Der Fehler-Toleranz-Vorpass (FormatterSuppression)
+
+Die bisherige Maschinerie lief unter einer stillen Doppel-Annahme: der Syntaxbaum ist intakt, und jede
+Anweisung steht auf einer Zeile. `FormatterSuppression` ist der Vorpass, der genau diese Annahme
+absichert. Er ist der **Zwilling des `AlignmentMapBuilder`**: beide laufen einmal *vor* dem Token-Loop,
+beide lesen dieselben geteilten `StatementFacts` ([§4.1](#41-statementfacts)) — sie fragen nur
+Verschiedenes. Der Builder fragt „welche Lücke bekommt wie viel Padding?"; die Suppression fragt „welche
+Lücke darf ich überhaupt anfassen?".
+
+Sein Verdikt je Anweisung ist eines von dreien:
+
+| Klasse | Auslöser | Behandlung |
+|---|---|---|
+| **Normal** | einzeilig, strukturell gültig | voll formatiert — der Regelfall, kein Eintrag nötig |
+| **Hand-gelegt** | mehrzeilig, aber gültig (endet mit `;`, kein Skiped/Direktive) | Inneres **byte-genau**, nur der äußere Einzug per **Delta-Shift** re-gesetzt |
+| **Verbatim** | Strukturbruch: fehlendes Token, Skiped/Direktive, Error-Diagnostik | komplett unangetastet — dem Baum wird nicht getraut |
+
+Der Vorpass produziert daraus drei Ausgänge, die alle nur *invariante* Fakten (fehlende Token,
+Trivia-Klasse, Diagnostics) lesen — die Klassifikation ist damit selbst formatier-invariant, ganz im
+Sinne des Leitmotivs **Idempotenz durch Invarianz**:
+
+```
+_verbatimExtents          : Liste der byte-genau zu erhaltenden Regionen   → IsSuppressed(gap)
+_handLaidShiftByGapStart  : Lücke → Einrück-Delta einer hand-gelegten Zeile → TryGetHandLaidShift(start)
+HasUsableMembers          : trägt die Datei überhaupt Member?              → Global-Fallback im Treiber
+```
+
+### 7.1 Die drei Quellen der Unterdrückung
+
+`Compute` (`FormatterSuppression.cs:71`) sammelt Verbatim-Regionen aus drei unabhängigen Quellen.
+
+**(1) Kaputte Blöcke — fehlende Klammern eines `task`/`taskref`.** `AddBrokenBlock` (`:141`) macht die
+Asymmetrie der beiden fehlenden Klammern explizit:
+
+```csharp
+if (openBrace.IsMissing) {
+    verbatim.Add(blockExtent);                                    // fehlendes '{' -> ganzer Task
+} else if (closeBrace.IsMissing) {
+    verbatim.Add(TextExtent.FromBounds(openBrace.End, blockExtent.End));  // fehlendes '}' -> ab hinter '{'
+}
+```
+
+Fehlt das `{`, ist der Body gar nicht mehr lokalisierbar (Containment unsicher) → der **ganze** Task
+wird verbatim. Fehlt nur das `}`, bleibt der Kopf (`task Name`) formatierbar, verbatim ist erst der
+Body ab hinter dem `{`. Alles außerhalb des defekten Blocks formatiert normal weiter.
+
+**(2) Error-Severity-Diagnostik → kleinste umschließende Anweisung.** Jede Syntax-Diagnostik der
+Severity `Error` zieht die sie umschließende Anweisung ins Verbatim (`:87-101`). Zwei Ausnahmen sitzen
+bewusst hier:
+
+- **BOM-`Nav0000` bei Offset 0** ist ausgenommen (`:93`) — ein führendes U+FEFF wird als `Unknown`
+  gelext und meldet sich als Fehler, ist aber kein Strukturbruch (der Leading-Gap-Renderer trimmt es
+  ohnehin sauber).
+- **Fehler *im Inhalt eines Code-Blocks*** (`CodeSyntax`) unterdrücken nicht. `FindEnclosingStatement`
+  (`:204`) läuft die Ahnenkette hoch und liefert `null`, sobald es auf einen `CodeSyntax` trifft: ein
+  kaputtes eingebettetes C#-Fragment (`[code Foo]`, ein defekter `[params]`-Typ) lässt die *Nav*-Struktur
+  unangetastet — der Formatter fasst Code-Block-Inneres nie an, und echte Strukturbrüche fangen ohnehin
+  die Token-basierten Auslöser (1) und (3) ab.
+
+**(3) Anweisungen aus den `StatementFacts` — hier fällt die Dreiteilung.** `Classify` (`:162`) ist der
+Kern, und er ist der Ort, an dem sich der in [§4.1](#41-statementfacts) angekündigte Nutzen der
+**getrennt gehaltenen** Trivia-Primitive einlöst:
+
+```csharp
+static StatementClass Classify(StatementFacts facts) {
+
+    if (!facts.EndsWithSemicolon || facts.HasStructuralBreakTrivia) {
+        return StatementClass.Suppressed;
+    }
+
+    return facts.SpansMultipleLines ? StatementClass.HandLaid : StatementClass.Normal;
+}
+```
+
+`HasStructuralBreakTrivia` und `SpansMultipleLines` sind hier **nicht** austauschbar. Der Unterschied
+ist die ganze Existenzberechtigung der beiden Primitive: Eine Direktive oder ein `SkippedTokensTrivia`
+mitten in der Anweisung (`HasStructuralBreakTrivia`) ließe sich *nicht* per Delta-Shift sauber auf den
+Block-Einzug schieben — sie muss verbatim bleiben. Ein bloßer Newline im Inneren (`SpansMultipleLines`,
+aber kein Struktur-Trivia) markiert eine gültige, nur mehrzeilig gesetzte Anweisung — genau der
+hand-gelegte Fall, bei dem sich der äußere Einzug re-setzen lässt, während das Innere byte-genau bleibt.
+Der `AlignmentMapBuilder` *ver-ODER-t* dieselben zwei Primitive zu `BreaksSingleLineForm` (ihm ist die
+Unterscheidung egal — jede nicht mehr einzeilige Anweisung fällt aus der Spalte); die Suppression
+*unterscheidet* sie. Zwei Konsumenten, zwei Kombinationen, dieselben Rohdaten.
+
+### 7.2 Zwei Phasen: warum die Deltas *nach* den Verbatim-Regionen kommen
+
+`Compute` sammelt in *einem* Durchlauf die Verbatim-Regionen (aus allen drei Quellen) **und** die
+hand-gelegten Kandidaten, konstruiert die `FormatterSuppression`, und rechnet die Deltas erst in einem
+**zweiten** Durchlauf:
+
+```csharp
+var suppression = new FormatterSuppression(verbatim, handLaid, ComputeHasUsableMembers(syntaxTree));
+
+foreach (var facts in handLaidCandidates) {
+    if (suppression.IsSuppressed(facts.Statement.Extent)) {
+        continue;                                    // schon verbatim -> kein (widersprüchlicher) Shift
+    }
+    var delta = HandLaidDelta(syntaxTree, options, facts.Tokens[0]);
+    for (var i = 1; i < facts.Tokens.Count; i++) {
+        handLaid[facts.Tokens[i - 1].End] = delta;   // Delta an jede innere Lücke der Anweisung
+    }
+}
+```
+
+Die Reihenfolge ist kein Zufall: Eine hand-gelegte Anweisung kann *innerhalb* eines defekten Task-Bodys
+liegen. Dann ist sie über Quelle (1) bereits verbatim — und darf **keinen** Delta-Shift bekommen, der
+ihr widerspräche (verbatim heißt byte-genau, Delta-Shift verschöbe Zeichen). Der `IsSuppressed`-Check zu
+Beginn der zweiten Schleife setzt die Rangfolge **Verbatim vor Hand-gelegt** durch — und das geht nur,
+wenn *alle* Verbatim-Regionen zu diesem Zeitpunkt schon feststehen. Deshalb die Zweiteilung.
+
+Der Delta wird pro innerer Lücke der Anweisung unter deren `Prev.End` abgelegt — dieselbe
+Schlüssel-Konvention wie in der `AlignmentMap` ([§2](#2-die-alignmentmap--das-ergebnis-des-vorpasses)),
+sodass der Treiber später mit `extent.Start` genau diesen Eintrag trifft.
+
+### 7.3 Durchgerechnet: der Delta-Shift
+
+`HandLaidDelta` (`:176`) ist eine kleine, exakte Rechnung: **Ziel-Einzug des Blocks − authored
+Einrückung des ersten Tokens**. Der authored-Teil zählt die Whitespace-Zeichen unmittelbar vor dem
+ersten Token zurück bis zum Zeilenanfang; steht davor Nicht-Whitespace (das Token beginnt nicht am
+Zeilenanfang), gibt es keinen sinnvollen äußeren Einzug → Delta 0.
+
+Nehmen wir eine über zwei Zeilen gesetzte Transition in einem Task-Body (`IndentSize = 4`, Block-Tiefe
+1 → Ziel-Einzug 4 Zeichen; · = Leerzeichen):
+
+```
+task T
+{
+········A -->
+············B;
+}
+```
+
+Die Anweisung `A --> B;` ist strukturell gültig (endet mit `;`, kein Skiped/Direktive), trägt aber einen
+Newline in der inneren Lücke zwischen `-->` und `B` → `Classify` = **HandLaid**. `A` ist mit 8
+Leerzeichen eingerückt, `B` mit 12.
+
+**Delta-Rechnung** für `firstToken = A`:
+
+```
+authored  = 8                    (8 Leerzeichen vor A, davor ein '\n' -> A am Zeilenanfang)
+depth     = ComputeIndentDepth(A) = 1
+target    = depth * IndentSize    = 1 * 4 = 4
+delta     = target - authored     = 4 - 8 = -4
+```
+
+Der Delta (`−4`) wird an die einzige innere Lücke der Anweisung geschrieben: Schlüssel `(-->).End`.
+
+**Beim Rendern** trifft der Treiber das Paar `(-->, B)`, findet über `TryGetHandLaidShift((-->).End)` den
+Delta `−4` und ruft `RenderRawShifted(ctx, −4)` ([§5](#5-die-konsumseite-der-gaprenderer),
+`GapRenderer.cs:346`). Der rendert `ctx.Extent` — den Text `"\n············"` (Newline + 12 Leerzeichen)
+— verbatim, verschiebt aber das Innenzeilen-Präfix um `−4` → `"\n········"` (Newline + 8). `B` landet auf
+Spalte 8.
+
+Die Zeile von `A` selbst wird *nicht* hier re-eingerückt: die Lücke *vor* `A` (zwischen `{` und `A`)
+gehört nicht zur Anweisung, sie ist eine **normale** Lücke und rendert über den regulären
+`StatementBreakRule → NewLine`-Pfad auf Tiefe 1 → Spalte 4. Der Clou: dieser normale Pfad verschiebt `A`
+um exakt `target − authored = −4` — **denselben** Delta. Weil beide Zeilen um denselben Betrag wandern,
+bleibt ihre *relative* Struktur erhalten:
+
+```
+task T
+{
+····A -->
+········B;
+}
+```
+
+`A`→`B` war Offset `+4` (8→12), bleibt Offset `+4` (4→8). Die zweizeilige Anweisung ist als Ganzes um 4
+nach links übersetzt, ihre innere Form byte-identisch.
+
+**Idempotenz.** Im zweiten Lauf steht `A` bereits auf Spalte 4 → `authored = 4`, `delta = 4 − 4 = 0`.
+`RenderRawShifted(ctx, 0)` verschiebt nichts, der Text ist identisch, kein `TextChange`. Der Delta-Shift
+ist ein **Fixpunkt** — genau wie `PreserveDominant` in [§3.6](#36-die-policy-schicht-resolvetargetcolumn),
+nur auf den Einzug statt die Spalte angewandt.
+
+### 7.4 HasUsableMembers — der Global-Fallback
+
+Der dritte Ausgang ist ein einzelnes Bool. `ComputeHasUsableMembers` (`:227`) prüft, ob die Datei
+überhaupt Member, Usings oder einen Namespace trägt. Trägt sie nichts (reiner Müll, leere Datei), wäre
+jede paarweise Lücken-Entscheidung Rätselraten auf einem bedeutungslosen Token-Strom. Der Treiber schaltet
+dann in einen **Global-Fallback**: nur die zwei konservativen Rand-Lücken (Datei-Anfang und
+Final-Newline/EOF-Trim) werden angefasst, die gesamte Paar-Schleife entfällt. So bleibt eine kaputte
+Datei erhalten, statt von einem sinnlosen Formatierlauf zerpflügt zu werden.
+
+### 7.5 Zwei Ausgänge, zwei Konsum-Pfade
+
+`IsSuppressed` und `TryGetHandLaidShift` fließen **auf verschiedenen Wegen** in den Treiber-Loop
+(`NavFormattingService.cs:88`) — das ist die strukturelle Pointe des Vorpasses:
+
+- **Verbatim** geht durch die **Regel-Pipeline**. `CreateContext` speist `suppression.IsSuppressed(extent)`
+  als `ctx.IsSuppressed` ein (`:311`); die allererste, höchstpriore Regel `VerbatimWhenSuppressedRule`
+  (`GapRules.cs:31`, Safety-Tier) liefert dann bedingungslos `GapLayout.Verbatim`. Der Treiber sieht das
+  Verbatim-Layout und **lässt den `TextChange` einfach weg** (`NavFormattingService.cs:106`) — keine
+  Änderung heißt byte-genau erhalten. (Warum diese Regel im Safety-Tier ganz vorn steht, ist Thema des
+  noch offenen Regel-Kapitels.)
+
+- **Hand-gelegt** *umgeht* die Regel-Pipeline. Noch vor `GapRules.Select` fragt der Treiber
+  `TryGetHandLaidShift(extent.Start)` (`:93`); trifft er einen Delta, rendert er sofort per
+  `RenderRawShifted` und `continue`t. Die Regeln laufen für diese Lücke gar nicht erst an — sie hätten
+  auch keine Handhabe, ein „Inneres verbatim, Rand geshiftet" auszudrücken.
+
+So schließt sich der Kreis zum Leitmotiv: Der Fehler-Toleranz-Vorpass liest ausschließlich invariante
+Fakten, klassifiziert einmal, und liefert dem lokalen, puren Formatter zwei Vorab-Antworten — „fass das
+nicht an" und „schieb das nur, byte-genau". Beide sind idempotent: die verbatim gelassene Region ändert
+sich per Definition nie, der Hand-gelegt-Delta ist im zweiten Lauf 0.
+
+---
+
 ## Noch offen (folgt)
 
 Diese Kapitel sind in dieser Session nur am Rand gestreift worden und werden nachgereicht:
 
-- **`FormatterSuppression`** — der zweite Vorpass (verbatim vs. hand-gelegt), der ebenfalls
-  `StatementFacts` konsumiert und dessen `IsSuppressed`/Delta-Shift in denselben Renderer fließt.
 - **Der Treiber-Loop (`NavFormattingService`)** — Leading-Gap, Paar-Schleife, Final-Gap; wer pro Lücke
   `GapRules.Select` + `renderer` aufruft und die `TextChange`s zusammensetzt.
 - **Das Regel-System (`GapRules` / `RulePriority`)** — die geordnete Regelliste, die Tier-Präzedenz
