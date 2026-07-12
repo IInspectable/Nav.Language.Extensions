@@ -114,20 +114,43 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 - **Engine:** `Nav.Language.Tests/Symbols/NavSymbolSearchTests.cs` (9, net472 + net10) deckt die
   Namens-Auflösung (`FindByName`) **und** die Präfix-Definitionssuche (`FindDefinitionsByPrefix`:
   Präfix-/Case-Insensitivität, leerer Präfix = alle, unbekannt = leer) ab — der einzige neue Engine-Code.
-- **MCP-Tools:** per **stdio-Smoke** gegen die laufende `nav.mcp` verifiziert (newline-delimited
-  JSON-RPC: `initialize` → `notifications/initialized` → `tools/list` → `tools/call`). Abgedeckt:
-  Outline, Workspace, FindSymbol (Präfix, kind-Filter), GoTo (same/cross-file), References (same/cross-file), Mehrdeutigkeit +
-  Disambiguierung (`task`- **und** `kind`-Achse), Rename (scoped/Task, file-local), Invalid-Name-Fehler,
-  Remove-Unused-Nodes. **`nav_diagnostics`** gegen `Nav.Language.Tests/Diagnostics/Tests` verifiziert:
-  voller Sweep (Summary-Konsistenz `error+warning+suggestion == count`), `severity`-Filter, `filter` +
-  Paging/`truncated`, plus Quer-Check `nav_validate` einer Einzeldatei == gefiltertes `nav_diagnostics`
-  (identische Counts/Codes). **`nav_grammar`** per stdio-Smoke: volle Grammatik (enthält
-  `codeGenerationUnit ::=`), Einzelregel (`taskDefinition`) + `includeTerminals`, unbekannte Regel
-  (`arrayType` → `error` + `availableRules`). **`nav_format`** per stdio-Smoke: Voll-Format
-  (Tabs-Einzug, Pfeil-/Node-Grid-Ausrichtung, Final-Newline), Range-Format (nur der gewählte Task
-  ändert sich — Subset-Garantie), Idempotenz (bereits formatierte Datei → 0 Edits, `formattedText`
-  = `null`), `insertSpaces`/`tabSize` (Spaces, Breite 2), Fehlerfälle (Zeilenbereich hinter dem
-  Dateiende, fehlende Datei).
+- **MCP-Schicht: automatisiertes Testprojekt `Nav.Language.Mcp.Tests`** (net10.0-only, NUnit) — überführt
+  den früheren manuellen stdio-Smoke-Katalog in wiederholbare, regressionssichere Tests. Die Tools sind
+  statische Methoden mit `NavMcpWorkspace` als erstem Parameter (die `[McpServerTool]`-Attribute sind
+  passiv), also **direkt aufrufbar** — kein stdio, kein JSON-RPC, kein DI. Infrastruktur:
+  `Infrastructure/McpTestWorkspace` (eindeutiges Temp-Wurzelverzeichnis, `WriteFile` schreibt UTF-8 **mit
+  BOM**, `Workspace`-Property, fehlertolerantes `Dispose`) — der MCP arbeitet rein gegen Platte, die
+  Temp-Dateien *sind* der Fixture-Mechanismus; `Infrastructure/EditApplier` wendet ein Edit-Set absteigend
+  auf den Text an (prüft „angewandtes Edit-Set ergibt erwarteten Text"). `NavNameResolution` (`internal
+  static`) ist über `InternalsVisibleTo` direkt testbar. **78 Tests**, alle grün:
+  - `NavGrammarToolTests` (4) — volle Grammatik (`codeGenerationUnit ::=`), Einzelregel, unbekannte Regel
+    (`arrayType` → `error` + `availableRules`), `includeTerminals`.
+  - `NavNameResolutionTests` (8) + `NavFindSymbolToolTests` (10) — die drei Ausgänge
+    `Resolved`/`NotFound`/`Ambiguous`, `task`-/`kind`-Disambiguierung inkl. Leerlauf-Regel, `KindMatches`;
+    Präfix-Suche (case-insensitiv, cross-file, nur Definitionen), Dedup/Sortierung, Paging-Kanten
+    (`limit`-Clamping, `truncated`).
+  - `NavDiagnosticsToolTests` (13) + `NavValidateToolTests` (4) — Summary-Konsistenz
+    (`error+warning+suggestion == count`), `severity`/`filter`, Paging über die Diagnostics, Quer-Check
+    `nav_validate` == gefiltertes `nav_diagnostics`, **Fresh-Read** (Datei ändern → sofort sichtbar),
+    fehlende Datei → `NotFound`.
+  - `NavEditDtoTests` (7) + `NavRenameToolTests` (4) + `NavCodeActionsToolTests` (4) — Offset→1-basierte
+    Koordinaten, `FromChanges`-Skip-Regeln; file-lokales Edit-Set, **Read-only-Versprechen** (Platte
+    byte-identisch vor/nach), `NotFound`/`Ambiguous`-Fehlerpfade.
+  - `NavFormatToolTests` (7) + `NavGotoToolTests` (4) + `NavReferencesToolTests` (5) +
+    `NavOutlineToolTests` (4) + `NavWorkspaceToolTests` (4) — Voll-/Range-Format (Subset-Garantie),
+    Idempotenz (0 Edits, `formattedText == null`), `insertSpaces`/`tabSize`, Fehlerfälle; GoTo/References
+    same- **und** cross-file, Outline (Art/Position + `languageVersion`/`hasVersionDirective`), Workspace
+    (relativ/absolut, `filter`, Paging).
+- **Lauf:** `dotnet test Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj` (single-TFM, kein `-f`
+  nötig). Seit der Runner-Anbindung läuft die Suite auch in **`nav test`** mit — nach dem net472-NUnit-Lauf
+  ruft `Invoke-Test` `dotnet test … -c <Configuration> --no-build`, gated auf die gebaute
+  `bin\<Configuration>\net10.0\Nav.Language.Mcp.Tests.dll` (fehlt sie, Hinweis statt Fehler; Voraussetzung
+  ist ein vorheriges `nav build`). Plan/Handoff des Testpakets: `doc/nav-mcp-tests-status.md`.
+- **stdio-Transport** bleibt separat zu prüfen: Discovery/Serialisierung/JSON-Parameter-Binding über den
+  tatsächlichen JSON-RPC-Kanal (`initialize` → `tools/list` → `tools/call`) deckt das direkte
+  Methoden-Testen bewusst **nicht** ab — dafür der manuelle stdio-Smoke gegen die laufende `nav.mcp` bzw.
+  den Single-File-Publish (ein optionaler In-Memory-Protokolltest über das MCP-SDK ist in
+  `doc/nav-mcp-tests-status.md` als Step 6 skizziert).
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
 - **Publish:** `nav publish` veröffentlicht den MCP-Server als **self-contained Single-File**

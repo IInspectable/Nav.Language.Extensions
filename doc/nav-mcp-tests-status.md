@@ -14,8 +14,8 @@ Smoke): `doc/nav-mcp-status.md`.
 | 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☑ fertig |
 | 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☑ fertig |
 | 5 | Format, GoTo, References, Outline, Workspace | ☑ fertig |
-| 6 | *(optional)* In-Memory-Protokolltest (Wiring-Wächter) | ☐ offen |
-| 7 | Doku (`nav-mcp-status.md` §4) & `Invoke-Test.ps1`-Anbindung | ☐ offen |
+| 6 | *(optional)* In-Memory-Protokolltest (Wiring-Wächter) | ☐ offen *(optional, bewusst zurückgestellt)* |
+| 7 | Doku (`nav-mcp-status.md` §4) & `Invoke-Test.ps1`-Anbindung | ☑ fertig |
 
 Nach jedem Step: Code-Review + Check (Befehle siehe unten), dann **Commit-Message als Text liefern**
 (der Commit selbst ist Sache des Nutzers). Status-Tabelle hier nachziehen.
@@ -212,7 +212,10 @@ Festbeißen.
 
 - `doc/nav-mcp-status.md` §4 umschreiben: automatisierte Suite (`Nav.Language.Mcp.Tests`) statt
   manueller Smoke-Liste; Smoke bleibt nur noch für stdio-Transport/Single-File-Publish erwähnt.
-  **☐ offen.**
+  **☑ erledigt:** §4 beschreibt jetzt das Testprojekt (Infrastruktur `McpTestWorkspace`/`EditApplier`,
+  direktes Methoden-Testen ohne stdio/JSON-RPC, IVT für `NavNameResolution`), die **78 Tests** nach den
+  13 Test-Klassen gruppiert, den Lauf via `dotnet test`/`nav test` — und grenzt ab, was der stdio-Smoke
+  weiterhin abdeckt (Discovery/Serialisierung/Binding über den echten JSON-RPC-Kanal).
 - `Tools\Commands\Functions\Invoke-Test.ps1` um einen `dotnet test`-Schritt für
   `Nav.Language.Mcp.Tests` erweitern (Skip mit Hinweis, wenn nicht gebaut — Muster der
   bestehenden DLL-Liste), damit `nav test` wieder „alles" bedeutet. **☑ erledigt (vorgezogen):**
@@ -221,6 +224,12 @@ Festbeißen.
   die NUnit-`$RemainingArgs` (z.B. `--where`) werden bewusst nicht durchgereicht. Verifiziert:
   `nav build` + `nav test` → NUnit 1797 grün **und** MCP 22/22 grün im selben Lauf.
 - Dieses Dokument: Status-Tabelle finalisieren, ggf. Erkenntnisse/Abweichungen nachtragen.
+  **☑ erledigt:** Steps 1–5 + 7 fertig, nur Step 6 (optional) bewusst offen. Endstand der Suite:
+  **78 Tests** (`dotnet test` grün), verteilt auf 13 Test-Klassen — `NavGrammarToolTests` (4),
+  `NavNameResolutionTests` (8), `NavFindSymbolToolTests` (10), `NavDiagnosticsToolTests` (13),
+  `NavValidateToolTests` (4), `NavEditDtoTests` (7), `NavRenameToolTests` (4),
+  `NavCodeActionsToolTests` (4), `NavFormatToolTests` (7), `NavGotoToolTests` (4),
+  `NavReferencesToolTests` (5), `NavOutlineToolTests` (4), `NavWorkspaceToolTests` (4).
 
 ## Bekannte Fallen
 
