@@ -1,8 +1,9 @@
 ﻿# Nav Performance-Optimierung — Arbeitsdokument
 
 > **Status:** Analyse abgeschlossen, Backlog priorisiert. **#1 umgesetzt** (Include-Cache-Default),
-> **#2 umgesetzt** (Dictionary-Presizing), #3 offen (erst gegenmessen). Lebendes Dokument zum Abarbeiten
-> in Folge-Sessions. Setup-Details: Memory `nav-perf-profiling-setup`.
+> **#2 umgesetzt** (Dictionary-Presizing), **#3 verworfen** (umgesetzt + gemessen: nur ~4,3 % Wanduhr bei
+> +52 KiB Alloc — nicht lohnend). Backlog abgearbeitet, keine offenen Punkte. Setup-Details: Memory
+> `nav-perf-profiling-setup`.
 > Voller Analyse-Befund (flüchtig, Scratchpad): `scratchpad/PERF-BEFUND.md`.
 
 ## 1. Ziel & Fokus
@@ -79,11 +80,26 @@ Semantic uncached ≈ 85 % Include-Reparse; mit `CachedSyntaxProvider` **6,7× s
 - **Risiko:** null. Reiner Kapazitäts-Hinweis, Ausgabe unverändert — **1731 net10-Tests grün** (Syntax-,
   Regression-, Formatting-Golden-Snapshots pinnen Token/Baum/Trivia/generierten Code).
 
-### #3 — Vollen Token-Sort vermeiden
-- **Was:** `NavParser.TakeSortedTokens` → `List.Sort`/`IntroSort` via `SyntaxTokenComparer` (~10 %).
-  Tokens fallen weitgehend positionsgeordnet an → geordnetes Einfügen/Merge statt Vollsortierung.
-- **Risiko:** mittel (Reihenfolge-Invariante der Token-/Trivia-Zuordnung), `sweep` deckt es ab.
-- **Aufwand:** klein–mittel.
+### #3 — Vollen Token-Sort vermeiden  ✘ VERWORFEN (umgesetzt, gemessen, wieder entfernt)
+- **Was:** `NavParser.TakeSortedTokens` → `List.Sort`/`IntroSort` via `SyntaxTokenComparer`.
+- **Gegenmessung der Sort-Gesamtkosten (Release, `LargeNav.nav` 191 KB, min-of-6 Best-of-15×300, Sort-Zeile
+  temporär übersprungen ↔ aktiv):** mit Sort ~1667 µs/Iter, ohne ~1396 µs/Iter ⇒ Sort ≈ 271 µs/Iter, ~16 %
+  der Parse-Wanduhr, allokationsneutral (`List.Sort` ist in-place). **Diese 16 % sind aber die *Gesamtkosten*,
+  nicht das erreichbare Sparpotenzial** — jede korrekte Sortierung muss die ~56-Byte-`SyntaxToken`-Structs
+  weiterhin bewegen.
+- **Disorder-Profil (LargeNav, n=6576):** 931 aufsteigende Läufe, maxVerschiebung 2580, sumVerschiebung
+  39292 ⇒ viele kurze Läufe mit einzelnen weiten Ausreißern (ein Eltern-Token rutscht hinter seinen ganzen
+  Teilbaum). Insertion-Sort (O(n·d)) damit unsicher; der Kostentreiber ist das **Struct-Kopieren** — der
+  `IComparer` kopiert das Token bei jedem Vergleich zweimal by-value.
+- **Umgesetzte Variante (dann verworfen):** Sortierung über eine *Index*-Permutation der billigen
+  int-Startwerte (`Array.Sort<int,int>`), danach Scatter-Permutation zyklenweise **in-place** angewandt
+  (alloc-schonend, zwei `int[n]`). Byte-identisch (**1731 net10-Tests grün**). Gemessener A/B (gleiche
+  Sitzung): **1659 → 1587 µs/Iter (−72 µs, ~4,3 %)** bei **+52 KiB Alloc**.
+- **Warum verworfen:** ~4,3 % Wanduhr auf der Stress-Datei rechtfertigen nicht die +52 KiB (die den
+  #2-Alloc-Gewinn teilweise auffressen) plus zusätzliche Komplexität in einem korrektheits-kritischen Pfad.
+  Der Gewinn konzentriert sich zudem auf große Dateien; typische `.nav` (~4 KB) sortieren ohnehin in µs
+  (oft greift der Fast-Path „bereits sortiert"). Ein Zyklen-Leader (~n statt ~4n Kopien) käme evtl. auf
+  ~6 %, erhöht aber das Risiko. **Kein weiterer Nachlauf geplant.**
 
 ### #4 — AlignmentMapBuilder bündeln  ✔ ERLEDIGT
 Der Formatter wurde bereits umgebaut: `AlignmentMapBuilder.Build` nimmt eine vorab berechnete
@@ -97,9 +113,11 @@ gegenmessen. Sonst abgeschlossen.
    CLI blieb Opt-in.
 2. ~~**#2** (breit wirksam, billig, hash-abgesichert).~~ ✔ erledigt — Dictionary-Presizing, ~8,4 %
    weniger Parse-Alloc, ausgabe-neutral.
-3. **#3** nur, wenn eine frische Release-Messung ihn noch lohnt. Die #2-Messung zeigt: der Token-Sort
-   (`TakeSortedTokens`) ist im aktuellen Release **nicht** mehr der Wanduhr-Treiber, den der veraltete
-   Debug-Stand nahelegte — vor Inangriffnahme also erst gegenmessen (Trace/Alloc), sonst überflüssig.
+3. ~~**#3**~~ ✘ verworfen — umgesetzt (Index-Permutation + In-place-Zyklus) und gemessen, aber nur ~4,3 %
+   Wanduhr auf der Stress-Datei bei +52 KiB Alloc; lohnt Aufwand/Alloc-Regression nicht (Details in #3).
+
+Damit ist das Backlog abgearbeitet: **#1 + #2 umgesetzt**, **#3 bewusst verworfen**, **#4 war bereits
+erledigt**. Keine offenen Punkte.
 
 Jede Änderung: `sweep` grün + Hash unverändert → messen → Commit-Message vorschlagen (nicht selbst
 committen).
