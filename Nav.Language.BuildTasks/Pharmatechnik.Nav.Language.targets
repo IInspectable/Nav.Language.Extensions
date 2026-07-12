@@ -13,7 +13,12 @@
     <NavGenerateToClasses    Condition="'$(NavGenerateToClasses)'    == ''">false</NavGenerateToClasses>
     <NavGenerateWflClasses   Condition="'$(NavGenerateWflClasses)'   == ''">true</NavGenerateWflClasses>
     <NavGenerateIwflClasses  Condition="'$(NavGenerateIwflClasses)'  == ''">true</NavGenerateIwflClasses>
-    <NavUseSyntaxCache       Condition="'$(NavUseSyntaxCache)'       == ''">false</NavUseSyntaxCache>
+    <!-- Include-Cache standardmäßig an: der CachedSyntaxProvider parst Include-Ziele nur einmal je
+         Prozess (statt je referenzierender Datei) — größter Perf-Hebel im Codegen, Ausgabe
+         byte-identisch, Cache ist prozess-scoped und fließt nicht in den Inkremental-Hash
+         (NavParamsContent listet die content-relevanten Parameter, UseSyntaxCache gehört nicht dazu).
+         Überschreibbar via -p:NavUseSyntaxCache=false. -->
+    <NavUseSyntaxCache       Condition="'$(NavUseSyntaxCache)'       == ''">true</NavUseSyntaxCache>
     <NavFullPaths            Condition="'$(NavFullPaths)'            == ''">$(BuildingInsideVisualStudio)</NavFullPaths>
     <NavNullableContext      Condition="'$(NavNullableContext)'      == ''">false</NavNullableContext>
     <NavProjectRootDirectory Condition="'$(NavProjectRootDirectory)' == ''"></NavProjectRootDirectory>

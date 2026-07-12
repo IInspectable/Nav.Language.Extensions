@@ -1,7 +1,8 @@
 ﻿# Nav Performance-Optimierung — Arbeitsdokument
 
-> **Status:** Analyse abgeschlossen, Backlog priorisiert, noch keine Optimierung umgesetzt. Lebendes
-> Dokument zum Abarbeiten in Folge-Sessions. Setup-Details: Memory `nav-perf-profiling-setup`.
+> **Status:** Analyse abgeschlossen, Backlog priorisiert. **#1 umgesetzt** (Include-Cache-Default),
+> #2/#3 offen. Lebendes Dokument zum Abarbeiten in Folge-Sessions. Setup-Details: Memory
+> `nav-perf-profiling-setup`.
 > Voller Analyse-Befund (flüchtig, Scratchpad): `scratchpad/PERF-BEFUND.md`.
 
 ## 1. Ziel & Fokus
@@ -45,17 +46,20 @@ Semantic uncached ≈ 85 % Include-Reparse; mit `CachedSyntaxProvider` **6,7× s
 
 ## 4. Backlog (priorisiert)
 
-### #1 — Include-Cache als Default am Build/CLI  ← zuerst
-- **Was:** `NavUseSyntaxCache`-Default `false` → `true` in
-  `Nav.Language.BuildTasks/Pharmatechnik.Nav.Language.targets:16`. CLI-Default (`Nav.Cli/CommandLine.cs`,
-  `Nav.Cli/Generator/NavCodeGenerator.cs:79` u.a.) optional mit.
+### #1 — Include-Cache als Default am Build  ✔ ERLEDIGT
+- **Was (umgesetzt):** `NavUseSyntaxCache`-Default `false` → `true` in
+  `Nav.Language.BuildTasks/Pharmatechnik.Nav.Language.targets`. Damit gibt der MSBuild-`Nav`-Task bei
+  jedem Build `/c` an `nav.exe` weiter (`Nav.cs:71`) und aktiviert den `CachedSyntaxProvider`.
+- **CLI-Default bewusst NICHT mitgezogen:** `-c` in `Nav.Cli/CommandLine.cs:63` bleibt Opt-in
+  (dokumentierter Schalter unverändert). Der MSBuild-Pfad — der volumenstärkste — läuft ohnehin über
+  `/c`; nur direkte `nav.exe`-Handaufrufe cachen weiterhin erst mit explizitem `-c`.
 - **Wirkung:** größter Hebel (Semantic 6,7×), trifft den volumenstärksten Pfad (jeder Build, jede `.nav`).
 - **Risiko:** praktisch null. Ausgabe-**byte-identisch**; Cache ist prozess-scoped
-  (`NavCodeGeneratorPipeline.Run` → `using var syntaxProvider`); fließt laut `targets:53` nicht in den
-  Inkremental-Hash. Maschinerie existiert: `SyntaxProviderFactory.Cached`, `CachedSyntaxProvider`.
-- **Kontext:** Default stammt aus 2017 (legacy-konservativ), keine bewusste Korrektheits-Entscheidung.
-- **Belegen:** realen Projekt-Build mit/ohne `/c` (Wanduhr) vergleichen; Codegen-Ausgabe identisch prüfen
-  (z.B. `nav snapshot`-Parität).
+  (`NavCodeGeneratorPipeline.Run` → `using var syntaxProvider`); fließt nicht in den Inkremental-Hash
+  (`NavParamsContent` listet nur content-relevante Parameter, `UseSyntaxCache` gehört nicht dazu).
+- **Kontext:** Default stammte aus 2017 (legacy-konservativ), keine bewusste Korrektheits-Entscheidung.
+- **Belegt:** `nav.exe /d` auf den taskref-lastigen Regression-Fixtures (V1 `Test.nav` + V2-Flows),
+  einmal ohne und einmal mit `/c`, `/f` (Force) → **21/21 generierte `.cs` SHA-256-identisch**, 0 Diffs.
 
 ### #2 — Collection-Presizing im Parser
 - **Was:** Der Trivia-`Dictionary<int, TriviaRange>` resized ständig (Resize + set_Item zusammen ~25 %
@@ -79,9 +83,9 @@ gegenmessen. Sonst abgeschlossen.
 
 ## 5. Empfohlene Reihenfolge
 
-1. **#1** sofort (größter Hebel, kein Risiko, ausgabe-neutral). Vorab kurz entscheiden, ob CLI-Default
-   mitgezogen wird.
-2. **#2** (breit wirksam, billig, hash-abgesichert).
+1. ~~**#1** sofort (größter Hebel, kein Risiko, ausgabe-neutral).~~ ✔ erledigt — nur Target-Default,
+   CLI blieb Opt-in.
+2. **#2** (breit wirksam, billig, hash-abgesichert). ← als Nächstes
 3. **Release + aktueller HEAD gegenmessen**, dann **#3** nur, wenn die Messung ihn noch lohnt.
 
 Jede Änderung: `sweep` grün + Hash unverändert → messen → Commit-Message vorschlagen (nicht selbst
