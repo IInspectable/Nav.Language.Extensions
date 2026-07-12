@@ -93,3 +93,17 @@ Roslyn-Prinzipien umgebauten Pipeline (Missing-Token, strukturierte Skip-Trivia,
 präzisen Diagnosen): Der handgeschriebene Parser und das SemanticModel verkraften beliebige
 Zerstörung des Inputs strukturell — übrig blieb genau die eine Text-Schnitt-Stelle, an der das
 Token-Vorbild (`SyntaxToken.ToString()` → Missing-Guard) noch nicht auf Knoten übertragen war.
+
+## Quercheck: statische Null-Analyse (ReSharper `jb inspectcode`)
+
+Komplementär zum Fuzzing lief `jb inspectcode` (2026.1.4, Severity ab SUGGESTION) über
+`Nav.Language`: **0 Treffer in der gesamten Null-Familie** — weder Danger-Inspektionen
+(`PossibleNullReferenceException`, `AssignNullToNotNullAttribute`) noch redundante Guards
+(die 363 verbliebenen Treffer sind ausschließlich Style-/Dead-Code-Haushalt wie
+`MemberCanBePrivate.Global`). Das bestätigt zweierlei: Die Engine ist nach Nullable-Kampagne
+und früheren Sweeps statisch null-sauber — und **keiner der drei Fuzzing-Befunde wäre statisch
+gefunden worden**, denn dort war nirgends etwas `null`: Der Fehler steckte im Domänen-Sentinel
+`TextExtent.Missing` (`Start = -1`), den eine generische Null-Analyse nicht kennt. Statische
+Null-Analyse und Korpus-Fuzzing decken disjunkte Fehlerklassen ab; für die Sentinel-Klasse
+bleiben Fuzzing-Läufe (Playbook) oder ein projekteigener Analyzer
+(„`Substring(extent)` ohne `IsMissing`-Prüfung") die Werkzeuge.
