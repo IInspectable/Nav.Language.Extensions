@@ -33,7 +33,9 @@ public abstract class SourceText {
         return Slice(textExtent.Start, textExtent.Length);
     }
 
-    public abstract ReadOnlySpan<char> Slice(int startIndex, int length);
+    public ReadOnlySpan<char> Slice(int startIndex, int length) {
+        return Span.Slice(start: startIndex, length: length);
+    }
 
     public static SourceText From(string text, string? filePath = null) {
         return new StringSourceText(text: text, filePath: filePath);
@@ -44,6 +46,16 @@ public abstract class SourceText {
     public abstract char this[int index] { get; }
 
     public Location GetLocation(TextExtent extent) {
+
+        if (extent.IsMissing) {
+            throw new ArgumentOutOfRangeException(nameof(extent), extent, "Der Extent darf nicht 'missing' sein.");
+        }
+
+        if (extent.End > Length) {
+            throw new ArgumentOutOfRangeException(nameof(extent), extent,
+                                                  $"Das Ende des Extents ({extent.End}) liegt außerhalb des Texts (Länge {Length}).");
+        }
+
         return new Location(extent, GetLineRange(extent), FileInfo?.FullName);
     }
 
@@ -97,8 +109,8 @@ public abstract class SourceText {
         // da davon auszugehen ist, dass die Zugriffe auf die Zeileninformationen immer in etwa im selben Bereich stattfinden. Im worst case
         // werden ohnehin alle Zeilen durchsucht.
         //
-        // Effektive Reichweite des Fensters ist HintWindow - 1 (= 3): Der Treffer fällt erst, wenn die Schleife den *Start der Folgezeile*
-        // sieht (position < TextLines[i].Start → Zeile i-1). Für eine Position in Zeile lastLineNumber + (HintWindow - 1) liegt dieser
+        // Effektive Reichweite des Fensters ist hintWindow - 1 (= 3): Der Treffer fällt erst, wenn die Schleife den *Start der Folgezeile*
+        // sieht (position < TextLines[i].Start → Zeile i-1). Für eine Position in Zeile lastLineNumber + (hintWindow - 1) liegt dieser
         // Folgezeilen-Start bereits außerhalb des Fensters, und die Suche fällt korrekt in die Binärsuche zurück — dasselbe Ergebnis,
         // nur langsamer.
         const int hintWindow     = 4;

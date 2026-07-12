@@ -37,11 +37,11 @@
 | S1 | Sicherheitsnetz: Boundary-Unit-Tests für `SourceText`/`GetTextLineAtPositionCore` | mittel | **erledigt** |
 | S2 | `SourceText.Empty` als Singleton (`static readonly` statt `=> new`) | klein | **erledigt** |
 | S3 | Doku-/Kommentar-Korrekturen (`GetTextLineAtPosition`-XML-Doku, Typos, Hint-Fenster-Kommentar) | klein | **erledigt** |
-| S4 | Eingabe-Validierung `GetLocation` + ehrliche Exception-Parameternamen in `FindElementAtPosition` | klein | offen |
-| S5 | `FindIndexAtOrAfterPosition` → `FindIndexAtOrBeforePosition` (Name + Doku + TODO auflösen) | klein | offen |
-| S6 | `SourceTextLine`-Konstruktor: sinnfreien Guard `line > lineEnd` bereinigen | klein | offen |
-| S7 | `SourceTextLineList.Enumerator`: `Current` außerhalb des Bereichs härten | klein | offen |
-| S8 | Stil-Refactorings (Slice-Default-Impl, `GetTextLine`-Ternary, explizites `string`-Feld, Spacing) | klein | offen |
+| S4 | Eingabe-Validierung `GetLocation` + ehrliche Exception-Parameternamen in `FindElementAtPosition` | klein | **erledigt** |
+| S5 | `FindIndexAtOrAfterPosition` → `FindIndexAtOrBeforePosition` (Name + Doku + TODO auflösen) | klein | **erledigt** |
+| S6 | `SourceTextLine`-Konstruktor: sinnfreien Guard `line > lineEnd` bereinigen | klein | **erledigt** |
+| S7 | `SourceTextLineList.Enumerator`: `Current` außerhalb des Bereichs härten | klein | **erledigt** |
+| S8 | Stil-Refactorings (Slice-Default-Impl, `GetTextLine`-Ternary, explizites `string`-Feld, Spacing) | klein | **erledigt** |
 | S9 | Vollständige XML-Doku über die gesamte SourceText-Fläche | mittel | offen |
 
 Reihenfolge: **S1 zuerst** (Sicherheitsnetz für alles Folgende), danach sind S2–S8 unabhängig

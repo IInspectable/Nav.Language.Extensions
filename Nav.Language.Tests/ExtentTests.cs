@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;
 
-namespace Nav.Language.Tests; 
+namespace Nav.Language.Tests;
 
 [TestFixture]
 public class ExtentTests {
@@ -97,7 +97,7 @@ public class ExtentTests {
     }
 
     [Test]
-    public void TestFindIndexAtOrAfterPosition() {
+    public void TestFindIndexAtOrBeforePosition() {
         var extents = new[] {
 
             TextExtent.FromBounds(0,  10),
@@ -105,19 +105,22 @@ public class ExtentTests {
             TextExtent.FromBounds(40, 50)
         };
 
-        Assert.That(extents.FindIndexAtOrAfterPosition(-1), Is.EqualTo(-1));
-        Assert.That(extents.FindIndexAtOrAfterPosition(0),  Is.EqualTo(0));
-        Assert.That(extents.FindIndexAtOrAfterPosition(10), Is.EqualTo(0));
-        // FindIndexAtOrAfterPosition interessiert nicht das Ende, sondern nur der Start!
-        // solange der Start des nächsten Elements nicht erreicht wurde, wird
-        // der Index des vorigen Elements zurückgeliefert!
-        Assert.That(extents.FindIndexAtOrAfterPosition(11), Is.EqualTo(0));
-        Assert.That(extents.FindIndexAtOrAfterPosition(20), Is.EqualTo(1));
-        Assert.That(extents.FindIndexAtOrAfterPosition(30), Is.EqualTo(1));
-        Assert.That(extents.FindIndexAtOrAfterPosition(31), Is.EqualTo(1));
-        Assert.That(extents.FindIndexAtOrAfterPosition(40), Is.EqualTo(2));
-        Assert.That(extents.FindIndexAtOrAfterPosition(50), Is.EqualTo(2));
-        Assert.That(extents.FindIndexAtOrAfterPosition(51), Is.EqualTo(2));
+        // Position vor dem ersten Start → -1.
+        Assert.That(extents.FindIndexAtOrBeforePosition(-1), Is.EqualTo(-1));
+        // Position exakt auf einem Start → dessen Index.
+        Assert.That(extents.FindIndexAtOrBeforePosition(0),  Is.EqualTo(0));
+        Assert.That(extents.FindIndexAtOrBeforePosition(10), Is.EqualTo(0));
+        // FindIndexAtOrBeforePosition interessiert nicht das Ende, sondern nur der Start!
+        // Solange der Start des nächsten Elements nicht erreicht wurde, wird der Index des
+        // vorigen (davorliegenden) Elements zurückgeliefert – auch in Lücken zwischen Elementen.
+        Assert.That(extents.FindIndexAtOrBeforePosition(11), Is.EqualTo(0));
+        Assert.That(extents.FindIndexAtOrBeforePosition(20), Is.EqualTo(1));
+        Assert.That(extents.FindIndexAtOrBeforePosition(30), Is.EqualTo(1));
+        Assert.That(extents.FindIndexAtOrBeforePosition(31), Is.EqualTo(1));
+        Assert.That(extents.FindIndexAtOrBeforePosition(40), Is.EqualTo(2));
+        Assert.That(extents.FindIndexAtOrBeforePosition(50), Is.EqualTo(2));
+        // Position hinter dem letzten Start → letzter Index.
+        Assert.That(extents.FindIndexAtOrBeforePosition(51), Is.EqualTo(2));
     }
 
     [Test]
@@ -150,7 +153,8 @@ public class ExtentTests {
             TextExtent.FromBounds(40, 50)
         };
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => extents.FindElementAtPosition(-1));
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => extents.FindElementAtPosition(-1));
+        Assert.That(ex!.ParamName,                    Is.EqualTo("position"));
         Assert.That(extents.FindElementAtPosition(0), Is.EqualTo(TextExtent.FromBounds(0, 10)));
         Assert.That(extents.FindElementAtPosition(5), Is.EqualTo(TextExtent.FromBounds(0, 10)));
         Assert.Throws<ArgumentOutOfRangeException>(() => extents.FindElementAtPosition(10));
@@ -178,7 +182,7 @@ public class ExtentTests {
 
         Assert.That(extents.GetElements(TextExtent.FromBounds(5, 45),
                                         includeOverlapping: false),
-                    Is.EqualTo(new[] {TextExtent.FromBounds(20, 30)}));
+                    Is.EqualTo(new[] { TextExtent.FromBounds(20, 30) }));
 
         Assert.That(extents.GetElements(TextExtent.FromBounds(5, 45),
                                         includeOverlapping: true),
@@ -186,7 +190,7 @@ public class ExtentTests {
 
         Assert.That(extents.GetElements(TextExtent.FromBounds(50, 50),
                                         includeOverlapping: true),
-                    Is.EqualTo(new[] {TextExtent.FromBounds(40, 50)}));
+                    Is.EqualTo(new[] { TextExtent.FromBounds(40, 50) }));
     }
 
 }

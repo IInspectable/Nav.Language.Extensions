@@ -57,7 +57,7 @@ static class ExtentExtensions {
         where TElement : IExtent
         where TExtent : IExtent {
 
-        int startIndex = tokens.FindIndexAtOrAfterPosition(extent.Start);
+        int startIndex = tokens.FindIndexAtOrBeforePosition(extent.Start);
         if (startIndex < 0) {
             yield break;
         }
@@ -82,16 +82,16 @@ static class ExtentExtensions {
         where TElement: IExtent
         where TExtent : IExtent {
 
-        int startIndex = tokens.FindIndexAtOrAfterPosition(extent.Start);
+        int startIndex = tokens.FindIndexAtOrBeforePosition(extent.Start);
         if (startIndex < 0) {
             yield break;
         }
         for (int index = startIndex; index < tokens.Count; index++) {
             var token = tokens[index];
 
-            // TODO Wie kann das sein, dass FindIndexAtOrAfterPosition ein ISymbol findet,
-            // das vor extent.Start liegt? Hängt das damit zusammen, dass Symbole
-            // nicht lückenlos aneinander liegen?
+            // FindIndexAtOrBeforePosition liefert bewusst das Element *an oder vor* extent.Start –
+            // liegt der Start des gefundenen Elements noch vor dem Extent, gehört es nicht dazu und
+            // wird übersprungen (Elemente liegen nicht zwingend lückenlos aneinander).
             if (token.Start < extent.Start) {
                 continue;
             }
@@ -104,12 +104,12 @@ static class ExtentExtensions {
 
     public static T? FindElementAtPosition<T>(this IReadOnlyList<T> tokens, int position, bool defaultIfNotFound=false) where T : IExtent {
 
-        int index = tokens.FindIndexAtOrAfterPosition(position);
+        int index = tokens.FindIndexAtOrBeforePosition(position);
         if (index < 0) {
             if(defaultIfNotFound) {
                 return default;
             }
-            throw new ArgumentOutOfRangeException(nameof(index));
+            throw new ArgumentOutOfRangeException(nameof(position));
         }
 
         var token = tokens[index];
@@ -120,15 +120,16 @@ static class ExtentExtensions {
         if (defaultIfNotFound) {
             return default;
         }
-        throw new ArgumentOutOfRangeException(nameof(index));
+        throw new ArgumentOutOfRangeException(nameof(position));
     }
 
     /// <summary>
-    /// Findet den Index des ersten Tokens, dessen Start größer oder gleich der angegebenen Position ist. 
+    /// Findet den Index des letzten Tokens, dessen Start kleiner oder gleich der angegebenen Position ist.
+    /// Liefert <c>-1</c>, wenn alle Tokens hinter der Position beginnen – insbesondere auch für negative Positionen.
     /// </summary>
-    public static int FindIndexAtOrAfterPosition<T>(this IReadOnlyList<T> tokens, int pos) where T : IExtent {
-        // TODO Sollte bei pos < 0 eine Ausnahme geworfen werden?
-            
+    public static int FindIndexAtOrBeforePosition<T>(this IReadOnlyList<T> tokens, int pos) where T : IExtent {
+        // Negative Positionen liefern bewusst -1 (kein Token beginnt davor); die öffentlichen
+        // Einstiegspunkte fangen ungültige Ränder ohnehin schon ab.
         var index = FindIndexAtPosition(tokens, pos);
         if (index < 0) {
             index = ~index - 1;

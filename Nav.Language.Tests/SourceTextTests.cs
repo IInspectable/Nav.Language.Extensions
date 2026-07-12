@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
+
+// ReSharper disable GenericEnumeratorNotDisposed
 
 namespace Nav.Language.Tests;
 
@@ -502,6 +505,68 @@ public class SourceTextTests {
 
         var crPos = testText.IndexOf('\r'); // 1
         Assert.That(st.GetTextLineAtPosition(crPos).Line, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void GetLocation_MissingExtent_ThrowsWithExtentParamName() {
+        var st = SourceText.From("Hello");
+
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => st.GetLocation(TextExtent.Missing));
+        Assert.That(ex!.ParamName, Is.EqualTo("extent"));
+    }
+
+    [Test]
+    public void GetLocation_ExtentEndBeyondLength_ThrowsWithExtentParamName() {
+        var st = SourceText.From("Hello");
+
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => st.GetLocation(TextExtent.FromBounds(0, st.Length + 1)));
+        Assert.That(ex!.ParamName, Is.EqualTo("extent"));
+    }
+
+    [Test]
+    public void Enumerator_CurrentBeforeMoveNext_Throws() {
+        var lines = SourceText.From("a\r\nb").TextLines;
+
+        var e = lines.GetEnumerator();
+
+        Assert.That(() => e.Current, Throws.InstanceOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void Enumerator_CurrentAfterEnd_Throws() {
+        var lines = SourceText.From("a\r\nb").TextLines;
+
+        var e = lines.GetEnumerator();
+        while (e.MoveNext()) {
+        }
+
+        Assert.That(() => e.Current, Throws.InstanceOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void Enumerator_ForeachYieldsAllLines() {
+        var lines = SourceText.From("a\r\nb\r\nc").TextLines;
+
+        var collected = new List<int>();
+        foreach (var line in lines) {
+            collected.Add(line.Line);
+        }
+
+        Assert.That(collected, Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public void Enumerator_ResetReturnsToBeforeStart() {
+        var lines = SourceText.From("a\r\nb").TextLines;
+
+        IEnumerator<SourceTextLine> e = lines.GetEnumerator();
+        Assert.That(e.MoveNext(), Is.True);
+
+        e.Reset();
+        Assert.That(() => e.Current, Throws.InstanceOf<InvalidOperationException>());
+
+        Assert.That(e.MoveNext(),   Is.True);
+        Assert.That(e.Current.Line, Is.EqualTo(0));
     }
 
     /// <summary>

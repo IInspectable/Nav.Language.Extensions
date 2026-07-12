@@ -38,11 +38,11 @@ public abstract class SourceTextLineList: IReadOnlyList<SourceTextLine> {
         public SourceTextLine Current {
             get {
                 var ndx = _index;
-                if (ndx >= 0 && ndx < _lines.Count) {
-                    return _lines[ndx];
+                if (ndx < 0 || ndx >= _lines.Count) {
+                    throw new InvalidOperationException("Die Enumeration hat noch nicht begonnen oder ist bereits beendet.");
                 }
 
-                return default;
+                return _lines[ndx];
             }
         }
 
@@ -52,6 +52,9 @@ public abstract class SourceTextLineList: IReadOnlyList<SourceTextLine> {
                 return true;
             }
 
+            // Am Ende den Index bewusst hinter das letzte Element setzen, damit Current danach
+            // klar mit InvalidOperationException scheitert, statt still die letzte Zeile zu liefern.
+            _index = _lines.Count;
             return false;
         }
 

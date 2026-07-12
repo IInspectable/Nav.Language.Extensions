@@ -22,10 +22,6 @@ public readonly struct SourceTextLine: IExtent, IEquatable<SourceTextLine> {
             throw new ArgumentOutOfRangeException(nameof(line));
         }
 
-        if (line > lineEnd) {
-            throw new ArgumentOutOfRangeException(nameof(line));
-        }
-
         if (lineEnd > sourceText.Length) {
             throw new ArgumentOutOfRangeException(nameof(lineEnd));
         }
