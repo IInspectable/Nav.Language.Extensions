@@ -4,9 +4,9 @@ Dieses Dokument erklärt die **Ausrichtungs-Maschinerie** des Nav-Formatters von
 vom Endergebnis (der `AlignmentMap`) über den Vorpass, der sie füllt, bis hinunter zu den
 elementaren, formatierungs-invarianten Rohdaten und schließlich zur Konsumseite, die die Map wieder
 ausliest. Der Fokus liegt auf dem Ausrichtungs-Teil (Pfeile, Trigger, Bedingungen, Task-Köpfe,
-Node-Raster, Trailing-Kommentare). Das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority))
-und der Fehler-Toleranz-Vorpass ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) sind ergänzt;
-nur der Treiber-Loop (`NavFormattingService`) folgt noch.
+Node-Raster, Trailing-Kommentare). Das Regel-System ([§5](#5-das-regel-system-gaprules-und-rulepriority)),
+der Fehler-Toleranz-Vorpass ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)) und der Treiber-Loop,
+der alles orchestriert ([§9](#9-der-treiber-loop-navformattingservice)), schließen das Bild ab.
 
 Alle Datei- und Zeilenangaben beziehen sich auf `Nav.Language/Formatting/`.
 
@@ -1002,9 +1002,175 @@ sich per Definition nie, der Hand-gelegt-Delta ist im zweiten Lauf 0.
 
 ---
 
-## Noch offen (folgt)
+## 9. Der Treiber-Loop (NavFormattingService)
 
-Dieses Kapitel ist in dieser Session nur am Rand gestreift worden und wird nachgereicht:
+Die Kapitel §2–§8 zeigten pure Bausteine — die Map, die Regeln, den Renderer, die zwei Vorpässe. Dieses
+letzte Kapitel zeigt die **imperative Schale**, die sie zu *einem* Durchlauf sequenziert.
+`NavFormattingService` (`NavFormattingService.cs`, `public static class`) ist der einzige VS-freie
+Einstieg: ein Host reicht einen `SyntaxTree` herein und bekommt eine Liste `TextChange`s zurück.
 
-- **Der Treiber-Loop (`NavFormattingService`)** — Leading-Gap, Paar-Schleife, Final-Gap; wer pro Lücke
-  `GapRules.Select` + `renderer` aufruft und die `TextChange`s zusammensetzt.
+### 9.1 Das Gap-Rewriter-Modell
+
+Der Service ist laut Klassen-Doku ein reiner **Gap-Rewriter**: er ändert nie den Text signifikanter
+Token, sondern schreibt ausschließlich die Whitespace-Lücken *zwischen* aufeinanderfolgenden
+signifikanten Token neu. Eingabe ist bewusst der `SyntaxTree` — ein rein syntaktisches Feature (Token,
+Trivia, Syntax-Diagnostics hängen dort; kein Semantik-Build nötig). Dieses „fasse nie Token-Text an" ist
+die fundamentale Invariante des ganzen Features (die spätere [§9.5](#95-der-wächter-achse-a-selbsttest)
+nennt sie *Achse A*) — und der Grund, warum ein Selbsttest überhaupt möglich ist.
+
+Die Geometrie dahinter ist die aus [§4.3](#43-gapcontext), jetzt konkret genutzt: die FullSpans der Token
+kacheln den Text lückenlos und überlappungsfrei; für zwei aufeinanderfolgende Token A, B ist die Lücke
+exakt `[A.End, B.Start)`. Pro Lücke entsteht in einem einzigen Durchlauf **höchstens ein** `TextChange` —
+die Change-Extents sind damit **konstruktiv paarweise disjunkt und geordnet**, der `TextChangeWriter` sieht
+nie eine Überlappung, und eine Lücke zu unterdrücken ist das bloße *Weglassen* ihres Changes.
+
+Ein winziges `init --> A;` macht die Kachelung greifbar — fünf Lücken, drei Zonen (jede Lücke `[Vor.End,
+Nach.Start)`):
+
+| Lücke | Extent | Zone |
+|---|---|---|
+| vor `init` | `[0, init.Start)` | **Leading** (`RenderLeadingGap`) |
+| `init` → `-->` | `[init.End, (-->).Start)` | Paar-Schleife |
+| `-->` → `A` | `[(-->).End, A.Start)` | Paar-Schleife |
+| `A` → `;` | `[A.End, (;).Start)` | Paar-Schleife |
+| `;` → `‹EOF›` | `[(;).End, EOF.End)` | **Final** (`RenderFinalGap`) |
+
+Das nullbreite `EndOfFile` trägt die komplette Datei-End-Trivia als *Leading*-Trivia; die Final-Lücke
+`[letztes reales Token, EOF)` läuft darum bewusst **nicht** zusätzlich durch die Paar-Schleife — zwei
+Changes für eine Lücke brächen die Invariante.
+
+### 9.2 FormatDocument: Vorpässe und drei Zonen
+
+`FormatDocument` (`:38`) ist das Herzstück. Nach den Null-Guards und dem Leer-Kurzschluss (kein Token →
+keine Changes) baut es die Vorpässe auf und läuft die drei Zonen ab.
+
+**Setup — die Vorpässe einmal.** `StatementFacts.Compute` erhebt Token-Liste und Trivia-Befund pro
+Anweisung *einmal*; beide Vorpässe teilen sich diese Messung (früher las jeder sie selbst — pro
+Transition bis zu fünfmal):
+
+```csharp
+var statementFacts = StatementFacts.Compute(syntaxTree);
+var alignment      = AlignmentMapBuilder.Build(syntaxTree, options, statementFacts);   // §2/§3
+var suppression    = FormatterSuppression.Compute(syntaxTree, options, statementFacts); // §8
+```
+
+**Zone 1 — der Leading-Gap.** Die Leading-Trivia des ersten realen Tokens liegt *vor* der ersten
+Paar-Lücke und wird gesondert über `RenderLeadingGap` normalisiert. Der **BOM-Guard**: trägt diese Trivia
+Skiped-Läufe — insbesondere ein führendes BOM, das als `Unknown` → `SkippedTokensTrivia` gelext wird —
+bleibt sie verbatim, sodass nie ein Change an Offset 0 entsteht, der das BOM anfasste.
+
+**Zone 2 — die Paar-Schleife** `for (i = 0; i < tokens.Count - 2; i++)` (`:88`), geschützt durch
+`suppression.HasUsableMembers`. Pro Lücke zwei Zweige:
+
+```csharp
+if (suppression.TryGetHandLaidShift(extent.Start, out var delta)) {   // hand-gelegt: Rand-Shift, Inneres verbatim
+    var canonical = renderer.RenderRawShifted(in ctx, delta);          // umgeht die Regeln (§8.5)
+    …
+    continue;
+}
+
+var layout = GapRules.Select(in context);                            // §5: erste passende Regel
+if (layout is GapLayout.Verbatim) {                                  // unterdrückt = Change weglassen
+    continue;
+}
+var canonicalGap = renderer.Render(in context, layout);             // §6: Layout -> Text
+```
+
+Ein Change wird nur emittiert, wenn die kanonische Form vom Ist-Text abweicht (minimale Changes). Ist
+`HasUsableMembers` falsch (reiner Müll/leer), entfällt die ganze Schleife — nur die zwei konservativen
+Rand-Lücken laufen (Global-Fallback, [§8](#8-der-fehler-toleranz-vorpass-formattersuppression)).
+
+**Zone 3 — der Final-Gap.** `RenderFinalGap` (`:274`) behandelt die eine Lücke `[letztes reales Token,
+EOF)` — der einzige Ort für Final-Newline und EOF-Trailing-Trim (Kommentar-/Direktivzeilen am Dateiende
+bleiben; dahinter endet die Datei mit genau einer Newline). Skiped-Läufe bleiben auch hier verbatim.
+
+Zum Schluss: `return options.VerifyResult ? Guard(…) : changes` — der optionale Selbsttest
+([§9.5](#95-der-wächter-achse-a-selbsttest)). Die drei Zonen sind exakt die Kachelung aus §9.1: Leading,
+die Paare, Final — jede Lücke genau einmal behandelt.
+
+### 9.3 CreateContext und ComputeIndentDepth
+
+`CreateContext` (`:303`) ist die Stelle, an der der Treiber die pure Entscheidungsschicht *füttert*: es
+assembliert den `GapContext` ([§4.3](#43-gapcontext)) eines Paares — `ComputeIndentDepth(next)`,
+`GapTrivia.Create`, `IsSuppressed(extent)`, die Alignment-Map, die Options. Die Tiefe ist die von `next`,
+nicht `prev` (ein Umbruch eröffnet die neue Zeile *vor* `next`).
+
+`ComputeIndentDepth` (`:449`) verdient einen Blick, weil es eine Nav-spezifische Entscheidung verkörpert.
+Nav ist **flach** — genau ein Block-Typ (`task`/`taskref`), keine Verschachtelung. Deshalb wird die Tiefe
+**nicht** über Klammern gezählt (das bräche bei unbalancierten Eingaben), sondern über Ahnenkette +
+Extent-Containment: das Token liegt genau dann im Body eines Blocks, wenn es hinter dessen *realer*
+öffnender Klammer beginnt und vor der schließenden:
+
+```csharp
+if (token.Start >= openBrace.End && (closeBrace.IsMissing || token.Start < closeBrace.Start)) {
+    depth++;
+}
+```
+
+Allman: öffnende und schließende Klammer liegen an der Grenze und haben selbst Tiefe 0. Fehlt die
+öffnende, zählt der Block nicht; fehlt die schließende, gilt der Rest als Body — und solche Bodies nimmt
+die Fehler-Unterdrückung ohnehin von der Formatierung aus ([§8](#8-der-fehler-toleranz-vorpass-formattersuppression)).
+Weil die Tiefe aus *Struktur* kommt (Containment), nicht aus Nachbar-Arithmetik, ist der Einzug robust
+gegen einen defekten Nachbarn — dieselbe Robustheit, die [§4.3](#43-gapcontext) für `IndentDepth` notierte.
+
+### 9.4 FormatRange: ein gefiltertes FormatDocument
+
+Der zweite Einstieg, `FormatRange` (`:148`), hätte ein range-beschränkter Sonderpfad sein können — und
+ist es bewusst nicht. Sein Modell: **immer das ganze Dokument formatieren, dann auf den erweiterten Range
+filtern.**
+
+```
+FormatRange(x, r)  ≡  { c ∈ FormatDocument(x) : c.Extent ⊆ ExpandRange(r) }
+```
+
+Jeder nicht-lokale Pass (Suppression, Ausrichtung/`targetCol`, Einzug) läuft dabei über die **volle**
+Datei, nie range-beschränkt — die `targetCol` ist darum identisch zum Voll-Modus. Daraus folgen gratis
+die **Subset-/Monotonie-Garantien**: `FormatRange(x, ganzeDatei) == FormatDocument(x)`, und ein späterer
+Voll-Format verschiebt nie, was ein Range-Format schon platziert hat (Range-Format ist eine Teilanwendung
+desselben Ergebnisses). Der Final-Gap unterliegt demselben `⊆`-Filter (eine Auswahl ohne das Dateiende
+fügt dort keine Newline ein).
+
+`ExpandRange` (`:190`) erweitert die rohe Auswahl: (1) auf ganze Zeilen einrasten, (2) auf ganze
+Anweisungs-/Member-Knoten ausweiten, die der Range *echt* schneidet — bis zum Knoten-Ende und nach vorn
+bis zum Ende des vorangehenden signifikanten Tokens. Diese eine vordere Lücke `[prev.End, first.Start]`
+ist der einzige Change, der den Einzug des Knotens setzt (ein Change pro Lücke); ohne sie bliebe der
+Einzug der selektierten Anweisung unkorrigiert und eine mehrzeilige Anweisung (hand-gelegt, mehrzeiliges
+`[params]`) würde nur halb formatiert.
+
+### 9.5 Der Wächter (Achse-A-Selbsttest)
+
+Das Gap-Rewriter-Modell hat eine *prüfbare* Sicherheitseigenschaft: Weil der Formatter nie signifikanten
+Token-Text anfasst, muss `format(x)` zum **identischen signifikanten Token-Strom** zurück-parsen — gleiche
+Token (Typ + Text), gleiche Direktiv-Sequenz, keine neuen Error-Diagnostics. `Guard` (`:326`) prüft genau
+das, aber nur unter `options.VerifyResult`.
+
+`MeaningPreserved` (`:357`) ist der eigentliche Vergleich — drei Klauseln:
+
+- **(a) signifikante Token** (Typ + Text) via `SequenceEqual`.
+- **(b) Direktiv-Sequenz**, verglichen als `(Text, AtLineStart)` statt bloßem Text — Direktiven leben in
+  Trivia; ein reiner Token-Strom-Vergleich sähe ihre Zerstörung nicht. `AtLineStart` ist die
+  *Lexer*-Definition der Direktiv-Fähigkeit (vor dem `#` steht auf seiner Zeile nur Whitespace), **nicht**
+  „Spalte 0": der Formatter setzt eine eingerückte Direktive legitim auf Spalte 0 zurück — die absolute
+  Position verschiebt sich, die Zeilenanfangs-*Eigenschaft* bleibt invariant.
+- **(c) keine neue Error-Diagnostik** — die Multimenge der Error-Descriptor-Ids *nachher* ist eine
+  **Teil-Multimenge** von *vorher* (jede Id höchstens so oft wie zuvor). Das verallgemeinert die reine
+  Anzahl-Schranke und fängt zusätzlich einen Fehler-*Tausch* bei gleicher Anzahl. Einen Fehler zu
+  *entfernen* ist erlaubt; erfinden kann der Formatter keinen (er fasst nie Token-Text an) — die Schranke
+  ist das Sicherheitsnetz gegen genau das.
+
+Weicht etwas ab, ist das **immer ein Bug** (kein legitimer Laufzustand) → `Debug.Fail`, die Changes werden
+verworfen (die Eingabe bleibt unverändert) und einmalig auf `stderr` geloggt (konform zur Stdio-Log-Regel).
+Nur die Tests setzen `VerifyResult` — der Re-Parse verdoppelt die Kosten grob, und die ausgelieferten
+Hosts sollen das nicht tragen. So schließt der Wächter den Kreis der Gap-Rewriter-Zusage: Der Treiber
+*tut* nicht nur die pure, lokale Umschreibung — unter Test *beweist* er, dass sie die Bedeutung erhielt.
+
+### 9.6 Die imperative Schale um den puren Kern
+
+Von außen nach innen gelesen ist der Treiber die Naht, an der alles zusammenkommt: Er baut zwei Vorpässe
+über *einmal* erhobene invariante Fakten, läuft die Token-Kachelung *einmal* ab, füttert jede Lücke mit
+einem puren `GapContext`, lässt die Regelschicht *ein* Layout wählen und den Renderer es materialisieren,
+und fügt die entstehenden Changes zu einer paarweise disjunkten, geordneten Folge zusammen. Jede Ebene las
+nur kanonische Fakten — von `GapTrivia`s verschlucktem Whitespace über die threshold-stabile
+Gruppenbildung bis zum Fixpunkt-Delta-Shift. Die Idempotenz, lokal auf jeder Ebene etabliert, trägt global,
+weil die Schale selbst keine einzige whitespace-abhängige Entscheidung hinzufügt. Ein zweiter
+Formatierlauf ist ein No-Op — per Konstruktion.
