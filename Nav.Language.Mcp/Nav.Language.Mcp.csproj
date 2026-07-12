@@ -28,6 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Das Testprojekt greift direkt auf die interne Namens-Auflösung (NavNameResolution) zu.
+         Als MSBuild-Item statt Properties/AssemblyInfo — das SDK hebt es beim Bauen der Assembly-Info
+         in ein [InternalsVisibleTo]-Attribut. -->
+    <InternalsVisibleTo Include="Nav.Language.Mcp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Offizielles C#-MCP-SDK (Hosting + DI + stdio-Transport + [McpServerTool]-Discovery). -->
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

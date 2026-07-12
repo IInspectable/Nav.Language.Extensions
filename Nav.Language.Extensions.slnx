@@ -125,6 +125,7 @@
   <Project Path="Nav.Language.ExtensionShared/Nav.Language.ExtensionShared.shproj" />
   <Project Path="Nav.Language.Lsp/Nav.Language.Lsp.csproj" />
   <Project Path="Nav.Language.Mcp/Nav.Language.Mcp.csproj" />
+  <Project Path="Nav.Language.Mcp.Tests/Nav.Language.Mcp.Tests.csproj" />
   <Project Path="Nav.Language.Tests/Nav.Language.Tests.csproj" />
   <Project Path="Nav.Language/Nav.Language.csproj" />
   <Project Path="Nav.Utilities/Nav.Utilities.csproj" />
