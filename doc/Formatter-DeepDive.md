@@ -76,8 +76,12 @@ nie Tabs.
 Bedingungen, Task-Köpfe) landen in `_spacesByGapStart` und werden über das reguläre `GapLayout.AlignedColumn`-
 Nachschlagen abgeholt. Die **Trailing-`//`-Kommentar-Spalte** ist der Sonderfall: Sie wird nicht über
 die normale Gap-Layout-Maschinerie aufgelöst, sondern der `GapRenderer` greift beim Setzen des
-Kommentars *direkt* auf `_trailingCommentSpacesByGapStart` zu (siehe [§6](#6-die-konsumseite-der-gaprenderer)
-und [§3.5](#warum-trailing-kommentare-anders-behandelt-werden)).
+Kommentars *direkt* auf `_trailingCommentSpacesByGapStart` zu. Der Grund ist die Position des
+Kommentars: Alle anderen Spalten richten die Lücke *vor einem signifikanten Token* aus — ein
+Trailing-`//` hat auf seiner Zeile aber kein folgendes Token mehr; die Lücke, in der er lebt, ist
+bereits der Zeilenumbruch zur nächsten Anweisung und hat ihre eine Entscheidung damit schon
+(ausführlich in [§3.5](#warum-trailing-kommentare-anders-behandelt-werden), der Zugriff in
+[§6](#6-die-konsumseite-der-gaprenderer)).
 
 Auf dieser Ebene ist das Ganze also nur eine reine Lookup-Tabelle `Lücke → Leerzeichen`, die die eine
 nicht-lokale Formatierungs-Zutat vorberechnet, damit der Rest des Formatters lokal und pur bleiben kann.
@@ -172,8 +176,8 @@ Zwei Transitionen in einer Gruppe, mit absichtlich unterschiedlich langen Quell-
 (die Eingabe ist bewusst „krumm" — der Builder misst kanonisch, nicht den Ist-Whitespace):
 
 ```
-Zeile 1:  A     -->   X1      on   Ev1   if   C1   ;
-Zeile 2:  Bcde  -->   Longer  on   X     if   C2   ;
+Zeile 1:  A -->  X1 on Ev1      if C1 ;
+Zeile 2:  Bcde    --> Longer on X   if C2;
 ```
 
 Token-Längen: `A`=1, `Bcde`=4, `-->`=3, `X1`=2, `Longer`=6, `on`=2, `Ev1`=3, `X`=1, `if`=2.
@@ -361,10 +365,17 @@ Der Gedanke: Der Pfeil ist das dominante visuelle Gerüst eines Transitions-Bloc
 (Leerzeile/Kommentar) überspannen. Die tight-Klauseln sind enger geknüpft; eine Leerzeile markiert
 einen neuen Absatz, und die Spalte fängt frisch an.
 
-**Idempotenz.** `InterruptLines` liest den Ist-Whitespace, aber die *Entscheidung* ist invariant:
-Leerzeilen zwischen den gruppierten Anweisungen werden nie unter den Deckel `MaxBlankLines` (≥ 2 oder
-aus) kollabiert, und beide Schwellen (1, 2) liegen auf oder unter diesem Boden. Ein Gap mit ≥ 2 Interrupt-Zeilen bleibt ≥ 2, eines mit
-genau 1 bleibt 1. Die Klassifikation ändert sich nie durch einen Formatierlauf.
+**Idempotenz.** `InterruptLines` liest den Ist-Whitespace, aber die *Entscheidung* ist invariant — in
+beide Richtungen. Nach unten: Leerzeilen zwischen den gruppierten Anweisungen werden nie unter den
+Deckel `MaxBlankLines` (≥ 2 oder aus) kollabiert, und beide Schwellen (1, 2) liegen auf oder unter
+diesem Boden — ein Gap mit ≥ 2 Interrupt-Zeilen bleibt ≥ 2, eines mit genau 1 bleibt 1. Nach oben:
+Innerhalb einer gruppierten Sequenz ergänzt keine Regel je eine Leerzeile (der Anweisungs-Umbruch hebt
+kein Minimum an). Die eine *erzwungene* Leerzeile im Task-Body — an der Grenze Deklarationen →
+Transitionen (`BlankLineBeforeTransitionsRule`, [§5.3](#53-die-geordnete-liste-ist-die-spezifikation)) —
+könnte ein 0-Interrupt-Gap auf 1 heben und damit die Schwelle 1 überqueren; deshalb gruppiert der
+einzige Pass, der beide Seiten dieser Grenze sähe — die Trailing-Kommentar-Spalte —,
+Node-Deklarationen und Transitionen als **getrennte Sequenzen**, die Grenze liegt also nie *innerhalb*
+einer Gruppe. Die Klassifikation ändert sich nie durch einen Formatierlauf.
 
 #### Warum Trailing-Kommentare anders behandelt werden
 
@@ -464,7 +475,8 @@ Node-Deklarationen — Letztere schließen die `taskref`-Verbindungspunkte mit e
 Der Inhalt — die Token-Liste plus drei primitive Fakten und ein abgeleiteter:
 
 - **`Tokens`** — die signifikanten Token der Anweisung.
-- **`EndsWithSemicolon`** — letztes Token ist `;` (prüft das Node-Raster).
+- **`EndsWithSemicolon`** — letztes Token ist `;` (prüfen das Node-Raster und vor allem die
+  Suppression-Klassifikation, [§8.1](#81-die-drei-quellen-der-unterdrückung)).
 - **`HasStructuralBreakTrivia`** — eine innere Lücke trägt `SkippedTokensTrivia` oder eine Direktive.
 - **`SpansMultipleLines`** — eine innere Lücke trägt einen Newline oder einen zeilen-erzwingenden Kommentar.
 - **`BreaksSingleLineForm`** (abgeleitet) = `HasStructuralBreakTrivia || SpansMultipleLines` — genau die
@@ -955,8 +967,8 @@ Einrückung des ersten Tokens**. Der authored-Teil zählt die Whitespace-Zeichen
 ersten Token zurück bis zum Zeilenanfang; steht davor Nicht-Whitespace (das Token beginnt nicht am
 Zeilenanfang), gibt es keinen sinnvollen äußeren Einzug → Delta 0.
 
-Nehmen wir eine über zwei Zeilen gesetzte Transition in einem Task-Body (`IndentSize = 4`, Block-Tiefe
-1 → Ziel-Einzug 4 Zeichen; · = Leerzeichen):
+Nehmen wir eine über zwei Zeilen gesetzte Transition in einem Task-Body (`IndentStyle = Spaces`,
+`IndentSize = 4`, Block-Tiefe 1 → Ziel-Einzug 4 Zeichen; · = Leerzeichen):
 
 ```
 task T
@@ -978,6 +990,10 @@ depth     = ComputeIndentDepth(A) = 1
 target    = depth * IndentSize    = 1 * 4 = 4
 delta     = target - authored     = 4 - 8 = -4
 ```
+
+(`target = depth * IndentSize` ist der Spaces-Zweig; beim Default `IndentStyle = Tabs` rechnet
+`HandLaidDelta` stattdessen `target = depth` — ein Tab-Zeichen pro Stufe, dieselbe Mechanik in
+Tab-Einheiten.)
 
 Der Delta (`−4`) wird an **alle drei** inneren Lücken der Anweisung geschrieben (Schlüssel `A.End`,
 `(-->).End`, `B.End`) — so umgeht jede innere Lücke die Regel-Pipeline und bleibt byte-genau. Wirksam
