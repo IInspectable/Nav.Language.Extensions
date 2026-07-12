@@ -25,32 +25,28 @@ abstract class TransitionCodeModel: CodeModel {
                                                         // Cancel ist immer implizit erreichbar
                                                        .Concat(new[] {new CanceCallCodeModel()})
                                                        .OrderBy(c => c.SortOrder);
-        var taskBeginModels      = GetTaskBegins(injectedCalls);
-        var taskBeginFieldModels = GetTaskBeginFields(injectedCalls);
+
+        // Die Task-Begin-Parameter einmal berechnen (das Auflösen der Deklarationen und das Bilden der
+        // voll qualifizierten Begin-Interface-Namen ist der teuerste Teil); die Feld-Modelle sind eine
+        // reine Projektion derselben Parameter und werden daraus abgeleitet, nicht erneut berechnet.
+        var taskBegins = GetTaskBegins(injectedCalls);
 
         ReachableCalls  = reachableCallsModels.ToImmutableList();
-        TaskBegins      = taskBeginModels.ToImmutableList();
-        TaskBeginFields = taskBeginFieldModels.ToImmutableList();
+        TaskBegins      = taskBegins;
+        TaskBeginFields = taskBegins.Select(p => new FieldCodeModel(p.ParameterType, p.ParameterName))
+                                    .ToImmutableList();
     }
 
     public ImmutableList<CallCodeModel>      ReachableCalls  { get; }
     public ImmutableList<ParameterCodeModel> TaskBegins      { get; }
     public ImmutableList<FieldCodeModel>     TaskBeginFields { get; }
 
-    static IEnumerable<ParameterCodeModel> GetTaskBegins(IEnumerable<Call> reachableCalls) {
+    static ImmutableList<ParameterCodeModel> GetTaskBegins(IEnumerable<Call> reachableCalls) {
 
         var taskDeclarations = GetTaskDeclarations(reachableCalls);
         return ParameterCodeModel.GetTaskBeginsAsParameter(taskDeclarations)
                                  .OrderBy(p => p.ParameterName)
                                  .ToImmutableList();
-    }
-
-    static IEnumerable<FieldCodeModel> GetTaskBeginFields(IEnumerable<Call> reachableCalls) {
-
-        var taskBegins       = GetTaskBegins(reachableCalls);
-        var taskBeginMembers = taskBegins.Select(p => new FieldCodeModel(p.ParameterType, p.ParameterName));
-
-        return taskBeginMembers;
     }
 
     static IEnumerable<ITaskDeclarationSymbol> GetTaskDeclarations(IEnumerable<Call> reachableCalls) {

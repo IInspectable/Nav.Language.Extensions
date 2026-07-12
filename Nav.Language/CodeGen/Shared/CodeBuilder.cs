@@ -42,7 +42,11 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 public sealed class CodeBuilder {
 
-    readonly StringBuilder _sb        = new();
+    // Vorab dimensioniert: eine generierte Artefakt-Datei ist typisch mehrere KB groß. Ohne
+    // Startkapazität wächst der StringBuilder aus der Default-16 zeichenweise mit wiederholtem
+    // Puffer-Neukopieren (Buffer.BulkMoveWithWriteBarrier) hoch; 8 KiB deckt die meisten Dateien
+    // ohne Wachstum ab und ist pro Datei (sequentiell erzeugt, danach GC-frei) vernachlässigbar.
+    readonly StringBuilder _sb        = new(8192);
     readonly StringBuilder _pendingWs = new();
     readonly Stack<int>    _anchors   = new();
 

@@ -1,7 +1,6 @@
 ﻿#region Using Directives
 
 using System;
-using System.Linq;
 
 #endregion
 
@@ -51,10 +50,32 @@ public static class CodeGenFacts {
     public const string AnnotationTagNavChoiceCall = "NavChoiceCall";
 
     internal static string BuildQualifiedName(params string[] identifier) {
-        var parts = identifier.Where(part => !String.IsNullOrEmpty(part)).ToList();
 
-        if (!parts.Any()) {
+        // Heiß auf dem Codegen-Pfad (voll qualifizierte Namespaces/Typnamen, je Task-Begin neu gebildet):
+        // bewusst ohne LINQ/List-Zwischenschritt. Der häufigste Fall — alle Teile nicht leer — geht direkt
+        // über die schnelle String.Join(string[])-Überladung; nur wenn tatsächlich leere Teile zu
+        // überspringen sind, wird ein passend dimensioniertes Zwischen-Array gefüllt.
+        var nonEmpty = 0;
+        foreach (var part in identifier) {
+            if (!String.IsNullOrEmpty(part)) {
+                nonEmpty++;
+            }
+        }
+
+        if (nonEmpty == 0) {
             return String.Empty;
+        }
+
+        if (nonEmpty == identifier.Length) {
+            return String.Join(".", identifier);
+        }
+
+        var parts = new string[nonEmpty];
+        var i     = 0;
+        foreach (var part in identifier) {
+            if (!String.IsNullOrEmpty(part)) {
+                parts[i++] = part;
+            }
         }
 
         return String.Join(".", parts);
