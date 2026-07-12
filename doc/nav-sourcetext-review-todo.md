@@ -34,9 +34,9 @@
 
 | # | Step | Größe | Status |
 |---|---|---|---|
-| S1 | Sicherheitsnetz: Boundary-Unit-Tests für `SourceText`/`GetTextLineAtPositionCore` | mittel | offen |
-| S2 | `SourceText.Empty` als Singleton (`static readonly` statt `=> new`) | klein | offen |
-| S3 | Doku-/Kommentar-Korrekturen (`GetTextLineAtPosition`-XML-Doku, Typos, Hint-Fenster-Kommentar) | klein | offen |
+| S1 | Sicherheitsnetz: Boundary-Unit-Tests für `SourceText`/`GetTextLineAtPositionCore` | mittel | **erledigt** |
+| S2 | `SourceText.Empty` als Singleton (`static readonly` statt `=> new`) | klein | **erledigt** |
+| S3 | Doku-/Kommentar-Korrekturen (`GetTextLineAtPosition`-XML-Doku, Typos, Hint-Fenster-Kommentar) | klein | **erledigt** |
 | S4 | Eingabe-Validierung `GetLocation` + ehrliche Exception-Parameternamen in `FindElementAtPosition` | klein | offen |
 | S5 | `FindIndexAtOrAfterPosition` → `FindIndexAtOrBeforePosition` (Name + Doku + TODO auflösen) | klein | offen |
 | S6 | `SourceTextLine`-Konstruktor: sinnfreien Guard `line > lineEnd` bereinigen | klein | offen |

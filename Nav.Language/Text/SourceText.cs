@@ -15,7 +15,7 @@ public abstract class SourceText {
 
     public abstract string Text { get; }
 
-    public abstract ReadOnlySpan<char> Span {get;}
+    public abstract ReadOnlySpan<char> Span { get; }
 
     public abstract int Length { get; }
 
@@ -28,18 +28,18 @@ public abstract class SourceText {
     public string Substring(int startIndex, int length) {
         return Slice(startIndex: startIndex, length: length).ToString();
     }
-        
+
     public ReadOnlySpan<char> Slice(TextExtent textExtent) {
         return Slice(textExtent.Start, textExtent.Length);
     }
 
     public abstract ReadOnlySpan<char> Slice(int startIndex, int length);
-        
+
     public static SourceText From(string text, string? filePath = null) {
         return new StringSourceText(text: text, filePath: filePath);
     }
 
-    public static SourceText Empty => new StringSourceText(null, null);
+    public static SourceText Empty { get; } = new StringSourceText(null, null);
 
     public abstract char this[int index] { get; }
 
@@ -50,10 +50,16 @@ public abstract class SourceText {
     public override string ToString() {
         return Text;
     }
-        
+
     /// <summary>
-    /// Liefert die Zeileninformation für die angegebene Zeile (zero based).
+    /// Liefert die Zeile, die die angegebene Position (Zeichen-Offset, nicht Zeilennummer)
+    /// enthält. Gültig ist der Bereich <c>[0, Length]</c>: <c>position == Length</c> ist
+    /// bewusst erlaubt und liefert die letzte Zeile (Position am Dateiende).
     /// </summary>
+    /// <param name="position">Der Zeichen-Offset im Text.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="position"/> liegt außerhalb von <c>[0, Length]</c>.
+    /// </exception>
     public SourceTextLine GetTextLineAtPosition(int position) {
         if (position < 0 || position > Length) {
             throw new ArgumentOutOfRangeException(nameof(position));
@@ -71,8 +77,8 @@ public abstract class SourceText {
     }
 
     LinePosition GetLinePositionAtPosition(int position) {
-        var lineInformaton = GetTextLineAtPositionCore(position);
-        return new LinePosition(lineInformaton.Line, position - lineInformaton.Extent.Start);
+        var lineInformation = GetTextLineAtPositionCore(position);
+        return new LinePosition(lineInformation.Line, position - lineInformation.Extent.Start);
     }
 
     int _lastLineNumber;
@@ -87,13 +93,20 @@ public abstract class SourceText {
             return TextLines[TextLines.Count - 1];
         }
 
-        // Natürlich ist der Zugriff auf _lastLineNumber nicht "Threadsafe". Das macht aber auch nichts. Wir verwenden den Wert nur als Hint
+        // Natürlich ist der Zugriff auf _lastLineNumber nicht "Threadsafe". Das macht aber auch nichts. Wir verwenden den Wert nur als Hint,
         // da davon auszugehen ist, dass die Zugriffe auf die Zeileninformationen immer in etwa im selben Bereich stattfinden. Im worst case
-        // werden ohnehin alle Zeilen durchsucht-
-        var lastLineNumber = _lastLineNumber;
+        // werden ohnehin alle Zeilen durchsucht.
+        //
+        // Effektive Reichweite des Fensters ist HintWindow - 1 (= 3): Der Treffer fällt erst, wenn die Schleife den *Start der Folgezeile*
+        // sieht (position < TextLines[i].Start → Zeile i-1). Für eine Position in Zeile lastLineNumber + (HintWindow - 1) liegt dieser
+        // Folgezeilen-Start bereits außerhalb des Fensters, und die Suche fällt korrekt in die Binärsuche zurück — dasselbe Ergebnis,
+        // nur langsamer.
+        const int hintWindow     = 4;
+        var       lastLineNumber = _lastLineNumber;
+
         if (position >= TextLines[lastLineNumber].Start) {
-            var limit = Math.Min(TextLines.Count, lastLineNumber + 4);
-            for (int i = lastLineNumber; i < limit; i++) {
+            var limit = Math.Min(TextLines.Count, lastLineNumber + hintWindow);
+            for (var i = lastLineNumber; i < limit; i++) {
                 if (position < TextLines[i].Start) {
                     var lineNumber = i - 1;
                     _lastLineNumber = lineNumber;
@@ -104,6 +117,7 @@ public abstract class SourceText {
 
         var textLine = TextLines.FindElementAtPosition(position);
         _lastLineNumber = textLine.Line;
+
         return textLine;
     }
 
