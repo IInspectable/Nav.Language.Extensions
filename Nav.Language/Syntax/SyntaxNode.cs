@@ -438,8 +438,16 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
-    /// <summary>Der Quelltext dieses Knotens (sein <see cref="Extent"/>, ohne umgebende Trivia).</summary>
+    /// <summary>
+    /// Der Quelltext dieses Knotens (sein <see cref="Extent"/>, ohne umgebende Trivia). Für einen
+    /// Knoten, der nur aus Missing-Token besteht (Parser-Recovery auf kaputtem Source), ist der
+    /// Extent selbst Missing — dann leer statt Absturz, wie bei <see cref="SyntaxToken.ToString"/>.
+    /// </summary>
     public override string ToString() {
+        if (Extent.IsMissing) {
+            return String.Empty;
+        }
+
         return SyntaxTree.SourceText.Substring(Start, Length);
     }
 

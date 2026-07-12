@@ -70,6 +70,7 @@
     <File Path="doc/Features.md" />
     <File Path="doc/WFS-Spracherweiterung — Framework-Verifikation.md" />
     <File Path="doc/nav-backlog.md" />
+    <File Path="doc/nav-broken-source-robustness.md" />
     <File Path="doc/nav-codeanalysis-navigation-review.md" />
     <File Path="doc/nav-codegen-step4-handoff.md" />
     <File Path="doc/nav-codegen-v2-choice-navigation-status.md" />
