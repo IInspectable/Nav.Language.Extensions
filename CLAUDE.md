@@ -63,14 +63,15 @@ Protokoll/UI hinzu, nie eigene Sprachlogik.
 - **`Nav.Language.Mcp`** (net10.0, Assembly **`nav.mcp`**) — MCP-Server (stdio), teilt die
   Workspace-Host-Schicht mit dem LSP. Tools in `Nav.Language.Mcp/Tools/`: `nav_validate`,
   `nav_diagnostics`, `nav_outline`, `nav_workspace`, `nav_find_symbol`, `nav_goto`, `nav_references`,
-  `nav_rename`, `nav_code_actions`. `nav_diagnostics` ist das workspace-weite Gegenstück zu
+  `nav_rename`, `nav_code_actions`, `nav_format`, `nav_grammar`. `nav_diagnostics` ist das workspace-weite Gegenstück zu
   `nav_validate` (Pull-Äquivalent zum LSP-Diagnostics-Push): aggregiert Diagnostics über alle bzw. per
   `filter`/`severity` eingegrenzten `.nav`, gepaged. **Name-basiert** (ein Agent hat keinen Cursor — Symbole werden über ihren Namen
   adressiert, aufgelöst via `Nav.Language/Symbols/NavSymbolSearch`, dann in die positions-basierten
   Engine-Kerne gespeist). `nav_find_symbol` ist der Einstieg, wenn die Datei noch unbekannt ist: solution-
   weite Präfix-Suche nach Definitionen, deren Pfad dann an die übrigen (datei-gebundenen) Tools geht;
-  die mutierenden Tools (`nav_rename`, `nav_code_actions`) sind **read-only** und liefern nur das
-  Edit-Set. Statusdokument: `doc/nav-mcp-status.md`.
+  die mutierenden Tools (`nav_rename`, `nav_code_actions`, `nav_format`) sind **read-only** und liefern
+  nur das Edit-Set (`nav_format` zusätzlich den komplett formatierten Text). Statusdokument:
+  `doc/nav-mcp-status.md`.
 - **`Nav.Cli`** (net472, Assembly **`nav.exe`**) — Kommandozeilen-Codegenerator/Analyzer.
 - **`Nav.Language.BuildTasks`** — MSBuild-Task + `Pharmatechnik.Nav.Language.targets`, übersetzt
   `.nav` beim Build zu C#.
