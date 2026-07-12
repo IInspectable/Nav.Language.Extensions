@@ -13,7 +13,7 @@ Smoke): `doc/nav-mcp-status.md`.
 | 2 | Namens-Auflösung (`NavNameResolution`) & `nav_find_symbol` | ☑ fertig |
 | 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☑ fertig |
 | 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☑ fertig |
-| 5 | Format, GoTo, References, Outline, Workspace | ☐ offen |
+| 5 | Format, GoTo, References, Outline, Workspace | ☑ fertig |
 | 6 | *(optional)* In-Memory-Protokolltest (Wiring-Wächter) | ☐ offen |
 | 7 | Doku (`nav-mcp-status.md` §4) & `Invoke-Test.ps1`-Anbindung | ☐ offen |
 
@@ -186,6 +186,15 @@ zielt auf einen ungenutzten `view v;` → „Remove Unused Nodes". Read-only via
 
 Damit ist der manuelle Smoke-Katalog aus `doc/nav-mcp-status.md` §4 vollständig in wiederholbare
 Tests überführt.
+
+**☑ erledigt.** `NavFormatToolTests` (7) + `NavGotoToolTests` (4) + `NavReferencesToolTests` (5) +
+`NavOutlineToolTests` (4) + `NavWorkspaceToolTests` (4) = **24 Tests**, alle grün (MCP-Projekt gesamt 78,
+`nav build` 0/0). Cross-file-Szenario für GoTo/References: `lib.nav` (`task Sub`) + `main.nav`
+(`taskref "lib.nav";` … `task Sub s;`), Name „Sub" löst über die inkludierte Task-Deklaration cross-file auf.
+Format-Fixture space-eingerückt → Voll-Format erzeugt Tabs; Idempotenz per Zurückschreiben+Neuformat statt
+handgeschriebenem Kanon; Range-Test prüft `Edit.Line >= startLine` (Subset). **Falle:** der Formatter richtet
+Knotennamen zusätzlich in einer Spalte aus (`\tinit    i;`) — Assertions prüfen nur den Einzug (`\tinit` bzw.
+`\n  init`), nicht die Ausricht-Spalten.
 
 ## Step 6 *(optional, empfohlen)* — In-Memory-Protokolltest
 
