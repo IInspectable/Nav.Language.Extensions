@@ -82,6 +82,20 @@ public sealed class NavMcpWorkspace {
     }
 
     /// <summary>
+    /// Liefert den frisch von Platte gelesenen <see cref="SyntaxTree"/> einer Datei (Cache-Invalidierung wie
+    /// bei <see cref="GetFreshUnit"/>) samt normalisiertem Pfad — für rein syntaktische Features wie den
+    /// Formatter, die kein Semantik-Modell brauchen. <c>null</c>, wenn die Datei nicht gefunden wird.
+    /// </summary>
+    public SyntaxTree? GetFreshSyntaxTree(string path, out string normalizedPath) {
+
+        normalizedPath = PathHelper.NormalizePath(path) ?? path;
+
+        _core.InvalidateCache(normalizedPath);
+
+        return _core.GetSyntaxTree(normalizedPath);
+    }
+
+    /// <summary>
     /// Validiert eine einzelne <c>.nav</c>-Datei und liefert ihre Diagnostics (inkl. Cross-File-Diagnostics aus
     /// inkludierten Dateien, die beim Bauen des semantischen Modells aufgelöst werden). Nutzt die gemeinsame
     /// Engine-Host-Schicht (<see cref="NavWorkspaceCore"/> + <see cref="DiagnosticsComputer"/>) — dieselbe wie der LSP-Server.
@@ -114,4 +128,5 @@ public sealed class NavMcpWorkspace {
                                   .Select(diagnostic => NavDiagnosticDto.From(diagnostic, normalizedPath))
                                   .ToList();
     }
+
 }

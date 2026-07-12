@@ -34,6 +34,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_references` | `ReferenceFinder` | Alle solution-weiten Vorkommen (inkl. Deklaration). |
 | `nav_rename` | `NavRenameService` | Umbenennungs-**Edit-Set** (read-only, file-local). |
 | `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set**. |
+| `nav_format` | `NavFormattingService` | Document-/Range-Formatierung: **Edit-Set** + komplett formatierter Text (read-only). |
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
 
 ## 3. Design-Entscheidungen
@@ -76,9 +77,23 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   `GetFreshUnit`, dieselbe Semantik wie `nav_validate`) — korrekt auch nach Agent-Edits; ein voller
   Sweep ohne `filter` ist bewusst teuer, `filter` ist die Mitigation. Optionaler `severity`-Filter
   (`error`/`warning`/`suggestion`); kein `task`-Feld pro Diagnose (spätere Erweiterung).
-- **Mutierende Tools sind read-only.** `nav_rename` und `nav_code_actions` schreiben **NICHTS** auf
-  Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn, newText}`)
-  zurück, das der Agent selbst anwendet.
+- **Mutierende Tools sind read-only.** `nav_rename`, `nav_code_actions` und `nav_format` schreiben
+  **NICHTS** auf Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn,
+  newText}`) zurück, das der Agent selbst anwendet.
+- **`nav_format` = Document-/Range-Formatting als Pull.** Gegenstück zu LSP
+  `textDocument/formatting`/`…/rangeFormatting`, gleicher Engine-Kern (`NavFormattingService`). Der
+  Formatter ist rein syntaktisch → `NavMcpWorkspace.GetFreshSyntaxTree` (Cache-Invalidierung wie
+  `GetFreshUnit`, aber ohne Semantik-Build). Der Range ist **zeilenbasiert** (`startLine`/`endLine`,
+  1-basiert, inklusiv) statt positions-basiert — ein Agent denkt in Zeilen; die Engine weitet den
+  Range selbst auf ganze Anweisungen aus (`ExpandRange`). Neben dem Edit-Set liefert das Tool den
+  **komplett formatierten Dokumenttext** (`formattedText`, auch beim Range-Format das ganze Dokument
+  mit nur den Range-Änderungen): viele kleine Whitespace-Edits präzise anzuwenden ist für einen
+  Agenten fehleranfällig, die Datei mit dem Ergebnistext zu überschreiben nicht. Per
+  `includeFormattedText=false` abbestellbar (Token-Limit bei großen Dateien — dann nur Edits);
+  bei „bereits formatiert" (0 Edits) bleibt er `null`. Die Optionen `insertSpaces`/`tabSize`
+  überschreiben nur bei **expliziter** Angabe die kanonischen Defaults
+  (`NavFormattingOptions.Default`: Tabs, Breite 4 — Korpus-Mehrheit) — anders als beim LSP gibt es
+  keinen Editor-Konfig-Kanal, der immer liefert.
 - **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
   Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
   zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt
@@ -108,7 +123,11 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   Paging/`truncated`, plus Quer-Check `nav_validate` einer Einzeldatei == gefiltertes `nav_diagnostics`
   (identische Counts/Codes). **`nav_grammar`** per stdio-Smoke: volle Grammatik (enthält
   `codeGenerationUnit ::=`), Einzelregel (`taskDefinition`) + `includeTerminals`, unbekannte Regel
-  (`arrayType` → `error` + `availableRules`).
+  (`arrayType` → `error` + `availableRules`). **`nav_format`** per stdio-Smoke: Voll-Format
+  (Tabs-Einzug, Pfeil-/Node-Grid-Ausrichtung, Final-Newline), Range-Format (nur der gewählte Task
+  ändert sich — Subset-Garantie), Idempotenz (bereits formatierte Datei → 0 Edits, `formattedText`
+  = `null`), `insertSpaces`/`tabSize` (Spaces, Breite 2), Fehlerfälle (Zeilenbereich hinter dem
+  Dateiende, fehlende Datei).
 - **Build:** `dotnet build Nav.Language.Mcp/Nav.Language.Mcp.csproj` (net10), 0 Warnungen.
   Server lokal: `dotnet Nav.Language.Mcp/bin/Debug/net10.0/nav.mcp.dll <workspace-root>`.
 - **Publish:** `nav publish` veröffentlicht den MCP-Server als **self-contained Single-File**
