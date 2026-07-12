@@ -1,8 +1,8 @@
 ﻿# Nav Performance-Optimierung — Arbeitsdokument
 
 > **Status:** Analyse abgeschlossen, Backlog priorisiert. **#1 umgesetzt** (Include-Cache-Default),
-> #2/#3 offen. Lebendes Dokument zum Abarbeiten in Folge-Sessions. Setup-Details: Memory
-> `nav-perf-profiling-setup`.
+> **#2 umgesetzt** (Dictionary-Presizing), #3 offen (erst gegenmessen). Lebendes Dokument zum Abarbeiten
+> in Folge-Sessions. Setup-Details: Memory `nav-perf-profiling-setup`.
 > Voller Analyse-Befund (flüchtig, Scratchpad): `scratchpad/PERF-BEFUND.md`.
 
 ## 1. Ziel & Fokus
@@ -61,13 +61,23 @@ Semantic uncached ≈ 85 % Include-Reparse; mit `CachedSyntaxProvider` **6,7× s
 - **Belegt:** `nav.exe /d` auf den taskref-lastigen Regression-Fixtures (V1 `Test.nav` + V2-Flows),
   einmal ohne und einmal mit `/c`, `/f` (Force) → **21/21 generierte `.cs` SHA-256-identisch**, 0 Diffs.
 
-### #2 — Collection-Presizing im Parser
-- **Was:** Der Trivia-`Dictionary<int, TriviaRange>` resized ständig (Resize + set_Item zusammen ~25 %
-  der Parse-Zeit); dazu unpresizte Token-Listen. Kapazität vorab aus Zeichen-/Tokenzahl schätzen; ggf.
-  Dictionary durch sortiertes Array ersetzen. Umfeld: `NavParser.BuildTrivia`/`FinalizeTrivia`,
-  `TakeSortedTokens`, `Nav.Language/Syntax/`.
-- **Wirkung:** trägt Parse — und damit Formatter **und** (uncached-)Semantic gleichzeitig.
-- **Risiko:** gering, durch `sweep`-Hash abgesichert. **Aufwand:** klein.
+### #2 — Collection-Presizing im Parser  ✔ ERLEDIGT
+- **Umgesetzt:** Der Trivia-`Dictionary<int, TriviaRange>` in `NavParser.BuildTrivia` wird jetzt vorab
+  mit `_tokens.Count` dimensioniert. Das ist die **exakte** Endgröße: die Map bekommt genau einen Eintrag
+  je konsumiertem signifikanten Token (der signifikante Trenner-Arm der `BuildTrivia`-Schleife setzt jeden
+  einmal), und `_tokens` enthält zu diesem Zeitpunkt genau diese Token (EOF hängt noch nicht im Strom).
+  Damit entfällt das wiederholte Rehashen beim Wachsen.
+- **Bereits presized (kein Handlungsbedarf):** Lexer-`_tokens` (`_length/4`), Parser-`_tokens`
+  (`_raw.Length/2+1`), der `all`-Trivia-Builder (`_raw.Length/2`).
+- **Nicht presizt:** das `consumedStarts`-`HashSet<int>` in `FinalizeTrivia` — der
+  `HashSet<T>(int)`-Ctor fehlt auf **netstandard2.0** (Ziel-TFM der Engine); `Dictionary<K,V>(int)` gibt es
+  dort. Bewusst so belassen (Kommentar im Code), damit es niemand erneut versucht.
+- **Wirkung (gemessen, Release, `LargeNav.nav` 191 KB, Best-of-15×300, A/B via `git stash`):**
+  Parse-**Allokation 3359 → 3076 KiB/Iter (−283 KiB, ~8,4 %)**; Zeit 1684 → 1672 µs/Iter = im Rauschen
+  (die im Debug/ANTLR-Altstand gemessenen „~25 % der Parse-Zeit" schlagen im aktuellen Release nur als
+  Alloc-Ersparnis durch, nicht als Wanduhr).
+- **Risiko:** null. Reiner Kapazitäts-Hinweis, Ausgabe unverändert — **1731 net10-Tests grün** (Syntax-,
+  Regression-, Formatting-Golden-Snapshots pinnen Token/Baum/Trivia/generierten Code).
 
 ### #3 — Vollen Token-Sort vermeiden
 - **Was:** `NavParser.TakeSortedTokens` → `List.Sort`/`IntroSort` via `SyntaxTokenComparer` (~10 %).
@@ -85,8 +95,11 @@ gegenmessen. Sonst abgeschlossen.
 
 1. ~~**#1** sofort (größter Hebel, kein Risiko, ausgabe-neutral).~~ ✔ erledigt — nur Target-Default,
    CLI blieb Opt-in.
-2. **#2** (breit wirksam, billig, hash-abgesichert). ← als Nächstes
-3. **Release + aktueller HEAD gegenmessen**, dann **#3** nur, wenn die Messung ihn noch lohnt.
+2. ~~**#2** (breit wirksam, billig, hash-abgesichert).~~ ✔ erledigt — Dictionary-Presizing, ~8,4 %
+   weniger Parse-Alloc, ausgabe-neutral.
+3. **#3** nur, wenn eine frische Release-Messung ihn noch lohnt. Die #2-Messung zeigt: der Token-Sort
+   (`TakeSortedTokens`) ist im aktuellen Release **nicht** mehr der Wanduhr-Treiber, den der veraltete
+   Debug-Stand nahelegte — vor Inangriffnahme also erst gegenmessen (Trace/Alloc), sonst überflüssig.
 
 Jede Änderung: `sweep` grün + Hash unverändert → messen → Commit-Message vorschlagen (nicht selbst
 committen).

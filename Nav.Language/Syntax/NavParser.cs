@@ -2400,7 +2400,9 @@ sealed partial class NavParser {
     void FinalizeTrivia() {
 
         // Vom Parser an Knoten gehängte (signifikante) Token — anhand ihrer eindeutigen Start-Position.
-        // Token überlappen nie, daher ist die Start-Position ein sicherer Identitätsschlüssel.
+        // Token überlappen nie, daher ist die Start-Position ein sicherer Identitätsschlüssel. (Eine
+        // Vorab-Kapazität ist hier nicht möglich: der HashSet<T>(int)-Ctor fehlt auf netstandard2.0 — der
+        // Ziel-TFM dieser Assembly.)
         var consumedStarts = new HashSet<int>();
         foreach (var token in _tokens) {
             consumedStarts.Add(token.Start);
@@ -2555,8 +2557,11 @@ sealed partial class NavParser {
         var all = ImmutableArray.CreateBuilder<SyntaxTrivia>(Math.Max(16, _raw.Length / 2));
 
         // Genau ein Dictionary Token-Start -> Bereiche. Die Leading-Trivia wird beim Erreichen des Tokens
-        // eingetragen, die Trailing-Trivia beim nächsten Trenner per Read-Modify-Write nachgezogen.
-        tokenTrivia = new Dictionary<int, TriviaRange>();
+        // eingetragen, die Trailing-Trivia beim nächsten Trenner per Read-Modify-Write nachgezogen. Die
+        // Zahl der Einträge ist exakt die der konsumierten signifikanten Token (je genau ein set im
+        // signifikanten Trenner-Arm) — mit _tokens.Count vorab dimensioniert entfällt das wiederholte
+        // Rehashen beim Wachsen (im Profil zuvor ein spürbarer Anteil der Parse-Zeit).
+        tokenTrivia = new Dictionary<int, TriviaRange>(_tokens.Count);
 
         var pendingStart       = 0;  // Index in 'all', an dem der aktuelle pending-Lauf (Trivia seit letztem Trenner) beginnt.
         var lastSignificantKey = -1; // Start des letzten Tokens, das noch Trailing-Trivia aufnimmt; -1 = keins.
