@@ -614,14 +614,16 @@ public class NavFormattingGoldenTests {
     }
 
     // ---- Leerzeilen-Deckel (MaxBlankLines) ------------------------------------------------------
-    // Default ist kein Deckel (null) — die „kein Kollaps"-Grundhaltung bleibt der Default; der Deckel ist
-    // opt-in und nur ≥ 2 zulässig (Werte darunter werden auf 2 geklemmt, s. MaxBlankLinesBelowTwoIsClampedToTwo).
+    // Default-Deckel ist 3 (bis zu drei Leerzeilen am Stück bleiben, alles darüber wird gekappt); nur ≥ 2
+    // zulässig (Werte darunter werden auf 2 geklemmt, s. MaxBlankLinesBelowTwoIsClampedToTwo), null schaltet
+    // den Deckel ganz ab.
 
-    static readonly NavFormattingOptions CapOptions = SpacesOptions with { MaxBlankLines = 2 };
+    static readonly NavFormattingOptions CapOptions   = SpacesOptions with { MaxBlankLines = 2    };
+    static readonly NavFormattingOptions NoCapOptions = SpacesOptions with { MaxBlankLines = null };
 
     [Test]
     public void MaxBlankLinesBelowTwoIsClampedToTwo() {
-        Assert.That(NavFormattingOptions.Default.MaxBlankLines, Is.Null, "Default ist kein Deckel (opt-in).");
+        Assert.That(NavFormattingOptions.Default.MaxBlankLines, Is.EqualTo(3), "Default-Deckel ist 3.");
         Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 0    }).MaxBlankLines, Is.EqualTo(2));
         Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 1    }).MaxBlankLines, Is.EqualTo(2));
         Assert.That((NavFormattingOptions.Default with { MaxBlankLines = 5    }).MaxBlankLines, Is.EqualTo(5));
@@ -630,7 +632,7 @@ public class NavFormattingGoldenTests {
 
     [Test]
     public void WithoutMaxBlankLinesLargeRunsArePreserved() {
-        // Default (null): fünf Autoren-Leerzeilen bleiben stehen (kein Kollaps).
+        // Kein Deckel (null): vier Autoren-Leerzeilen bleiben stehen (kein Kollaps).
         var source = """
                      task Sample
                      {
@@ -647,7 +649,7 @@ public class NavFormattingGoldenTests {
 
                      """;
 
-        AssertFormat(source, source);
+        AssertFormat(source, source, NoCapOptions);
     }
 
     [Test]
@@ -683,6 +685,51 @@ public class NavFormattingGoldenTests {
                        """;
 
         AssertFormat(source, expected, CapOptions);
+    }
+
+    [Test]
+    public void DefaultCapKeepsThreeBlankLinesAndCapsAboveThat() {
+        // Default-Optionen (Deckel 3): ein Lauf von drei Leerzeilen bleibt unberührt, ein Lauf von fünf
+        // wird auf drei gekappt.
+        var source = """
+                     task Sample
+                     {
+                         init    I1;
+                         exit    E;
+
+                         I1 --> E;
+
+
+
+                         I1 --> E;
+
+
+
+
+                         I1 --> E;
+                     }
+
+                     """;
+        var expected = """
+                       task Sample
+                       {
+                           init    I1;
+                           exit    E;
+
+                           I1 --> E;
+
+
+
+                           I1 --> E;
+
+
+
+                           I1 --> E;
+                       }
+
+                       """;
+
+        AssertFormat(source, expected);
     }
 
     [Test]

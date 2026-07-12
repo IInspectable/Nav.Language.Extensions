@@ -13,7 +13,7 @@
 /// </remarks>
 public record NavFormattingOptions {
 
-    /// <summary>Die kanonischen Formatter-Defaults (Korpus-Mehrheit: Tabs, Breite 4, alle Ausrichtungen an).</summary>
+    /// <summary>Die kanonischen Formatter-Defaults (Korpus-Mehrheit: Tabs, Breite 4, alle Ausrichtungen an, Leerzeilen-Deckel 3).</summary>
     public static readonly NavFormattingOptions Default = new();
 
     /// <summary>Der Einzugsstil (Tabs oder Spaces). Default: <see cref="Formatting.IndentStyle.Tabs"/> (Korpus-Mehrheit).</summary>
@@ -89,9 +89,9 @@ public record NavFormattingOptions {
     /// <summary>
     /// Deckel für aufeinanderfolgende Leerzeilen: Läufe von mehr als so vielen Leerzeilen werden beim
     /// Formatieren darauf gekappt (Kommentar-/Direktivzeilen zählen nicht als Leerzeile und setzen den
-    /// Lauf zurück). <c>null</c> (Default) = <b>kein</b> Deckel — die vom Autor gesetzte vertikale Trennung
-    /// bleibt vollständig erhalten (die dokumentierte „kein Kollaps"-Grundhaltung). Gilt gleichermaßen
-    /// mitten im Code, am Dateianfang und am Dateiende.
+    /// Lauf zurück). <c>3</c> (Default) = bis zu drei Leerzeilen am Stück bleiben stehen, alles darüber
+    /// wird auf drei gekappt; <c>null</c> = <b>kein</b> Deckel — die vom Autor gesetzte vertikale Trennung
+    /// bleibt vollständig erhalten. Gilt gleichermaßen mitten im Code, am Dateianfang und am Dateiende.
     /// </summary>
     /// <remarks>
     /// <b>Nur ≥ 2 ist zulässig</b> (2, 3, 4, … — nicht 0/1). Der Deckel darf einen Leerzeilen-Lauf nie
@@ -103,16 +103,21 @@ public record NavFormattingOptions {
     /// idempotent. <b>Deshalb</b> ist 1 verboten.
     /// <para>Jeder Deckel <b>≥ 2</b> ist dagegen unkritisch: er lässt jeden ≥ 2-Lauf ≥ 2 (Bruch bleibt Bruch)
     /// und jeden 1-Lauf unberührt — die Gruppierung ändert sich nie, egal ob 2, 3 oder mehr. <b>2 ist also
-    /// nur der Boden</b> (die Bruch-Schwelle selbst), kein ausgezeichneter Wert; höhere Werte lassen bloß
-    /// mehr vertikale Luft stehen. Werte &lt; 2 werden still auf 2 geklemmt; <c>null</c> bleibt „kein
-    /// Deckel". Idempotent, weil kein Lauf die Schwelle überquert → ein zweiter Lauf klassifiziert identisch.</para>
+    /// nur der Boden</b> (die Bruch-Schwelle selbst); höhere Werte lassen bloß mehr vertikale Luft stehen.
+    /// Werte &lt; 2 werden still auf 2 geklemmt; <c>null</c> schaltet den Deckel ganz ab. Idempotent, weil
+    /// kein Lauf die Schwelle überquert → ein zweiter Lauf klassifiziert identisch.</para>
+    /// <para><b>Warum 3 als Default:</b> im realen <c>.nav</c>-Bestand (Korpus, 1913 Dateien, 35 530
+    /// Leerzeilen-Läufe) ist 1 Leerzeile die Norm (87 %), 2 der Abschnitts-Trenner (11 %), 3 der starke
+    /// Trenner (1,4 %); ab 4 wird es Rauschen. Ein Deckel 3 lässt damit 99,6 % aller Läufe unberührt und
+    /// kappt nur die ~0,4 % offensichtlich versehentlich zu großen Lücken (4 … 8 Leerzeilen) — er respektiert
+    /// das Trenner-Vokabular des Bestands und entfernt bloß die Ausreißer.</para>
     /// </remarks>
     public int? MaxBlankLines {
         get => _maxBlankLines;
         init => _maxBlankLines = value is { } v ? System.Math.Max(2, v) : null;
     }
 
-    readonly int? _maxBlankLines;
+    readonly int? _maxBlankLines = 3;
 
     /// <summary>
     /// Ob der interne Achse-A-Wächter nach dem Formatieren mitläuft (Re-Parse des Ergebnisses + Vergleich des
