@@ -10,7 +10,7 @@ Smoke): `doc/nav-mcp-status.md`.
 | Step | Inhalt | Status |
 |---|---|---|
 | 1 | Projekt-Setup + Test-Infrastruktur (`McpTestWorkspace`) + Grammar-Smoke | ☑ fertig |
-| 2 | Namens-Auflösung (`NavNameResolution`) & `nav_find_symbol` | ☐ offen |
+| 2 | Namens-Auflösung (`NavNameResolution`) & `nav_find_symbol` | ☑ fertig |
 | 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☐ offen |
 | 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☐ offen |
 | 5 | Format, GoTo, References, Outline, Workspace | ☐ offen |
