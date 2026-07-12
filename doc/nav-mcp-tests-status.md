@@ -11,7 +11,7 @@ Smoke): `doc/nav-mcp-status.md`.
 |---|---|---|
 | 1 | Projekt-Setup + Test-Infrastruktur (`McpTestWorkspace`) + Grammar-Smoke | ☑ fertig |
 | 2 | Namens-Auflösung (`NavNameResolution`) & `nav_find_symbol` | ☑ fertig |
-| 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☐ offen |
+| 3 | `nav_diagnostics` & `nav_validate` (inkl. Fresh-Read-Semantik) | ☑ fertig |
 | 4 | Koordinaten-Mapping (`NavEditDto`) & mutierende Tools (Rename, CodeActions) | ☐ offen |
 | 5 | Format, GoTo, References, Outline, Workspace | ☐ offen |
 | 6 | *(optional)* In-Memory-Protokolltest (Wiring-Wächter) | ☐ offen |
@@ -132,6 +132,12 @@ mit Warning, komplett sauber — z.B. unaufgelöster Task-Verweis, ungenutzte `t
   (Fehler einbauen bzw. fixen) → erneut abfragen → neuer Stand sofort sichtbar. Das ist der
   „Agent editiert → fragt ab"-Kernfluss des MCP.
 - `nav_validate` auf fehlende Datei → `NotFound`-Result (kein Wurf).
+
+**☑ erledigt.** `NavDiagnosticsToolTests` (13) + `NavValidateToolTests` (4) = **17 Tests**, alle grün
+(MCP-Projekt gesamt 39). Fixtures: Error = nicht auflösbarer, aber benutzter Task-Verweis (`task C;` +
+`I1 --> C` → **Nav0010**), Warning = ungenutzte `taskref` (→ **Nav1005**), plus eine saubere Datei; drei
+Unterordner (`alpha` < `beta` < `clean`) legen zugleich die stabile Diagnostics-Reihenfolge fest. Der
+Quer-Check vergleicht Codes/Counts direkt zwischen den beiden Tools statt Codes hart zu verdrahten.
 
 ## Step 4 — Koordinaten-Mapping & mutierende Tools
 
