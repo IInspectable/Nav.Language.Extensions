@@ -1,7 +1,7 @@
 ﻿# Nav Semantik-Modell-Cache — Plan
 
-> **Status:** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` + Provider-Tests) und
-> Step 2 (Einhängen in `NavWorkspaceCore`) umgesetzt; offen: Rest von Step 3 (Scan-Ebene), Step 4 (Messen). Am Code
+> **Status:** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` + Provider-Tests),
+> Step 2 (Einhängen in `NavWorkspaceCore`) und Step 3 (Tests inkl. Scan-Ebene) umgesetzt; offen: Step 4 (Messen). Am Code
 > verifiziert; Messzahlen aus dem echten Korpus
 > (`d:\tfs\main`, 1913 Dateien / 7,5 MB, **Debug**-Engine = ausgelieferter Stand). Setup-Details:
 > Memory `nav-perf-profiling-setup`. Verwandt: `doc/nav-perf-optimization-status.md`, `doc/nav-mcp-status.md`.
@@ -188,6 +188,13 @@ Ehrliche Abgrenzung:
   - Out-of-Band-Frische (Step 0): Datei auf Platte ändern ohne `GetFreshUnit` → Scan sieht die Änderung
     (schlägt heute fehl).
   - Kein Dateibezug: reines Overlay ohne `FileInfo` → nicht gecacht, korrektes Modell.
+
+  **UMGESETZT** — zweigeteilt: die Provider-Ebene deckt
+  `Nav.Language.Tests/CachedSemanticModelProviderTests.cs` ab (mit Step 1 entstanden), die Scan-Ebene
+  `Nav.Language.Tests/Workspace/NavWorkspaceCoreSemanticCacheTests.cs`: kompletter Host-Pfad
+  (`NavWorkspaceCore.LoadAsync` → `ProcessCodeGenerationUnitsAsync`) mit Wiederhol-Scan-Treffern
+  (`Is.SameAs`), Out-of-Band-Invalidierung Primärdatei/Include (nur Betroffene neu, Nachbarn Treffer),
+  Nicht-Transitivität sowie Overlay-Edit/-Close (Overlay autoritativ, Close stellt Disk-Stand wieder her).
 - **Step 4 — Messen** mit dem Scratchpad-Harness (Kalt- vs. Warmscan) gegen die Zahlen aus §6.
 
 Nach jedem Step: Review + Build/Test-Check + fertige Commit-Message (echte Umlaute) — Commit macht der
