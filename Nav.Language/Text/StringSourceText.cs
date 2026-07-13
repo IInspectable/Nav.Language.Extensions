@@ -17,14 +17,12 @@ namespace Pharmatechnik.Nav.Language.Text;
 sealed class StringSourceText: SourceText {
 
     readonly string                    _text;
-    readonly ReadOnlyMemory<char>      _memory;
     readonly Lazy<ImmutableArray<int>> _textLines;
 
     public StringSourceText(string? text, string? filePath) {
 
         _text      = text ?? String.Empty;
-        _memory    = _text.AsMemory();
-        _textLines = new Lazy<ImmutableArray<int>>(() => _memory.Span.ParseLineStarts(), LazyThreadSafetyMode.PublicationOnly);
+        _textLines = new Lazy<ImmutableArray<int>>(() => _text.AsSpan().ParseLineStarts(), LazyThreadSafetyMode.PublicationOnly);
         FileInfo   = String.IsNullOrEmpty(filePath) ? null : new FileInfo(filePath);
         TextLines  = new StringTextLineList(this);
     }
@@ -32,10 +30,13 @@ sealed class StringSourceText: SourceText {
     public override FileInfo?          FileInfo  { get; }
     public override SourceTextLineList TextLines { get; }
     public override string             Text      => _text;
-    public override int                Length    => _memory.Length;
-    public override ReadOnlySpan<char> Span      => _memory.Span;
+    public override int                Length    => _text.Length;
+    public override ReadOnlySpan<char> Span      => _text.AsSpan();
 
-    public override char this[int index] => _memory.Span[index];
+    // Bewusst direkt über den string-Indexer statt über Span/Memory: der Indexer wird zeichenweise
+    // in Schleifen aufgerufen (z.B. Formatter), und jeder Memory→Span-Übergang kostete dort pro
+    // Zeichen einen Typ-Check.
+    public override char this[int index] => _text[index];
 
     /// <summary>
     /// Baut die <see cref="SourceTextLine"/> für die angegebene Zeilennummer. Der Zeilenanfang ist der

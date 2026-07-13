@@ -336,7 +336,9 @@ public static class StringExtensions {
             return ImmutableArray.Create(0);
         }
 
-        var lineStarts = ImmutableArray.CreateBuilder<int>();
+        // Kapazität grob vorbelegen (~32 Zeichen/Zeile), damit der Builder nicht mehrfach wachsen
+        // muss; DrainToImmutable übergibt das Array am Ende ohne die ToImmutable-Abschluss-Kopie.
+        var lineStarts = ImmutableArray.CreateBuilder<int>(initialCapacity: text.Length / 32 + 1);
 
         int index;
         int lineStart = 0;
@@ -364,12 +366,12 @@ public static class StringExtensions {
             }
         }
 
-        // Einzige/letzte Zeile nicht vergessen. 
+        // Einzige/letzte Zeile nicht vergessen.
         if (index >= lineStart) {
             lineStarts.Add(lineStart);
         }
 
-        return lineStarts.ToImmutable();
+        return lineStarts.DrainToImmutable();
     }
 
     /// <summary>
