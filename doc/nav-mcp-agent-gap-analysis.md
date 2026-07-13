@@ -102,7 +102,9 @@ Beides von der Engine bereits getragen (`EdgeExtensions.GetReachableCalls`, `IEd
   - **Nebenbefund/Fix:** `NavSolution.ProcessCodeGenerationUnitsAsync` deduplizierte Dateien
     **case-sensitiv** (`HashSet<string>` mit `// TODO File/Path comparer`); bei abweichender Pfad-
     Schreibweise (normalisierter `startingUnit`-Pfad vs. Original-Casing der `SolutionFiles`) wurde
-    dieselbe Datei doppelt verarbeitet → doppelte Referenzen/Aufrufe. Auf `OrdinalIgnoreCase` umgestellt.
+    dieselbe Datei doppelt verarbeitet → doppelte Referenzen/Aufrufe. Auf `OrdinalIgnoreCase` umgestellt;
+    Engine-Regressionstest `NavCallHierarchyServiceTests.Incoming_StartingUnitPathCasingDiffers_DoesNotDoubleCount`
+    (per Fix-Revert als rot/grün verifiziert).
 - **`nav_diagram(path)`** — layout-freies Knoten/Kanten-Modell (oder direkt Mermaid/HTML). Laut
   `doc/nav-diagram-status.md` ist das Engine-Modell (S1) entworfen; das MCP-Tool ist danach „trivial"
   (dort §8 „Optionale Erweiterungen: MCP-Tool `nav_diagram`"). Ersetzt manuelle Mermaid-Handarbeit.

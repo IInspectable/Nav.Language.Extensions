@@ -236,6 +236,58 @@ public class NavCallHierarchyServiceTests {
     }
 
     [Test]
+    public async Task Incoming_StartingUnitPathCasingDiffers_DoesNotDoubleCount() {
+
+        // Regression: NavSolution.ProcessCodeGenerationUnitsAsync deduplizierte die durchlaufenen Dateien
+        // früher case-sensitiv (HashSet<string>). Weicht die Schreibweise des startingUnit-Pfads von der
+        // der SolutionFiles ab — z.B. wenn ein Host (MCP) pfad-normalisierte, kleingeschriebene Pfade
+        // hereinreicht —, greift die Dedup nicht und die aufrufende Datei wird DOPPELT verarbeitet:
+        // derselbe Aufruf erscheint zweimal. Hier deterministisch erzwungen über eine Ausgangs-Unit, deren
+        // (realer) Pfad großgeschrieben ist, während die Solution aus der Original-Schreibweise geladen wird.
+
+        const string main =
+            """
+            taskref "lib.nav";
+            task M
+            {
+                init i;
+                task Sub s;
+                exit e;
+                i    --> s;
+                s:x  --> e;
+            }
+            """;
+
+        const string lib =
+            """
+            task Sub
+            {
+                init i;
+                exit x;
+                i --> x;
+            }
+            """;
+
+        using var tmp = new TempSolution();
+        tmp.Write("main.nav", main);
+        tmp.Write("lib.nav",  lib);
+
+        // Solution aus der Original-Schreibweise laden (deren SolutionFiles tragen diese Schreibweise).
+        var (solution, _) = await tmp.LoadAsync("lib.nav");
+
+        // Ausgangs-Unit bewusst über einen abweichend geschriebenen, aber auf dieselbe Datei zeigenden Pfad.
+        var recasedLibPath = tmp.Path("lib.nav").ToUpperInvariant();
+        var sub            = ParseModel(lib, recasedLibPath).TaskDefinitions.Single(t => t.Name == "Sub");
+
+        var calls = await NavCallHierarchyService.GetIncomingCallsAsync(sub, solution, CancellationToken.None);
+
+        Assert.That(calls,                Has.Count.EqualTo(1), "genau ein Aufrufer (M)");
+        Assert.That(calls[0].Caller.Name, Is.EqualTo("M"));
+        Assert.That(calls[0].CallSites,   Has.Count.EqualTo(1),
+                    "case-insensitive Datei-Dedup: main.nav darf trotz abweichender Pfad-Schreibweise nicht doppelt gezählt werden");
+    }
+
+    [Test]
     public async Task Incoming_NoCallers_ReturnsEmpty() {
 
         using var tmp = new TempSolution();

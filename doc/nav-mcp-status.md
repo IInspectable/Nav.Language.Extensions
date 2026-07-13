@@ -134,7 +134,9 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   offenes `// TODO File/Path comparer`); bei abweichender Pfad-Schreibweise (normalisierter
   `startingUnit`-Pfad vs. Original-Casing der `SolutionFiles`) wurde dieselbe Datei doppelt verarbeitet
   → doppelte Treffer. Auf `StringComparer.OrdinalIgnoreCase` umgestellt (Windows-Pfade sind
-  case-insensitiv; kommt auch `nav_references`/`nav_find_symbol` zugute).
+  case-insensitiv; kommt auch `nav_references`/`nav_find_symbol` zugute). Abgesichert durch den
+  Engine-Regressionstest `NavCallHierarchyServiceTests.Incoming_StartingUnitPathCasingDiffers_DoesNotDoubleCount`
+  (vor dem Fix rot mit `CallSites=2`, danach grün) — verifiziert per Fix-Revert.
 - **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
   Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
   zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt
