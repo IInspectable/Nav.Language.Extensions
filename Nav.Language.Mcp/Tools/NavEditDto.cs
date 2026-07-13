@@ -40,6 +40,27 @@ public sealed class NavLocationDto {
 }
 
 /// <summary>
+/// Eine kompakte Quell-Position (nur 1-basierte Zeile/Spalte, ohne Dateipfad) für Fälle, in denen die Datei
+/// bereits aus dem umgebenden Kontext eindeutig ist — etwa die Call-Sites in <c>nav_call_hierarchy</c>, die
+/// stets in der Datei der AUFRUFENDEN Task liegen. Spart die andernfalls je Position wiederholte (absolute)
+/// Pfadangabe und damit einen Großteil der Antwortgröße bei stark genutzten Tasks.
+/// </summary>
+public sealed class NavPositionDto {
+
+    /// <summary>1-basierte Startzeile.</summary>
+    public int Line { get; set; }
+
+    /// <summary>1-basierte Startspalte.</summary>
+    public int Column { get; set; }
+
+    public static NavPositionDto From(Location location) => new() {
+        Line   = location.StartLine      + 1,
+        Column = location.StartCharacter + 1
+    };
+
+}
+
+/// <summary>
 /// Eine einzelne Textänderung in der KI-Sicht: der zu ersetzende 1-basierte Bereich plus der neue Text.
 /// Die mutierenden Tools (<c>nav_rename</c>, <c>nav_code_actions</c>) liefern Edits NUR zurück — sie schreiben
 /// NICHTS auf Platte; der Agent wendet sie selbst an. Alle Edits beziehen sich auf die abgefragte Datei.

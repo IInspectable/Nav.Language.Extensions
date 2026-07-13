@@ -1,6 +1,7 @@
 ﻿#region Using Directives
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Server;
 
 using Pharmatechnik.Nav.Language.CallHierarchy;
+using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -28,6 +30,19 @@ public static class NavCallHierarchyTool {
     const string DirectionOutgoing = "outgoing";
     const string DirectionBoth     = "both";
 
+    const string DetailSummary = "summary";
+    const string DetailFull    = "full";
+
+    /// <summary>Voreinstellung für die Seitengröße der eingehenden Aufrufer, falls der Aufrufer keine angibt.</summary>
+    const int DefaultLimit = 100;
+
+    /// <summary>
+    /// Obergrenze für die Seitengröße — analog <see cref="NavReferencesTool"/> so gewählt, dass selbst eine
+    /// voll gefüllte Seite (jeder Aufrufer trägt einen Dateipfad, ~150 Zeichen) sicher unter dem
+    /// Tool-Result-Token-Limit (~25k Tokens) bleibt.
+    /// </summary>
+    const int MaxLimit = 200;
+
     [McpServerTool(Name = "nav_call_hierarchy")]
     [Description("Returns the task-level call relationships of a Nav task: outgoing (which tasks it calls via " +
                  "'task' nodes) and/or incoming (which tasks call it, searched across the whole workspace). The " +
@@ -35,7 +50,13 @@ public static class NavCallHierarchyTool {
                  "also cross-file via taskref. Use this for cross-task impact analysis — e.g. 'what breaks if I " +
                  "change this task' (incoming) or 'what does this task depend on' (outgoing). Name-based: pass "  +
                  "the task name and the file it is defined in. Returns 1-based file/line/column for the other "  +
-                 "task and for each call site. 'direction' selects incoming | outgoing | both (default both).")]
+                 "task; 'callerCount'/'calleeCount'/'callSiteCount' give the totals. By default ('detail' = "    +
+                 "'summary') each relationship carries only the other task, its definition location and a "      +
+                 "'callSiteCount' — enough for 'who calls X'; pass detail='full' to also get every individual "  +
+                 "call-site position. Incoming callers (potentially many) are filtered/paged: 'filter' scopes "  +
+                 "by caller file path, at most 'limit' callers are returned (default 100, max 200), 'truncated' " +
+                 "= true means there are more (raise 'offset' or narrow 'filter'). 'direction' selects incoming " +
+                 "| outgoing | both (default both).")]
     public static async Task<NavCallHierarchyResult> CallHierarchy(
         NavMcpWorkspace workspace,
         [Description("Absolute path to the .nav file the task is defined in.")]
@@ -45,6 +66,17 @@ public static class NavCallHierarchyTool {
         [Description("Which relationships to return: 'incoming' (callers), 'outgoing' (callees) or 'both'. " +
                      "Default 'both'.")]
         string direction = DirectionBoth,
+        [Description("Level of detail: 'summary' (default) returns per relationship only the task, its location " +
+                     "and 'callSiteCount'; 'full' additionally lists every call-site position.")]
+        string detail = DetailSummary,
+        [Description("Optional case-insensitive substring matched against each incoming caller's file path; only " +
+                     "matching callers are returned. Use it to scope a heavily-called task to a module/subfolder.")]
+        string? filter = null,
+        [Description("Max number of incoming callers to return (default 100, capped at 200). Combine with " +
+                     "'offset' to page. Does not affect outgoing calls (always complete).")]
+        int limit = DefaultLimit,
+        [Description("Number of (filtered) incoming callers to skip before returning — for paging.")]
+        int offset = 0,
         CancellationToken cancellationToken = default) {
 
         var normalizedDirection = (direction ?? DirectionBoth).Trim().ToLowerInvariant();
@@ -62,6 +94,13 @@ public static class NavCallHierarchyTool {
             return result;
         }
 
+        var normalizedDetail = (detail ?? DetailSummary).Trim().ToLowerInvariant();
+        if (normalizedDetail != DetailSummary && normalizedDetail != DetailFull) {
+            result.Error = $"Invalid 'detail' '{detail}'. Use 'summary' or 'full'.";
+            return result;
+        }
+
+        var full         = normalizedDetail == DetailFull;
         var wantIncoming = normalizedDirection is DirectionIncoming or DirectionBoth;
         var wantOutgoing = normalizedDirection is DirectionOutgoing or DirectionBoth;
 
@@ -86,26 +125,57 @@ public static class NavCallHierarchyTool {
         }
 
         if (wantOutgoing) {
+            // Ausgehend ist durch den Task-Rumpf begrenzt → stets vollständig, nur der Detailgrad steuert die Call-Sites.
             result.Outgoing = NavCallHierarchyService.GetOutgoingCalls(taskDefinition)
-                                                     .Select(call => new NavCallDto {
-                                                          Task      = call.Target.Name,
-                                                          Location  = NavLocationDto.From(call.Target.Location),
-                                                          CallSites = call.CallSites.Select(loc => NavLocationDto.From(loc)).ToList()
-                                                      })
+                                                     .Select(call => ToDto(call.Target.Name, call.Target.Location, call.CallSites, full))
                                                      .ToList();
+            result.CalleeCount = result.Outgoing.Count;
         }
 
         if (wantIncoming) {
             var incoming = await NavCallHierarchyService.GetIncomingCallsAsync(taskDefinition, workspace.Solution, cancellationToken);
-            result.Incoming = incoming.Select(call => new NavCallDto {
-                                           Task      = call.Caller.Name,
-                                           Location  = NavLocationDto.From(call.Caller.Location),
-                                           CallSites = call.CallSites.Select(loc => NavLocationDto.From(loc)).ToList()
-                                       })
-                                      .ToList();
+
+            // Pro Aufrufer die (bereits materialisierten) Call-Sites festhalten (für Count + optionale Detailausgabe).
+            var groups = incoming.Select(call => new {
+                                      call.Caller,
+                                      call.CallSites
+                                  })
+                                 .ToList();
+
+            result.CallerCount   = groups.Count;
+            result.CallSiteCount = groups.Sum(g => g.CallSites.Count);
+
+            var matched = groups.Where(g => string.IsNullOrEmpty(filter) ||
+                                            (g.Caller.Location.FilePath ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+
+            var safeOffset = Math.Max(0, offset);
+            var safeLimit  = limit <= 0 ? DefaultLimit : Math.Min(limit, MaxLimit);
+            var page       = matched.Skip(safeOffset).Take(safeLimit).ToList();
+
+            result.MatchCount = matched.Count;
+            result.Offset     = safeOffset;
+            result.Limit      = safeLimit;
+            result.Returned   = page.Count;
+            result.Truncated  = safeOffset + page.Count < matched.Count;
+            result.Incoming   = page.Select(g => ToDto(g.Caller.Name, g.Caller.Location, g.CallSites, full)).ToList();
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Baut einen <see cref="NavCallDto"/>: Name + Definitions-Location der anderen Task, die Call-Site-Anzahl
+    /// und — nur bei <paramref name="full"/> — die einzelnen Call-Site-Positionen (kompakt, ohne Dateipfad).
+    /// </summary>
+    static NavCallDto ToDto(string otherTask, Location location, IReadOnlyList<Location> callSites, bool full) {
+
+        return new NavCallDto {
+            Task          = otherTask,
+            Location      = NavLocationDto.From(location),
+            CallSiteCount = callSites.Count,
+            CallSites     = full ? callSites.Select(NavPositionDto.From).ToList() : new List<NavPositionDto>()
+        };
     }
 
 }
