@@ -22,6 +22,10 @@ public readonly struct SyntaxTriviaList: IReadOnlyList<SyntaxTrivia> {
     readonly int                          _start;
     readonly int                          _length;
 
+    /// <summary>
+    /// Erzeugt eine Sicht auf <paramref name="length"/> Trivia-Stücke ab Index <paramref name="start"/> im
+    /// geteilten Array <paramref name="all"/> (das gesamte Trivia der Datei in Quelltext-Reihenfolge hält).
+    /// </summary>
     public SyntaxTriviaList(ImmutableArray<SyntaxTrivia> all, int start, int length) {
         _all    = all;
         _start  = start;
@@ -37,8 +41,10 @@ public readonly struct SyntaxTriviaList: IReadOnlyList<SyntaxTrivia> {
     /// <summary><c>true</c>, wenn die Sicht kein Trivia-Stück enthält.</summary>
     public bool IsEmpty => _length == 0;
 
+    /// <summary>Das Trivia-Stück am Index <paramref name="index"/> innerhalb dieser Sicht.</summary>
     public SyntaxTrivia this[int index] => _all[_start + index];
 
+    /// <summary>Der allokationsfreie Struct-<see cref="Enumerator"/> — von <c>foreach</c> bevorzugt gebunden.</summary>
     public Enumerator GetEnumerator() => new(this);
 
     // IReadOnlyList/IEnumerable: nur für LINQ & Co. (boxt den Enumerator) — die heißen Pfade nutzen den
@@ -64,8 +70,10 @@ public readonly struct SyntaxTriviaList: IReadOnlyList<SyntaxTrivia> {
             _index = -1;
         }
 
+        /// <summary>Das Trivia-Stück an der aktuellen Position.</summary>
         public SyntaxTrivia Current => _list[_index];
 
+        /// <summary>Rückt zur nächsten Position vor; <c>false</c> am Ende der Sicht.</summary>
         public bool MoveNext() => ++_index < _list._length;
     }
 

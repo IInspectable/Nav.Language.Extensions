@@ -98,9 +98,11 @@ public abstract partial class SyntaxNode: IExtent {
 
     /// <summary>
     /// Die diesem Knoten <b>direkt</b> zugeordneten Token (die der Parser hier konsumiert und angehängt hat) —
-    /// in Quelltext-Reihenfolge. Token tiefer liegender Kindknoten gehören nicht dazu; Trivia hängt am
-    /// Wurzelknoten und erscheint hier nur für die Wurzel. Knoten, deren Token nicht im flachen
-    /// <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia), überschreiben diese Methode.
+    /// in Quelltext-Reihenfolge. Token tiefer liegender Kindknoten gehören nicht dazu; Trivia steht nicht im
+    /// flachen Strom und erscheint hier nie (sie hängt an den Token, siehe
+    /// <see cref="SyntaxToken.LeadingTrivia"/>/<see cref="SyntaxToken.TrailingTrivia"/>). Knoten, deren Token
+    /// nicht im flachen <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia),
+    /// überschreiben diese Methode.
     /// </summary>
     public virtual IEnumerable<SyntaxToken> ChildTokens() {
         // Nach FinalConstruct ist der Knoten eingefroren -> das Ergebnis ist unveränderlich und wird einmalig

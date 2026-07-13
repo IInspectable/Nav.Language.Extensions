@@ -23,8 +23,16 @@ public partial class ContinuationTransitionSyntax: SyntaxNode {
         AddChildNode(TargetNode = targetNode);
     }
 
+    /// <summary>
+    /// Die Fortsetzungs-Kante (<c>o-^</c> bzw. <c>--^</c>, siehe <see cref="ContinuationEdgeSyntax"/>), oder
+    /// <c>null</c> bei unvollständiger Eingabe.
+    /// </summary>
     public ContinuationEdgeSyntax? Edge { get; }
 
+    /// <summary>
+    /// Der Zielknoten der Fortsetzung — er benennt den Folge-Task —, oder <c>null</c> bei unvollständiger
+    /// Eingabe.
+    /// </summary>
     public TargetNodeSyntax? TargetNode { get; }
 
 }

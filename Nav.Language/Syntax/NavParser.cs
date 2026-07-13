@@ -100,6 +100,11 @@ sealed partial class NavParser {
     readonly Func<bool> _atTaskDefinitionBodyOrAnchor;   // { | Knoten | Transition | äußerer Anker
     readonly Func<bool> _atTransitionOrAnchor;           // Transition | äußerer Anker
 
+    /// <summary>
+    /// Richtet den Parser auf <paramref name="sourceText"/> ein: lext den Text zum flachen Roh-Token-Strom,
+    /// parst die Präprozessor-Direktiven strukturiert vorab (<see cref="NavDirectiveParser"/>) und stellt
+    /// den Cursor auf das erste parser-sichtbare Token (<see cref="SkipHidden"/>).
+    /// </summary>
     NavParser(SourceText sourceText) {
         _sourceText  = sourceText;
         _raw         = NavLexer.Lex(sourceText.Text);
@@ -123,6 +128,14 @@ sealed partial class NavParser {
         SkipHidden();
     }
 
+    /// <summary>
+    /// Der Einstieg des Parsers: parst <paramref name="text"/> als ganze <c>.nav</c>-Datei zu einem
+    /// vollständigen <see cref="SyntaxTree"/> (Wurzel <see cref="CodeGenerationUnitSyntax"/>) — dank der
+    /// Fehlertoleranz für <b>jede</b> Eingabe, auch eine leere oder unvollständige; <c>null</c> wird wie
+    /// leerer Text behandelt. Syntaxfehler landen als <see cref="SyntaxTree.Diagnostics"/> im Ergebnis,
+    /// nie als Exception. <paramref name="filePath"/> fließt nur in die <see cref="Location"/>s der
+    /// Diagnosen ein. <paramref name="cancellationToken"/> wird zwischen den Top-Level-Members geprüft.
+    /// </summary>
     public static SyntaxTree Parse(string? text, string? filePath = null, CancellationToken cancellationToken = default) {
 
         var sourceText = SourceText.From(text ?? String.Empty, filePath);
@@ -675,6 +688,11 @@ sealed partial class NavParser {
         return new NodeDeclarationBlockSyntax(span.ToExtent(), nodes);
     }
 
+    /// <summary>
+    /// Ob an der aktuellen Position eine Knoten-Deklaration beginnt (eines der Knoten-Schlüsselwörter).
+    /// Sonderfall <c>init</c>: folgt eine Kante, ist es der Quellknoten einer Transition
+    /// (<c>init --&gt; …</c>), keine Knoten-Deklaration.
+    /// </summary>
     bool StartsNodeDeclaration() {
         switch (At0) {
             case SyntaxTokenType.ExitKeyword:
@@ -964,6 +982,10 @@ sealed partial class NavParser {
         return new TransitionDefinitionBlockSyntax(span.ToExtent(), transitions, exitTransitions);
     }
 
+    /// <summary>
+    /// Ob an der aktuellen Position eine Transition beginnt — ein Quellknoten, also <c>init</c> oder ein
+    /// Identifier.
+    /// </summary>
     bool StartsTransition() {
         return At(SyntaxTokenType.InitKeyword) || At(SyntaxTokenType.Identifier);
     }
@@ -1155,10 +1177,12 @@ sealed partial class NavParser {
         return node;
     }
 
+    /// <summary>Ob an der aktuellen Position eine Kante beginnt (<c>--&gt;</c>, <c>o-&gt;</c>, <c>==&gt;</c>; Autorität <see cref="SyntaxFacts.IsEdgeKeyword(SyntaxTokenType)"/>).</summary>
     bool StartsEdge() {
         return SyntaxFacts.IsEdgeKeyword(At0);
     }
 
+    /// <summary>Ob an der aktuellen Position ein Zielknoten beginnt — <c>end</c> oder ein Identifier.</summary>
     bool StartsTargetNode() {
         return At(SyntaxTokenType.EndKeyword) || At(SyntaxTokenType.Identifier);
     }
@@ -1222,6 +1246,7 @@ sealed partial class NavParser {
 
     #region ContinuationTransition (o-^ / --^ Task)
 
+    /// <summary>Ob an der aktuellen Position eine Continuation-Kante beginnt (<c>--^</c>/<c>o-^</c>; Autorität <see cref="SyntaxFacts.IsContinuationEdgeKeyword(SyntaxTokenType)"/>).</summary>
     bool StartsContinuation() {
         return SyntaxFacts.IsContinuationEdgeKeyword(At0);
     }
@@ -1294,6 +1319,7 @@ sealed partial class NavParser {
 
     #region Trigger
 
+    /// <summary>Ob an der aktuellen Position ein Trigger beginnt (<c>on</c>, <c>spontaneous</c> oder <c>spont</c>).</summary>
     bool StartsTrigger() {
         return At(SyntaxTokenType.OnKeyword) || At(SyntaxTokenType.SpontaneousKeyword) || At(SyntaxTokenType.SpontKeyword);
     }
@@ -1354,6 +1380,7 @@ sealed partial class NavParser {
 
     #region ConditionClause / DoClause
 
+    /// <summary>Ob an der aktuellen Position eine Bedingungsklausel beginnt (<c>if</c> oder <c>else</c>).</summary>
     bool StartsCondition() {
         return At(SyntaxTokenType.IfKeyword) || At(SyntaxTokenType.ElseKeyword);
     }
@@ -2004,10 +2031,13 @@ sealed partial class NavParser {
 
     #region Token-Strom: Cursor, Konsum, Trivia-Anhang
 
+    /// <summary>Typ des aktuellen Tokens; <see cref="SyntaxTokenType.EndOfFile"/> hinter dem Strom-Ende.</summary>
     SyntaxTokenType At0 => _pos < _raw.Length ? _raw[_pos].Type : SyntaxTokenType.EndOfFile;
 
+    /// <summary>Ob das aktuelle Token vom Typ <paramref name="type"/> ist.</summary>
     bool At(SyntaxTokenType type) => At0 == type;
 
+    /// <summary>Ob der Cursor das Dateiende erreicht hat.</summary>
     bool AtEof => At0 == SyntaxTokenType.EndOfFile;
 
     /// <summary>
@@ -2073,6 +2103,7 @@ sealed partial class NavParser {
                IsKeywordPrefix(SyntaxTokenType.TaskrefKeyword, text);
     }
 
+    /// <summary>Ob an der aktuellen Position ein Connection-Point einer <c>taskref</c>-Deklaration beginnt (<c>init</c>, <c>exit</c> oder <c>end</c>).</summary>
     bool StartsConnectionPoint() {
         return At(SyntaxTokenType.InitKeyword) || At(SyntaxTokenType.ExitKeyword) || At(SyntaxTokenType.EndKeyword);
     }
@@ -2256,6 +2287,12 @@ sealed partial class NavParser {
         return TryEat(SyntaxTokenType.Semicolon, out var semi) ? semi : null;
     }
 
+    /// <summary>
+    /// Rückt den Cursor über alle versteckten Token (<see cref="IsHidden"/>) hinweg und stellt so die
+    /// Cursor-Invariante wieder her: <c>_pos</c> zeigt stets auf ein parser-sichtbares Token (signifikant
+    /// oder <see cref="SyntaxTokenType.EndOfFile"/>). Wird nach jedem Vorrücken aufgerufen (Konsum,
+    /// Recovery-Skips) — die <c>Parse*</c>-Methoden sehen versteckte Token dadurch nie.
+    /// </summary>
     void SkipHidden() {
         while (_pos < _raw.Length && IsHidden(_raw[_pos].Type)) {
             _pos++;
@@ -2286,9 +2323,12 @@ sealed partial class NavParser {
         } while (!recovered());
     }
 
+    /// <summary>Startoffset des aktuellen Tokens; hinter dem Strom-Ende die (nullbreite) EOF-Position.</summary>
     int CurrentStart => _pos < _raw.Length ? _raw[_pos].Extent.Start : _eofPos;
+    /// <summary>Endoffset des aktuellen Tokens; hinter dem Strom-Ende die (nullbreite) EOF-Position.</summary>
     int CurrentEnd   => _pos < _raw.Length ? _raw[_pos].Extent.End   : _eofPos;
 
+    /// <summary>Quelltext des aktuellen Tokens (leer am Dateiende) — für „unexpected input '…'"-Diagnosen.</summary>
     string CurrentText => _sourceText.Substring(TextExtent.FromBounds(CurrentStart, CurrentEnd));
 
     /// <summary>
@@ -2472,6 +2512,12 @@ sealed partial class NavParser {
         return new Location(extent, linePosition, _sourceText.FileInfo?.FullName);
     }
 
+    /// <summary>
+    /// Hängt ein konsumiertes Token mit seiner kontextabhängigen <see cref="TextClassification"/> und
+    /// <paramref name="parent"/> als Parent-Knoten an den flachen Token-Strom. <c>null</c> — ein von
+    /// <see cref="Eat"/> gemeldetes Missing-Token — wird ignoriert: Missing-Token stehen nie im Strom.
+    /// Die Trivia bleibt zunächst leer; sie wird in <see cref="FinalizeTrivia"/> nachgereicht.
+    /// </summary>
     void Tok(SyntaxNode parent, RawToken? raw, TextClassification classification) {
         if (raw == null) {
             return;

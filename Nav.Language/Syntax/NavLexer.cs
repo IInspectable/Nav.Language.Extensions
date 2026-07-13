@@ -78,6 +78,12 @@ sealed class NavLexer {
         return new NavLexer(text).LexAll();
     }
 
+    /// <summary>
+    /// Die Hauptschleife des Lexers: ruft <see cref="ScanToken"/>, bis der Text erschöpft ist, und hängt
+    /// genau ein nullbreites <see cref="SyntaxTokenType.EndOfFile"/> an. Wacht über die
+    /// Fortschritts-Garantie — jeder Scan muss die Position vorrücken; ein Verstoß wirft sofort eine
+    /// <see cref="InvalidOperationException"/>, statt endlos Token zu allozieren.
+    /// </summary>
     ImmutableArray<RawToken> LexAll() {
 
         while (_pos < _length) {
@@ -97,6 +103,15 @@ sealed class NavLexer {
         return _tokens.ToImmutable();
     }
 
+    /// <summary>
+    /// Erkennt und konsumiert genau <b>ein</b> Token ab der aktuellen Position — der Dispatch anhand der
+    /// ersten Zeichen. Die Prüf-Reihenfolge trägt Bedeutung: Mehrzeichen-Kanten <b>vor</b> dem
+    /// Identifier-Scan (sonst verschluckt der das <c>o</c> aus <c>o-&gt;</c>/<c>o-^</c>), das <c>#</c> nur
+    /// als erstes Nicht-Whitespace-Zeichen seiner Zeile (wie in C#; sonst ein gewöhnliches
+    /// <see cref="SyntaxTokenType.Unknown"/>). Alles nicht Erkannte wird als einzelnes
+    /// <see cref="SyntaxTokenType.Unknown"/>-Zeichen konsumiert — so ist der Fortschritt garantiert und
+    /// kein Zeichen geht verloren.
+    /// </summary>
     void ScanToken() {
 
         var c = _text[_pos];
@@ -184,6 +199,14 @@ sealed class NavLexer {
         Add(SyntaxTokenType.Whitespace, start, _pos);
     }
 
+    /// <summary>
+    /// Lext einen <c>//</c>-Zeilenkommentar bis zum Zeilenende bzw. Dateiende. Die Abspaltung des
+    /// Zeilenendes ist bewusst asymmetrisch (reproduziert das beobachtbare Verhalten der bisherigen
+    /// Pipeline): bei CR/LF/CRLF wird nur das <b>letzte</b> Newline-Zeichen als eigenes
+    /// <see cref="SyntaxTokenType.NewLine"/> abgespalten — bei CRLF bleibt das <c>\r</c> Teil des
+    /// Kommentar-Tokens; NEL/LS/PS beenden die Zeile, bleiben aber vollständig im Kommentar (kein
+    /// NewLine-Token).
+    /// </summary>
     void ScanSingleLineComment() {
         var start = _pos;
         _pos += 2; // '//'
@@ -215,6 +238,12 @@ sealed class NavLexer {
         }
     }
 
+    /// <summary>
+    /// Lext einen <c>/* … */</c>-Blockkommentar als ein einziges <see cref="SyntaxTokenType.MultiLineComment"/>
+    /// (Zeilenenden bleiben darin enthalten). Fehlt das schließende <c>*/</c> bis zum Dateiende, zerfällt der
+    /// Kommentar: nur das öffnende <c>/</c> wird zu <see cref="SyntaxTokenType.Unknown"/>, der Rest wird
+    /// normal weitergelext — wie in der bisherigen Pipeline.
+    /// </summary>
     void ScanMultiLineComment() {
         var start = _pos;
         var scan  = _pos + 2; // nach '/*'
@@ -232,6 +261,13 @@ sealed class NavLexer {
         }
     }
 
+    /// <summary>
+    /// Lext ein <c>"…"</c>-String-Literal (inklusive der Anführungszeichen, keine Escape-Sequenzen).
+    /// Nur <c>"</c>, CR, LF, LS und PS beenden das Literal — NEL (U+0085) bleibt bewusst darin
+    /// (siehe <see cref="IsStringLiteralTerminator"/>). Ohne schließendes <c>"</c> zerfällt das Literal:
+    /// nur das öffnende <c>"</c> wird zu <see cref="SyntaxTokenType.Unknown"/>, der Rest wird normal
+    /// weitergelext.
+    /// </summary>
     void ScanStringLiteral() {
         var start = _pos;
         var i     = _pos + 1;
@@ -256,6 +292,14 @@ sealed class NavLexer {
         _pos = start + 1;
     }
 
+    /// <summary>
+    /// Lext einen Lauf von Identifier-Zeichen (<see cref="SyntaxFacts.IsIdentifierCharacter"/>) und
+    /// entscheidet per <see cref="Keywords"/>-Lookup, ob er ein Schlüsselwort-Token oder ein
+    /// <see cref="SyntaxTokenType.Identifier"/> ist. Der Lookup läuft nur, wenn der Lauf überhaupt ein
+    /// Keyword sein <i>kann</i> (ausschließlich <c>a</c>–<c>z</c>, Länge innerhalb
+    /// <see cref="MinKeywordLength"/>/<see cref="MaxKeywordLength"/>) — das erspart bei nahezu allen
+    /// Identifiern die Substring-Allokation fürs Dictionary.
+    /// </summary>
     void ScanIdentifierOrKeyword() {
         var start = _pos;
 
@@ -284,6 +328,14 @@ sealed class NavLexer {
         Add(type, start, _pos);
     }
 
+    /// <summary>
+    /// Lext ab dem <c>#</c> (die Zeilenanfang-Regel hat <see cref="ScanToken"/> bereits geprüft) die ganze
+    /// Direktivzeile im Directive-Mode: das <see cref="SyntaxTokenType.HashToken"/>, das
+    /// Direktiven-Schlüsselwort und den Rumpf in ganzen Läufen — Wort-Läufe, Ziffern-Läufe, alles Übrige
+    /// als <see cref="SyntaxTokenType.PreprocessorText"/>. Jedes Zeilenende beendet die Direktive als
+    /// <see cref="SyntaxTokenType.PreprocessorNewLine"/>; die Struktur-Erkennung übernimmt danach der
+    /// <see cref="NavDirectiveParser"/>.
+    /// </summary>
     void ScanPreprocessor() {
         // '#'
         Add(SyntaxTokenType.HashToken, _pos, _pos + 1);
@@ -433,6 +485,11 @@ sealed class NavLexer {
         return c == '\r' || c == '\n' || c == '\u2028' || c == '\u2029';
     }
 
+    /// <summary>
+    /// Die „Buchstaben" der Wort-Läufe im Präprozessor-Modus: ASCII-Buchstaben plus die deutschen
+    /// Umlaute und <c>ß</c> — bewusst <b>ohne</b> Ziffern, <c>.</c> und <c>_</c> (anders als
+    /// <see cref="SyntaxFacts.IsIdentifierCharacter"/>).
+    /// </summary>
     static bool IsLetterCharacter(char c) {
         return c is >= 'a' and <= 'z' ||
                c is >= 'A' and <= 'Z' ||

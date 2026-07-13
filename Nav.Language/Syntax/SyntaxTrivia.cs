@@ -45,7 +45,11 @@ public readonly struct SyntaxTrivia: IExtent {
         _structure = structure;
     }
 
-    /// <summary>Der lexikalische Typ dieser Trivia (Whitespace, Zeilenende oder Kommentar).</summary>
+    /// <summary>
+    /// Der lexikalische Typ dieser Trivia: Whitespace, Zeilenende, Kommentar — oder eine der strukturierten
+    /// Trivia-Arten (<see cref="SyntaxTokenType.DirectiveTrivia"/>,
+    /// <see cref="SyntaxTokenType.SkippedTokensTrivia"/>).
+    /// </summary>
     public SyntaxTokenType Type { get; }
 
     /// <summary>Der Quelltext-Ausschnitt, den diese Trivia abdeckt.</summary>

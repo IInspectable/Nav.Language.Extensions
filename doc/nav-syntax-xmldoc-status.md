@@ -1,8 +1,10 @@
 ﻿# Nav.Language/Syntax — XML-Doku-Kampagne (Status & Umsetzungsplan)
 
-> **Lebendes Status-Dokument.** Neue Session? Hier weiterlesen, Status-Tabelle prüfen, nächsten
-> offenen Batch abarbeiten. Ziel: alle Dateien unter `Nav.Language\Syntax\` durchgängig mit
-> akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
+> **Status: ABGESCHLOSSEN (2026-07-13).** Alle 7 Batches fertig, `Syntax\` ist doku-warnungsfrei
+> (0× CS1591, 0× CS1570–CS1584); doku-only-Diff über alle 63 Dateien mechanisch verifiziert
+> (1303 Insertions, 19 Deletions — ausschließlich `///`-Zeilen), `nav build` + `nav test` grün.
+> Ziel war: alle Dateien unter `Nav.Language\Syntax\` durchgängig mit akkurater
+> C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-13)
 
@@ -117,13 +119,13 @@ Kampagnen-Ende zusätzlich einmal `nav build` + `nav test` als Schlussabsicherun
 
 | Batch | Inhalt (Dateien) | Status |
 |---|---|---|
-| **B1 — Typen & Parameter** (7) | ArrayRankSpecifierSyntax, ArrayTypeSyntax, GenericTypeSyntax, SimpleTypeSyntax, CodeTypeSyntax, ParameterSyntax, ParameterListSyntax | offen |
-| **B2 — Code-Deklarationen** (11) | CodeSyntax, CodeDeclarationSyntax, CodeAbstractMethodDeclarationSyntax, CodeBaseDeclarationSyntax, CodeDoNotInjectDeclarationSyntax, CodeGenerateToDeclarationSyntax, CodeNamespaceDeclarationSyntax, CodeNotImplementedDeclarationSyntax, CodeParamsDeclarationSyntax, CodeResultDeclarationSyntax, CodeUsingDeclarationSyntax | offen |
-| **B3 — Knoten-Deklarationen** (10) | NodeDeclarationSyntax, NodeDeclarationBlockSyntax, ChoiceNodeDeclarationSyntax, DialogNodeDeclarationSyntax, EndNodeDeclarationSyntax, ExitNodeDeclarationSyntax, InitNodeDeclarationSyntax, TaskNodeDeclarationSyntax, ViewNodeDeclarationSyntax, ConnectionPointNodeSyntax | offen |
-| **B4 — Transitionen & Kanten** (9) | EdgeSyntax, TransitionDefinitionSyntax, TransitionDefinitionBlockSyntax, ExitTransitionDefinitionSyntax, SourceNodeSyntax, TargetNodeSyntax, TriggerSyntax, ConditionClauseSyntax, DoClauseSyntax | offen |
-| **B5 — Wurzel, Task & Helfer** (10) | Syntax.cs, TaskDefinitionSyntax, TaskDeclarationSyntax, MemberDeclarationSyntax, IdentifierOrStringSyntax, IncludeDirectiveSyntax, SampleSyntaxAttribute, SyntaxTokenType, SyntaxTokenComparer, SyntaxTokenExtensions | offen |
-| **B6 — Lücken-Audit Bestand** (17) | BadDirectiveTriviaSyntax, CodeBlockFacts, CodeGenerationUnitSyntax, ContinuationEdgeSyntax, ContinuationTransitionSyntax, DirectiveRun, DirectiveTriviaSyntax, SkippedTokensTriviaSyntax, StructuredTriviaSyntax, SyntaxFacts, SyntaxNode, SyntaxToken, SyntaxTokenList, SyntaxTree, SyntaxTrivia, SyntaxTriviaList, VersionDirectiveSyntax — undokumentierte Member ergänzen, Bestands-Doku auf Korrektheit prüfen | offen |
-| **B7 — Lexer & Parser** (4) | NavLexer, NavDirectiveParser, NavParser.Extents, NavParser (2.745 Zeilen, bereits stark dokumentiert — nur Lücken schließen; Klassen-Summary + öffentliche/zentrale Member zuerst) | offen |
+| **B1 — Typen & Parameter** (7) | ArrayRankSpecifierSyntax, ArrayTypeSyntax, GenericTypeSyntax, SimpleTypeSyntax, CodeTypeSyntax, ParameterSyntax, ParameterListSyntax | **fertig** (2026-07-13) |
+| **B2 — Code-Deklarationen** (11) | CodeSyntax, CodeDeclarationSyntax, CodeAbstractMethodDeclarationSyntax, CodeBaseDeclarationSyntax, CodeDoNotInjectDeclarationSyntax, CodeGenerateToDeclarationSyntax, CodeNamespaceDeclarationSyntax, CodeNotImplementedDeclarationSyntax, CodeParamsDeclarationSyntax, CodeResultDeclarationSyntax, CodeUsingDeclarationSyntax | **fertig** (2026-07-13) |
+| **B3 — Knoten-Deklarationen** (10) | NodeDeclarationSyntax, NodeDeclarationBlockSyntax, ChoiceNodeDeclarationSyntax, DialogNodeDeclarationSyntax, EndNodeDeclarationSyntax, ExitNodeDeclarationSyntax, InitNodeDeclarationSyntax, TaskNodeDeclarationSyntax, ViewNodeDeclarationSyntax, ConnectionPointNodeSyntax | **fertig** (2026-07-13) |
+| **B4 — Transitionen & Kanten** (9) | EdgeSyntax, TransitionDefinitionSyntax, TransitionDefinitionBlockSyntax, ExitTransitionDefinitionSyntax, SourceNodeSyntax, TargetNodeSyntax, TriggerSyntax, ConditionClauseSyntax, DoClauseSyntax | **fertig** (2026-07-13) |
+| **B5 — Wurzel, Task & Helfer** (10) | Syntax.cs, TaskDefinitionSyntax, TaskDeclarationSyntax, MemberDeclarationSyntax, IdentifierOrStringSyntax, IncludeDirectiveSyntax, SampleSyntaxAttribute, SyntaxTokenType, SyntaxTokenComparer, SyntaxTokenExtensions | **fertig** (2026-07-13) |
+| **B6 — Lücken-Audit Bestand** (17) | BadDirectiveTriviaSyntax, CodeBlockFacts, CodeGenerationUnitSyntax, ContinuationEdgeSyntax, ContinuationTransitionSyntax, DirectiveRun, DirectiveTriviaSyntax, SkippedTokensTriviaSyntax, StructuredTriviaSyntax, SyntaxFacts, SyntaxNode, SyntaxToken, SyntaxTokenList, SyntaxTree, SyntaxTrivia, SyntaxTriviaList, VersionDirectiveSyntax — undokumentierte Member ergänzen, Bestands-Doku auf Korrektheit prüfen | **fertig** (2026-07-13) |
+| **B7 — Lexer & Parser** (4) | NavLexer, NavDirectiveParser, NavParser.Extents, NavParser (2.745 Zeilen, bereits stark dokumentiert — nur Lücken schließen; Klassen-Summary + öffentliche/zentrale Member zuerst) | **fertig** (2026-07-13) |
 
 Reihenfolge B1→B7 ist bewusst: erst die Blätter (Typen), dann die zusammengesetzten Knoten —
 so existieren die `cref`-Ziele samt Doku, wenn übergeordnete Klassen auf sie verweisen.
@@ -168,3 +170,11 @@ Nav-Engine: XML-Doku für Syntax/<Bereich> (Batch <n>/7) — nur ///-Zeilen, dok
 | Datum | Batch | Ergebnis |
 |---|---|---|
 | 2026-07-13 | — | Plan erstellt, Audit durchgeführt (42 Dateien ohne Doku); Gate G2 verifiziert und kalibriert (Baseline: 952× CS1591, 1× CS1574 unter `Syntax\`) |
+| 2026-07-13 | B1 | 7 Dateien, 68 `///`-Zeilen; G1–G4 grün, CS1591 unter `Syntax\` 952→908; Stichproben (ArrayTypeSyntax, ParameterSyntax) inhaltlich am Parser verifiziert |
+| 2026-07-13 | B2 | 11 Dateien, 152 `///`-Zeilen; G1–G4 grün, CS1591 908→838; Codegen-Semantik an CodeModelBuilder/PathProviderFactory/TaskCodeInfo belegt; Stichproben (CodeBase-, CodeGenerateTo-) geprüft |
+| 2026-07-13 | B3 | 10 Dateien, 119 `///`-Zeilen (42 Member); G1–G4 grün, CS1591 838→754; dialog/view bewusst ohne Modal-Behauptung (Engine behandelt beide identisch); Stichproben (ConnectionPoint-, InitNode-) geprüft |
+| 2026-07-13 | B4 | 9 Dateien, ~200 `///`-Zeilen (82 Summaries); G1–G4 grün, CS1591 754→592; Kanten-Semantik an SyntaxFacts.KeywordDescriptions + CallCodeModel belegt; Altlast notiert: SampleSyntax an IdentifierTargetNodeSyntax nennt ungeparste Klammer-Liste (ANTLR-Erbe) |
+| 2026-07-13 | B5 | 10 Dateien, ~300 `///`-Zeilen (170 Member, davon 59 SyntaxTokenType-Enum); G1–G4 grün, CS1591 592→264 (Rest komplett in B6/B7-Dateien); Keyword-Texte gegen NavLexer.Keywords/SyntaxFacts verifiziert |
+| 2026-07-13 | B6 | 17 Bestands-Dateien: 66 Member neu (SyntaxFacts/SyntaxToken/SyntaxTree/SyntaxTokenList u.a.), 6 veraltete Aussagen korrigiert (Bad-Direktive ≠ unwirksame `#version` — an ResolveLanguageVersion nachverifiziert; Trivia-Modell-Relikte); **CS1591 unter `Syntax\` = 0**. Notiert: ContinuationEdge-/ContinuationTransitionSyntax sind in HEAD reine LF-Dateien (EOL-Altlast); `//`-Kommentar an SyntaxFacts.EdgeCharacters nennt falsches `*` (nicht behebbar ohne `//`-Änderung) |
+| 2026-07-13 | B7 | Lexer/Parser: 28 Member neu (NavLexer-Scanner, NavParser-Recovery-Prädikate/Einstiege, ExtentBuilder), 2 Bestands-Korrekturen; **CS1574-Vorbelastung behoben** (`SetLocalTokens` war in f590981a nach `StructuredTriviaSyntax` gehoben worden, cref zeigte noch auf `DirectiveTriviaSyntax`) — `Syntax\` damit komplett doku-warnungsfrei |
+| 2026-07-13 | Ende | Schlussabsicherung: `nav build` grün (0 Warnungen/0 Fehler), `nav test` 1842/1845 bestanden (3 explizit übersprungen, 0 Fehler) + 115/115 MCP-Tests. **Kampagne abgeschlossen.** |

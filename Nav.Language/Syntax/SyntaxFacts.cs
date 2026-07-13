@@ -10,53 +10,98 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Statische Fakten der Nav-Sprache — nach dem Roslyn-Vorbild der <c>SyntaxFacts</c>: die kanonischen
+/// Literale (Keywords, Edge-Operatoren, Punctuation-Zeichen, Direktiven-Schlüsselwörter) samt ihrer Mengen
+/// und Zugehörigkeits-Prüfungen, die menschenlesbaren Keyword-Bedeutungen
+/// (<see cref="GetKeywordDescription(string)"/>) sowie Abfragen über Token-Typen und Klassifikationen
+/// (Trivia, Kommentare, Präprozessor). Einzige Autorität für die Literale — Lexer, Parser und Completion
+/// beziehen sie von hier, statt sie zu duplizieren.
+/// </summary>
 public static class SyntaxFacts {
 
     // Keywords. Die kanonischen Literale der Nav-Sprache, fest hinterlegt.
+    /// <summary>Das Schlüsselwort <c>task</c> — leitet eine Task-Definition bzw. einen Task-Knoten ein.</summary>
     public static readonly string TaskKeyword            = "task";
+    /// <summary>Das Schlüsselwort <c>taskref</c> — leitet eine Task-Deklaration bzw. eine Include-Direktive ein.</summary>
     public static readonly string TaskrefKeyword         = "taskref";
+    /// <summary>Das Schlüsselwort <c>init</c> — der Startknoten eines Tasks.</summary>
     public static readonly string InitKeyword            = "init";
+    /// <summary>Die Pascal-Case-Variante <c>Init</c> — der Symbol-Name des Init-Knotens, ebenfalls in <see cref="NavKeywords"/> geführt.</summary>
     public static readonly string InitKeywordAlt         = InitKeyword.ToPascalcase();
+    /// <summary>Das Schlüsselwort <c>end</c> — der Endknoten (regulärer Abschluss des Workflows).</summary>
     public static readonly string EndKeyword             = "end";
+    /// <summary>Das Schlüsselwort <c>choice</c> — der Verzweigungsknoten.</summary>
     public static readonly string ChoiceKeyword          = "choice";
+    /// <summary>Das Schlüsselwort <c>dialog</c> — GUI-Knoten, der einen Dialog anzeigt.</summary>
     public static readonly string DialogKeyword          = "dialog";
+    /// <summary>Das Schlüsselwort <c>view</c> — GUI-Knoten, der eine View anzeigt.</summary>
     public static readonly string ViewKeyword            = "view";
+    /// <summary>Das Schlüsselwort <c>exit</c> — ein benannter Ausgang eines Tasks.</summary>
     public static readonly string ExitKeyword            = "exit";
+    /// <summary>Das Schlüsselwort <c>on</c> — der Trigger einer Transition.</summary>
     public static readonly string OnKeyword              = "on";
+    /// <summary>Das Schlüsselwort <c>if</c> — die Bedingung (Guard) einer Transition.</summary>
     public static readonly string IfKeyword              = "if";
+    /// <summary>Das Schlüsselwort <c>else</c> — der Alternativzweig zu einer <c>if</c>-Bedingung.</summary>
     public static readonly string ElseKeyword            = "else";
+    /// <summary>Das Schlüsselwort <c>spontaneous</c> — spontaner Übergang ohne explizites Signal (verstecktes Keyword, siehe <see cref="HiddenKeywords"/>).</summary>
     public static readonly string SpontaneousKeyword     = "spontaneous";
+    /// <summary>Das Schlüsselwort <c>spont</c> — Kurzform von <see cref="SpontaneousKeyword"/> (verstecktes Keyword).</summary>
     public static readonly string SpontKeyword           = "spont";
+    /// <summary>Das Schlüsselwort <c>do</c> — die frei dokumentierende Handlungsanweisung einer Transition.</summary>
     public static readonly string DoKeyword              = "do";
+    /// <summary>Das Code-Schlüsselwort <c>result</c> — Rückgabewert eines Tasks (<c>[result …]</c>).</summary>
     public static readonly string ResultKeyword          = "result";
+    /// <summary>Das Code-Schlüsselwort <c>params</c> — Parameterliste einer Deklaration (<c>[params …]</c>).</summary>
     public static readonly string ParamsKeyword          = "params";
+    /// <summary>Das Code-Schlüsselwort <c>base</c> — Basisklasse und Interfaces der generierten WFS-Klasse (<c>[base …]</c>).</summary>
     public static readonly string BaseKeyword            = "base";
+    /// <summary>Das Code-Schlüsselwort <c>namespaceprefix</c> — Namespace-Präfix für den generierten Code (<c>[namespaceprefix …]</c>).</summary>
     public static readonly string NamespaceprefixKeyword = "namespaceprefix";
+    /// <summary>Das Code-Schlüsselwort <c>using</c> — zusätzliche using-Direktive im generierten Code (<c>[using …]</c>).</summary>
     public static readonly string UsingKeyword           = "using";
+    /// <summary>Das Code-Schlüsselwort <c>code</c> — wörtlich einzufügender Code-Schnipsel (<c>[code …]</c>).</summary>
     public static readonly string CodeKeyword            = "code";
+    /// <summary>Das Code-Schlüsselwort <c>generateto</c> — Zielort für den generierten Code (<c>[generateto …]</c>).</summary>
     public static readonly string GeneratetoKeyword      = "generateto";
+    /// <summary>Das Code-Schlüsselwort <c>notimplemented</c> — markiert den Member als noch nicht implementiert (verstecktes Keyword).</summary>
     public static readonly string NotimplementedKeyword  = "notimplemented";
+    /// <summary>Das Code-Schlüsselwort <c>abstractmethod</c> — erzeugt eine abstrakte Methode (<c>[abstractmethod]</c>).</summary>
     public static readonly string AbstractmethodKeyword  = "abstractmethod";
+    /// <summary>Das Code-Schlüsselwort <c>donotinject</c> — unterbindet die Dependency-Injection für diesen Member (<c>[donotinject]</c>).</summary>
     public static readonly string DonotinjectKeyword     = "donotinject";
+    /// <summary>Der Edge-Operator <c>--&gt;</c> — ruft das Ziel auf (nicht modal).</summary>
     public static readonly string GoToEdgeKeyword        = "-->";
+    /// <summary>Der Edge-Operator <c>==&gt;</c> — ruft das Ziel nicht-modal auf (verstecktes Keyword, siehe <see cref="HiddenKeywords"/>).</summary>
     public static readonly string NonModalEdgeKeyword    = "==>";
+    /// <summary>Der Edge-Operator <c>o-&gt;</c> — ruft das Ziel modal auf.</summary>
     public static readonly string ModalEdgeKeyword       = "o->";
 
     // Continuation-Kanten (ab Sprachversion 2): `Quelle --> View o-^ Task` bzw. `--^ Task` — der GUI-Knoten
     // zeigt eine View UND setzt den Übergang in einen Folge-Task fort. Eigene Kategorie, keine regulären
     // Transitions-Kanten (sie leiten keine neue Transition ein), daher bewusst nicht in NavKeywords/EdgeKeywords.
+    /// <summary>Der Continuation-Edge-Operator <c>--^</c> — zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal).</summary>
     public static readonly string ContinuationGoToEdgeKeyword  = "--^";
+    /// <summary>Der Continuation-Edge-Operator <c>o-^</c> — zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf.</summary>
     public static readonly string ContinuationModalEdgeKeyword = "o-^";
 
     // Direktiven-Schlüsselwörter (nur im Präprozessor-Modus hinter `#` gültig). Einzige Autorität für die
     // Literale — der Lexer (PreprocessorKeywords) und die Completion beziehen sie von hier.
+    /// <summary>Das Direktiven-Schlüsselwort <c>version</c> (<c>#version &lt;N&gt;</c>) — legt die Nav-Sprachversion der Datei fest.</summary>
     public static readonly string VersionDirectiveKeyword = "version";
+    /// <summary>Das Direktiven-Schlüsselwort <c>pragma</c> (<c>#pragma …</c>) — derzeit ohne bekannte Pragma-Subjekte.</summary>
     public static readonly string PragmaDirectiveKeyword  = "pragma";
 
     // Das Direktiven-Einleitungszeichen (Präprozessor, `#…`). Einzige Autorität — der Lexer und die
     // Completion (Trigger-Char) beziehen es von hier.
+    /// <summary>Das Direktiven-Einleitungszeichen <c>#</c> (nur am Zeilenanfang eine Direktive).</summary>
     public static readonly char Hash = '#';
 
+    /// <summary>
+    /// Die Struktur-Keywords der Nav-Sprache — inklusive der Edge-Operatoren und der Pascal-Case-Variante
+    /// <see cref="InitKeywordAlt"/>, ohne die Code-Schlüsselwörter (<see cref="CodeKeywords"/>).
+    /// </summary>
     public static readonly ImmutableHashSet<string> NavKeywords = new[] {
         TaskKeyword,
         TaskrefKeyword,
@@ -78,10 +123,12 @@ public static class SyntaxFacts {
         ModalEdgeKeyword
     }.ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> ein Struktur-Keyword ist (siehe <see cref="NavKeywords"/>).</summary>
     public static bool IsNavKeyword(string value) {
         return NavKeywords.Contains(value);
     }
 
+    /// <summary>Die Code-Schlüsselwörter der <c>[ … ]</c>-Code-Deklarationen (<c>result</c>, <c>params</c>, <c>using</c>, …).</summary>
     public static readonly ImmutableHashSet<string> CodeKeywords = new[] {
         ResultKeyword,
         ParamsKeyword,
@@ -96,12 +143,19 @@ public static class SyntaxFacts {
 
     }.ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> ein Code-Schlüsselwort ist (siehe <see cref="CodeKeywords"/>).</summary>
     public static bool IsCodeKeyword(string value) {
         return CodeKeywords.Contains(value);
     }
 
+    /// <summary>
+    /// Alle Keywords der Nav-Sprache — die Vereinigung aus <see cref="NavKeywords"/> und
+    /// <see cref="CodeKeywords"/>. Sie sind reserviert: keines ist ein gültiger Bezeichner
+    /// (siehe <see cref="IsValidIdentifier"/>).
+    /// </summary>
     public static readonly ImmutableHashSet<string> Keywords = NavKeywords.Concat(CodeKeywords).ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> ein Keyword der Nav-Sprache ist (siehe <see cref="Keywords"/>).</summary>
     public static bool IsKeyword(string value) {
         return Keywords.Contains(value);
     }
@@ -224,6 +278,11 @@ public static class SyntaxFacts {
             or TextClassification.PreprocessorKeyword;
     }
 
+    /// <summary>
+    /// Die versteckten Keywords (<c>spontaneous</c>/<c>spont</c>, <c>notimplemented</c>, <c>==&gt;</c>) —
+    /// grammatisch gültig, aber in nutzerseitigen Ausgaben (Completion-Vorschläge,
+    /// <c>expected …</c>-Diagnosen) unterdrückt.
+    /// </summary>
     public static readonly ImmutableHashSet<string> HiddenKeywords = new[] {
         SpontaneousKeyword,
         SpontKeyword,
@@ -232,10 +291,15 @@ public static class SyntaxFacts {
 
     }.ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> ein verstecktes Keyword ist (siehe <see cref="HiddenKeywords"/>).</summary>
     public static bool IsHiddenKeyword(string value) {
         return HiddenKeywords.Contains(value);
     }
 
+    /// <summary>
+    /// Die regulären Transitions-Kanten <c>--&gt;</c>, <c>==&gt;</c> und <c>o-&gt;</c> — ohne die
+    /// Continuation-Kanten (<see cref="ContinuationEdgeKeywords"/>), die keine neue Transition einleiten.
+    /// </summary>
     public static readonly ImmutableHashSet<string> EdgeKeywords = new[] {
         GoToEdgeKeyword,
         NonModalEdgeKeyword,
@@ -243,6 +307,7 @@ public static class SyntaxFacts {
 
     }.ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> ein Edge-Keyword ist (siehe <see cref="EdgeKeywords"/>).</summary>
     public static bool IsEdgeKeyword(string value) {
         return EdgeKeywords.Contains(value);
     }
@@ -261,12 +326,18 @@ public static class SyntaxFacts {
     // Die Continuation-Kanten (ab Sprachversion 2). Eigene Menge, getrennt von den regulären
     // <see cref="EdgeKeywords"/>: eine Continuation hängt an einem GUI-Knoten und leitet — anders als eine
     // Transitions-Kante — keine neue Transition ein.
+    /// <summary>
+    /// Die Continuation-Kanten <c>--^</c> und <c>o-^</c> (ab Sprachversion 2) — eigene Menge, getrennt von
+    /// den regulären <see cref="EdgeKeywords"/>: eine Continuation hängt an einem GUI-Knoten und leitet
+    /// keine neue Transition ein.
+    /// </summary>
     public static readonly ImmutableHashSet<string> ContinuationEdgeKeywords = new[] {
         ContinuationGoToEdgeKeyword,
         ContinuationModalEdgeKeyword
 
     }.ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="value"/> eine Continuation-Kante ist (siehe <see cref="ContinuationEdgeKeywords"/>).</summary>
     public static bool IsContinuationEdgeKeyword(string value) {
         return ContinuationEdgeKeywords.Contains(value);
     }
@@ -282,26 +353,45 @@ public static class SyntaxFacts {
 
     // Die Zeichen, aus denen sich Edge-Keywords zusammensetzen (`-`, `>`, `o`, `*`). Einzige Autorität für
     // den Rückwärtslauf, der den Ersetzungsbereich einer angefangenen Edge bestimmt (Completion).
+    /// <summary>
+    /// Die Zeichen, aus denen sich die <see cref="EdgeKeywords"/> zusammensetzen (<c>-</c>, <c>&gt;</c>,
+    /// <c>=</c>, <c>o</c>) — die Autorität für den Rückwärtslauf, der den Ersetzungsbereich einer
+    /// angefangenen Edge bestimmt (Completion).
+    /// </summary>
     public static readonly ImmutableHashSet<char> EdgeCharacters = EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
 
+    /// <summary>Ob <paramref name="c"/> ein Edge-Zeichen ist (siehe <see cref="EdgeCharacters"/>).</summary>
     public static bool IsEdgeCharacter(char c) {
         return EdgeCharacters.Contains(c);
     }
 
     // Punctuation. Wie die Keywords: die Zeichen entsprechen 1:1 den ursprünglichen Grammatik-Literalen.
+    /// <summary>Das Punctuation-Zeichen <c>{</c>.</summary>
     public static readonly char OpenBrace    = '{';
+    /// <summary>Das Punctuation-Zeichen <c>}</c>.</summary>
     public static readonly char CloseBrace   = '}';
+    /// <summary>Das Punctuation-Zeichen <c>(</c>.</summary>
     public static readonly char OpenParen    = '(';
+    /// <summary>Das Punctuation-Zeichen <c>)</c>.</summary>
     public static readonly char CloseParen   = ')';
+    /// <summary>Das Punctuation-Zeichen <c>[</c>.</summary>
     public static readonly char OpenBracket  = '[';
+    /// <summary>Das Punctuation-Zeichen <c>]</c>.</summary>
     public static readonly char CloseBracket = ']';
+    /// <summary>Das Punctuation-Zeichen <c>&lt;</c>.</summary>
     public static readonly char LessThan     = '<';
+    /// <summary>Das Punctuation-Zeichen <c>&gt;</c>.</summary>
     public static readonly char GreaterThan  = '>';
+    /// <summary>Das Punctuation-Zeichen <c>;</c>.</summary>
     public static readonly char Semicolon    = ';';
+    /// <summary>Das Punctuation-Zeichen <c>,</c>.</summary>
     public static readonly char Comma        = ',';
+    /// <summary>Das Punctuation-Zeichen <c>:</c>.</summary>
     public static readonly char Colon        = ':';
+    /// <summary>Das Punctuation-Zeichen <c>?</c>.</summary>
     public static readonly char Questionmark = '?';
 
+    /// <summary>Alle Punctuation-Zeichen der Nav-Sprache (siehe die <c>char</c>-Konstanten oben).</summary>
     public static readonly ImmutableHashSet<char> Punctuations = new[] {
         OpenBrace,
         CloseBrace,
@@ -317,6 +407,10 @@ public static class SyntaxFacts {
         Questionmark
     }.ToImmutableHashSet();
 
+    /// <summary>
+    /// Ob <paramref name="value"/> aus genau einem Punctuation-Zeichen besteht (siehe
+    /// <see cref="Punctuations"/>); <c>false</c> auch für <c>null</c> und mehrzeichige Strings.
+    /// </summary>
     public static bool IsPunctuation(string? value) {
 
         if (value?.Length != 1) {
@@ -326,6 +420,7 @@ public static class SyntaxFacts {
         return Punctuations.Contains(value[0]);
     }
 
+    /// <summary>Ob <paramref name="value"/> ein Punctuation-Zeichen ist (siehe <see cref="Punctuations"/>).</summary>
     public static bool IsPunctuation(char value) {
         return Punctuations.Contains(value);
     }
@@ -393,6 +488,10 @@ public static class SyntaxFacts {
         return KeywordTexts.TryGetValue(type, out var text) ? text : null;
     }
 
+    /// <summary>
+    /// Ob <paramref name="c"/> in einem Nav-Bezeichner zulässig ist: ASCII-Buchstaben und -Ziffern, die
+    /// deutschen Umlaute und <c>ß</c> sowie <c>.</c> und <c>_</c>.
+    /// </summary>
     public static bool IsIdentifierCharacter(char c) {
 
         return c is >= 'a' and <= 'z' ||
@@ -403,6 +502,11 @@ public static class SyntaxFacts {
                c == 'ß'               || c == '.' || c == '_';
     }
 
+    /// <summary>
+    /// Ob <paramref name="value"/> ein gültiger Nav-Bezeichner ist: nicht leer, kein reserviertes Keyword
+    /// (<see cref="Keywords"/>) und ausschließlich aus zulässigen Zeichen
+    /// (<see cref="IsIdentifierCharacter"/>) aufgebaut.
+    /// </summary>
     public static bool IsValidIdentifier(string? value) {
         // Bewusst kein string.IsNullOrEmpty: die netstandard2.0-BCL trägt keine Nullable-Annotationen,
         // erst der explizite null-Vergleich lässt die Flussanalyse den Wert als nicht-null erkennen.
@@ -418,10 +522,17 @@ public static class SyntaxFacts {
     }
 
     // Comment strings
+    /// <summary>Die Einleitung <c>//</c> des einzeiligen Kommentars.</summary>
     public static readonly string SingleLineComment = "//";
+    /// <summary>Die Einleitung <c>/*</c> des mehrzeiligen Kommentars.</summary>
     public static readonly string BlockCommentStart = "/*";
+    /// <summary>Der Abschluss <c>*/</c> des mehrzeiligen Kommentars.</summary>
     public static readonly string BlockCommentEnd   = "*/";
 
+    /// <summary>
+    /// Ob die Klassifikation Trivia auszeichnet: <see cref="TextClassification.Comment"/> oder
+    /// <see cref="TextClassification.Whitespace"/>.
+    /// </summary>
     public static bool IsTrivia(TextClassification classification) {
         return classification == TextClassification.Comment || classification == TextClassification.Whitespace;
     }

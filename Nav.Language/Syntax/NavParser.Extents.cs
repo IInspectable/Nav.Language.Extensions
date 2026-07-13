@@ -16,9 +16,10 @@ sealed partial class NavParser {
     /// <summary>
     /// Umschließender <see cref="TextExtent"/> über die konsumierten Token und Kindknoten eines Knotens.
     /// Die Fixed-Arity-Überladungen decken die vorkommenden Stelligkeiten ab und vermeiden das
-    /// <see cref="ExtentPart"/>-Array, das die <c>params</c>-Fassung sonst bei jedem Knoten-Aufbau
-    /// allozieren würde (ein Array pro Knoten auf dem Happy Path); die <c>params</c>-Fassung bleibt als
-    /// Fallback für künftige höhere Stelligkeiten.
+    /// <see cref="ExtentPart"/>-Array, das eine <c>params</c>-Fassung sonst bei jedem Knoten-Aufbau
+    /// allozieren würde (ein Array pro Knoten auf dem Happy Path); eine <c>params</c>-Fassung gibt es
+    /// deshalb bewusst nicht mehr — noch höhere Stelligkeiten nutzen den <see cref="ExtentBuilder"/>
+    /// direkt (siehe z.B. <see cref="ParseTaskDefinition"/>).
     /// </summary>
     static TextExtent Span(ExtentPart p1) {
         var builder = new ExtentBuilder();
@@ -129,6 +130,10 @@ sealed partial class NavParser {
             }
         }
 
+        /// <summary>
+        /// Erweitert die umschließende Hülle um <paramref name="extent"/> (Minimum der Starts, Maximum der
+        /// Enden). <see cref="TextExtent.Missing"/> — ein fehlender optionaler Bestandteil — trägt nichts bei.
+        /// </summary>
         public void Add(TextExtent extent) {
             if (extent.IsMissing) {
                 return;
@@ -150,6 +155,10 @@ sealed partial class NavParser {
             }
         }
 
+        /// <summary>
+        /// Die gesammelte Hülle; <see cref="TextExtent.Missing"/>, wenn kein Bestandteil beigetragen hat
+        /// (z.B. ein leerer Knoten-/Transitionsblock).
+        /// </summary>
         public TextExtent ToExtent() {
             return _any ? TextExtent.FromBounds(_start, _end) : TextExtent.Missing;
         }

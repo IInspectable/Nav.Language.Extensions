@@ -6,10 +6,12 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Sprach-Versions-Direktive <c>#version &lt;N&gt;</c> — die erste konkrete
-/// <see cref="DirectiveTriviaSyntax"/>. Sie legt die <see cref="NavLanguageVersion"/> der Datei fest
-/// (siehe <see cref="CodeGenerationUnitSyntax.LanguageVersion"/>). Steht sie am Kopf einer Datei, wird
-/// sie strukturiert erkannt (kein <c>Nav3000</c>); ein fehlender oder nicht-ganzzahliger Versionswert
-/// erzeugt <c>Nav3002</c>, und die Version fällt auf <see cref="NavLanguageVersion.Default"/> zurück.
+/// <see cref="DirectiveTriviaSyntax"/>. Jede <c>#version</c> wird strukturiert als dieser Knoten erkannt
+/// (kein <c>Nav3000</c>); <b>wirksam</b> — d.h. maßgeblich für die <see cref="NavLanguageVersion"/> der
+/// Datei (<see cref="CodeGenerationUnitSyntax.LanguageVersion"/>) — ist nur die erste ganz oben am
+/// Dateikopf (eine deplatzierte meldet <c>Nav3003</c>, eine wiederholte <c>Nav3004</c>). Ein fehlender
+/// oder nicht-ganzzahliger Versionswert erzeugt <c>Nav3002</c>, und die Version fällt auf
+/// <see cref="NavLanguageVersion.Default"/> zurück.
 /// </summary>
 [Serializable]
 [SampleSyntax("#version 1")]

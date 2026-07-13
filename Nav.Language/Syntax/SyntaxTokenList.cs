@@ -12,12 +12,23 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language; 
 
+/// <summary>
+/// Eine nach Position sortierte, unveränderliche Liste von <see cref="SyntaxToken"/> mit
+/// Binärsuche-Lookups: der flache Strom der signifikanten Token eines <see cref="SyntaxTree"/>
+/// (<see cref="SyntaxTree.Tokens"/> — trivia-frei, siehe dort) ebenso wie die lokalen Token strukturierter
+/// Trivia (<see cref="StructuredTriviaSyntax"/>).
+/// </summary>
 [Serializable]
 public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
 
     static readonly IReadOnlyList<SyntaxToken> EmptyTokens = new List<SyntaxToken>(Enumerable.Empty<SyntaxToken>()).AsReadOnly();
     readonly        IReadOnlyList<SyntaxToken> _tokens;
 
+    /// <summary>
+    /// Erzeugt eine Liste aus den — nicht notwendigerweise sortierten — <paramref name="tokens"/>; sie
+    /// werden kopiert und nach Position sortiert (<see cref="SyntaxTokenComparer.Default"/>). <c>null</c>
+    /// ergibt die leere Liste.
+    /// </summary>
     public SyntaxTokenList(List<SyntaxToken>? tokens): this(tokens, attachSorted: false) {
     }
 
@@ -33,12 +44,19 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         }
     }
 
+    /// <summary>
+    /// Übernimmt <paramref name="tokens"/> ohne Kopie und ohne Sortier-Lauf — der Aufrufer garantiert, dass
+    /// die Liste bereits nach Position sortiert ist und nachträglich nicht mehr verändert wird (alle
+    /// Binärsuche-Lookups setzen die Sortierung voraus).
+    /// </summary>
     internal static SyntaxTokenList AttachSortedTokens(IReadOnlyList<SyntaxToken> tokens) {
         return new SyntaxTokenList(tokens, attachSorted: true);
     }
 
+    /// <summary>Die leere Token-Liste.</summary>
     public static readonly SyntaxTokenList Empty = new(null);
 
+    /// <summary>Enumeriert die Token in Positions-Reihenfolge.</summary>
     public IEnumerator<SyntaxToken> GetEnumerator() {
         return _tokens.GetEnumerator();
     }
@@ -47,10 +65,16 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return GetEnumerator();
     }
 
+    /// <summary>Die Anzahl der Token in dieser Liste.</summary>
     public int Count => _tokens.Count;
 
+    /// <summary>Das Token am Index <paramref name="index"/> (Positions-Reihenfolge).</summary>
     public SyntaxToken this[int index] => _tokens[index];
 
+    /// <summary>
+    /// Die Token innerhalb des <paramref name="extent"/> in Positions-Reihenfolge — standardmäßig nur
+    /// vollständig enthaltene; mit <paramref name="includeOverlapping"/> auch die nur überlappenden.
+    /// </summary>
     public IEnumerable<SyntaxToken> this[TextExtent extent, bool includeOverlapping = false] => _tokens.GetElements(extent, includeOverlapping);
 
     /// <summary>
@@ -137,6 +161,12 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return lo;
     }
 
+    /// <summary>
+    /// Läuft — wie <see cref="NextOrPrevious(SyntaxNode,SyntaxToken,bool)"/> — vom
+    /// <paramref name="currentToken"/> aus vor bzw. zurück, bis ein Token vom Typ <paramref name="type"/>
+    /// gefunden ist; <see cref="SyntaxToken.Missing"/>, wenn keines mehr im Extent von
+    /// <paramref name="node"/> liegt.
+    /// </summary>
     internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
@@ -148,6 +178,12 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
+    /// <summary>
+    /// Läuft — wie <see cref="NextOrPrevious(SyntaxNode,SyntaxToken,bool)"/> — vom
+    /// <paramref name="currentToken"/> aus vor bzw. zurück, bis ein Token mit der Klassifikation
+    /// <paramref name="classification"/> gefunden ist; <see cref="SyntaxToken.Missing"/>, wenn keines mehr
+    /// im Extent von <paramref name="node"/> liegt.
+    /// </summary>
     internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, TextClassification classification, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
@@ -159,6 +195,12 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
+    /// <summary>
+    /// Das auf <paramref name="currentToken"/> folgende (bzw. ihm vorausgehende) Token im Strom — begrenzt
+    /// auf den Extent von <paramref name="node"/>: liegt das Nachbar-Token außerhalb, ist das Ergebnis
+    /// <see cref="SyntaxToken.Missing"/>. Die Basis der parent-lokalen Navigation von
+    /// <see cref="SyntaxToken.NextToken()"/>/<see cref="SyntaxToken.PreviousToken()"/>.
+    /// </summary>
     internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, bool nextToken) {
         return _tokens.NextOrPreviousElement(node, currentToken, nextToken, SyntaxToken.Missing);
     }

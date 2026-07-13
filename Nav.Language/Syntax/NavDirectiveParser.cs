@@ -266,7 +266,7 @@ sealed class NavDirectiveParser {
 
     /// <summary>
     /// Erzeugt die lokalen Token des Direktiv-Laufs <c>[hashIndex, end)</c> und legt sie am Knoten
-    /// <paramref name="node"/> ab (siehe <see cref="DirectiveTriviaSyntax.SetLocalTokens"/>) — mit der aus dem
+    /// <paramref name="node"/> ab (siehe <see cref="StructuredTriviaSyntax.SetLocalTokens"/>) — mit der aus dem
     /// Token-Typ folgenden <see cref="TextClassification"/>. Token ab <paramref name="skipFrom"/> (dem
     /// grammatikalisch überzähligen Rest, den der Parser nicht mehr unterbringen konnte) werden stattdessen
     /// als <see cref="TextClassification.Skiped"/> ausgegraut — analog zu den Panic-Mode-Token des

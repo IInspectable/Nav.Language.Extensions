@@ -12,6 +12,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Das unveränderliche Ergebnis eines Parse-Laufs — nach dem Roslyn-Vorbild des <c>SyntaxTree</c>: der
+/// Wurzelknoten (<see cref="Root"/>), der flache Strom der signifikanten Token (<see cref="Tokens"/>), der
+/// zugrunde liegende Quelltext (<see cref="SourceText"/>) und die syntaktischen Diagnosen
+/// (<see cref="Diagnostics"/>). Erzeugt über <see cref="ParseText"/>.
+/// </summary>
 public class SyntaxTree {
 
     internal SyntaxTree(SourceText? sourceText,
@@ -25,12 +31,26 @@ public class SyntaxTree {
         Diagnostics = diagnostics;
     }
 
+    /// <summary>
+    /// Der Wurzelknoten des Baums — für eine ganze Datei (<see cref="ParseText"/>) die
+    /// <see cref="CodeGenerationUnitSyntax"/>; die Snippet-Einstiege der Klasse <see cref="Syntax"/> liefern
+    /// Bäume mit dem jeweiligen Regel-Knoten als Wurzel.
+    /// </summary>
     public SyntaxNode Root { get; }
 
+    /// <summary>Der zugrunde liegende Quelltext; nie <c>null</c> (<see cref="SourceText.Empty"/> als Rückfall).</summary>
     public SourceText SourceText { get; }
 
+    /// <summary>
+    /// Der flache Strom der signifikanten Token in Quelltext-Reihenfolge. Trivia steht nicht darin (sie
+    /// hängt an den Token, siehe <see cref="SyntaxToken.LeadingTrivia"/>/<see cref="SyntaxToken.TrailingTrivia"/>);
+    /// ebenso wenig die Präprozessor-Token der Direktiven und die vom Parser übersprungenen Token — beide
+    /// liegen lokal an ihren strukturierten Trivia-Knoten (siehe <see cref="Directives"/> bzw.
+    /// <see cref="SkippedTokens"/>).
+    /// </summary>
     public SyntaxTokenList Tokens { get; }
 
+    /// <summary>Die beim Lexen/Parsen (inklusive Recovery und Direktiven-Vorlauf) gemeldeten syntaktischen Diagnosen.</summary>
     public ImmutableArray<Diagnostic> Diagnostics { get; }
 
     /// <summary>
@@ -115,6 +135,14 @@ public class SyntaxTree {
         return FindTrivia(position).IsComment;
     }
 
+    /// <summary>
+    /// Parst den Nav-Quelltext <paramref name="text"/> zu einem <see cref="SyntaxTree"/> — der öffentliche
+    /// Einstiegspunkt (delegiert an <see cref="NavParser.Parse"/>).
+    /// </summary>
+    /// <param name="text">Der Quelltext; <c>null</c> zählt wie leerer Text.</param>
+    /// <param name="filePath">Der Dateipfad für <see cref="Location"/>-Angaben, oder <c>null</c>.</param>
+    /// <param name="cancellationToken">Bricht den Parse-Lauf ab.</param>
+    /// <returns>Der Syntaxbaum; nie <c>null</c> — Fehler landen in <see cref="Diagnostics"/>.</returns>
     public static SyntaxTree ParseText(string? text, string? filePath = null, CancellationToken cancellationToken = default) {
         return NavParser.Parse(text, filePath, cancellationToken);
     }
