@@ -30,6 +30,13 @@ public sealed class NavRenameResult {
     /// <summary>Die anzuwendenden Textänderungen (leer = nichts zu tun, z.B. gleicher Name).</summary>
     public List<NavEditDto> Edits { get; set; } = new();
 
+    /// <summary>
+    /// Der komplette Dateitext nach Anwendung der <see cref="Edits"/>. Am einfachsten die Datei damit
+    /// überschreiben, statt die Edits punktgenau selbst anzuwenden. <c>null</c>, wenn nichts zu ändern ist
+    /// oder der Aufrufer ihn abbestellt hat (<c>includeResultText=false</c>).
+    /// </summary>
+    public string? ResultText { get; set; }
+
 }
 
 /// <summary>
@@ -39,6 +46,8 @@ public sealed class NavRenameResult {
 public sealed class NavCodeActionsResult {
 
     public string Path { get; set; } = "";
+
+    /// <summary>Das abgefragte Symbol — leer, wenn die Aktionen der ganzen Datei erfragt wurden.</summary>
     public string Name { get; set; } = "";
 
     public string? Error { get; set; }
@@ -61,5 +70,12 @@ public sealed class NavCodeActionDto {
     public string Kind { get; set; } = "";
 
     public List<NavEditDto> Edits { get; set; } = new();
+
+    /// <summary>
+    /// Der komplette Dateitext nach Anwendung genau dieser Aktion. Am einfachsten die Datei damit
+    /// überschreiben, statt die <see cref="Edits"/> punktgenau selbst anzuwenden. <c>null</c>, wenn der
+    /// Aufrufer ihn abbestellt hat (<c>includeResultText=false</c>).
+    /// </summary>
+    public string? ResultText { get; set; }
 
 }

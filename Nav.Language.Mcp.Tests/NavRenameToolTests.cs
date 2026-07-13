@@ -68,6 +68,37 @@ public class NavRenameToolTests {
     }
 
     [Test]
+    public void Rename_ResultText_IsTheWholeFileWithEditsApplied() {
+
+        using var ws   = new McpTestWorkspace();
+        var       path = ws.WriteFile("a.nav", SingleTask);
+
+        var result = NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
+
+        Assert.IsNull(result.Error);
+        Assert.IsNotNull(result.ResultText, "Standardmäßig liefert nav_rename den kompletten Ergebnistext mit.");
+
+        // Der Voll-Text ist exakt die Datei mit angewandtem Edit-Set — der Agent kann die Datei damit
+        // überschreiben, statt die Edits punktgenau selbst zu spleißen.
+        Assert.AreEqual(EditApplier.Apply(File.ReadAllText(path), result.Edits), result.ResultText);
+        StringAssert.Contains("exit e2;",   result.ResultText);
+        StringAssert.Contains("I1 --> e2;", result.ResultText);
+    }
+
+    [Test]
+    public void Rename_IncludeResultTextFalse_OmitsResultTextButKeepsEdits() {
+
+        using var ws   = new McpTestWorkspace();
+        var       path = ws.WriteFile("a.nav", SingleTask);
+
+        var result = NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2", includeResultText: false);
+
+        Assert.IsNull(result.Error);
+        Assert.IsNull(result.ResultText, "Mit includeResultText=false bleibt der Voll-Text weg.");
+        CollectionAssert.IsNotEmpty(result.Edits, "Die Edits bleiben aber erhalten.");
+    }
+
+    [Test]
     public void Rename_DoesNotTouchTheFileOnDisk() {
 
         using var ws     = new McpTestWorkspace();

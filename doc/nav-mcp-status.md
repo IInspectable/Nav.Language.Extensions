@@ -32,8 +32,8 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_find_symbol` | `NavSymbolSearch.FindDefinitionsByPrefix` | Solution-weite Präfix-Suche nach Task-/Knoten-**Definitionen** (ohne Datei vorab). |
 | `nav_goto` | `NavGoToService` | Definition(en) eines Namens (Nav→Nav, cross-file). |
 | `nav_references` | `ReferenceFinder` | Alle solution-weiten Vorkommen (inkl. Deklaration). |
-| `nav_rename` | `NavRenameService` | Umbenennungs-**Edit-Set** (read-only, file-local). |
-| `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set**. |
+| `nav_rename` | `NavRenameService` | Umbenennungs-**Edit-Set** + kompletter Ergebnistext (read-only, file-local). |
+| `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set** + Ergebnistext je Aktion; Symbol- **oder** Whole-File-Modus. |
 | `nav_format` | `NavFormattingService` | Document-/Range-Formatierung: **Edit-Set** + komplett formatierter Text (read-only). |
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
 | `nav_preview_codegen` | `ICodeGeneratorProvider` (Codegen-Pipeline) | Vorschau des generierten C# je Task-Definition (Basisklasse/Interfaces/Stub) — **ohne Plattenschreiben, ohne Build**. |
@@ -81,7 +81,19 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   (`error`/`warning`/`suggestion`); kein `task`-Feld pro Diagnose (spätere Erweiterung).
 - **Mutierende Tools sind read-only.** `nav_rename`, `nav_code_actions` und `nav_format` schreiben
   **NICHTS** auf Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn,
-  newText}`) zurück, das der Agent selbst anwendet.
+  newText}`) zurück, das der Agent selbst anwendet. Alle drei liefern zusätzlich den **kompletten
+  Ergebnistext** (`nav_format`: `formattedText`; `nav_rename`: `resultText`; `nav_code_actions`:
+  `resultText` **je Aktion** — die Datei mit genau dieser Aktion angewandt), damit der Agent die Datei
+  überschreiben kann, statt viele Edits punktgenau selbst zu spleißen (fehleranfällig). Per
+  `includeResultText=false` (bzw. `includeFormattedText=false`) abbestellbar (Token-Limit bei großen
+  Dateien — dann nur Edits).
+- **`nav_code_actions`: Symbol- oder Whole-File-Modus.** Mit `name` zielt das Tool wie bisher auf ein
+  Task/Knoten-Symbol (Range = dessen Extent); **ohne** `name` läuft es über den **gesamten Datei-Extent**
+  und liefert alle irgendwo in der Datei anwendbaren Aktionen (der Symbol-/Token-Indexer der CodeFix-
+  Provider greift dann alle vollständig enthaltenen Elemente). Die Dedup gleichnamiger Aktionen läuft
+  im MCP über **Titel + Edit-Signatur** (nicht wie LSP/VS nur den Titel): im Whole-File-Modus können
+  zwei sachlich verschiedene Aktionen denselben Titel tragen (z.B. „Remove Unused Nodes" in zwei Tasks) —
+  eine reine Titel-Dedup verschluckte die zweite.
 - **`nav_format` = Document-/Range-Formatting als Pull.** Gegenstück zu LSP
   `textDocument/formatting`/`…/rangeFormatting`, gleicher Engine-Kern (`NavFormattingService`). Der
   Formatter ist rein syntaktisch → `NavMcpWorkspace.GetFreshSyntaxTree` (Cache-Invalidierung wie
@@ -222,7 +234,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   Datei, frage sie ab"-Fluss unkritisch.
 - **Bewusst nicht enthalten** (geringer Agent-Nutzen / reine Editor-UI): Completion, Hover/QuickInfo,
   Semantic Tokens, Folding, CodeLens, DocumentHighlight; Plattenänderung durch die Tools.
-- **Mögliche Erweiterungen:** Whole-File-Modus für `nav_code_actions` (alle Fixes einer Datei ohne
-  Symbolname); optionales `apply`-Flag für die mutierenden Tools (BOM-sicherer Schreibpfad, Lücke C der
-  Agenten-Gap-Analyse). Graph/Reachability (`nav_diagram`/`nav_reachability`, Lücke B) sind engine-seitig
-  vorbereitet, aber noch nicht als Tool. Fortschritt: `doc/nav-mcp-agent-gap-analysis.md`.
+- **Mögliche Erweiterungen:** Graph/Reachability (`nav_diagram`, Lücke B-Rest) ist engine-seitig
+  vorbereitet, aber noch nicht als Tool (braucht Diagram-S1). Der optionale `apply`-Schreibpfad (Lücke C)
+  wurde bewusst verworfen (build-gesteuerte Codegen-Ablage, `.nav`-In-place zu schmal). Fortschritt:
+  `doc/nav-mcp-agent-gap-analysis.md`.

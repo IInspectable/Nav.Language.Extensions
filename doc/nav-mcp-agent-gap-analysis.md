@@ -129,12 +129,19 @@ Schreibpfade, beide nach Prüfung verworfen:
   Die kann der Agent selbst leisten; die Kapselung spart eine Fehlerquelle, ist aber kein neues Können.
   Die mutierenden Tools bleiben bewusst **read-only** (Edit-Sets), die Designlinie bleibt intakt.
 
-### ⚪ D. Kleinere Backlog-Punkte
+### ✅ D. Kleinere Backlog-Punkte — UMGESETZT
 
-- **Whole-File-`nav_code_actions`** (alle Fixes einer Datei ohne Symbolname) — bereits im Backlog.
-- **Voll-Text-Ausgabe auch bei `nav_rename`/`nav_code_actions`** (wie `nav_format` sie hat): Edit-Sets
-  präzise anzuwenden ist für einen Agenten fehleranfällig; das Status-Doc erkennt das für `nav_format`
-  bereits an.
+- **Whole-File-`nav_code_actions` ✅** — `name` ist jetzt optional. Ohne Namen läuft das Tool über den
+  **gesamten Datei-Extent** und liefert alle irgendwo in der Datei anwendbaren Aktionen. Nebenpunkt:
+  die Dedup gleichnamiger Aktionen läuft im MCP über **Titel + Edit-Signatur** (nicht wie LSP/VS nur
+  den Titel) — im Whole-File-Modus können zwei sachlich verschiedene Aktionen denselben Titel tragen
+  (z.B. „Remove Unused Nodes" in zwei Tasks); eine reine Titel-Dedup verschluckte die zweite.
+- **Voll-Text-Ausgabe auch bei `nav_rename`/`nav_code_actions` ✅** — beide liefern jetzt (wie
+  `nav_format` mit `formattedText`) den kompletten Ergebnistext: `nav_rename` als `resultText` (Datei
+  nach der Umbenennung), `nav_code_actions` als `resultText` **je Aktion** (Datei mit genau dieser
+  Aktion angewandt). Per `includeResultText=false` abbestellbar (Token-Budget). Edit-Sets präzise
+  anzuwenden ist für einen Agenten fehleranfällig — die Datei mit dem Ergebnistext zu überschreiben
+  nicht. Tests: `Nav.Language.Mcp.Tests/NavRenameToolTests` + `…/NavCodeActionsToolTests`.
 
 ---
 
@@ -176,6 +183,6 @@ Agenten-Session / den konsumierenden Workspace-Root anzubinden.
 1. **Voraussetzung 0** — nav-MCP an Agenten-Session + IXOS-Root anbinden (sonst nichts testbar).
 2. **A** — `nav_preview_codegen` ✅ **umgesetzt** (höchster Hebel pro Aufwand; Engine-Pipeline existiert).
 3. **C** — ⚪ **verworfen** (Codegen-Ablage ist build-gesteuert; `.nav`-Schreibpfad zu schmal, s.o.).
-4. **B** — `nav_reachability`/Call-Hierarchy ← **nächster Schritt**; `nav_diagram` (nach Diagram-S1) danach.
-5. **D** — Whole-File-`nav_code_actions`, Voll-Text bei rename/code_actions.
-6. **Skill straffen** — Grammatik/Codegen-Fakten aus dem MCP ziehen.
+4. **B** — `nav_call_hierarchy` ✅ **umgesetzt**; `nav_diagram` (nach Diagram-S1) noch offen.
+5. **D** — Whole-File-`nav_code_actions`, Voll-Text bei rename/code_actions ✅ **umgesetzt**.
+6. **Skill straffen** — Grammatik/Codegen-Fakten aus dem MCP ziehen ← **nächster Schritt** (nach `nav_diagram`).

@@ -1,11 +1,13 @@
 ﻿#region Using Directives
 
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
 using ModelContextProtocol.Server;
 
 using Pharmatechnik.Nav.Language.Rename;
+using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
@@ -18,9 +20,10 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 public static class NavRenameTool {
 
     [McpServerTool(Name = "nav_rename")]
-    [Description("Computes the edits to rename a task or node and returns them (1-based ranges + new text). "        +
-                 "Does NOT modify any file — apply the returned edits yourself. The rename is file-local (same "     +
-                 "behaviour as the VS rename): references in other files are not changed. An invalid new name "      +
+    [Description("Computes the edits to rename a task or node and returns them (1-based ranges + new text) plus "    +
+                 "the complete file text after applying them. Does NOT modify any file — apply the result "         +
+                 "yourself (easiest: overwrite the file with 'resultText'). The rename is file-local (same "        +
+                 "behaviour as the VS rename): references in other files are not changed. An invalid new name "     +
                  "(keyword, already taken, …) is reported in 'error'. If the name is ambiguous, returns candidates " +
                  "— pass 'kind' and/or 'task' to disambiguate.")]
     public static NavRenameResult Rename(
@@ -34,7 +37,10 @@ public static class NavRenameTool {
         string? task = null,
         [Description("Optional symbol kind to disambiguate when a task and a node share the same name: " +
                      "'task' vs. 'node', or a specific kind like 'gui'. See the candidates' 'kind' values.")]
-        string? kind = null) {
+        string? kind = null,
+        [Description("Whether to include the complete file text after the rename as 'resultText'. Set to " +
+                     "false to keep the result small for large files (edits only).")]
+        bool includeResultText = true) {
 
         var result = new NavRenameResult { Path = path, Name = name, NewName = newName };
 
@@ -75,7 +81,13 @@ public static class NavRenameTool {
             return result;
         }
 
-        result.Edits = NavEditDto.FromChanges(sourceText, renameFix.GetTextChanges(trimmedNewName));
+        var changes = renameFix.GetTextChanges(trimmedNewName).ToList();
+        result.Edits = NavEditDto.FromChanges(sourceText, changes);
+
+        if (includeResultText && changes.Count > 0) {
+            result.ResultText = new TextChangeWriter().ApplyTextChanges(sourceText.Text, changes);
+        }
+
         return result;
     }
 
