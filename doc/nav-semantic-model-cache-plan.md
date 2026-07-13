@@ -1,6 +1,8 @@
 ﻿# Nav Semantik-Modell-Cache — Plan
 
-> **Status:** Step 0 (Stempel-Frische) umgesetzt, Steps 1–4 offen. Am Code verifiziert; Messzahlen aus dem echten Korpus
+> **Status:** Step 0 (Stempel-Frische) und Step 1 (`CachedSemanticModelProvider` + Provider-Tests)
+> umgesetzt; offen: Step 2 (Einhängen), Rest von Step 3 (Scan-Ebene), Step 4 (Messen). Am Code
+> verifiziert; Messzahlen aus dem echten Korpus
 > (`d:\tfs\main`, 1913 Dateien / 7,5 MB, **Debug**-Engine = ausgelieferter Stand). Setup-Details:
 > Memory `nav-perf-profiling-setup`. Verwandt: `doc/nav-perf-optimization-status.md`, `doc/nav-mcp-status.md`.
 
@@ -164,7 +166,15 @@ Ehrliche Abgrenzung:
   Include-Validierung). `ConcurrentDictionary<string, CacheEntry>` (Key = normalisierter Pfad). Reine
   Selbstvalidierung (§4), **kein** explizites `Invalidate` (bewusste Wahl: Korrektheit trägt die
   `ReferenceEquals`-Prüfung; geänderte Einträge werden beim nächsten Lookup ersetzt). Ungespeicherte Puffer
-  ohne `FileInfo` → nicht cachebar, direkt durchreichen.
+  ohne `FileInfo` → nicht cachebar, direkt durchreichen. **UMGESETZT** — Details der Umsetzung:
+  Snapshot-Pfade kommen aus `include.FileName` (aufgelöster Pfad, wie beim LSP-`IncludeDependencyGraph`);
+  die `GetSemanticModel(syntax)`-Überladung schlüsselt über `syntax.SyntaxTree.SourceText.FileInfo`;
+  liefert Tier 1 für eine Datei `null` (gelöscht), wird der Alteintrag entfernt. Bekanntes, bewusst
+  akzeptiertes Rest-Fenster: ändert sich ein Include *während* des Baus einer Unit, kann der Snapshot
+  schon die neuere Include-Instanz tragen (Kommentar an `CaptureIncludeSnapshot`). Die Provider-Tests
+  aus Step 3 sind bereits mit umgesetzt: `Nav.Language.Tests/CachedSemanticModelProviderTests.cs`
+  (Treffer, Primär-/Include-Invalidierung out-of-band via Step-0-Stempel, Nicht-Transitivität,
+  Löschen/Wiederauftauchen, Puffer ohne Dateibezug).
 - **Step 2 — Einhängen** in `NavWorkspaceCore` (Ctor):
   `new CachedSemanticModelProvider(new SemanticModelProvider(_syntaxProvider), _syntaxProvider)`.
   Nicht in `NavSolution`-Default-Ctor (CLI bleibt ungecacht).
