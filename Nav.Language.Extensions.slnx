@@ -101,6 +101,7 @@
     <File Path="doc/nav-skiped-tokens-as-trivia.md" />
     <File Path="doc/nav-sourcetext-review-todo.md" />
     <File Path="doc/nav-syntax-tree-visualizer.md" />
+    <File Path="doc/nav-syntax-xmldoc-status.md" />
     <File Path="doc/nav-version-codefixes-status.md" />
     <File Path="doc/nav-versioning-status.md" />
     <File Path="doc/nav-vs-lsp-migration.md" />
