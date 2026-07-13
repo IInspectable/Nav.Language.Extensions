@@ -50,7 +50,7 @@ public class NavCallHierarchyServiceTests {
 
         var task = NavCallHierarchyService.PrepareCallHierarchy(unit, caret);
 
-        Assert.That(task, Is.Not.Null);
+        Assert.That(task,       Is.Not.Null);
         Assert.That(task!.Name, Is.EqualTo("A"));
     }
 
@@ -62,7 +62,7 @@ public class NavCallHierarchyServiceTests {
 
         var task = NavCallHierarchyService.PrepareCallHierarchy(unit, caret);
 
-        Assert.That(task, Is.Not.Null);
+        Assert.That(task,       Is.Not.Null);
         Assert.That(task!.Name, Is.EqualTo("A")); // enthaltende Task, nicht die aufgerufene
     }
 
@@ -102,7 +102,7 @@ public class NavCallHierarchyServiceTests {
 
         var calls = NavCallHierarchyService.GetOutgoingCalls(a);
 
-        Assert.That(calls, Has.Count.EqualTo(1));
+        Assert.That(calls,                Has.Count.EqualTo(1));
         Assert.That(calls[0].Target.Name, Is.EqualTo("B"));
         Assert.That(calls[0].CallSites,   Has.Count.EqualTo(1));
     }
@@ -110,21 +110,21 @@ public class NavCallHierarchyServiceTests {
     [Test]
     public void Outgoing_MultipleCallSitesSameTarget_AreGrouped() {
 
-        const string src = "task A\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    task B b1;\n"  +
-                           "    task B b2;\n"  +
-                           "    exit e;\n"     +
+        const string src = "task A\n"            +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    task B b1;\n"    +
+                           "    task B b2;\n"    +
+                           "    exit e;\n"       +
                            "    i     --> b1;\n" +
                            "    b1:x  --> b2;\n" +
                            "    b2:x  --> e;\n"  +
-                           "}\n"               +
-                           "task B\n"          +
-                           "{\n"               +
-                           "    init i;\n"     +
-                           "    exit x;\n"     +
-                           "    i --> x;\n"    +
+                           "}\n"                 +
+                           "task B\n"            +
+                           "{\n"                 +
+                           "    init i;\n"       +
+                           "    exit x;\n"       +
+                           "    i --> x;\n"      +
                            "}\n";
 
         var unit = ParseModel(src, @"n:\av\a.nav");
@@ -132,7 +132,7 @@ public class NavCallHierarchyServiceTests {
 
         var calls = NavCallHierarchyService.GetOutgoingCalls(a);
 
-        Assert.That(calls, Has.Count.EqualTo(1));          // ein Ziel B ...
+        Assert.That(calls,                Has.Count.EqualTo(1)); // ein Ziel B ...
         Assert.That(calls[0].Target.Name, Is.EqualTo("B"));
         Assert.That(calls[0].CallSites,   Has.Count.EqualTo(2)); // ... mit zwei Aufrufstellen
     }
@@ -140,12 +140,12 @@ public class NavCallHierarchyServiceTests {
     [Test]
     public void Outgoing_UnresolvedTaskRef_IsSkipped() {
 
-        const string src = "task A\n"           +
-                           "{\n"                +
-                           "    init i;\n"      +
+        const string src = "task A\n"            +
+                           "{\n"                 +
+                           "    init i;\n"       +
                            "    task Ghost g;\n" + // 'Ghost' nirgends definiert
-                           "    exit e;\n"      +
-                           "    i --> g;\n"     +
+                           "    exit e;\n"       +
+                           "    i --> g;\n"      +
                            "}\n";
 
         var unit = ParseModel(src, @"n:\av\a.nav");
@@ -171,9 +171,9 @@ public class NavCallHierarchyServiceTests {
 
         var calls = await NavCallHierarchyService.GetIncomingCallsAsync(b, solution, CancellationToken.None);
 
-        Assert.That(calls,             Has.Count.EqualTo(1));
-        Assert.That(calls[0].Caller.Name, Is.EqualTo("A"));
-        Assert.That(calls[0].CallSites,   Has.Count.EqualTo(1));
+        Assert.That(calls,                          Has.Count.EqualTo(1));
+        Assert.That(calls[0].Caller.Name,           Is.EqualTo("A"));
+        Assert.That(calls[0].CallSites,             Has.Count.EqualTo(1));
         Assert.That(calls[0].CallSites[0].FilePath, Is.EqualTo(tmp.Path("a.nav")));
     }
 
@@ -190,35 +190,35 @@ public class NavCallHierarchyServiceTests {
                             "    s:x  --> e;\n"      +
                             "}\n";
 
-        const string lib = "task Sub\n"    +
-                           "{\n"           +
-                           "    init i;\n" +
-                           "    exit x;\n" +
+        const string lib = "task Sub\n"     +
+                           "{\n"            +
+                           "    init i;\n"  +
+                           "    exit x;\n"  +
                            "    i --> x;\n" +
                            "}\n";
 
         using var tmp = new TempSolution();
         tmp.Write("main.nav", main);
-        tmp.Write("lib.nav", lib);
+        tmp.Write("lib.nav",  lib);
 
         var (solution, libUnit) = await tmp.LoadAsync("lib.nav");
         var sub = libUnit.TaskDefinitions.Single(t => t.Name == "Sub");
 
         var calls = await NavCallHierarchyService.GetIncomingCallsAsync(sub, solution, CancellationToken.None);
 
-        Assert.That(calls,                Has.Count.EqualTo(1));
-        Assert.That(calls[0].Caller.Name, Is.EqualTo("M"));
+        Assert.That(calls,                          Has.Count.EqualTo(1));
+        Assert.That(calls[0].Caller.Name,           Is.EqualTo("M"));
         Assert.That(calls[0].CallSites[0].FilePath, Is.EqualTo(tmp.Path("main.nav")));
     }
 
     [Test]
     public async Task Incoming_SelfRecursion_ListsTaskItself() {
 
-        const string src = "task R\n"         +
-                           "{\n"              +
-                           "    init i;\n"    +
-                           "    task R r;\n"  + // R ruft sich selbst auf
-                           "    exit e;\n"    +
+        const string src = "task R\n"          +
+                           "{\n"               +
+                           "    init i;\n"     +
+                           "    task R r;\n"   + // R ruft sich selbst auf
+                           "    exit e;\n"     +
                            "    i    --> r;\n" +
                            "    r:x  --> e;\n" +
                            "}\n";
@@ -283,7 +283,7 @@ public class NavCallHierarchyServiceTests {
 
         Assert.That(calls,                Has.Count.EqualTo(1), "genau ein Aufrufer (M)");
         Assert.That(calls[0].Caller.Name, Is.EqualTo("M"));
-        Assert.That(calls[0].CallSites,   Has.Count.EqualTo(1),
+        Assert.That(calls[0].CallSites, Has.Count.EqualTo(1),
                     "case-insensitive Datei-Dedup: main.nav darf trotz abweichender Pfad-Schreibweise nicht doppelt gezählt werden");
     }
 
@@ -299,6 +299,115 @@ public class NavCallHierarchyServiceTests {
         var calls = await NavCallHierarchyService.GetIncomingCallsAsync(a, solution, CancellationToken.None);
 
         Assert.That(calls, Is.Empty);
+    }
+
+    #endregion
+
+    #region Exit Usages (solution-weit, echte Dateien)
+
+    [Test]
+    public async Task ExitUsages_SameFile_FindsInstanceExitEdge() {
+
+        // A instanziiert B ('task B b') und benutzt B's Exit 'x' über die Kante 'b:x --> e'.
+        using var tmp = new TempSolution();
+        tmp.Write("a.nav", M.Source);
+
+        var (solution, unit) = await tmp.LoadAsync("a.nav");
+        var b = unit.TaskDefinitions.Single(t => t.Name == "B");
+
+        var usages = await NavCallHierarchyService.GetExitUsagesAsync(b, "x", solution, CancellationToken.None);
+
+        Assert.That(usages,                               Has.Count.EqualTo(1));
+        Assert.That(usages[0].Caller.Name,                Is.EqualTo("A"));
+        Assert.That(usages[0].Sites,                      Has.Count.EqualTo(1));
+        Assert.That(usages[0].Sites[0].ExitName,          Is.EqualTo("x"));
+        Assert.That(usages[0].Sites[0].InstanceName,      Is.EqualTo("b"));
+        Assert.That(usages[0].Sites[0].Location.FilePath, Is.EqualTo(tmp.Path("a.nav")));
+    }
+
+    [Test]
+    public async Task ExitUsages_CrossFile_FindsInstanceExitEdgeInOtherFile() {
+
+        const string main =
+            """
+            taskref "lib.nav";
+            task M
+            {
+                init i;
+                task Sub s;
+                exit e;
+                i    --> s;
+                s:x  --> e;
+            }
+            """;
+
+        const string lib =
+            """
+            task Sub
+            {
+                init i;
+                exit x;
+                i --> x;
+            }
+            """;
+
+        using var tmp = new TempSolution();
+        tmp.Write("main.nav", main);
+        tmp.Write("lib.nav",  lib);
+
+        var (solution, libUnit) = await tmp.LoadAsync("lib.nav");
+        var sub = libUnit.TaskDefinitions.Single(t => t.Name == "Sub");
+
+        var usages = await NavCallHierarchyService.GetExitUsagesAsync(sub, "x", solution, CancellationToken.None);
+
+        Assert.That(usages,                Has.Count.EqualTo(1));
+        Assert.That(usages[0].Caller.Name, Is.EqualTo("M"));
+        Assert.That(usages[0].Sites[0].Location.FilePath, Is.EqualTo(tmp.Path("main.nav")),
+                    "die Exit-Nutzung steht in der aufrufenden Datei, nicht in der Definitionsdatei des Exits");
+    }
+
+    [Test]
+    public async Task ExitUsages_NullExitName_ReturnsAllExits() {
+
+        using var tmp = new TempSolution();
+        tmp.Write("a.nav", M.Source);
+
+        var (solution, unit) = await tmp.LoadAsync("a.nav");
+        var b = unit.TaskDefinitions.Single(t => t.Name == "B");
+
+        var usages = await NavCallHierarchyService.GetExitUsagesAsync(b, exitName: null, solution, CancellationToken.None);
+
+        Assert.That(usages,                      Has.Count.EqualTo(1), "B hat nur Exit 'x' → dieselbe eine Nutzung wie mit explizitem Namen");
+        Assert.That(usages[0].Sites[0].ExitName, Is.EqualTo("x"));
+    }
+
+    [Test]
+    public async Task ExitUsages_UnknownExitName_ReturnsEmpty() {
+
+        using var tmp = new TempSolution();
+        tmp.Write("a.nav", M.Source);
+
+        var (solution, unit) = await tmp.LoadAsync("a.nav");
+        var b = unit.TaskDefinitions.Single(t => t.Name == "B");
+
+        var usages = await NavCallHierarchyService.GetExitUsagesAsync(b, "doesNotExist", solution, CancellationToken.None);
+
+        Assert.That(usages, Is.Empty);
+    }
+
+    [Test]
+    public async Task ExitUsages_ExitNeverUsed_ReturnsEmpty() {
+
+        // A's eigener Exit 'e' wird nirgends über eine Instanz benutzt (niemand instanziiert A).
+        using var tmp = new TempSolution();
+        tmp.Write("a.nav", M.Source);
+
+        var (solution, unit) = await tmp.LoadAsync("a.nav");
+        var a = unit.TaskDefinitions.Single(t => t.Name == "A");
+
+        var usages = await NavCallHierarchyService.GetExitUsagesAsync(a, "e", solution, CancellationToken.None);
+
+        Assert.That(usages, Is.Empty);
     }
 
     #endregion
@@ -341,6 +450,7 @@ public class NavCallHierarchyServiceTests {
                 // Best effort — Temp-Aufräumen darf den Testlauf nicht zum Scheitern bringen.
             }
         }
+
     }
 
     #endregion

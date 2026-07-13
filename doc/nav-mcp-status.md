@@ -38,6 +38,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
 | `nav_preview_codegen` | `ICodeGeneratorProvider` (Codegen-Pipeline) | Vorschau des generierten C# je Task-Definition (Basisklasse/Interfaces/Stub) — **ohne Plattenschreiben, ohne Build**. |
 | `nav_call_hierarchy` | `NavCallHierarchyService` | Aufrufbeziehungen einer Task auf Task-Ebene: ausgehend (Callees) + eingehend (Caller, solution-weit), cross-file via `taskref`. |
+| `nav_exit_usages` | `NavCallHierarchyService.GetExitUsagesAsync` | Solution-weit alle `Instanz:<exit> --> …`-Kanten eines Task-Exits (der Rename-Blast-Radius, den `nav_references` **nicht** liefert), nach Aufrufer gruppiert, gefiltert/gepaged. |
 
 ## 3. Design-Entscheidungen
 
@@ -158,6 +159,18 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   case-insensitiv; kommt auch `nav_references`/`nav_find_symbol` zugute). Abgesichert durch den
   Engine-Regressionstest `NavCallHierarchyServiceTests.Incoming_StartingUnitPathCasingDiffers_DoesNotDoubleCount`
   (vor dem Fix rot mit `CallSites=2`, danach grün) — verifiziert per Fix-Revert.
+- **`nav_exit_usages` = Rename-Blast-Radius eines Exits, die Lücke von `nav_references`.** `nav_references`
+  auf einen Exit findet nur dessen **dateilokale** eingehende Kanten: Der über den Namen aufgelöste Origin ist
+  der Exit-**Node** der Task-Definition (`VisitExitNodeSymbol` → nur `Incomings`), nicht der Exit-Connection-
+  **Point** der je aufrufender Datei geklonten Task-Deklaration; der Connection-Point liegt zudem gar nicht in
+  `unit.Symbols` (nur `Origin == TaskDeclaration` wird dort gesammelt, ein lokal definierter Task hat
+  `Origin == TaskDefinition`). Die cross-file `Instanz:<exit> --> …`-Kanten fehlen dadurch. `nav_exit_usages`
+  schließt das: Engine-Kern `NavCallHierarchyService.GetExitUsagesAsync` scannt solution-weit (identisches
+  Muster wie `GetIncomingCallsAsync` — TaskNode = Instanz, wenn Deklarations-`Location` übereinstimmt) und
+  sammelt je Instanz die `IExitTransition.ExitConnectionPointReference` (optional auf einen `exit`-Namen
+  eingegrenzt; ohne Name alle Exits der Task). Name-basiert wie `nav_call_hierarchy` (strikt Task-Ebene über
+  `unit.TaskDefinitions`), braucht die geladene Solution, nach Aufrufer gruppiert, `filter`/`limit`/`offset`
+  wie dort. Ergebnis je Kante: Exit-Name, Instanz-Name und 1-basierte Position (Datei = die des Aufrufers).
 - **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
   Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
   zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt

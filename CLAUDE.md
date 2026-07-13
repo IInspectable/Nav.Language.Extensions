@@ -63,7 +63,8 @@ Protokoll/UI hinzu, nie eigene Sprachlogik.
 - **`Nav.Language.Mcp`** (net10.0, Assembly **`nav.mcp`**) — MCP-Server (stdio), teilt die
   Workspace-Host-Schicht mit dem LSP. Tools in `Nav.Language.Mcp/Tools/`: `nav_validate`,
   `nav_diagnostics`, `nav_outline`, `nav_workspace`, `nav_find_symbol`, `nav_goto`, `nav_references`,
-  `nav_rename`, `nav_code_actions`, `nav_format`, `nav_grammar`. `nav_diagnostics` ist das workspace-weite Gegenstück zu
+  `nav_rename`, `nav_code_actions`, `nav_format`, `nav_grammar`, `nav_preview_codegen`, `nav_call_hierarchy`,
+  `nav_exit_usages`. `nav_diagnostics` ist das workspace-weite Gegenstück zu
   `nav_validate` (Pull-Äquivalent zum LSP-Diagnostics-Push): aggregiert Diagnostics über alle bzw. per
   `filter`/`severity` eingegrenzten `.nav`, gepaged. **Name-basiert** (ein Agent hat keinen Cursor — Symbole werden über ihren Namen
   adressiert, aufgelöst via `Nav.Language/Symbols/NavSymbolSearch`, dann in die positions-basierten

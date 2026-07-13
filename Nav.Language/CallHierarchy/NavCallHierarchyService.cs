@@ -1,5 +1,6 @@
 ﻿#region Using Directives
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -123,6 +124,88 @@ public static class NavCallHierarchyService {
         return result;
     }
 
+    /// <summary>
+    /// Solution-weit alle Stellen, an denen ein Exit-Connection-Point von <paramref name="task"/> über eine
+    /// Instanz benutzt wird — die <c>Instanz:&lt;exit&gt; --&gt; …</c>-Kanten (Exit-Transitionen) in den
+    /// aufrufenden Tasks. Das ist der Rename-Blast-Radius eines Exit-Knotens: Die solution-weite
+    /// <see cref="FindReferences.ReferenceFinder"/>-Suche findet diese Kanten NICHT, weil ein über den Namen
+    /// aufgelöster Exit auf den dateilokalen Exit-<i>Node</i> zeigt (dessen Referenzen nur die dateilokalen
+    /// eingehenden Kanten sind), nicht auf den Exit-Connection-<i>Point</i> der (je aufrufender Datei
+    /// geklonten) Task-Deklaration. Nach aufrufender Task gruppiert — mehrere Nutzungen in derselben Task
+    /// ergeben einen Eintrag mit mehreren Sites.
+    /// <para>
+    /// Scan-Muster und Identitätsvergleich sind identisch zu <see cref="GetIncomingCallsAsync"/>: Ein TaskNode
+    /// zählt als Instanz von <paramref name="task"/>, wenn seine Deklarations-<see cref="Location"/> mit der
+    /// der Task übereinstimmt (so referenzieren TaskNodes sie, auch cross-file via <c>taskref</c>).
+    /// </para>
+    /// </summary>
+    /// <param name="exitName">
+    /// Exakter (ordinaler) Exit-Name; <c>null</c>/leer liefert die Nutzungen ALLER Exit-Connection-Points der
+    /// Task. Der Name muss nicht auf einen tatsächlich deklarierten Exit passen — dann bleibt das Ergebnis leer.
+    /// </param>
+    public static async Task<IReadOnlyList<ExitConnectionPointUsage>> GetExitUsagesAsync(ITaskDefinitionSymbol task,
+                                                                                         string? exitName,
+                                                                                         NavSolution solution,
+                                                                                         CancellationToken cancellationToken) {
+
+        // Identität der gesuchten Task = ihre Deklarations-Location (wie bei den eingehenden Aufrufen). Ohne
+        // Deklaration kann es keine Instanzen und damit keine Exit-Nutzungen geben.
+        var targetDeclaration = task.AsTaskDeclaration?.Location;
+        if (targetDeclaration == null) {
+            return new List<ExitConnectionPointUsage>();
+        }
+
+        // ProcessCodeGenerationUnitsAsync scannt parallel (AsParallel) — Treffer thread-safe sammeln.
+        var hits = new List<(ITaskDefinitionSymbol caller, IExitConnectionPointReferenceSymbol reference)>();
+        var gate = new object();
+
+        await solution.ProcessCodeGenerationUnitsAsync(
+            codeGenerationUnit => {
+
+                foreach (var caller in codeGenerationUnit.TaskDefinitions) {
+                    foreach (var taskNode in caller.NodeDeclarations.OfType<ITaskNodeSymbol>()) {
+
+                        // Nur Instanzen GENAU dieser Task.
+                        if (taskNode.Declaration?.Location != targetDeclaration) {
+                            continue;
+                        }
+
+                        // Die Exit-Transitionen der Instanz (Instanz:exit --> …); der Exit-Bezeichner sitzt auf
+                        // der ExitConnectionPointReference. Optional auf einen einzelnen Exit-Namen eingegrenzt.
+                        foreach (var exitTransition in taskNode.Outgoings) {
+
+                            if (exitTransition.ExitConnectionPointReference is { } reference &&
+                                (string.IsNullOrEmpty(exitName) ||
+                                 string.Equals(reference.Name, exitName, StringComparison.Ordinal))) {
+
+                                lock (gate) {
+                                    hits.Add((caller, reference));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return Task.CompletedTask;
+            },
+            startingUnit: task.CodeGenerationUnit,
+            cancellationToken);
+
+        // Nach aufrufender Task gruppieren (Definitions-Location als stabiler Schlüssel).
+        var result = new List<ExitConnectionPointUsage>();
+        foreach (var group in hits.GroupBy(h => h.caller.Location)) {
+            var caller = group.First().caller;
+            var sites = group.Select(h => new ExitUsageSite(
+                                         exitName: h.reference.Name,
+                                         location: h.reference.Location,
+                                         instanceName: h.reference.ExitTransition.TaskNodeSourceReference?.Name ?? string.Empty))
+                             .ToList();
+            result.Add(new ExitConnectionPointUsage(caller, sites));
+        }
+
+        return result;
+    }
+
 }
 
 /// <summary>Ein ausgehender Aufruf: die aufgerufene Task-Deklaration und die Aufrufstellen (TaskNodes).</summary>
@@ -154,5 +237,41 @@ public sealed class IncomingCall {
 
     /// <summary>Die Aufrufstellen (TaskNode-Bezeichner) innerhalb der aufrufenden Task.</summary>
     public IReadOnlyList<Location> CallSites { get; }
+
+}
+
+/// <summary>Alle Exit-Nutzungen einer Task durch EINE aufrufende Task (siehe <see cref="NavCallHierarchyService.GetExitUsagesAsync"/>).</summary>
+public sealed class ExitConnectionPointUsage {
+
+    public ExitConnectionPointUsage(ITaskDefinitionSymbol caller, IReadOnlyList<ExitUsageSite> sites) {
+        Caller = caller;
+        Sites  = sites;
+    }
+
+    /// <summary>Die aufrufende Task-Definition, in der die Exit-Nutzungen stehen.</summary>
+    public ITaskDefinitionSymbol Caller { get; }
+
+    /// <summary>Die einzelnen <c>Instanz:Exit --&gt; …</c>-Kanten in dieser Task.</summary>
+    public IReadOnlyList<ExitUsageSite> Sites { get; }
+
+}
+
+/// <summary>Eine einzelne <c>Instanz:Exit --&gt; …</c>-Kante: der benutzte Exit, seine Position und die Instanz.</summary>
+public sealed class ExitUsageSite {
+
+    public ExitUsageSite(string exitName, Location location, string instanceName) {
+        ExitName     = exitName;
+        Location     = location;
+        InstanceName = instanceName;
+    }
+
+    /// <summary>Der benutzte Exit-Name (z.B. <c>AccessDenied</c>).</summary>
+    public string ExitName { get; }
+
+    /// <summary>Position des Exit-Bezeichners in der aufrufenden Kante.</summary>
+    public Location Location { get; }
+
+    /// <summary>Die Instanz links des <c>:</c> (der <c>task</c>-Knoten-Name); leer, wenn nicht aufgelöst.</summary>
+    public string InstanceName { get; }
 
 }
