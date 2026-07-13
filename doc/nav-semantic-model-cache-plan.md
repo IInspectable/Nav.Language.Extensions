@@ -1,8 +1,9 @@
 ﻿# Nav Semantik-Modell-Cache — Plan
 
-> **Status:** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` + Provider-Tests),
-> Step 2 (Einhängen in `NavWorkspaceCore`) und Step 3 (Tests inkl. Scan-Ebene) umgesetzt; offen: Step 4 (Messen). Am Code
-> verifiziert; Messzahlen aus dem echten Korpus
+> **Status: abgeschlossen.** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` +
+> Provider-Tests), Step 2 (Einhängen in `NavWorkspaceCore`), Step 3 (Tests inkl. Scan-Ebene) und
+> Step 4 (Nachmessung gegen die fertige Implementierung, §6) umgesetzt. Am Code verifiziert;
+> Messzahlen aus dem echten Korpus
 > (`d:\tfs\main`, 1913 Dateien / 7,5 MB, **Debug**-Engine = ausgelieferter Stand). Setup-Details:
 > Memory `nav-perf-profiling-setup`. Verwandt: `doc/nav-perf-optimization-status.md`, `doc/nav-mcp-status.md`.
 
@@ -131,6 +132,8 @@ Hinweis, Poll als Korrektheits-Backstop.
 
 ## 6. Messzahlen (Debug-Engine, 1913 Dateien / 7,5 MB, in place)
 
+Design-Phase (Prototyp-Cache, vor Umsetzung):
+
 | Phase | Zeit | Bedeutung |
 |---|---:|---|
 | A) Kaltscan (Syntax + Semantik bauen) | 3.749 ms | Erster Scan pro Serverprozess (Platte + JIT kalt). Einmalig. |
@@ -138,8 +141,22 @@ Hinweis, Poll als Korrektheits-Backstop.
 | C) Warmscan MIT Tier-2-Cache (Treffer) | 5–16 ms | 3826 Hits / 1913 Misses. |
 | D) Stempel-Kosten (Step 0) | 8 ms | 1913 `stat` je Scan. |
 
-**Ersparnis pro Wiederhol-Scan: ~440 ms → ~13–24 ms (C+D), grob 20–30×.** Der „Idealfall 0 s" ist nahezu
-erreicht; der Boden ist ~13–24 ms (Validierung + Scan-Schleife + Stempel).
+**Step-4-Nachmessung (fertige Implementierung, 2026-07-13, zwei Läufe):** gemessen wurde die **echte**
+Verdrahtung — `NavWorkspaceCore` (LoadAsync → `ProcessCodeGenerationUnitsAsync`), also
+`OverlaySyntaxProvider` inkl. Stempel-Frische + Engine-`CachedSemanticModelProvider`; die Baseline ohne
+Tier 2 lief im selben Prozess auf demselben Stand.
+
+| Phase | Zeit | Bedeutung |
+|---|---:|---|
+| A) Kaltscan (ungecachter Provider) | 2.093–2.255 ms | Schneller als in der Design-Phase (Engine-Stand weiterentwickelt, OS-Cache wärmer). |
+| B) Warmscan ohne Tier 2 | 728–1.086 ms | Baseline: Semantik-Neubau je Scan auf heutigem Stand. |
+| C) Warmscan `NavWorkspaceCore` (Treffer) | 28–47 ms | **1913/1913 Units referenzgleich** über die Scans (100 % Treffer). Stempel-Prüfungen bereits enthalten. |
+| D) Stempel isoliert | 7–8 ms | Zur Einordnung; in C) inbegriffen. |
+
+**Ersparnis pro Wiederhol-Scan, verifiziert am Endstand: ~730–1.090 ms → ~30–45 ms, also ~20–30×.**
+Der Boden liegt etwas über der Design-Prognose (~13–24 ms), weil die Treffer-Validierung pro Datei
+zusätzlich je direktem Include ein `GetSyntax` (mit Stempel-`stat`) macht — der Preis der
+Selbstvalidierung, im Gesamtbild vernachlässigbar.
 
 Ehrliche Abgrenzung:
 - Der Cache eliminiert den **Wiederhol**-Aufwand, **nicht** den **Kaltstart** (~3,7 s, einmal pro Prozess) —
@@ -196,6 +213,12 @@ Ehrliche Abgrenzung:
   (`Is.SameAs`), Out-of-Band-Invalidierung Primärdatei/Include (nur Betroffene neu, Nachbarn Treffer),
   Nicht-Transitivität sowie Overlay-Edit/-Close (Overlay autoritativ, Close stellt Disk-Stand wieder her).
 - **Step 4 — Messen** mit dem Scratchpad-Harness (Kalt- vs. Warmscan) gegen die Zahlen aus §6.
+  **UMGESETZT** — Nachmessung gegen die fertige Implementierung statt des Design-Prototyps: das
+  Harness treibt den echten Host-Pfad (`NavWorkspaceCore.LoadAsync` →
+  `ProcessCodeGenerationUnitsAsync`) und zählt Treffer über Referenzgleichheit der Units zwischen
+  zwei Scans (die Engine-Klasse exponiert bewusst keine Zähler). Ergebnis in §6: ~20–30× pro
+  Wiederhol-Scan bei 100 % Treffern, damit ist die Design-Prognose bestätigt und der Plan
+  abgeschlossen.
 
 Nach jedem Step: Review + Build/Test-Check + fertige Commit-Message (echte Umlaute) — Commit macht der
 Nutzer.
