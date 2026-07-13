@@ -32,7 +32,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_find_symbol` | `NavSymbolSearch.FindDefinitionsByPrefix` | Solution-weite Präfix-Suche nach Task-/Knoten-**Definitionen** (ohne Datei vorab). |
 | `nav_goto` | `NavGoToService` | Definition(en) eines Namens (Nav→Nav, cross-file). |
 | `nav_references` | `ReferenceFinder` | Alle solution-weiten Vorkommen (inkl. Deklaration). |
-| `nav_rename` | `NavRenameService` | Umbenennungs-**Edit-Set** + kompletter Ergebnistext (read-only, file-local). |
+| `nav_rename` | `NavRenameService` (+ `ReferenceFinder`/`GetExitUsagesAsync` für die Warnung) | Umbenennungs-**Edit-Set** + kompletter Ergebnistext (read-only, file-local) + **Cross-File-Warnung**, wenn das Symbol über Dateigrenzen sichtbar bricht. |
 | `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set** + Ergebnistext je Aktion; Symbol- **oder** Whole-File-Modus. |
 | `nav_format` | `NavFormattingService` | Document-/Range-Formatierung: **Edit-Set** + komplett formatierter Text (read-only). |
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
@@ -97,6 +97,16 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   überschreiben kann, statt viele Edits punktgenau selbst zu spleißen (fehleranfällig). Per
   `includeResultText=false` (bzw. `includeFormattedText=false`) abbestellbar (Token-Limit bei großen
   Dateien — dann nur Edits).
+- **`nav_rename`: dateilokal, aber mit Cross-File-Warnung.** Das Edit-Set bleibt dateilokal (wie der
+  VS-Rename); ist das umbenannte Symbol jedoch über Dateigrenzen sichtbar — ein **Task-Name** (die
+  `task Sub s;`-Knoten in anderen Dateien) oder ein von einer Instanz benutzter **Exit** (die
+  `Instanz:<exit> --> …`-Kanten) —, brächen die anderen Dateien still (NAV0010). `nav_rename` weist sie
+  daher in `warning`/`crossFileFiles`/`crossFileReferenceCount` aus. Ermittelt werden sie über zwei Quellen:
+  (1) die solution-weite `ReferenceFinder`-Suche (der `nav_references`-Pfad) für Task-Namen, und (2)
+  `NavCallHierarchyService.GetExitUsagesAsync` für den Exit-Fall — den die Referenzsuche **nicht** findet
+  (der über den Namen aufgelöste Origin ist der dateilokale Exit-Node, nicht der Connection-Point; siehe
+  `nav_exit_usages`). Der Agent zieht die genannten Dateien separat nach (`nav_references`/`nav_exit_usages`
+  → `nav_rename` je Datei).
 - **`nav_code_actions`: Symbol- oder Whole-File-Modus.** Mit `name` zielt das Tool wie bisher auf ein
   Task/Knoten-Symbol (Range = dessen Extent); **ohne** `name` läuft es über den **gesamten Datei-Extent**
   und liefert alle irgendwo in der Datei anwendbaren Aktionen (der Symbol-/Token-Indexer der CodeFix-

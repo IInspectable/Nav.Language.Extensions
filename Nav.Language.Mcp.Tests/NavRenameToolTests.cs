@@ -2,6 +2,7 @@
 
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -16,7 +17,8 @@ namespace Nav.Language.Mcp.Tests;
 /// <summary>
 /// Tests des MCP-Tools <c>nav_rename</c> (public statische Tool-Methode, direkt aufgerufen). Verifiziert das
 /// dateilokale Edit-Set (angewandt ergibt es den erwarteten Text), das <b>Read-only-Versprechen</b> (die Datei
-/// auf Platte bleibt byte-identisch), sowie die Fehlerpfade (nicht gefunden / mehrdeutig mit Kandidatenliste).
+/// auf Platte bleibt byte-identisch), die Cross-File-Warnung (Task-Name/Exit sind über Dateigrenzen sichtbar)
+/// sowie die Fehlerpfade (nicht gefunden / mehrdeutig mit Kandidatenliste).
 /// </summary>
 [TestFixture]
 public class NavRenameToolTests {
@@ -49,13 +51,38 @@ public class NavRenameToolTests {
         }
         """;
 
+    // Bibliotheksdatei mit der Task 'Sub' und deren Exit 'x'.
+    const string Lib =
+        """
+        task Sub
+        {
+            init I;
+            exit x;
+            I --> x;
+        }
+        """;
+
+    // Instanziiert 'Sub' (cross-file) und benutzt dessen Exit 'x' über die Kante 's:x --> e'.
+    const string Main =
+        """
+        taskref "lib.nav";
+        task M
+        {
+            init I;
+            task Sub s;
+            exit e;
+            I   --> s;
+            s:x --> e;
+        }
+        """;
+
     [Test]
-    public void Rename_Node_ProducesFileLocalEditsThatYieldExpectedText() {
+    public async Task Rename_Node_ProducesFileLocalEditsThatYieldExpectedText() {
 
         using var ws   = new McpTestWorkspace();
         var       path = ws.WriteFile("a.nav", SingleTask);
 
-        var result = NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
 
         Assert.IsNull(result.Error);
         CollectionAssert.IsNotEmpty(result.Edits, "Ein umbenennbarer Knoten liefert Edits.");
@@ -68,12 +95,12 @@ public class NavRenameToolTests {
     }
 
     [Test]
-    public void Rename_ResultText_IsTheWholeFileWithEditsApplied() {
+    public async Task Rename_ResultText_IsTheWholeFileWithEditsApplied() {
 
         using var ws   = new McpTestWorkspace();
         var       path = ws.WriteFile("a.nav", SingleTask);
 
-        var result = NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
 
         Assert.IsNull(result.Error);
         Assert.IsNotNull(result.ResultText, "Standardmäßig liefert nav_rename den kompletten Ergebnistext mit.");
@@ -86,12 +113,12 @@ public class NavRenameToolTests {
     }
 
     [Test]
-    public void Rename_IncludeResultTextFalse_OmitsResultTextButKeepsEdits() {
+    public async Task Rename_IncludeResultTextFalse_OmitsResultTextButKeepsEdits() {
 
         using var ws   = new McpTestWorkspace();
         var       path = ws.WriteFile("a.nav", SingleTask);
 
-        var result = NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2", includeResultText: false);
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2", includeResultText: false);
 
         Assert.IsNull(result.Error);
         Assert.IsNull(result.ResultText, "Mit includeResultText=false bleibt der Voll-Text weg.");
@@ -99,37 +126,88 @@ public class NavRenameToolTests {
     }
 
     [Test]
-    public void Rename_DoesNotTouchTheFileOnDisk() {
+    public async Task Rename_DoesNotTouchTheFileOnDisk() {
 
         using var ws     = new McpTestWorkspace();
         var       path   = ws.WriteFile("a.nav", SingleTask);
         var       before = File.ReadAllText(path);
 
-        NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
+        await NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
 
         // Read-only-Versprechen: nav_rename liefert nur das Edit-Set und schreibt selbst nichts.
         Assert.AreEqual(before, File.ReadAllText(path), "nav_rename darf die Datei auf Platte nicht verändern.");
     }
 
     [Test]
-    public void Rename_UnknownName_ReportsNotFound() {
+    public async Task Rename_LocalOnlySymbol_HasNoCrossFileWarning() {
 
         using var ws   = new McpTestWorkspace();
         var       path = ws.WriteFile("a.nav", SingleTask);
 
-        var result = NavRenameTool.Rename(ws.Workspace, path, name: "DoesNotExist", newName: "Whatever");
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "e1", newName: "e2");
+
+        Assert.IsNull(result.Error);
+        Assert.IsNull(result.Warning, "Ein rein dateilokaler Knoten löst keine Cross-File-Warnung aus.");
+        Assert.AreEqual(0, result.CrossFileReferenceCount);
+        CollectionAssert.IsEmpty(result.CrossFileFiles);
+    }
+
+    [Test]
+    public async Task Rename_TaskName_WarnsAboutCrossFileCallers() {
+
+        using var ws      = new McpTestWorkspace();
+        var       libPath = ws.WriteFile("lib.nav", Lib);
+        ws.WriteFile("main.nav", Main);
+
+        var result = await NavRenameTool.Rename(ws.Workspace, libPath, name: "Sub", newName: "SubX");
+
+        Assert.IsNull(result.Error);
+        CollectionAssert.IsNotEmpty(result.Edits, "Der Rename in der Definitionsdatei bleibt dateilokal vorhanden.");
+
+        Assert.IsNotNull(result.Warning, "Der task-Knoten 'Sub s' in main.nav bricht sonst still.");
+        Assert.GreaterOrEqual(result.CrossFileReferenceCount, 1);
+        Assert.AreEqual(1, result.CrossFileFiles.Count);
+        StringAssert.EndsWith("main.nav", result.CrossFileFiles[0].ToLowerInvariant());
+    }
+
+    [Test]
+    public async Task Rename_ExitUsedFromInstance_WarnsAboutCrossFileEdges() {
+
+        using var ws      = new McpTestWorkspace();
+        var       libPath = ws.WriteFile("lib.nav", Lib);
+        ws.WriteFile("main.nav", Main);
+
+        // Exit 'x' der Task 'Sub' umbenennen — die Kante 's:x --> e' in main.nav bricht sonst still.
+        var result = await NavRenameTool.Rename(ws.Workspace, libPath, name: "x", newName: "y", task: "Sub");
+
+        Assert.IsNull(result.Error);
+        CollectionAssert.IsNotEmpty(result.Edits);
+
+        Assert.IsNotNull(result.Warning);
+        Assert.GreaterOrEqual(result.CrossFileReferenceCount, 1);
+        Assert.AreEqual(1, result.CrossFileFiles.Count);
+        StringAssert.EndsWith("main.nav", result.CrossFileFiles[0].ToLowerInvariant());
+    }
+
+    [Test]
+    public async Task Rename_UnknownName_ReportsNotFound() {
+
+        using var ws   = new McpTestWorkspace();
+        var       path = ws.WriteFile("a.nav", SingleTask);
+
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "DoesNotExist", newName: "Whatever");
 
         Assert.AreEqual(NavNameResolution.NotFoundMessage("DoesNotExist", path), result.Error);
         CollectionAssert.IsEmpty(result.Edits);
     }
 
     [Test]
-    public void Rename_AmbiguousName_ReturnsCandidatesWithKindAndTask() {
+    public async Task Rename_AmbiguousName_ReturnsCandidatesWithKindAndTask() {
 
         using var ws   = new McpTestWorkspace();
         var       path = ws.WriteFile("a.nav", TwoTasksSharedNode);
 
-        var result = NavRenameTool.Rename(ws.Workspace, path, name: "Start", newName: "Begin");
+        var result = await NavRenameTool.Rename(ws.Workspace, path, name: "Start", newName: "Begin");
 
         Assert.AreEqual(NavNameResolution.AmbiguousMessage("Start"), result.Error);
         Assert.AreEqual(2,                                           result.Candidates.Count, "'Start' ist in Task A und B je einmal deklariert.");

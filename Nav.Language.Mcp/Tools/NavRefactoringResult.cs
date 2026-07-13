@@ -9,7 +9,10 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// <summary>
 /// Ergebnis von <c>nav_rename</c>. Liefert NUR das Edit-Set (1-basiert) — es wird NICHTS auf Platte
 /// geschrieben; der Agent wendet die Edits selbst an. Alle Edits sind dateilokal (beziehen sich auf
-/// <see cref="Path"/>), wie der VS-Rename. Bei ungültigem Namen / Mehrdeutigkeit ist <see cref="Error"/> gesetzt.
+/// <see cref="Path"/>), wie der VS-Rename. Ist das Symbol über Dateigrenzen sichtbar (Task-Name oder ein von
+/// einer Instanz benutzter Exit), nennen <see cref="Warning"/>/<see cref="CrossFileFiles"/>/
+/// <see cref="CrossFileReferenceCount"/> die anderen Dateien, die sonst still brechen. Bei ungültigem Namen /
+/// Mehrdeutigkeit ist <see cref="Error"/> gesetzt.
 /// </summary>
 public sealed class NavRenameResult {
 
@@ -36,6 +39,25 @@ public sealed class NavRenameResult {
     /// oder der Aufrufer ihn abbestellt hat (<c>includeResultText=false</c>).
     /// </summary>
     public string? ResultText { get; set; }
+
+    /// <summary>
+    /// Anzahl der Referenzen in ANDEREN Dateien, die dieser dateilokale Rename NICHT anfasst und die dadurch
+    /// brechen (NAV0010). 0, wenn das Symbol nur dateilokal sichtbar ist.
+    /// </summary>
+    public int CrossFileReferenceCount { get; set; }
+
+    /// <summary>
+    /// Die betroffenen anderen Dateien (absolute Pfade), in denen Referenzen manuell nachzuziehen sind. Leer,
+    /// wenn der Rename keine Datei jenseits von <see cref="Path"/> berührt.
+    /// </summary>
+    public List<string> CrossFileFiles { get; set; } = new();
+
+    /// <summary>
+    /// Menschlich lesbare Warnung, wenn der Rename über Dateigrenzen sichtbar bricht — sonst <c>null</c>. Der
+    /// Rename bleibt dateilokal (wie der VS-Rename); die genannten Dateien müssen separat nachgezogen werden
+    /// (z.B. per <c>nav_references</c>/<c>nav_exit_usages</c> + erneutem <c>nav_rename</c> je Datei).
+    /// </summary>
+    public string? Warning { get; set; }
 
 }
 
