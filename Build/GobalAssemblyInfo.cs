@@ -23,7 +23,50 @@ using System.Runtime.InteropServices;
 // und wird hier als Polyfill für record/init bereitgestellt. Auf net10 (z.B. nav.exe nach Retarget)
 // würde die eigene Definition mit dem eingebauten Typ kollidieren (CS0436) — daher ausklammern.
 #if !NET5_0_OR_GREATER
-namespace System.Runtime.CompilerServices;
+namespace System.Runtime.CompilerServices {
 
-internal static class IsExternalInit {}
+    internal static class IsExternalInit {
+
+    }
+
+}
+#endif
+
+// `required`-Member (C# 11) brauchen RequiredMemberAttribute + CompilerFeatureRequiredAttribute
+// (und SetsRequiredMembersAttribute für Konstruktoren, die alle required-Member setzen). In der
+// Runtime erst ab .NET 7 enthalten — auf netstandard2.0/net472 hier als Polyfill, auf neueren
+// TFMs ausklammern (CS0436).
+#if !NET7_0_OR_GREATER
+namespace System.Runtime.CompilerServices {
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+    internal sealed class RequiredMemberAttribute: Attribute {
+
+    }
+
+    [AttributeUsage(AttributeTargets.All, AllowMultiple = true, Inherited = false)]
+    internal sealed class CompilerFeatureRequiredAttribute: Attribute {
+
+        public CompilerFeatureRequiredAttribute(string featureName) {
+            FeatureName = featureName;
+        }
+
+        public string FeatureName { get; }
+        public bool   IsOptional  { get; init; }
+
+        public const string RefStructs      = nameof(RefStructs);
+        public const string RequiredMembers = nameof(RequiredMembers);
+
+    }
+
+}
+
+namespace System.Diagnostics.CodeAnalysis {
+
+    [AttributeUsage(AttributeTargets.Constructor, AllowMultiple = false, Inherited = false)]
+    internal sealed class SetsRequiredMembersAttribute: Attribute {
+
+    }
+
+}
 #endif

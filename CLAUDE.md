@@ -183,6 +183,12 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
 - `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — u.a. für Raw-String-Literale in den
   CodeBuilder-Codegen-Emittern (reines Compiler-Feature, trägt auf net472/netstandard2.0). NuGet via
   Central Package Management (`Directory.Packages.props`, transitives Pinning aktiv).
+- **Records nie mit Primär-Konstruktor:** Records (class wie struct) deklarieren ihre Daten als
+  `public required T Name { get; init; }`-Properties und werden per Objekt-Initialisierer konstruiert —
+  **keine** Positional-Records (`record Foo(int X, …)`). Auf netstandard2.0/net472 liefert
+  `Build\GobalAssemblyInfo.cs` die nötigen `required`-Polyfills (`RequiredMemberAttribute`,
+  `CompilerFeatureRequiredAttribute`, `SetsRequiredMembersAttribute`); ab .NET 7 sind sie in der
+  Runtime eingebaut.
 - **String-Properties bestmöglich non-null:** Wo „abwesend" und „leer" dasselbe bedeuten, liefert eine
   String-Property `string` (nie `null`) und normalisiert im Zweifel auf `String.Empty`. `null` bleibt nur,
   wenn es einen **eigenen, ausgewerteten Zustand** kodiert — dann sitzt der `""`-Fallback am
