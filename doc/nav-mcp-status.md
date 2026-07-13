@@ -79,6 +79,15 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   `GetFreshUnit`, dieselbe Semantik wie `nav_validate`) — korrekt auch nach Agent-Edits; ein voller
   Sweep ohne `filter` ist bewusst teuer, `filter` ist die Mitigation. Optionaler `severity`-Filter
   (`error`/`warning`/`suggestion`); kein `task`-Feld pro Diagnose (spätere Erweiterung).
+- **`.navignore` gilt auch im MCP — aber nur für den Sweep.** `NavMcpWorkspace` lädt beim Solution-Load
+  die hierarchischen `.navignore`-Regeln (`NavIgnore.Load`, dieselbe Autorität wie der LSP) und
+  `nav_diagnostics` überspringt ignorierte Dateien (`workspace.IsIgnored(...)`). Damit tauchen bewusst
+  kaputte Test-Fixtures nicht bei jedem „gib mir alle `.nav` mit Fehlern" wieder auf — das Pull-Äquivalent
+  zur LSP-Stummschaltung. **Bewusste Asymmetrie:** die ignorierte Datei bleibt in der Solution
+  (Include-Ziel, `nav_goto`/`nav_references`/`nav_rename` navigierbar), und eine **explizite**
+  `nav_validate`-Abfrage der Einzeldatei wird **nicht** gestummt — nur der aggregierende Sweep filtert.
+  (`.gitignore` wird bewusst nie konsultiert; das eigene `.navignore` trennt „nicht versionieren" von
+  „nicht analysieren".)
 - **Mutierende Tools sind read-only.** `nav_rename`, `nav_code_actions` und `nav_format` schreiben
   **NICHTS** auf Platte; sie liefern das **Edit-Set** (1-basierte `{line, column, endLine, endColumn,
   newText}`) zurück, das der Agent selbst anwendet. Alle drei liefern zusätzlich den **kompletten

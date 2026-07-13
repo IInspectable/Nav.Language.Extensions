@@ -259,4 +259,64 @@ public class NavDiagnosticsToolTests {
         CollectionAssert.AreEqual(validateCodes, diagnosticsCodes);
     }
 
+    [Test]
+    public async Task Diagnostics_NavIgnore_SkipsIgnoredFilesFromSweep() {
+
+        using var ws = CreateWorkspace();
+
+        // Eine .navignore in der Wurzel nimmt den 'alpha'-Ordner (mit der absichtlich kaputten Datei) aus.
+        // Genau der Anwendungsfall: „gib mir alle .nav mit Fehlern" soll die bewusst kaputten Fixtures nicht
+        // immer wieder zeigen. Die Warnung in 'beta' bleibt, 'clean' wird sauber gescannt.
+        ws.WriteFile(".navignore", "alpha/\n");
+
+        var result = await NavDiagnosticsTool.Diagnostics(ws.Workspace);
+
+        // Nur noch beta/unused.nav und clean.nav werden gescannt — alpha/broken.nav fällt raus.
+        Assert.AreEqual(2, result.FilesScanned, "Die ignorierte Datei zählt nicht als gescannt.");
+        Assert.AreEqual(1, result.FilesWithDiagnostics);
+
+        // Der Error aus alpha ist verschwunden; nur die Warnung bleibt.
+        Assert.AreEqual(0, result.Summary.Error);
+        Assert.AreEqual(1, result.Summary.Warning);
+        Assert.AreEqual(1, result.Count);
+        Assert.IsTrue(result.Diagnostics.All(d => d.Severity == "Warning"));
+    }
+
+    [Test]
+    public async Task Diagnostics_NavIgnore_NegationReincludesFile() {
+
+        using var ws = CreateWorkspace();
+
+        // Erst den gesamten alpha-Ordner ignorieren, dann die eine Datei per Negation wieder einschließen —
+        // gitignore-Semantik (last-match-wins). Der Error muss dann wieder auftauchen.
+        ws.WriteFile(".navignore",
+            """
+            alpha/
+            !alpha/broken.nav
+
+            """);
+
+        var result = await NavDiagnosticsTool.Diagnostics(ws.Workspace);
+
+        Assert.AreEqual(3, result.FilesScanned, "Die per Negation wieder eingeschlossene Datei wird gescannt.");
+        Assert.AreEqual(1, result.Summary.Error);
+        Assert.AreEqual(1, result.Summary.Warning);
+    }
+
+    [Test]
+    public void Diagnostics_NavIgnore_DoesNotMuteExplicitNavValidate() {
+
+        using var ws = CreateWorkspace();
+
+        var brokenPath = ws.WriteFile("alpha/broken.nav", BrokenTask);
+        ws.WriteFile(".navignore", "alpha/\n");
+
+        // Bewusste Asymmetrie: .navignore stummt nur den workspace-weiten Sweep. Fragt der Agent EXPLIZIT
+        // eine ignorierte Einzeldatei per nav_validate ab, will er das Ergebnis sehen — die Datei bleibt in
+        // der Solution auflösbar/navigierbar.
+        var validate = NavValidateTool.Validate(ws.Workspace, brokenPath);
+
+        Assert.AreEqual(1, validate.ErrorCount, "nav_validate ignoriert .navignore bewusst nicht.");
+    }
+
 }
