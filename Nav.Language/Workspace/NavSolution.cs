@@ -126,11 +126,35 @@ public class NavSolution {
 
         // 3. Zu guter Letzt durchsuchen wir alle übrigen Files der "Solution", was mittlerweile ~1400 Dateien sind, und
         //    entsprechend lange dauert.
-        foreach (var file in SolutionFiles.AsParallel().WithCancellation(cancellationToken)) {
+
+        // Dedup VOR der Parallel-Stufe: seenFiles ist nicht thread-sicher und wird ab hier nicht mehr verändert.
+        var remainingFiles = new List<string>();
+        foreach (var file in SolutionFiles) {
+            if (seenFiles.Add(file.FullName)) {
+                remainingFiles.Add(file.FullName);
+            }
+        }
+
+        // Der Semantikmodell-Aufbau ist der teure, CPU-gebundene Teil des Scans und läuft parallel — der
+        // Bau-Pfad ist nebenläufigkeitssicher (Provider-Caches sind ConcurrentDictionary bzw.
+        // ConditionalWeakTable, die gebauten Units unveränderlich). asyncAction dagegen läuft weiterhin
+        // sequenziell und in Datei-Reihenfolge (AsOrdered) auf dem Aufrufer-Fluss — Aufrufer brauchen
+        // nach wie vor keine thread-sicheren Callbacks.
+        var codeGenerationUnits = remainingFiles
+                                  .AsParallel()
+                                  .AsOrdered()
+                                  .WithCancellation(cancellationToken)
+                                  .Select(fileName => SemanticModelProvider.GetSemanticModel(fileName, cancellationToken));
+
+        foreach (var codeGen in codeGenerationUnits) {
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await ProcessFile(file.FullName);
+            if (codeGen == null) {
+                continue;
+            }
+
+            await asyncAction(codeGen);
         }
 
         async Task ProcessFile(string fileName) {

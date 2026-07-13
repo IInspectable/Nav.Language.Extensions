@@ -2,7 +2,8 @@
 
 > **Status: abgeschlossen.** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` +
 > Provider-Tests), Step 2 (Einhängen in `NavWorkspaceCore`), Step 3 (Tests inkl. Scan-Ebene) und
-> Step 4 (Nachmessung gegen die fertige Implementierung, §6) umgesetzt. Am Code verifiziert;
+> Step 4 (Nachmessung gegen die fertige Implementierung, §6) umgesetzt; ebenso der Folge-Step
+> Scan-Parallelisierung (§8, Kaltscan ~2×). Am Code verifiziert;
 > Messzahlen aus dem echten Korpus
 > (`d:\tfs\main`, 1913 Dateien / 7,5 MB, **Debug**-Engine = ausgelieferter Stand). Setup-Details:
 > Memory `nav-perf-profiling-setup`. Verwandt: `doc/nav-perf-optimization-status.md`, `doc/nav-mcp-status.md`.
@@ -223,11 +224,41 @@ Ehrliche Abgrenzung:
 Nach jedem Step: Review + Build/Test-Check + fertige Commit-Message (echte Umlaute) — Commit macht der
 Nutzer.
 
-## 8. Bewusst getrennter Folge-Step
+## 8. Folge-Step: Scan-Parallelisierung — UMGESETZT
 
-**Scan-Parallelisierung** (`NavSolution.cs`, das faktisch sequenzielle `SolutionFiles.AsParallel()`-
-`foreach`): ein `foreach` über eine `ParallelQuery` merged auf den aufrufenden Thread zurück → der teure
-Rumpf läuft **nicht** parallel. Umstellen auf `Parallel.ForEachAsync` (bzw. Modelle per
-`.AsParallel().Select(...)` bauen, dann einsammeln) skaliert den unvermeidbaren Kaltstart-Scan mit den
-Kernen. Orthogonal zum Cache; eigener Durchgang nach stabilem/getestetem Cache. Erfordert Thread-Safety-
-Review des Scan-Rumpfs (die Cache-Strukturen sind bereits `ConcurrentDictionary`).
+**Ausgangsbefund** (`NavSolution.cs`): das frühere `foreach` über `SolutionFiles.AsParallel()` merged
+nur die (identischen) Elemente auf den aufrufenden Thread zurück — der teure Rumpf lief faktisch
+**sequenziell**.
+
+**Umsetzung** (bewusst minimal, nur Schritt 3 von `ProcessCodeGenerationUnitsAsync`): die
+Semantikmodelle werden per PLINQ-`Select` **parallel gebaut**, `asyncAction` läuft aber weiterhin
+**sequenziell und in Datei-Reihenfolge** (`AsOrdered`) auf dem Aufrufer-Fluss — der Vertrag „Callback
+läuft nicht nebenläufig" bleibt für alle Aufrufer erhalten, kein Host musste angefasst werden. Das
+Datei-Dedup (`seenFiles`, nicht thread-sicher) passiert vollständig **vor** der Parallel-Stufe.
+
+**Thread-Safety-Review des Bau-Pfads** (Voraussetzung, am Code verifiziert): Provider-Caches sind
+`ConcurrentDictionary` (Overlay-/Cached-Syntax-Provider, Tier 2) bzw. `ConditionalWeakTable`
+(Include-Extraktion; Prototypen unveränderlich, Konsumenten erhalten Klone); die Lazy-Initialisierungen
+der Lese-Pfade sind benigne Races (`SyntaxNode._childTokens` idempotent mit atomarer
+Referenz-Publikation, `SourceText._lastLineNumber` dokumentierter Hint, `Location._normalizedFilePath`
+idempotentes `??=`); die Symbol-Builder sind rein instanzlokal, keine mutablen Statics.
+
+**Messung** (gleicher Korpus/Harness wie §6, Debug-Engine, 24 logische Kerne):
+
+| Phase | sequenziell (§6-Nachmessung) | parallel | Faktor |
+|---|---:|---:|---:|
+| A) Kaltscan | 2.093–2.255 ms | 1.061–1.195 ms | ~2× |
+| B) Warmscan ohne Tier 2 | 728–1.086 ms | 455–686 ms | ~1,6× |
+| C) Tier-2-Füllscan (`NavWorkspaceCore`) | 1.623–1.650 ms | 920–986 ms | ~1,7× |
+| C) Warmscan Treffer | 28–47 ms | 8–36 ms | ≈ unverändert |
+
+Bekannter, benigner Effekt: beim **parallelen** Füllscan können mehrere Builder dasselbe Include
+gleichzeitig parsen (Tier 1 hält dann eine andere Instanz als der Snapshot) — im ersten Warmscan danach
+werden bis zu ~2 % der Units einmalig neu gebaut, ab dem zweiten sind es wieder 1913/1913 Treffer. Die
+Konvergenz ist genau das §4-Design.
+
+**Skalierungs-Grenze = GC:** Der Bau ist allokationslastig; mit Workstation-GC (Auslieferungszustand
+der Hosts) bleibt die Skalierung bei ~2×. Ein Probelauf mit **Server-GC** (`DOTNET_gcServer=1`) drückte
+den Kaltscan auf **574 ms (~4×)**. Server-GC für `nav.lsp`/`nav.mcp` (net10, DATAS macht den
+Speicher-Overhead adaptiv) ist damit ein bekannter, **nicht aktivierter** Folge-Hebel — bewusste
+Entscheidung steht aus.
