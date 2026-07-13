@@ -37,6 +37,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_format` | `NavFormattingService` | Document-/Range-Formatierung: **Edit-Set** + komplett formatierter Text (read-only). |
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
 | `nav_preview_codegen` | `ICodeGeneratorProvider` (Codegen-Pipeline) | Vorschau des generierten C# je Task-Definition (Basisklasse/Interfaces/Stub) — **ohne Plattenschreiben, ohne Build**. |
+| `nav_call_hierarchy` | `NavCallHierarchyService` | Aufrufbeziehungen einer Task auf Task-Ebene: ausgehend (Callees) + eingehend (Caller, solution-weit), cross-file via `taskref`. |
 
 ## 3. Design-Entscheidungen
 
@@ -118,6 +119,22 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
     `contentOmitted=true` rät zu `task`-Eingrenzung. `task` grenzt auf eine Task-Definition ein.
   - **`projectRoot` (optional)** wirkt **nur** auf die Namespaces des generierten Codes (relativ zur
     Wurzel gebildet); für reine Signatur-Fragen entbehrlich. `nullableContext` schreibt `#nullable enable`.
+- **`nav_call_hierarchy` = Aufrufhierarchie als Pull, name-basiert.** Der Nav-Aufrufgraph läuft über
+  `task`-Knoten (`task Sub Foo;`), die — auch cross-file via `taskref` — eine Task-Deklaration
+  referenzieren. Engine-Kern ist `NavCallHierarchyService` (VS-frei, dieselbe Basis wie die
+  LSP-Call-Hierarchy). Der LSP verankert die Hierarchie **positions-basiert** (`PrepareCallHierarchy`
+  am Caret); der MCP löst die Ausgangs-Task **name-basiert** auf — strikt Task-Ebene, daher direkt über
+  `unit.TaskDefinitions` (Task-Namen sind je Datei eindeutig; ein Knotenname wird bewusst nicht
+  aufgelöst → sprechender Fehler mit Verweis auf `nav_find_symbol`/`nav_outline`). `direction`
+  (`incoming`/`outgoing`/`both`, Default `both`) wählt die Richtung; **eingehend** braucht die geladene
+  Solution (`EnsureSolutionLoadedAsync`), **ausgehend** nur die Datei. Ergebnis je Beziehung: die andere
+  Task (Ziel bzw. Aufrufer) + deren 1-basierte Position + die Aufrufstellen (`task`-Knoten-Bezeichner),
+  nach Ziel/Aufrufer gruppiert. **Nebenfix in der Engine:**
+  `NavSolution.ProcessCodeGenerationUnitsAsync` deduplizierte Dateien case-sensitiv (`HashSet<string>`,
+  offenes `// TODO File/Path comparer`); bei abweichender Pfad-Schreibweise (normalisierter
+  `startingUnit`-Pfad vs. Original-Casing der `SolutionFiles`) wurde dieselbe Datei doppelt verarbeitet
+  → doppelte Treffer. Auf `StringComparer.OrdinalIgnoreCase` umgestellt (Windows-Pfade sind
+  case-insensitiv; kommt auch `nav_references`/`nav_find_symbol` zugute).
 - **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
   Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
   zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt
@@ -146,7 +163,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   BOM**, `Workspace`-Property, fehlertolerantes `Dispose`) — der MCP arbeitet rein gegen Platte, die
   Temp-Dateien *sind* der Fixture-Mechanismus; `Infrastructure/EditApplier` wendet ein Edit-Set absteigend
   auf den Text an (prüft „angewandtes Edit-Set ergibt erwarteten Text"). `NavNameResolution` (`internal
-  static`) ist über `InternalsVisibleTo` direkt testbar. **86 Tests**, alle grün:
+  static`) ist über `InternalsVisibleTo` direkt testbar. **93 Tests**, alle grün:
   - `NavGrammarToolTests` (4) — volle Grammatik (`codeGenerationUnit ::=`), Einzelregel, unbekannte Regel
     (`arrayType` → `error` + `availableRules`), `includeTerminals`.
   - `NavNameResolutionTests` (8) + `NavFindSymbolToolTests` (10) — die drei Ausgänge
@@ -170,6 +187,9 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
     (`includeContent=false` → Inhalt `null`, Zählungen bleiben), **Fehler-Gate** (Datei mit Fehler →
     `error` + nur `Error`-Diagnostics, keine Tasks), `NotFound` sowie **V1/V2-Weiche** (`#version 2` →
     V2-Codegen, nachgewiesen über die CallContext-/`Unwrap()`-Marker der V2-Basisklasse).
+  - `NavCallHierarchyToolTests` (7) — ausgehende/eingehende Aufrufe **cross-file** via `taskref`,
+    Gruppierung mehrerer Aufrufstellen nach Ziel, Richtungsfilter (`incoming`/`outgoing`/`both`,
+    Leaf-Task ohne Callees), ungültige Richtung, unbekannte Task, `NotFound`.
 - **Lauf:** `dotnet test Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj` (single-TFM, kein `-f`
   nötig). Seit der Runner-Anbindung läuft die Suite auch in **`nav test`** mit — nach dem net472-NUnit-Lauf
   ruft `Invoke-Test` `dotnet test … -c <Configuration> --no-build`, gated auf die gebaute

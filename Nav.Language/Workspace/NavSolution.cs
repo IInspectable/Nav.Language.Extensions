@@ -84,8 +84,11 @@ public class NavSolution {
                                                       CodeGenerationUnit? startingUnit,
                                                       CancellationToken cancellationToken) {
 
-        // TODO File/Path comparer...
-        var seenFiles = new HashSet<string>();
+        // Datei-Dedup case-insensitiv: Windows-Pfade sind case-insensitiv, und die Pfad-Quellen dieses
+        // Scans können in der Schreibweise abweichen (z.B. der normalisierte — kleingeschriebene —
+        // startingUnit-Pfad eines Hosts vs. die Original-Schreibweise der SolutionFiles). Ein
+        // case-sensitives Set würde dieselbe Datei dann doppelt verarbeiten (Referenzen/Aufrufe doppelt).
+        var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Falls uns eine CGU für den Einstieg gegeben wurde, beginne wir die Suche hier,
         // bevor alle anderen CGUs der Solution durchkaufen werden.            

@@ -88,25 +88,44 @@ Token-Budget über `includeContent`/`task`/`contentOmitted`. Details: `doc/nav-m
 > inkl. DI-Params, NodeName-Konstanten statt Volltext). Die aktuelle Umsetzung liefert den generierten
 > C# je Artefakt; die verdichtete Sicht ist ein späterer, additiver Modus.
 
-### 🟠 B. Graph / Reachability
+### 🟠 B. Graph / Reachability — teilweise UMGESETZT
 
 Beides von der Engine bereits getragen (`EdgeExtensions.GetReachableCalls`, `IEdge`/`EdgeMode`,
-`INodeSymbol.IsReachable`):
+`INodeSymbol.IsReachable`, `NavCallHierarchyService`):
 
+- **`nav_call_hierarchy` ✅ UMGESETZT** — Aufrufbeziehungen auf **Task-Ebene**: ausgehend (welche Tasks
+  ruft X auf) und eingehend (welche Tasks rufen X solution-weit auf), cross-file via `taskref`. Für
+  Impact-Analyse cross-task („was bricht, wenn ich diese Task ändere"). Wiederverwendung des VS-freien
+  Engine-Kerns `NavCallHierarchyService` (dieselbe Basis wie die LSP-Call-Hierarchy,
+  `Nav.Language.Lsp/CallHierarchy/`), **name-basiert** statt cursor-basiert. Details:
+  `doc/nav-mcp-status.md` §3.
+  - **Nebenbefund/Fix:** `NavSolution.ProcessCodeGenerationUnitsAsync` deduplizierte Dateien
+    **case-sensitiv** (`HashSet<string>` mit `// TODO File/Path comparer`); bei abweichender Pfad-
+    Schreibweise (normalisierter `startingUnit`-Pfad vs. Original-Casing der `SolutionFiles`) wurde
+    dieselbe Datei doppelt verarbeitet → doppelte Referenzen/Aufrufe. Auf `OrdinalIgnoreCase` umgestellt.
 - **`nav_diagram(path)`** — layout-freies Knoten/Kanten-Modell (oder direkt Mermaid/HTML). Laut
   `doc/nav-diagram-status.md` ist das Engine-Modell (S1) entworfen; das MCP-Tool ist danach „trivial"
   (dort §8 „Optionale Erweiterungen: MCP-Tool `nav_diagram`"). Ersetzt manuelle Mermaid-Handarbeit.
-- **`nav_reachability` / Call-Hierarchy** — „welche Tasks/Knoten erreicht Init/Choice X transitiv" =
-  genau die DI-Param-Menge des Codegens. Für Impact-Analyse cross-task wertvoll; Blaupause ist die
-  LSP-Call-Hierarchy (`Nav.Language.Lsp/CallHierarchy/`).
+  **Noch offen.**
+- **Intra-Task-Node-Reachability** („welche Knoten erreicht Init/Choice X transitiv" =
+  `GetReachableCalls`) ist als eigenes Tool **nicht** umgesetzt — die daraus folgende DI-Param-Menge je
+  Logic-Methode ist bereits über `nav_preview_codegen` (Basisklasse) sichtbar; niedrige Priorität.
 
-### 🟡 C. Schreibender Pfad + BOM-Kapselung
+### ⚪ C. Schreibender Pfad + BOM-Kapselung — VERWORFEN (2026-07-13)
 
-Ein optionales **`apply`-Flag** (bereits im Backlog, `nav-backlog.md §4`) bzw. ein
-`nav_apply_edits`-Tool bringt nicht nur Komfort, sondern **kapselt die UTF-8-mit-BOM-Falle**:
-BOM-lose `.nav` → der Generator transliteriert Umlaute in Identifiern (`ä→ae`) → Consumer bricht mit
-`CS1061`. Ein nav-eigenes Schreib-Tool könnte garantiert BOM-behaftet schreiben — heute ein
-wiederkehrendes, echtes Fehlerrisiko bei `Write`-basierten Agenten-Edits.
+Ursprünglich als optionales **`apply`-Flag** bzw. `nav_apply_edits`-Tool gedacht. Zwei denkbare
+Schreibpfade, beide nach Prüfung verworfen:
+
+- **Codegen materialisieren (`.cs` schreiben):** Wo die generierten Dateien landen und wie ihre
+  Namespaces heißen, ist **vollständig build-gesteuert** — über `NavProjectRootDirectory`/
+  `NavWflRootDirectory`/`NavIwflRootDirectory` (+ `NavGenerate*`, `NavNullableContext`, Inkremental-
+  Manifest) in `Pharmatechnik.Nav.Language.targets`, deren Werte die **aufrufende Seite** setzt
+  (IXOS: `build/Script/IxosCompile.targets`). Ein MCP-Tool kennt diesen Kontext nicht und würde die
+  Autorität über Ablage + Inkremental-Tracking umgehen. Gehört in den Build, nicht in den MCP.
+- **`.nav`-Quelle in-place schreiben (Edit-Sets anwenden):** Nutzen zu schmal — die Ablage ist
+  unkritisch (exakt die übergebene Quelldatei), einziger Mehrwert wäre die garantierte BOM-Kodierung.
+  Die kann der Agent selbst leisten; die Kapselung spart eine Fehlerquelle, ist aber kein neues Können.
+  Die mutierenden Tools bleiben bewusst **read-only** (Edit-Sets), die Designlinie bleibt intakt.
 
 ### ⚪ D. Kleinere Backlog-Punkte
 
@@ -154,7 +173,7 @@ Agenten-Session / den konsumierenden Workspace-Root anzubinden.
 
 1. **Voraussetzung 0** — nav-MCP an Agenten-Session + IXOS-Root anbinden (sonst nichts testbar).
 2. **A** — `nav_preview_codegen` ✅ **umgesetzt** (höchster Hebel pro Aufwand; Engine-Pipeline existiert).
-3. **C** — `apply`-Flag / BOM-korrekter Schreibpfad (eliminiert eine ganze Fehlerklasse). ← **nächster Schritt**
-4. **B** — `nav_diagram` (nach Diagram-S1) + `nav_reachability`/Call-Hierarchy.
+3. **C** — ⚪ **verworfen** (Codegen-Ablage ist build-gesteuert; `.nav`-Schreibpfad zu schmal, s.o.).
+4. **B** — `nav_reachability`/Call-Hierarchy ← **nächster Schritt**; `nav_diagram` (nach Diagram-S1) danach.
 5. **D** — Whole-File-`nav_code_actions`, Voll-Text bei rename/code_actions.
 6. **Skill straffen** — Grammatik/Codegen-Fakten aus dem MCP ziehen.
