@@ -59,7 +59,7 @@ Katalog.
 | Validierung nach Edit (Nav-Diagnostics) | ✅ **voll**, besser als CLI |
 | Grammatik-/Syntax-Nachschlag | ✅ `nav_grammar` — *dupliziert aber die Skill-Spec, s. §5* |
 | `.nav` mechanisch umformen (Rename/Format/Fix) | 🟡 **teilweise** — Edit-Sets, kein Disk-Write, kein „add node/edge" |
-| **Sehen, welcher C# generiert wird** | ❌ **fehlt komplett** — nur `nav.exe` + Build |
+| **Sehen, welcher C# generiert wird** | ✅ **umgesetzt** — `nav_preview_codegen` (in-memory, ohne Build) |
 | **Graph / Visualisierung** (Reachability, Diagramm) | ❌ **fehlt** — Engine-Modell entworfen, nicht implementiert |
 | Call-Hierarchy / transitiv erreichbare Tasks | ❌ **fehlt im MCP** (Engine kann es, LSP hat es) |
 | GD↔NAV-Event-Mapping / WFS-Params | ⬜ **außerhalb nav-MCP** — Roslyn-MCP auf der generierten C#-Seite |
@@ -68,18 +68,25 @@ Katalog.
 
 ## 3. Lücken — priorisiert
 
-### 🔴 A. Codegen-Preview — größte und wertvollste Lücke
+### ✅ A. Codegen-Preview — UMGESETZT (`nav_preview_codegen`)
 
 Der gesamte Nav-Nutzwert für den Agenten dreht sich um **„welcher C# entsteht"**: Begin-Overloads,
 `After<Node>`, exakte Event-Methodennamen, und vor allem die **transitiv erreichbaren DI-Parameter**
-je Logic-Methode. Heute nur über `nav.exe` + Build + `*.generated.cs`-Lesen verifizierbar — teuer,
+je Logic-Methode. Bisher nur über `nav.exe` + Build + `*.generated.cs`-Lesen verifizierbar — teuer,
 langsam, buildabhängig.
 
-Engine (`NavCodeGeneratorPipeline`) und `nav.exe` können das bereits. **Vorschlag:**
-`nav_preview_codegen(path[, genopts])` — liefert den generierten C# bzw. kompakt nur die
-**öffentliche Signaturfläche** (Interface-Member, abstrakte Logic-Signaturen inkl. DI-Params,
-NodeName-Konstanten) **ohne Plattenschreiben, ohne Build**. Ersetzt die meisten „was heißt die
-Methode / welche Params"-Runden.
+**Umgesetzt** als `nav_preview_codegen(path, task?, includeUserFiles?, includeContent?, nullableContext?,
+projectRoot?)`: generiert **in-memory** gegen die frisch von Platte gelesene `CodeGenerationUnit` über
+**dieselbe** Pipeline wie `nav.exe`/MSBuild (`CodeGeneratorProvider.Default` →
+`VersionDispatchingCodeGenerator` → V1/V2), **ohne** `IFileGenerator` — kein Plattenschreiben, kein Build.
+Ergebnis je Task-Definition: die Artefakte mit **Rolle** (`base`/`iwfs`/`ibegin`/`user`/`to`),
+Ziel-Dateiname, Zeilen-/Zeichenzahl, `OverwritePolicy` und (optional) Inhalt. Fehler-Gate wie der
+Generator (Datei mit Fehlern → `error` + `diagnostics` statt Codegen), Benutzer-Stubs standardmäßig aus,
+Token-Budget über `includeContent`/`task`/`contentOmitted`. Details: `doc/nav-mcp-status.md` §3.
+
+> **Ausbaustufe offen:** die *kompakte* Signaturfläche (nur Interface-Member, abstrakte Logic-Signaturen
+> inkl. DI-Params, NodeName-Konstanten statt Volltext). Die aktuelle Umsetzung liefert den generierten
+> C# je Artefakt; die verdichtete Sicht ist ein späterer, additiver Modus.
 
 ### 🟠 B. Graph / Reachability
 
@@ -146,8 +153,8 @@ Agenten-Session / den konsumierenden Workspace-Root anzubinden.
 ### Empfohlene Reihenfolge für die Ausbau-Session
 
 1. **Voraussetzung 0** — nav-MCP an Agenten-Session + IXOS-Root anbinden (sonst nichts testbar).
-2. **A** — `nav_preview_codegen` (höchster Hebel pro Aufwand; Engine-Pipeline existiert).
-3. **C** — `apply`-Flag / BOM-korrekter Schreibpfad (eliminiert eine ganze Fehlerklasse).
+2. **A** — `nav_preview_codegen` ✅ **umgesetzt** (höchster Hebel pro Aufwand; Engine-Pipeline existiert).
+3. **C** — `apply`-Flag / BOM-korrekter Schreibpfad (eliminiert eine ganze Fehlerklasse). ← **nächster Schritt**
 4. **B** — `nav_diagram` (nach Diagram-S1) + `nav_reachability`/Call-Hierarchy.
 5. **D** — Whole-File-`nav_code_actions`, Voll-Text bei rename/code_actions.
 6. **Skill straffen** — Grammatik/Codegen-Fakten aus dem MCP ziehen.

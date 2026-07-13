@@ -36,6 +36,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 | `nav_code_actions` | `NavCodeActionService` | Anwendbare Quick-Fixes/Refactorings + **Edit-Set**. |
 | `nav_format` | `NavFormattingService` | Document-/Range-Formatierung: **Edit-Set** + komplett formatierter Text (read-only). |
 | `nav_grammar` | `NavGrammar` (generiert) | EBNF-Grammatik der Nav-Sprache (gesamt oder eine Produktion), optional Terminal-Tabelle. **Statisch** — keine Datei/Solution. |
+| `nav_preview_codegen` | `ICodeGeneratorProvider` (Codegen-Pipeline) | Vorschau des generierten C# je Task-Definition (Basisklasse/Interfaces/Stub) — **ohne Plattenschreiben, ohne Build**. |
 
 ## 3. Design-Entscheidungen
 
@@ -94,6 +95,29 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   überschreiben nur bei **expliziter** Angabe die kanonischen Defaults
   (`NavFormattingOptions.Default`: Tabs, Breite 4 — Korpus-Mehrheit) — anders als beim LSP gibt es
   keinen Editor-Konfig-Kanal, der immer liefert.
+- **`nav_preview_codegen` = Codegen-Vorschau als Pull, ohne Build.** Der größte Agenten-Nutzen von Nav
+  dreht sich um „welcher C# entsteht" (Begin-Overloads, exakte Event-/Logic-Methodennamen, die transitiv
+  erreichbaren DI-Parameter je Logic-Methode). Bisher nur über `nav.exe` + Build + Lesen der
+  `*.generated.cs` verifizierbar. Das Tool generiert stattdessen **in-memory** gegen die frisch von Platte
+  gelesene `CodeGenerationUnit` (`GetFreshUnit`) über **dieselbe** Pipeline wie `nav.exe`/MSBuild
+  (`CodeGeneratorProvider.Default` → `VersionDispatchingCodeGenerator` → V1/V2 je `LanguageVersion`),
+  **ohne** `IFileGenerator` (kein Plattenschreiben). Ergebnis je Task-Definition: die Artefakte mit
+  **Rolle** (`base`/`iwfs`/`ibegin`/`user`/`to`), Ziel-Dateiname, Zeilen-/Zeichenzahl,
+  `OverwritePolicy` und (optional) Inhalt. Die Rolle wird **autoritativ** über denselben
+  `IPathProvider` bestimmt, den der Codegen nutzt (kanonischer Dateiname → Rolle), mit Suffix-Heuristik
+  als Fallback (TO-Stubs sind über den PathProvider nicht vorab bekannt). Entscheidungen:
+  - **Fehler-Gate wie der Generator.** Der Codegen wirft auf Syntax-/Semantik-/Include-Fehler
+    (`CodeGeneratorV1.Generate`). Das Tool prüft **vorab** (`DiagnosticsComputer.FromUnit` +
+    `Includes…HasErrors()`) und liefert die Fehler strukturiert (`error` + `diagnostics`, nur Severity
+    `Error`) statt eine Protokoll-Exception zu riskieren — der Agent behebt zuerst (wie `nav_validate`).
+  - **Benutzer-Stubs standardmäßig aus.** `user` (der einmalige `{Task}WFS`-Stub, `OverwritePolicy.Never`)
+    und `to` sind Benutzer-Eigentum und nahezu leer — die Signaturen stehen in Basisklasse + Interfaces.
+    `includeUserFiles=true` blendet sie ein.
+  - **Token-Budget.** `includeContent=false` liefert nur das Manifest (Rollen/Dateinamen/Zählungen);
+    sprengt der Gesamtinhalt die Obergrenze (60k Zeichen), entfällt der Inhalt aller Artefakte und
+    `contentOmitted=true` rät zu `task`-Eingrenzung. `task` grenzt auf eine Task-Definition ein.
+  - **`projectRoot` (optional)** wirkt **nur** auf die Namespaces des generierten Codes (relativ zur
+    Wurzel gebildet); für reine Signatur-Fragen entbehrlich. `nullableContext` schreibt `#nullable enable`.
 - **`nav_grammar` = statische Sprach-Referenz, zustandslos.** Einziges Tool **ohne** `NavMcpWorkspace`-
   Parameter — die Grammatik ist ein `public const`/`static` in der Engine (`NavGrammar.Ebnf` + `Rules`),
   zur Compile-Zeit aus den `Parse*`-EBNF-Fragmenten des handgeschriebenen Parsers zusammengesetzt
@@ -122,7 +146,7 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
   BOM**, `Workspace`-Property, fehlertolerantes `Dispose`) — der MCP arbeitet rein gegen Platte, die
   Temp-Dateien *sind* der Fixture-Mechanismus; `Infrastructure/EditApplier` wendet ein Edit-Set absteigend
   auf den Text an (prüft „angewandtes Edit-Set ergibt erwarteten Text"). `NavNameResolution` (`internal
-  static`) ist über `InternalsVisibleTo` direkt testbar. **78 Tests**, alle grün:
+  static`) ist über `InternalsVisibleTo` direkt testbar. **86 Tests**, alle grün:
   - `NavGrammarToolTests` (4) — volle Grammatik (`codeGenerationUnit ::=`), Einzelregel, unbekannte Regel
     (`arrayType` → `error` + `availableRules`), `includeTerminals`.
   - `NavNameResolutionTests` (8) + `NavFindSymbolToolTests` (10) — die drei Ausgänge
@@ -141,6 +165,11 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
     Idempotenz (0 Edits, `formattedText == null`), `insertSpaces`/`tabSize`, Fehlerfälle; GoTo/References
     same- **und** cross-file, Outline (Art/Position + `languageVersion`/`hasVersionDirective`), Workspace
     (relativ/absolut, `filter`, Paging).
+  - `NavPreviewCodegenToolTests` (8) — generierte Artefakte + Rollen (`base`/`iwfs`/`ibegin`), Dateinamen
+    + `OverwritePolicy`, `task`-Filter, `includeUserFiles` (Stub ein/aus), Manifest-Modus
+    (`includeContent=false` → Inhalt `null`, Zählungen bleiben), **Fehler-Gate** (Datei mit Fehler →
+    `error` + nur `Error`-Diagnostics, keine Tasks), `NotFound` sowie **V1/V2-Weiche** (`#version 2` →
+    V2-Codegen, nachgewiesen über die CallContext-/`Unwrap()`-Marker der V2-Basisklasse).
 - **Lauf:** `dotnet test Nav.Language.Mcp.Tests\Nav.Language.Mcp.Tests.csproj` (single-TFM, kein `-f`
   nötig). Seit der Runner-Anbindung läuft die Suite auch in **`nav test`** mit — nach dem net472-NUnit-Lauf
   ruft `Invoke-Test` `dotnet test … -c <Configuration> --no-build`, gated auf die gebaute
@@ -172,4 +201,6 @@ exponiert die VS-freien Engine-Kerne aus `Nav.Language` als MCP-Tools für einen
 - **Bewusst nicht enthalten** (geringer Agent-Nutzen / reine Editor-UI): Completion, Hover/QuickInfo,
   Semantic Tokens, Folding, CodeLens, DocumentHighlight; Plattenänderung durch die Tools.
 - **Mögliche Erweiterungen:** Whole-File-Modus für `nav_code_actions` (alle Fixes einer Datei ohne
-  Symbolname); optionales `apply`-Flag für die mutierenden Tools.
+  Symbolname); optionales `apply`-Flag für die mutierenden Tools (BOM-sicherer Schreibpfad, Lücke C der
+  Agenten-Gap-Analyse). Graph/Reachability (`nav_diagram`/`nav_reachability`, Lücke B) sind engine-seitig
+  vorbereitet, aber noch nicht als Tool. Fortschritt: `doc/nav-mcp-agent-gap-analysis.md`.
