@@ -29,8 +29,12 @@ public sealed class NavWorkspaceCore {
     NavSolution _solution = NavSolution.Empty;
 
     public NavWorkspaceCore() {
-        _syntaxProvider        = new OverlaySyntaxProvider();
-        _semanticModelProvider = new SemanticModelProvider(_syntaxProvider);
+        _syntaxProvider = new OverlaySyntaxProvider();
+        // Tier-2-Semantik-Cache über dem Syntax-Cache des OverlaySyntaxProviders (Tier 1): Wiederhol-Scans
+        // solution-weiter Features (Diagnostics-Sweep, Referenzen, Call Hierarchy) liefern gecachte Units,
+        // solange weder die Datei selbst noch eines ihrer direkten Includes eine neue Syntax-Instanz hat.
+        // Bewusst nur hier in der Host-Schicht (LSP + MCP) — die CLI (NavSolution-Default) bleibt ungecacht.
+        _semanticModelProvider = new CachedSemanticModelProvider(new SemanticModelProvider(_syntaxProvider), _syntaxProvider);
     }
 
     /// <summary>Die geladene Solution (alle <c>*.nav</c>) — Grundlage für solution-weite Features.</summary>

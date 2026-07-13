@@ -1,7 +1,7 @@
 ﻿# Nav Semantik-Modell-Cache — Plan
 
-> **Status:** Step 0 (Stempel-Frische) und Step 1 (`CachedSemanticModelProvider` + Provider-Tests)
-> umgesetzt; offen: Step 2 (Einhängen), Rest von Step 3 (Scan-Ebene), Step 4 (Messen). Am Code
+> **Status:** Step 0 (Stempel-Frische), Step 1 (`CachedSemanticModelProvider` + Provider-Tests) und
+> Step 2 (Einhängen in `NavWorkspaceCore`) umgesetzt; offen: Rest von Step 3 (Scan-Ebene), Step 4 (Messen). Am Code
 > verifiziert; Messzahlen aus dem echten Korpus
 > (`d:\tfs\main`, 1913 Dateien / 7,5 MB, **Debug**-Engine = ausgelieferter Stand). Setup-Details:
 > Memory `nav-perf-profiling-setup`. Verwandt: `doc/nav-perf-optimization-status.md`, `doc/nav-mcp-status.md`.
@@ -177,7 +177,9 @@ Ehrliche Abgrenzung:
   Löschen/Wiederauftauchen, Puffer ohne Dateibezug).
 - **Step 2 — Einhängen** in `NavWorkspaceCore` (Ctor):
   `new CachedSemanticModelProvider(new SemanticModelProvider(_syntaxProvider), _syntaxProvider)`.
-  Nicht in `NavSolution`-Default-Ctor (CLI bleibt ungecacht).
+  Nicht in `NavSolution`-Default-Ctor (CLI bleibt ungecacht). **UMGESETZT** — damit laufen LSP und MCP
+  (alle Einzeldatei-Zugriffe wie auch die Scan-Tools über `NavSolution.ProcessCodeGenerationUnitsAsync`,
+  das den Provider aus dem `NavSolution`-Ctor nutzt) über den Tier-2-Cache.
 - **Step 3 — Tests** (`Nav.Language.Tests`, net472 + net10):
   - Trefferfall: zwei Scans → zweiter liefert referenzgleiche Units (`Is.SameAs`), kein Neubau.
   - Selbst-Invalidierung Primärdatei: A ändern → A neu, Nachbarn Treffer.
