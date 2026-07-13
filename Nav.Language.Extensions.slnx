@@ -88,6 +88,7 @@
     <File Path="doc/nav-grammar-status.md" />
     <File Path="doc/nav-kolibri.md" />
     <File Path="doc/nav-lsp-status.md" />
+    <File Path="doc/nav-mcp-agent-gap-analysis.md" />
     <File Path="doc/nav-mcp-status.md" />
     <File Path="doc/nav-mcp-tests-status.md" />
     <File Path="doc/nav-nre-analysis-prompt.md" />
