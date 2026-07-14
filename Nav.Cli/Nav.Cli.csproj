@@ -26,7 +26,10 @@
          Die früher hier ebenfalls unterdrückten Trim-Warnungen IL2026/IL2062/IL2087 stammten aus dem
          generischen, reflektionsbasierten Options-Pfad (Option.Parse<T>() → TypeDescriptor.GetConverter).
          nav nutzt ausschließlich untypisierte Action<string>-Callbacks; dieser Pfad wurde in Options.cs
-         entfernt statt suppressed → die IL-Codes gehören nicht mehr in NoWarn. -->
+         entfernt statt suppressed → die IL-Codes gehören nicht mehr in NoWarn.
+         Die verbleibenden IL2104-Rollups aus NLog / NLog.Targets.Network (via Nav.Utilities) bleiben
+         BEWUSST sichtbar (nicht in NoWarn): ungenutzte NLog-Reflection-Pfade (Auto-Load/Extension-
+         Registrierung + GelfLayout), kein NLog-Update behebt sie. Details: doc/nav-mcp-trimming-status.md. -->
     <NoWarn>$(NoWarn);SYSLIB0003;SYSLIB0051;CS0672</NoWarn>
   </PropertyGroup>
 

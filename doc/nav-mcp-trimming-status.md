@@ -244,6 +244,39 @@ Dependency-Graph). Tests: net10.0 (inkl. neuem Test) grün, net472 1907 grün, M
 **getrimmten** `nav.exe`: `task class` → `error Nav2000: Identifier expected` an (1,6), `task partial` → **kein**
 Nav2000.
 
+## Nachtrag (2026-07-14): NLog-IL2104-Rollups untersucht — bewusst sichtbar gelassen
+
+Nach dem System.CodeDom-Nachtrag verbleiben zwei `IL2104`-Rollups aus **NLog** und
+**NLog.Targets.Network** (via `Nav.Utilities`). Frage war: kaschieren (NoWarn) oder gibt es einen Fix?
+Ergebnis der Untersuchung — **Nutzer-Entscheid: sichtbar lassen, nicht unterdrücken.**
+
+**Was die Warnungen sind (Rollup via `TrimmerSingleWarn=false` aufgeklappt):** ausschließlich NLog-Pfade,
+die wir **nicht** nutzen —
+- `ConfigurationItemFactory.RegisterItemsFromAssembly`, `SetupExtensionsBuilderExtensions.AutoLoadExtensions` /
+  `RegisterAssembly` → NLogs reflektionsbasiertes **Auto-Load/Assembly-Scanning** von Targets/Layouts
+  (`[RequiresUnreferencedCode]` → `Assembly.GetTypes()`);
+- `NLog.Layouts.GelfLayout.RenderFormattedMessage` (Graylog, aus `NLog.Targets.Network`) → `Exception.TargetSite`.
+
+`LoggerConfig` baut `FileTarget` + `Log4JXmlEventLayout` **direkt per `new`** und konfiguriert
+programmatisch; die reflektierenden Auto-Load-Pfade werden nie aufgerufen. Für unsere Nutzung sind die
+Warnungen also **false positives** über NLogs öffentliche API-Oberfläche — getrimmter Laufzeit-Smoke
+(`nav.exe --help`, NLog-Init trägt) bestätigt es.
+
+**Kein Update behebt es (empirisch):** NLog **6.1.4** (die einzige neuere) getestet → dieselben Rollups;
+`NLog.Targets.Network` **6.0.4** ist bereits die neueste Version. Die Warnungen sind NLogs bekannter
+Zustand — „AOT-Support" heißt *läuft* unter AOT, die reflektierende Extension-Loading-API triggert die
+Analyse weiterhin (Architektur, kein Patch-Bug).
+
+**Per MSBuild nicht aus der Analyse nehmbar (binlog-verifiziert):** `TrimmerRootAssembly` stoppt die
+Analyse nicht; per-Assembly `TrimMode=copy` (am sanktionierten `PrepareForILLink`-Erweiterungspunkt)
+erreicht die ILLink-Task, wird aber ignoriert; `IsTrimmable=false` ist laut ILLink-Maintainer ein No-op —
+NLogs eingebettete `[AssemblyMetadata("IsTrimmable","True")]` gewinnt.
+
+**Entscheidung:** Die zwei Rollups bleiben **sichtbar** (kein `NoWarn`). Ehrlich beseitigen ließen sie sich
+nur durch ein Logging-Refactoring (NLog → z.B. `Microsoft.Extensions.Logging` + schlanker File-Sink) quer
+durch **alle** Hosts inkl. der VS-Extension (net472) — ein eigenes Vorhaben, hier bewusst nicht gemacht.
+Je Publish-`.csproj` steht ein Kommentar, der das dokumentiert (damit niemand versehentlich „aufräumt").
+
 ## Step-1-Handoff (turnkey — nahtloser Start in neuer Session)
 
 Step 1 ist **eigenständig**: nur das neue Generator-Projekt + sein Snapshot-Test, beide grün. Der
