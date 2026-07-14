@@ -24,6 +24,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// </remarks>
 public class Nav0124GeneratedMember0CollidesWithAnotherMember: NavAnalyzer {
 
+    /// <inheritdoc/>
     public override DiagnosticDescriptor Descriptor => DiagnosticDescriptors.Semantic.Nav0124GeneratedMember0CollidesWithAnotherMember;
 
     // Namenspräfixe der V2-Callables (mode-freies Show-Verb bzw. Begin-Fabrik) — siehe CallContextCodeModel.
@@ -35,6 +36,7 @@ public class Nav0124GeneratedMember0CollidesWithAnotherMember: NavAnalyzer {
     static readonly ImmutableHashSet<string> ReservedMemberNames =
         ImmutableHashSet.Create(StringComparer.Ordinal, "Cancel", "Exit", "End", "Result");
 
+    /// <inheritdoc/>
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
 
         // Die V2-Aufruffläche (und damit jede Kollision) entsteht erst ab Version 2 — unter #version 1
@@ -58,9 +60,12 @@ public class Nav0124GeneratedMember0CollidesWithAnotherMember: NavAnalyzer {
     }
 
     /// <summary>
-    /// Die Member-Flächen (Kanten-Quellen), aus denen der V2-Codegen je einen Call-Context baut — exakt die
-    /// Auswahl von <c>CodeModelBuilderV2</c>: nicht-abstrakte Init-Knoten, jede Trigger-Transition, erreichbare
+    /// Die Member-Flächen (Kanten-Quellen), aus denen der V2-Codegen je einen Call-Context baut:
+    /// nicht-abstrakte Init-Knoten, jede Trigger-Transition, erreichbare
     /// nicht-<c>[notimplemented]</c>/nicht-abstrakte Task-Knoten (Exit) sowie erreichbare Choices.
+    /// Init/Trigger/Exit entsprechen der Quellen-Auswahl von <c>CodeModelBuilderV2</c> (abstrakte
+    /// Quellen bekommen dort keinen Call-Context); die Choice-Erreichbarkeit wird hier über
+    /// <see cref="INodeSymbol.IsReachable"/> bestimmt.
     /// </summary>
     static IEnumerable<IReadOnlyList<IEdge>> MemberSurfaces(ITaskDefinitionSymbol taskDefinition) {
 

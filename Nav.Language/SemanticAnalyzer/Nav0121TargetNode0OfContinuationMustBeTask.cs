@@ -3,10 +3,28 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
+/// <summary>
+/// Nav0121 (<c>The target node '{0}' of the continuation must be a task</c>, Fehler): Das Ziel
+/// einer Continuation (rechts von <c>o-^</c>/<c>--^</c>,
+/// <see cref="IEdge.TargetReference"/> der <see cref="IContinuationTransition"/>) muss ein
+/// Task-Knoten (<see cref="ITaskNodeSymbol"/>) sein — die Continuation setzt den Aufruf des
+/// Folge-Tasks per <c>.Concat(…)</c> auf das GUI-Kommando des tragenden Knotens; ein
+/// View-/Choice-/Exit-Ziel hätte weder eine Begin-Fabrik noch ein Task-Boundary-Kommando.
+/// Gemeldet wird nur der <b>aufgelöste</b> Falschtyp (die Diagnose sitzt an der Zielreferenz der
+/// Continuation); unauflösbare Knoten meldet bereits <see cref="Nav0011CannotResolveNode0"/>.
+/// Ist die Continuation unter der wirksamen Sprachversion
+/// (<see cref="CodeGenerationUnit.LanguageVersion"/>) gar nicht verfügbar
+/// (<see cref="NavLanguageFeatures.IsAvailable"/>), schweigt diese Prüfung — die eine treffende
+/// Diagnose ist dann das Versions-Gate <see cref="Nav5000FeatureRequiresNavLanguageVersion"/>.
+/// Das Gegenstück auf der Quellseite ist
+/// <see cref="Nav0120SourceNode0OfContinuationMustBeViewOrDialog"/>.
+/// </summary>
 public class Nav0121TargetNode0OfContinuationMustBeTask: NavAnalyzer {
 
+    /// <inheritdoc/>
     public override DiagnosticDescriptor Descriptor => DiagnosticDescriptors.Semantic.Nav0121TargetNode0OfContinuationMustBeTask;
 
+    /// <inheritdoc/>
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
         // The target node '{0}' of the continuation must be a task

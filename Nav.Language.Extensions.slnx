@@ -101,6 +101,7 @@
     <File Path="doc/nav-perf-optimization-status.md" />
     <File Path="doc/nav-pragmas-versioning-status.md" />
     <File Path="doc/nav-semantic-model-cache-plan.md" />
+    <File Path="doc/nav-semanticanalyzer-xmldoc-status.md" />
     <File Path="doc/nav-semanticmodel-xmldoc-status.md" />
     <File Path="doc/nav-skiped-tokens-as-trivia.md" />
     <File Path="doc/nav-sourcetext-review-todo.md" />

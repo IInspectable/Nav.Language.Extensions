@@ -4,7 +4,8 @@ using System.Collections.Generic;
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
 /// <summary>
-/// Das Versions-Gate der Version-2-Konstrukte: Continuation-Kanten (<c>o-^</c>/<c>--^</c>) und
+/// Nav5000 (<c>'{0}' requires Nav language version {1}. Add '#version {1}'.</c>, Fehler) — das
+/// Versions-Gate der Version-2-Konstrukte: Continuation-Kanten (<c>o-^</c>/<c>--^</c>) und
 /// Choice-Parameter (<c>choice X [params …]</c>) sind erst ab <see cref="NavLanguageVersion.Version2"/>
 /// zulässig. Der Parser bleibt bewusst permissiv (er kennt stets die volle Syntax); die
 /// Versions-Abhängigkeit ist eine rein semantische Prüfung — so entsteht statt eines kryptischen
@@ -12,12 +13,15 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// ergänzen). Einzige Autorität für „welches Feature ab welcher Version" ist
 /// <see cref="NavLanguageFeatures"/>; ist ein Feature unter der effektiven Version nicht verfügbar,
 /// ist diese Meldung die <b>eine treffende</b> Diagnose — die Continuation-Struktur-Analyzer
-/// (<c>Nav0120</c>/<c>0121</c>/<c>0122</c>) schweigen dann (Folgefehler unterdrücken).
+/// (<c>Nav0120</c>/<c>0121</c>/<c>0122</c>) schweigen dann (Folgefehler unterdrücken). Geprüft
+/// wird gegen die wirksame Version der Datei (<see cref="CodeGenerationUnit.LanguageVersion"/>).
 /// </summary>
 public class Nav5000FeatureRequiresNavLanguageVersion: NavAnalyzer {
 
+    /// <inheritdoc/>
     public override DiagnosticDescriptor Descriptor => DiagnosticDescriptors.Semantic.Nav5000Feature0RequiresNavLanguageVersion1;
 
+    /// <inheritdoc/>
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
 
         var version = taskDefinition.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default;
