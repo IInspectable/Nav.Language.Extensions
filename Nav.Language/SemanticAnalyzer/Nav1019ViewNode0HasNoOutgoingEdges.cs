@@ -26,7 +26,7 @@ public class Nav1019ViewNode0HasNoOutgoingEdges: NavAnalyzer {
         //==============================
         foreach (var viewNode in taskDefinition.NodeDeclarations.OfType<IViewNodeSymbol>()) {
 
-            if (viewNode.Incomings.Any() && !viewNode.Outgoings.Any()) {
+            if (viewNode.Incomings.Any() && !viewNode.Outgoings.Any() && !viewNode.CarriesContinuation()) {
 
                 yield return new Diagnostic(
                     viewNode.Incomings.First().Location,

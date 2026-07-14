@@ -9,7 +9,9 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// (<see cref="ITargetNodeSymbol.Incomings"/>), von dem aber keine Trigger-Transition ausgeht
 /// (<see cref="IGuiNodeSymbol.Outgoings"/>), ist eine Sackgasse — aus der angezeigten View führt
 /// kein Weg weiter, z.B. <c>I2 --&gt; C;</c> ohne eine Transition <b>von</b> <c>C</c> weg. Gemeldet
-/// wird an der Knoten-Deklaration; ein View-Knoten ganz ohne Kanten bleibt hier unbeanstandet. Das
+/// wird an der Knoten-Deklaration; ein View-Knoten ganz ohne Kanten bleibt hier unbeanstandet, ebenso
+/// ein View, der eine Continuation trägt (<see cref="GuiNodeSymbolExtensions.CarriesContinuation"/>) —
+/// der Ablauf läuft dort in den Folge-Task weiter. Das
 /// Dead-Code-Gegenstück <see cref="Nav1019ViewNode0HasNoOutgoingEdges"/> meldet unter derselben
 /// Bedingung an den eingehenden Kanten selbst.
 /// </summary>
@@ -25,7 +27,7 @@ public class Nav0117ViewNode0HasNoOutgoingEdges: NavAnalyzer {
         //==============================
         foreach (var viewNode in taskDefinition.NodeDeclarations.OfType<IViewNodeSymbol>()) {
 
-            if (viewNode.Incomings.Any() && !viewNode.Outgoings.Any()) {
+            if (viewNode.Incomings.Any() && !viewNode.Outgoings.Any() && !viewNode.CarriesContinuation()) {
 
                 yield return new Diagnostic(
                     viewNode.Location,

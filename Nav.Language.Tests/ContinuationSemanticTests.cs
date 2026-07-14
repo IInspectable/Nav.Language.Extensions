@@ -132,6 +132,81 @@ public class ContinuationSemanticTests {
         Assert.That(parameters[0].Type.ToString().Trim(), Is.EqualTo("string"));
     }
 
+    [Test]
+    public void ViewCarryingContinuationIsNotReportedAsDeadEnd() {
+
+        // Der View wird erreicht (Init1 --> View) und trägt eine Continuation (o-^ Msg), hat aber
+        // keine Trigger-Transition. Die Continuation ist zwar keine Outgoing-Kante des Views, führt
+        // den Ablauf aber in den Folge-Task Msg weiter → keine Sackgasse (Nav0117/Nav1019).
+        var nav = """
+
+            task Sample
+            {
+                init Init1;
+                task Msg;
+                view View;
+
+                Init1 --> View o-^ Msg;
+            }
+
+            """;
+
+        var ids = ParseModel(nav).Diagnostics.Select(d => d.Descriptor.Id).ToList();
+
+        Assert.That(ids, Has.No.Member(DiagnosticDescriptors.Semantic.Nav0117ViewNode0HasNoOutgoingEdges.Id),
+                    "Ein View, der eine Continuation trägt, ist keine Sackgasse.");
+        Assert.That(ids, Has.No.Member(DiagnosticDescriptors.DeadCode.Nav1019ViewNode0HasNoOutgoingEdges.Id),
+                    "Das Dead-Code-Gegenstück darf ebenso wenig feuern.");
+    }
+
+    [Test]
+    public void ViewWithoutContinuationOrTriggerIsReportedAsDeadEnd() {
+
+        // Kontrolle: dieselbe Struktur OHNE Continuation → die Sackgassen-Diagnostik feuert wie gehabt.
+        // Stellt sicher, dass die Unterdrückung nicht versehentlich immer greift.
+        var nav = """
+
+            task Sample
+            {
+                init Init1;
+                view View;
+
+                Init1 --> View;
+            }
+
+            """;
+
+        var ids = ParseModel(nav).Diagnostics.Select(d => d.Descriptor.Id).ToList();
+
+        Assert.That(ids, Has.Member(DiagnosticDescriptors.Semantic.Nav0117ViewNode0HasNoOutgoingEdges.Id),
+                    "Ohne Continuation bleibt der View eine Sackgasse.");
+    }
+
+    [Test]
+    public void DialogCarryingContinuationIsNotReportedAsDeadEnd() {
+
+        // Continuation-Träger dürfen auch Dialoge sein (Show{Node} deckt View wie Dialog ab) → dieselbe
+        // Unterdrückung greift für Nav0115/Nav1016.
+        var nav = """
+
+            task Sample
+            {
+                init Init1;
+                task Msg;
+                dialog Ask;
+
+                Init1 --> Ask o-^ Msg;
+            }
+
+            """;
+
+        var ids = ParseModel(nav).Diagnostics.Select(d => d.Descriptor.Id).ToList();
+
+        Assert.That(ids, Has.No.Member(DiagnosticDescriptors.Semantic.Nav0115DialogNode0HasNoOutgoingEdges.Id),
+                    "Ein Dialog, der eine Continuation trägt, ist keine Sackgasse.");
+        Assert.That(ids, Has.No.Member(DiagnosticDescriptors.DeadCode.Nav1016DialogNode0HasNoOutgoingEdges.Id));
+    }
+
     static CodeGenerationUnit ParseModel(string source) {
         var syntax = Syntax.ParseCodeGenerationUnit(source);
         return CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);

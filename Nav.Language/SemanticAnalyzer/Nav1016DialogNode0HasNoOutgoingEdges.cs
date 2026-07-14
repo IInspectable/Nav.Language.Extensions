@@ -26,7 +26,7 @@ public class Nav1016DialogNode0HasNoOutgoingEdges: NavAnalyzer {
         //==============================
         foreach (var dialogNode in taskDefinition.NodeDeclarations.OfType<IDialogNodeSymbol>()) {
 
-            if (dialogNode.Incomings.Any() && !dialogNode.Outgoings.Any()) {
+            if (dialogNode.Incomings.Any() && !dialogNode.Outgoings.Any() && !dialogNode.CarriesContinuation()) {
 
                 yield return new Diagnostic(
                     dialogNode.Incomings.First().Location,
