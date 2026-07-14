@@ -59,6 +59,8 @@
   <Folder Name="/Build/SourceGenerators/">
     <File Path="Build/SourceGenerators/SourceGenerator.props" />
     <File Path="Build/SourceGenerators/SourceGenerator.targets" />
+    <Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator/Nav.Analyzer.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator.Tests/Nav.Analyzer.SourceGenerator.Tests.csproj" />
     <Project Path="Build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/Nav.AssemblyInfo.SourceGenerator.csproj" />
     <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
     <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />

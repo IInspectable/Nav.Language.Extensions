@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Pharmatechnik.Nav.Language.Analyzer.SourceGenerator</RootNamespace>
+  </PropertyGroup>
+
+  <Import Project="..\SourceGenerator.props" />
+
+</Project>
