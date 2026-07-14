@@ -10,16 +10,34 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Pharmatechnik.Nav.Language.Text;
 
+/// <summary>
+/// Erweiterungsmethoden für <see cref="String"/> und <see cref="ReadOnlySpan{Char}"/>, die Lexer, Parser,
+/// Formatter und Completion gemeinsam nutzen: Null-/Whitespace-Prüfungen, <see cref="TextExtent"/>-basiertes
+/// Ausschneiden, Identifier-/Anführungs-Navigation über einen Text, tabulator-bewusste Spaltenrechnung,
+/// Zeilenanfang-Zerlegung sowie einfache Casing-Helfer. Die meisten Text-Operationen liegen als
+/// Span-Variante (allokationsfrei) und darauf aufsetzende <see cref="String"/>-Variante vor.
+/// </summary>
 public static class StringExtensions {
 
+    /// <summary>
+    /// Ob die Zeichenkette leer ist (Länge 0). Setzt einen nicht-<c>null</c>-Wert voraus.
+    /// </summary>
     public static bool IsEmpty(this string value) {
         return value.Length == 0;
     }
 
+    /// <summary>
+    /// Ob der Wert <c>null</c> oder <see cref="String.Empty"/> ist. Verengt die Nullability des Arguments,
+    /// wenn <c>false</c> zurückkommt.
+    /// </summary>
     public static bool IsNullOrEmpty([NotNullWhen(false)] this string? value) {
         return String.IsNullOrEmpty(value);
     }
 
+    /// <summary>
+    /// Ob der Wert <c>null</c>, <see cref="String.Empty"/> oder ausschließlich Whitespace ist. Verengt die
+    /// Nullability des Arguments, wenn <c>false</c> zurückkommt.
+    /// </summary>
     public static bool IsNullOrWhiteSpace([NotNullWhen(false)] this string? value) {
         return String.IsNullOrWhiteSpace(value);
     }
@@ -40,6 +58,12 @@ public static class StringExtensions {
         return value.IsNullOrWhiteSpace() ? null : value;
     }
 
+    /// <summary>
+    /// Schneidet den durch den <paramref name="extent"/> beschriebenen Ausschnitt aus <paramref name="text"/>
+    /// heraus, oder <see cref="String.Empty"/>, wenn der Extent fehlt (<see cref="TextExtent.IsMissing"/>).
+    /// </summary>
+    /// <param name="text">Der Text, aus dem geschnitten wird.</param>
+    /// <param name="extent">Der auszuschneidende Bereich.</param>
     public static string Substring(this string text, TextExtent extent) {
         if (extent.IsMissing) {
             return String.Empty;
@@ -48,6 +72,13 @@ public static class StringExtensions {
         return text.Substring(startIndex: extent.Start, length: extent.Length);
     }
 
+    /// <summary>
+    /// Schneidet den durch den <paramref name="extent"/> beschriebenen Ausschnitt aus <paramref name="span"/>
+    /// heraus, oder <see cref="ReadOnlySpan{Char}.Empty"/>, wenn der Extent fehlt
+    /// (<see cref="TextExtent.IsMissing"/>).
+    /// </summary>
+    /// <param name="span">Der Span, aus dem geschnitten wird.</param>
+    /// <param name="extent">Der auszuschneidende Bereich.</param>
     public static ReadOnlySpan<char> Slice(this ReadOnlySpan<char> span, TextExtent extent) {
         if (extent.IsMissing) {
             return ReadOnlySpan<char>.Empty;
@@ -106,10 +137,22 @@ public static class StringExtensions {
         return TextExtent.FromBounds(start: previousIdentiferStart, end: previousIdentiferEnd + 1);
     }
 
+    /// <summary>
+    /// Liefert den Index des ersten Nicht-Whitespace-Zeichens <i>vor</i> <paramref name="position"/>, oder
+    /// <c>-1</c>, wenn es links davon nur Whitespace gibt bzw. <paramref name="position"/> bereits <c>0</c> ist.
+    /// </summary>
+    /// <param name="text">Der zu durchsuchende Text.</param>
+    /// <param name="position">Die Position, ab der (ausschließlich) nach links gesucht wird.</param>
     public static int IndexOfPreviousNonWhitespace(this string text, int position) {
         return IndexOfPreviousNonWhitespace(text.AsSpan(), position);
     }
 
+    /// <summary>
+    /// Liefert den Index des ersten Nicht-Whitespace-Zeichens <i>vor</i> <paramref name="position"/>, oder
+    /// <c>-1</c>, wenn es links davon nur Whitespace gibt bzw. <paramref name="position"/> bereits <c>0</c> ist.
+    /// </summary>
+    /// <param name="span">Der zu durchsuchende Span.</param>
+    /// <param name="position">Die Position, ab der (ausschließlich) nach links gesucht wird.</param>
     public static int IndexOfPreviousNonWhitespace(this ReadOnlySpan<char> span, int position) {
 
         if (position == 0) {
@@ -123,10 +166,23 @@ public static class StringExtensions {
         return position;
     }
 
+    /// <summary>
+    /// Liefert die Startposition des Identifiers, der an <paramref name="position"/> steht, oder <c>-1</c>,
+    /// wenn dort kein Identifier-Zeichen (<see cref="SyntaxFacts.IsIdentifierCharacter"/>) liegt.
+    /// </summary>
+    /// <param name="text">Der zu durchsuchende Text.</param>
+    /// <param name="position">Die Position innerhalb (oder am Rand) des Identifiers.</param>
     public static int GetStartOfIdentifier(this string text, int position) {
         return GetStartOfIdentifier(text.AsSpan(), position);
     }
 
+    /// <summary>
+    /// Liefert die Startposition des Identifiers, der an <paramref name="position"/> steht, oder <c>-1</c>,
+    /// wenn dort kein Identifier-Zeichen (<see cref="SyntaxFacts.IsIdentifierCharacter"/>) liegt.
+    /// </summary>
+    /// <param name="span">Der zu durchsuchende Span.</param>
+    /// <param name="position">Die Position innerhalb (oder am Rand) des Identifiers.</param>
+    /// <exception cref="IndexOutOfRangeException"><paramref name="position"/> liegt außerhalb von <c>[0, span.Length)</c>.</exception>
     public static int GetStartOfIdentifier(this ReadOnlySpan<char> span, int position) {
 
         if (position < 0 || position >= span.Length) {
@@ -145,18 +201,50 @@ public static class StringExtensions {
         return start;
     }
 
+    /// <summary>
+    /// Ob <paramref name="position"/> innerhalb eines durch <paramref name="blockStartChar"/> und
+    /// <paramref name="blockEndChar"/> begrenzten, noch offenen Blocks liegt (Zählung der bis dahin
+    /// geöffneten gegen die geschlossenen Blöcke).
+    /// </summary>
+    /// <param name="text">Der zu prüfende Text.</param>
+    /// <param name="position">Die zu prüfende Position.</param>
+    /// <param name="blockStartChar">Das öffnende Blockzeichen.</param>
+    /// <param name="blockEndChar">Das schließende Blockzeichen.</param>
     public static bool IsInTextBlock(this string text, int position, char blockStartChar, char blockEndChar) {
         return text.AsSpan().IsInTextBlock(position, blockStartChar, blockEndChar);
     }
 
+    /// <summary>
+    /// Ob <paramref name="position"/> innerhalb eines durch <paramref name="blockStartChar"/> und
+    /// <paramref name="blockEndChar"/> begrenzten, noch offenen Blocks liegt (Zählung der bis dahin
+    /// geöffneten gegen die geschlossenen Blöcke).
+    /// </summary>
+    /// <param name="text">Der zu prüfende Span.</param>
+    /// <param name="position">Die zu prüfende Position.</param>
+    /// <param name="blockStartChar">Das öffnende Blockzeichen.</param>
+    /// <param name="blockEndChar">Das schließende Blockzeichen.</param>
     public static bool IsInTextBlock(this ReadOnlySpan<char> text, int position, char blockStartChar, char blockEndChar) {
         return IsInTextBlockImpl(text, position, blockStartChar, blockEndChar, out _);
     }
 
+    /// <summary>
+    /// Ob <paramref name="position"/> innerhalb einer offenen Anführung liegt — <c>true</c>, wenn vor der
+    /// Position eine ungerade Anzahl an <paramref name="quotationChar"/> steht.
+    /// </summary>
+    /// <param name="text">Der zu prüfende Text.</param>
+    /// <param name="position">Die zu prüfende Position.</param>
+    /// <param name="quotationChar">Das Anführungszeichen (Standard: doppeltes Anführungszeichen).</param>
     public static bool IsInQuotation(this string text, int position, char quotationChar = '"') {
         return text.AsSpan().IsInQuotation(position, quotationChar);
     }
 
+    /// <summary>
+    /// Ob <paramref name="position"/> innerhalb einer offenen Anführung liegt — <c>true</c>, wenn vor der
+    /// Position eine ungerade Anzahl an <paramref name="quotationChar"/> steht.
+    /// </summary>
+    /// <param name="text">Der zu prüfende Span.</param>
+    /// <param name="position">Die zu prüfende Position.</param>
+    /// <param name="quotationChar">Das Anführungszeichen (Standard: doppeltes Anführungszeichen).</param>
     public static bool IsInQuotation(this ReadOnlySpan<char> text, int position, char quotationChar = '"') {
         return IsInTextBlockImpl(text, position, quotationChar, out _);
     }
@@ -173,6 +261,17 @@ public static class StringExtensions {
         return text.AsSpan().QuotedExtent(position, quotationChar, includequotationCharInExtent);
     }
 
+    /// <summary>
+    /// Liefert den gequoteten Bereich um <paramref name="position"/> (Span-Variante von
+    /// <see cref="QuotedExtent(string, int, char, bool)"/>). Ist der Bereich nach hinten offen, endet er am
+    /// ersten Whitespace nach <paramref name="position"/>; fehlt auch der, reicht er bis zum Textende.
+    /// Liegt <paramref name="position"/> nicht in einer Anführung, wird <see cref="TextExtent.Missing"/>
+    /// zurückgeliefert.
+    /// </summary>
+    /// <param name="text">Der zu durchsuchende Span.</param>
+    /// <param name="position">Die Position innerhalb der Anführung.</param>
+    /// <param name="quotationChar">Das Anführungszeichen (Standard: doppeltes Anführungszeichen).</param>
+    /// <param name="includequotationCharInExtent">Ob die Anführungszeichen selbst in den Bereich einbezogen werden.</param>
     public static TextExtent QuotedExtent(this ReadOnlySpan<char> text, int position, char quotationChar = '"', bool includequotationCharInExtent = false) {
 
         if (!IsInTextBlockImpl(text, position, quotationChar, out var start)) {
@@ -257,6 +356,11 @@ public static class StringExtensions {
         return blockEntered > 0;
     }
 
+    /// <summary>
+    /// Liefert die Zeichenkette mit kleingeschriebenem ersten Buchstaben (camelCase), oder
+    /// <see cref="String.Empty"/>, wenn <paramref name="s"/> <c>null</c> oder leer ist.
+    /// </summary>
+    /// <param name="s">Die umzuwandelnde Zeichenkette.</param>
     public static string ToCamelcase(this string s) {
 
         if (String.IsNullOrEmpty(s)) {
@@ -266,6 +370,11 @@ public static class StringExtensions {
         return s.Substring(0, 1).ToLowerInvariant() + s.Substring(1);
     }
 
+    /// <summary>
+    /// Liefert die Zeichenkette mit großgeschriebenem ersten Buchstaben (PascalCase), oder
+    /// <see cref="String.Empty"/>, wenn <paramref name="s"/> <c>null</c> oder leer ist.
+    /// </summary>
+    /// <param name="s">Die umzuwandelnde Zeichenkette.</param>
     public static string ToPascalcase(this string s) {
 
         if (String.IsNullOrEmpty(s)) {
@@ -330,6 +439,14 @@ public static class StringExtensions {
         return hasSignificantContent ? column : Int32.MaxValue;
     }
 
+    /// <summary>
+    /// Zerlegt den Text in seine Zeilenanfänge und liefert für jede Zeile den Zeichen-Offset ihres ersten
+    /// Zeichens. Als Zeilentrenner gelten <c>\n</c>, <c>\r</c> und <c>\r\n</c>; das Ergebnis enthält stets
+    /// mindestens den Eintrag <c>0</c> (leerer Text ⇒ genau eine Zeile). Grundlage der Zeilen-/Spalten-Auflösung
+    /// eines <see cref="SourceText"/>.
+    /// </summary>
+    /// <param name="text">Der zu zerlegende Text.</param>
+    /// <returns>Die aufsteigend geordneten Zeilenanfangs-Offsets.</returns>
     public static ImmutableArray<int> ParseLineStarts(this ReadOnlySpan<char> text) {
 
         if (text.Length == 0) {

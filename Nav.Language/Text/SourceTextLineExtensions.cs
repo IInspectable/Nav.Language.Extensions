@@ -2,8 +2,20 @@
 
 namespace Pharmatechnik.Nav.Language.Text;
 
+/// <summary>
+/// Zeilenbezogene, tabulator-bewusste Spalten-Helfer für <see cref="SourceTextLine"/>. Sie setzen auf den
+/// gleichnamigen Span-Operationen aus <see cref="StringExtensions"/> auf und rechnen dabei den
+/// Zeilen-<see cref="SourceTextLine.Span"/> aus.
+/// </summary>
 public static class SourceTextLineExtensions {
 
+    /// <summary>
+    /// Liefert den Einzug der Zeile als reine Leerzeichen-Kette — die Tabulatoren des tatsächlichen Einzugs
+    /// werden gemäß <paramref name="tabSize"/> in Spalten umgerechnet
+    /// (<see cref="GetSignificantColumn"/>) und durch ebenso viele Leerzeichen ersetzt.
+    /// </summary>
+    /// <param name="sourceText">Die Zeile, deren Einzug ermittelt wird.</param>
+    /// <param name="tabSize">Die Tabulatorweite in Spalten.</param>
     public static string GetIndentAsSpaces(this SourceTextLine sourceText, int tabSize) {
 
         var startColumn = sourceText.GetSignificantColumn(tabSize);

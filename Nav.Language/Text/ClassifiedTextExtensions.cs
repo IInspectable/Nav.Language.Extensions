@@ -8,16 +8,37 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.Text;
 
+/// <summary>
+/// Erweiterungsmethoden rund um <see cref="ClassifiedText"/>: das Verketten bzw. Vermessen einer
+/// Stück-Folge sowie das Klassifizieren eines Quelltext-Ausschnitts über den Token-Strom eines
+/// <see cref="SyntaxTree"/> (Grundlage der syntaktischen Färbung in QuickInfo und Hosts).
+/// </summary>
 public static class ClassifiedTextExtensions {
 
+    /// <summary>Fügt den <see cref="ClassifiedText.Text"/> aller Stücke ohne Trenner zum reinen Anzeigetext zusammen.</summary>
+    /// <param name="parts">Die zu verkettenden Stücke.</param>
+    /// <returns>Der aneinandergehängte Text.</returns>
     public static string JoinText(this IEnumerable<ClassifiedText> parts) {
         return parts.Aggregate(new StringBuilder(), (sb, p) => sb.Append(p.Text), sb => sb.ToString());
     }
 
+    /// <summary>Die Gesamtlänge in Zeichen — die Summe der <see cref="ClassifiedText.Text"/>-Längen aller Stücke.</summary>
+    /// <param name="parts">Die zu vermessenden Stücke.</param>
+    /// <returns>Die aufsummierte Zeichenlänge.</returns>
     public static int Length(this IEnumerable<ClassifiedText> parts) {
         return parts.Aggregate(0, (acc, ct) => acc + ct.Text.Length);
     }
 
+    /// <summary>
+    /// Zerlegt den mit <paramref name="extent"/> begrenzten Quelltext-Fensterausschnitt in
+    /// <see cref="ClassifiedText"/>-Stücke in Quelltext-Reihenfolge. Läuft den Token-Strom des
+    /// <paramref name="syntaxTree"/> ab und liefert je signifikantem Token dessen
+    /// Leading-Trivia, den Token selbst und dessen Trailing-Trivia (Roslyn-Modell), jeweils auf
+    /// das Fenster zugeschnitten (überlappende Stücke werden geclippt).
+    /// </summary>
+    /// <param name="syntaxTree">Der Syntaxbaum, dessen Token-Strom und Quelltext abgelaufen werden.</param>
+    /// <param name="extent">Das Fenster, auf das die Stücke beschränkt werden.</param>
+    /// <returns>Die klassifizierten Stücke innerhalb des Fensters, in Quelltext-Reihenfolge.</returns>
     public static IEnumerable<ClassifiedText> GetClassifiedText(this SyntaxTree syntaxTree, TextExtent extent) {
 
         var source = syntaxTree.SourceText;
@@ -65,6 +86,12 @@ public static class ClassifiedTextExtensions {
         return false;
     }
 
+    /// <summary>
+    /// Bildet den lexikalischen Typ einer Trivia auf ihre <see cref="TextClassification"/> ab:
+    /// Kommentare werden zu <see cref="TextClassification.Comment"/>, übersprungene Läufe
+    /// (Skip-Trivia) behalten ihre Fehler-Klassifikation <see cref="TextClassification.Skiped"/>,
+    /// alles Übrige gilt als <see cref="TextClassification.Whitespace"/>.
+    /// </summary>
     static TextClassification ClassificationOf(SyntaxTokenType triviaType) {
         if (triviaType == SyntaxTokenType.SingleLineComment || triviaType == SyntaxTokenType.MultiLineComment) {
             return TextClassification.Comment;

@@ -100,10 +100,20 @@ public abstract class SourceTextLineList: IReadOnlyList<SourceTextLine> {
         void IDisposable.Dispose() {
         }
 
+        /// <summary>
+        /// Wird nicht unterstützt — der Enumerator ist ein reiner Iterationszustand und nicht als Wert
+        /// vergleichbar.
+        /// </summary>
+        /// <exception cref="NotSupportedException">Wird immer ausgelöst.</exception>
         public override bool Equals(object? obj) {
             throw new NotSupportedException();
         }
 
+        /// <summary>
+        /// Wird nicht unterstützt — der Enumerator ist ein reiner Iterationszustand und nicht als Wert
+        /// hashbar.
+        /// </summary>
+        /// <exception cref="NotSupportedException">Wird immer ausgelöst.</exception>
         public override int GetHashCode() {
             throw new NotSupportedException();
         }
