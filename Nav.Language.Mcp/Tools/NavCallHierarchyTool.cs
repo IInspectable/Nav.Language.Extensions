@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Server;
 
 using Pharmatechnik.Nav.Language.CallHierarchy;
-using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
