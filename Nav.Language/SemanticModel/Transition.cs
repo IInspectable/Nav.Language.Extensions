@@ -7,8 +7,19 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Gemeinsame Basis der Semantic-Model-Umsetzungen von <see cref="ITransition"/>
+/// (<see cref="InitTransition"/>, <see cref="ChoiceTransition"/>, <see cref="TriggerTransition"/>).
+/// Die Quellknoten-Fallunterscheidung trifft der <see cref="TaskDefinitionSymbolBuilder"/>;
+/// <see cref="ExitTransition"/> steht bewusst außerhalb dieser Hierarchie (eigene Syntax, kein
+/// <see cref="ITransition"/>).
+/// </summary>
 abstract class Transition: ITransition {
 
+    /// <summary>
+    /// Erzeugt die Transition und verankert sich als <c>Edge</c> ihrer nicht-null Referenzen
+    /// (Quelle, Kantenmodus, Ziel).
+    /// </summary>
     internal Transition(TransitionDefinitionSyntax syntax,
                         ITaskDefinitionSymbol containingTask,
                         NodeReferenceSymbol? sourceReference,
@@ -51,6 +62,10 @@ abstract class Transition: ITransition {
 
     public IContinuationTransition? ContinuationTransition { get; }
 
+    /// <summary>
+    /// Liefert die zur Transition gehörenden Teil-Symbole (Quelle, Kantenmodus, Ziel), soweit
+    /// vorhanden — die Symbole eines Continuation-Anhangs eingeschlossen.
+    /// </summary>
     public virtual IEnumerable<ISymbol> Symbols() {
 
         if (SourceReference != null) {

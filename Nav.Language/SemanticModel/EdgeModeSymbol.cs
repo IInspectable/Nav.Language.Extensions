@@ -1,7 +1,21 @@
 ﻿namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Semantic-Model-Umsetzung von <see cref="IEdgeModeSymbol"/>. Entsteht im
+/// <see cref="TaskDefinitionSymbolBuilder"/> je Kante aus deren Operator-Syntax
+/// (<see cref="EdgeSyntax"/> bzw. <see cref="ContinuationEdgeSyntax"/>): der Name ist das
+/// Operator-Literal aus dem Quelltext, <see cref="EdgeMode"/> der von der Syntax kodierte Modus.
+/// </summary>
 sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
 
+    /// <summary>
+    /// Erzeugt das Kantenmodus-Symbol; die tragende <see cref="Edge"/> wird anschließend im
+    /// Kanten-Konstruktor verankert.
+    /// </summary>
+    /// <param name="syntaxTree">Der Syntaxbaum, aus dem das Symbol stammt.</param>
+    /// <param name="name">Das Operator-Literal, wie es im Quelltext steht (z.B. <c>--&gt;</c>).</param>
+    /// <param name="location">Die Fundstelle des Operators.</param>
+    /// <param name="edgeMode">Die vom Operator kodierte Aufruf-Art.</param>
     public EdgeModeSymbol(SyntaxTree syntaxTree, string name, Location location, EdgeMode edgeMode)
         : base(name, location) {
 
@@ -9,12 +23,15 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
         EdgeMode   = edgeMode;
     }
 
+    /// <inheritdoc/>
     public override SyntaxTree SyntaxTree { get; }
 
+    /// <inheritdoc/>
     public EdgeMode EdgeMode { get; }
 
     // Wird im Ctor der Edge während der Initialisierung gesetzt — in der "freien Wildbahn" darf
     // der Null-Fall nicht auftreten.
+    /// <inheritdoc/>
     public IEdge Edge { get; internal set; } = null!;
 
     /// <summary>
