@@ -91,6 +91,7 @@
     <File Path="doc/nav-mcp-agent-gap-analysis.md" />
     <File Path="doc/nav-mcp-status.md" />
     <File Path="doc/nav-mcp-tests-status.md" />
+    <File Path="doc/nav-mcp-trimming-status.md" />
     <File Path="doc/nav-nre-analysis-prompt.md" />
     <File Path="doc/nav-nullable-status.md" />
     <File Path="doc/nav-parser-recovery-status.md" />
