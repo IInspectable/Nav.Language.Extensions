@@ -7,8 +7,20 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Semantic-Model-Umsetzung von <see cref="IExitTransition"/>: verdrahtet einen benannten
+/// Exit-Verbindungspunkt eines Task-Knotens mit einem Zielknoten, z.B.
+/// <c>TaskKnoten:Abbrechen --&gt; end;</c>. Steht bewusst außerhalb der
+/// <see cref="Transition"/>-Hierarchie (eigene Syntax, kein <see cref="ITransition"/>).
+/// </summary>
 sealed class ExitTransition: IExitTransition {
 
+    /// <summary>
+    /// Erzeugt die Exit-Transition und verankert sich als <c>Edge</c> ihrer nicht-null Referenzen
+    /// (Quelle, Kantenmodus, Ziel) sowie als
+    /// <see cref="ExitConnectionPointReferenceSymbol.ExitTransition"/> der
+    /// Exit-Verbindungspunkt-Referenz.
+    /// </summary>
     internal ExitTransition(ExitTransitionDefinitionSyntax syntax,
                             TaskDefinitionSymbol containingTask,
                             TaskNodeReferenceSymbol? taskNodeReference,
@@ -48,6 +60,10 @@ sealed class ExitTransition: IExitTransition {
 
     public ExitTransitionDefinitionSyntax Syntax { get; }
 
+    /// <summary>
+    /// Die Quellreferenz — stets identisch mit <see cref="TaskNodeSourceReference"/>, denn die
+    /// Quelle einer Exit-Transition ist immer ein Task-Knoten.
+    /// </summary>
     public INodeReferenceSymbol? SourceReference => TaskNodeSourceReference;
 
     public ITaskNodeReferenceSymbol? TaskNodeSourceReference { get; }
@@ -60,6 +76,11 @@ sealed class ExitTransition: IExitTransition {
 
     public IContinuationTransition? ContinuationTransition { get; }
 
+    /// <summary>
+    /// Liefert die zur Exit-Transition gehörenden Teil-Symbole (Quelle,
+    /// Exit-Verbindungspunkt-Referenz, Kantenmodus, Ziel), soweit vorhanden — die Symbole eines
+    /// Continuation-Anhangs eingeschlossen.
+    /// </summary>
     public IEnumerable<ISymbol> Symbols() {
 
         if (SourceReference != null) {

@@ -12,6 +12,15 @@ using Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Baut aus einer <see cref="CodeGenerationUnitSyntax"/> das semantische Modell der Datei
+/// (<see cref="CodeGenerationUnit"/>): orchestriert den <see cref="TaskDeclarationSymbolBuilder"/>
+/// (Deklarationstabelle + Includes) und den <see cref="TaskDefinitionSymbolBuilder"/> (je
+/// <c>task</c>-Definition), sammelt die <c>[using …]</c>-Namespaces und den Symbol-Strom ein und
+/// lässt abschließend die semantischen Analyzer über das Modell laufen. Einstiegspunkt ist
+/// <see cref="FromCodeGenerationUnitSyntax"/> (Vordertür:
+/// <see cref="CodeGenerationUnit.FromCodeGenerationUnitSyntax"/>).
+/// </summary>
 sealed class CodeGenerationUnitBuilder {
 
     readonly ISyntaxProvider                         _syntaxProvider;
@@ -32,6 +41,21 @@ sealed class CodeGenerationUnitBuilder {
         _symbols          = new List<ISymbol>();
     }
 
+    /// <summary>
+    /// Baut das Modell in zwei Phasen: Zuerst entsteht ein temporäres Modell mit den Diagnostics
+    /// des Modellbaus, auf das die Task-Definitionen rückverdrahtet werden
+    /// (<see cref="TaskDefinitionSymbol.FinalConstruct"/>), damit die semantischen Analyzer ein
+    /// vollständig verdrahtetes Modell sehen. Deren Ergebnisse ergeben zusammen mit den
+    /// Modellbau-Diagnostics das finale Modell
+    /// (<see cref="CodeGenerationUnit.WithDiagnostics"/>), auf das Definitionen und die nicht
+    /// inkludierten Deklarationen erneut rückverdrahtet werden — inkludierte Deklarationen
+    /// behalten bewusst keine Modell-Referenz
+    /// (<see cref="ITaskDeclarationSymbol.CodeGenerationUnit"/> bleibt <c>null</c>).
+    /// </summary>
+    /// <param name="syntax">Die Wurzel-Syntax der Datei.</param>
+    /// <param name="cancellationToken">Zum Abbrechen des Vorgangs.</param>
+    /// <param name="syntaxProvider">Liefert die Syntax inkludierter Dateien; <c>null</c> fällt auf
+    /// <see cref="SyntaxProvider.Default"/> zurück.</param>
     public static CodeGenerationUnit FromCodeGenerationUnitSyntax(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken, ISyntaxProvider? syntaxProvider) {
 
         if (syntax == null) {
@@ -90,6 +114,15 @@ sealed class CodeGenerationUnitBuilder {
         ProcessCodeLanguage(syntax, cancellationToken);
     }
 
+    /// <summary>
+    /// Verarbeitet den Nav-Anteil der Datei in fester Reihenfolge: erst die Deklarationstabelle
+    /// samt Includes (<see cref="TaskDeclarationSymbolBuilder"/>), dann die
+    /// <c>task</c>-Definitionen (<see cref="ProcessTaskDefinitionSyntax"/>), zuletzt der
+    /// Symbol-Strom für <see cref="CodeGenerationUnit.Symbols"/> — dieser enthält nur Symbole der
+    /// eigenen Datei: die <c>taskref Name { … }</c>-Deklarationen
+    /// (<see cref="TaskDeclarationOrigin.TaskDeclaration"/>, nicht inkludiert), alle Symbole der
+    /// Task-Definitionen samt Kindern sowie die Includes selbst.
+    /// </summary>
     void ProcessNavLanguage(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken) {
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -127,6 +160,12 @@ sealed class CodeGenerationUnitBuilder {
         _symbols.AddRange(_includes);
     }
 
+    /// <summary>
+    /// Baut zu einer <c>task</c>-Definition das <see cref="TaskDefinitionSymbol"/>
+    /// (<see cref="TaskDefinitionSymbolBuilder"/>). Definitionen mit bereits vergebenem Namen
+    /// werden übersprungen — der Namenskonflikt ist über die Deklarationstabelle schon als
+    /// Nav0020 gemeldet.
+    /// </summary>
     void ProcessTaskDefinitionSyntax(TaskDefinitionSyntax taskDefinitionSyntax, CancellationToken cancellationToken) {
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -144,6 +183,11 @@ sealed class CodeGenerationUnitBuilder {
         }
     }
 
+    /// <summary>
+    /// Sammelt die Namespaces der <c>[using …]</c>-Deklarationen für
+    /// <see cref="CodeGenerationUnit.CodeUsings"/> ein; Deklarationen ohne Namespace-Angabe
+    /// werden ausgelassen.
+    /// </summary>
     void ProcessCodeLanguage(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken) {
         foreach (var codeUsingDeclarationSyntax in syntax.DescendantNodes<CodeUsingDeclarationSyntax>()) {
 

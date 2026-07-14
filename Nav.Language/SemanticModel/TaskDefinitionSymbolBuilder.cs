@@ -6,6 +6,14 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Baut aus einer <see cref="TaskDefinitionSyntax"/> das <see cref="TaskDefinitionSymbol"/> samt
+/// Knoten, Kanten und deren Verdrahtung (Einstieg: <see cref="Build"/>). Als
+/// <see cref="SyntaxNodeVisitor"/> besucht er erst alle Knoten-Deklarationen und dann die
+/// Transitionen — die Quell-/Ziel-Auflösung der Kanten setzt die vollständige Knotentabelle
+/// voraus. Task-Namen werden gegen die zuvor vom <see cref="TaskDeclarationSymbolBuilder"/>
+/// gebaute Deklarationstabelle aufgelöst.
+/// </summary>
 sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     readonly IReadOnlySymbolCollection<TaskDeclarationSymbol> _taskDeclarations;
@@ -20,6 +28,14 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         _diagnostics      = new List<Diagnostic>();
     }
 
+    /// <summary>
+    /// Einstiegs-Visit: legt das <see cref="TaskDefinitionSymbol"/> an und besucht dann in fester
+    /// Reihenfolge Knoten-Deklarationen, Transitionen und Exit-Transitionen. Als
+    /// <see cref="ITaskDefinitionSymbol.AsTaskDeclaration"/> wird die gleichnamige Deklaration
+    /// nur übernommen, wenn ihre Location mit dem Definitions-Bezeichner identisch ist — sie also
+    /// die implizite Deklaration genau dieser Definition ist (bei Namenskonflikten bleibt sie
+    /// <c>null</c>). Ohne Bezeichner entsteht kein Symbol.
+    /// </summary>
     public override void VisitTaskDefinition(TaskDefinitionSyntax taskDefinitionSyntax) {
         var identifier = taskDefinitionSyntax.Identifier;
         var location   = identifier.GetLocation();
@@ -56,6 +72,12 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     #region Node Declarations
 
+    /// <summary>
+    /// Erzeugt das <see cref="InitNodeSymbol"/>: Der deklarierte Symbol-Name ist stets
+    /// <c>Init</c> (<see cref="SyntaxFacts.InitKeywordAlt"/>), verortet am
+    /// <c>init</c>-Schlüsselwort; ein Bezeichner hinter <c>init</c> wird zum Alias
+    /// (<see cref="InitNodeAliasSymbol"/>), dessen Name dann als effektiver Knotenname gilt.
+    /// </summary>
     public override void VisitInitNodeDeclaration(InitNodeDeclarationSyntax initNodeDeclarationSyntax) {
 
         var identifier = initNodeDeclarationSyntax.InitKeyword;
@@ -80,6 +102,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>Erzeugt das <see cref="ExitNodeSymbol"/> zum deklarierten <c>exit</c>-Knoten.</summary>
     public override void VisitExitNodeDeclaration(ExitNodeDeclarationSyntax exitNodeDeclarationSyntax) {
 
         var identifier = exitNodeDeclarationSyntax.Identifier;
@@ -95,6 +118,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>Erzeugt das <see cref="EndNodeSymbol"/> zum <c>end</c>-Knoten; als Name dient das Schlüsselwort selbst.</summary>
     public override void VisitEndNodeDeclaration(EndNodeDeclarationSyntax endNodeDeclarationSyntax) {
 
         var identifier = endNodeDeclarationSyntax.EndKeyword;
@@ -110,6 +134,13 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>
+    /// Erzeugt das <see cref="TaskNodeSymbol"/> zu einem <c>task</c>-Knoten (z.B.
+    /// <c>task Auswahl A1;</c>): löst den Task-Namen gegen die Deklarationstabelle auf, legt für
+    /// den optionalen zweiten Bezeichner den Alias (<see cref="TaskNodeAliasSymbol"/>) an und
+    /// trägt den Knoten in die <see cref="TaskDeclarationSymbol.References"/> seiner Deklaration
+    /// ein.
+    /// </summary>
     public override void VisitTaskNodeDeclaration(TaskNodeDeclarationSyntax taskNodeDeclarationSyntax) {
 
         var taskIdentifier = taskNodeDeclarationSyntax.Identifier;
@@ -145,6 +176,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(taskNode);
     }
 
+    /// <summary>Erzeugt das <see cref="DialogNodeSymbol"/> zum deklarierten <c>dialog</c>-Knoten.</summary>
     public override void VisitDialogNodeDeclaration(DialogNodeDeclarationSyntax dialogNodeDeclarationSyntax) {
 
         var identifier = dialogNodeDeclarationSyntax.Identifier;
@@ -160,6 +192,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>Erzeugt das <see cref="ViewNodeSymbol"/> zum deklarierten <c>view</c>-Knoten.</summary>
     public override void VisitViewNodeDeclaration(ViewNodeDeclarationSyntax viewNodeDeclarationSyntax) {
 
         var identifier = viewNodeDeclarationSyntax.Identifier;
@@ -175,6 +208,7 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>Erzeugt das <see cref="ChoiceNodeSymbol"/> zum deklarierten <c>choice</c>-Knoten.</summary>
     public override void VisitChoiceNodeDeclaration(ChoiceNodeDeclarationSyntax choiceNodeDeclarationSyntax) {
 
         var identifier = choiceNodeDeclarationSyntax.Identifier;
@@ -190,6 +224,10 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddNodeDeclaration(decl);
     }
 
+    /// <summary>
+    /// Trägt den Knoten in die Knotentabelle der Definition ein; ist der Name bereits vergeben,
+    /// wird stattdessen Nav0022 gemeldet (mit Verweis auf den bestehenden Knoten).
+    /// </summary>
     void AddNodeDeclaration(INodeSymbol nodeSymbol) {
 
         if (_taskDefinition.NodeDeclarations.Contains(nodeSymbol.Name)) {
@@ -210,6 +248,15 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     #region Edges (Transitions / ExitTransitions)
 
+    /// <summary>
+    /// Verarbeitet eine reguläre Transition (<c>Quelle --&gt; Ziel …;</c>): Die Art des
+    /// aufgelösten Quellknotens bestimmt die konkrete Kante — <c>init</c> → Init-, Choice →
+    /// Choice-, GUI-Knoten (View/Dialog) → Trigger-Transition. Eine unauflösbare Quelle meldet
+    /// Nav0011; Task-, Exit- und End-Knoten sind als Quelle unzulässig (Nav0100/Nav0101/Nav0102).
+    /// Sonderfall <c>init</c>: der Init-Knoten ist unter <c>Init</c>
+    /// (<see cref="SyntaxFacts.InitKeywordAlt"/>) eingetragen; als Quelle wird auch die
+    /// Kleinschreibung <c>init</c> aufgelöst.
+    /// </summary>
     public override void VisitTransitionDefinition(TransitionDefinitionSyntax transitionDefinitionSyntax) {
 
         // Target
@@ -292,6 +339,13 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         }
     }
 
+    /// <summary>
+    /// Verarbeitet eine Exit-Transition (<c>TaskKnoten:Exit --&gt; Ziel;</c>): Die Quelle muss ein
+    /// Task-Knoten sein; der benannte Exit wird gegen die Exit-Verbindungspunkte der
+    /// Task-Deklaration des Quellknotens aufgelöst
+    /// (<see cref="ExitConnectionPointReferenceSymbol"/> — dessen Declaration bleibt <c>null</c>,
+    /// wenn es dort keinen Exit dieses Namens gibt).
+    /// </summary>
     public override void VisitExitTransitionDefinition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax) {
 
         // Source in Exit Transition muss immer ein Task sein
@@ -326,6 +380,13 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         AddExitTransition(exitTransitionDefinitionSyntax, sourceNodeReference, exitConnectionPointReference, edgeMode, targetNodeReference);
     }
 
+    /// <summary>
+    /// Legt die <see cref="ExitTransition"/> an und verdrahtet sie: Eintrag in
+    /// <see cref="TaskDefinitionSymbol.ExitTransitions"/>, bei aufgelöstem Quell-Task-Knoten
+    /// dessen <c>Outgoings</c>/<c>References</c>, Zielseite via
+    /// <see cref="WireTargetNodeReferences"/>; ein Continuation-Anhang wird zuvor mitgebaut
+    /// (<see cref="CreateContinuationTransition"/>).
+    /// </summary>
     private void AddExitTransition(ExitTransitionDefinitionSyntax exitTransitionDefinitionSyntax, TaskNodeReferenceSymbol sourceNodeReference, ExitConnectionPointReferenceSymbol? exitConnectionPointReference, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var continuationTransition = CreateContinuationTransition(exitTransitionDefinitionSyntax.ContinuationTransition, exitTransitionDefinitionSyntax.TargetNode);
@@ -341,6 +402,11 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         WireTargetNodeReferences(exitTransition);
     }
 
+    /// <summary>
+    /// Legt die <see cref="InitTransition"/> an und verdrahtet sie am Quell-Init-Knoten
+    /// (<c>Outgoings</c>/<c>References</c>) sowie an der Zielseite
+    /// (<see cref="WireTargetNodeReferences"/>).
+    /// </summary>
     private void AddInitTransition(InitNodeSymbol initNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodeLocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var continuationTransition = CreateContinuationTransition(transitionDefinitionSyntax.ContinuationTransition, transitionDefinitionSyntax.TargetNode);
@@ -355,6 +421,11 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         WireTargetNodeReferences(initTransition);
     }
 
+    /// <summary>
+    /// Legt die <see cref="ChoiceTransition"/> an und verdrahtet sie am Quell-Choice-Knoten
+    /// (<c>Outgoings</c>/<c>References</c>) sowie an der Zielseite
+    /// (<see cref="WireTargetNodeReferences"/>).
+    /// </summary>
     private void AddChoiceTransition(ChoiceNodeSymbol choiceNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var continuationTransition = CreateContinuationTransition(transitionDefinitionSyntax.ContinuationTransition, transitionDefinitionSyntax.TargetNode);
@@ -369,6 +440,11 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         WireTargetNodeReferences(choiceTransition);
     }
 
+    /// <summary>
+    /// Legt die <see cref="TriggerTransition"/> eines GUI-Knotens an: baut zunächst deren
+    /// Trigger samt zugehöriger Diagnostics (<see cref="TriggerSymbolBuilder"/>) und verdrahtet
+    /// dann wie bei den übrigen Kanten Quell- und Zielseite.
+    /// </summary>
     private void AddTriggerTransition(IGuiNodeSymbolConstruction guiNode, TransitionDefinitionSyntax transitionDefinitionSyntax, SourceNodeSyntax sourceNodeSyntax, Location sourceNodelocation, EdgeModeSymbol? edgeMode, NodeReferenceSymbol? targetNodeReference) {
 
         var (triggers, diagnostics) = TriggerSymbolBuilder.Build(transitionDefinitionSyntax);
@@ -387,15 +463,20 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         WireTargetNodeReferences(triggerTransition);
     }
 
+    /// <summary>
+    /// Erzeugt die Zielknoten-Referenz einer Kante (<see cref="CreateNodeReference"/> mit
+    /// <see cref="NodeReferenceType.Target"/>).
+    /// </summary>
     private NodeReferenceSymbol? CreateTargetNodeReference(TargetNodeSyntax? targetNodeSyntax) {
         return CreateNodeReference(targetNodeSyntax, NodeReferenceType.Target);
     }
 
     /// <summary>
-    /// Erzeugt für den benannten Zielknoten (<paramref name="nodeSyntax"/>) das passende, typisierte
+    /// Erzeugt für den benannten Knoten (<paramref name="nodeSyntax"/>) das passende, typisierte
     /// <see cref="NodeReferenceSymbol"/> (je nach aufgelöster Deklaration Init/Choice/Task/Gui/Exit/End)
-    /// mit der angegebenen Referenz-Richtung <paramref name="referenceType"/>; liefert null, wenn kein
-    /// Knoten benannt ist.
+    /// mit der angegebenen Referenz-Richtung <paramref name="referenceType"/> — auch die Quellseite
+    /// einer Continuation nutzt dies (siehe <see cref="CreateContinuationTransition"/>); liefert null,
+    /// wenn kein Knoten benannt ist.
     /// </summary>
     private NodeReferenceSymbol? CreateNodeReference(TargetNodeSyntax? nodeSyntax, NodeReferenceType referenceType) {
 
@@ -463,6 +544,11 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
         return continuationTransition;
     }
 
+    /// <summary>
+    /// Hängt die Kante an ihrem Zielknoten ein (<c>Incomings</c> + <c>References</c>).
+    /// Unauflösbare Ziele und Init-Knoten als Ziel werden bewusst nicht verdrahtet — die
+    /// zugehörigen Diagnosen (Nav0011 bzw. Nav0103) entstehen an anderer Stelle.
+    /// </summary>
     private static void WireTargetNodeReferences(IEdge edge) {
 
         //==============================
@@ -485,6 +571,13 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
 
     #endregion
 
+    /// <summary>
+    /// Baut das <see cref="TaskDefinitionSymbol"/> zur übergebenen Definition;
+    /// <c>TaskDefinition</c> ist <c>null</c>, wenn die Definition keinen Bezeichner trägt.
+    /// </summary>
+    /// <param name="taskDefinitionSyntax">Die zu bindende <c>task</c>-Definition.</param>
+    /// <param name="taskDeclarations">Die Deklarationstabelle der Datei (inklusive der aus
+    /// Includes stammenden Deklarationen) zur Auflösung von Task-Knoten.</param>
     public static (
         TaskDefinitionSymbol? TaskDefinition,
         List<Diagnostic> Diagnostics)

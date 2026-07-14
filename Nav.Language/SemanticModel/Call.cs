@@ -7,6 +7,14 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Ein aufgelöster Aufruf im Übergangsgraphen: welcher Knoten (<see cref="Node"/>) mit welcher
+/// Aufruf-Art (<see cref="EdgeMode"/>) erreicht wird. Anders als eine <see cref="IEdge"/> ist ein
+/// Call bereits das <b>Ergebnis</b> der Graph-Auflösung (siehe
+/// <see cref="EdgeExtensions.GetReachableCalls(IEdge)"/> bzw.
+/// <see cref="EdgeExtensions.GetDirectCalls"/>) — die Grundlage der Erreichbarkeits-Analyzer und
+/// der Aufruf-Listen in der Codegenerierung.
+/// </summary>
 public sealed class Call {
 
     /// <summary>
@@ -35,7 +43,9 @@ public sealed class Call {
         }
     }
 
+    /// <summary>Der aufgerufene Knoten — das (ggf. über Choices hinweg aufgelöste) Ziel der Kante.</summary>
     public INodeSymbol     Node     { get; }
+    /// <summary>Der Kantenmodus, mit dem der Knoten aufgerufen wird — nie <c>null</c> (der Konstruktor erzwingt ihn).</summary>
     public IEdgeModeSymbol EdgeMode { get; }
 
     /// <summary>
@@ -46,14 +56,31 @@ public sealed class Call {
 
 }
 
+/// <summary>
+/// Wertbasierte Gleichheit für <see cref="Call"/>s: gleich sind zwei Calls, wenn Knoten-Name,
+/// Kantenmodus-Name und — rekursiv — der <see cref="Call.ContinuationCall"/> übereinstimmen.
+/// Damit fallen mehrere Kanten auf dasselbe Ziel mit derselben Aufruf-Art zu <b>einem</b> Call
+/// zusammen (Deduplizierung in <see cref="EdgeExtensions.GetReachableCalls(IEdge)"/> u.a.).
+/// </summary>
 public class CallComparer: IEqualityComparer<Call> {
 
+    /// <summary>Nur für abgeleitete Comparer — Verwendung über <see cref="Default"/> bzw. <see cref="FoldExits"/>.</summary>
     protected CallComparer() {
     }
 
+    /// <summary>Die wertbasierte Standard-Gleichheit (Knoten-Name, Kantenmodus-Name, Continuation).</summary>
     public static readonly IEqualityComparer<Call> Default   = new CallComparer();
+    /// <summary>
+    /// Wie <see cref="Default"/>, aber alle Aufrufe von Exit-Knoten (<see cref="IExitNodeSymbol"/>)
+    /// gelten zusätzlich untereinander als gleich — in der Codegenerierung werden Exits nicht
+    /// unterschieden.
+    /// </summary>
     public static readonly IEqualityComparer<Call> FoldExits = new FoldExitsCallComparer();
 
+    /// <summary>
+    /// Ob <paramref name="x"/> und <paramref name="y"/> denselben Aufruf bezeichnen — Vergleich
+    /// über Knoten-Name, Kantenmodus-Name und (rekursiv) <see cref="Call.ContinuationCall"/>.
+    /// </summary>
     public virtual bool Equals(Call? x, Call? y) {
 
         if (x == null && y == null) {
@@ -69,6 +96,7 @@ public class CallComparer: IEqualityComparer<Call> {
                Equals(x.ContinuationCall, y.ContinuationCall);
     }
 
+    /// <summary>Hashcode passend zu <see cref="Equals(Call, Call)"/> (Knoten-Name, Kantenmodus-Name, Continuation).</summary>
     public virtual int GetHashCode(Call call) {
         unchecked {
             var hashCode = (call.Node.Name.GetHashCode() * 397) ^ call.EdgeMode.Name.GetHashCode();

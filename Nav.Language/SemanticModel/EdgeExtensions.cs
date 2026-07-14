@@ -7,6 +7,12 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Graph-Traversierung über <see cref="IEdge"/>-Kanten: löst auf, welche <see cref="Call"/>s eine
+/// Kante (transitiv über Choice-Knoten) auslöst und ob eine Kante vom Graph-Anfang aus überhaupt
+/// erreichbar ist. Gemeinsame Grundlage für Erreichbarkeits-Analyzer (z.B. Nav0110, Nav0222) und
+/// die Codegenerierung (Aufruf-Listen der Transitions-Codemodelle).
+/// </summary>
 public static class EdgeExtensions {
 
     /// <summary>
@@ -77,10 +83,22 @@ public static class EdgeExtensions {
         return calls.Distinct(CallComparer.Default);
     }
 
+    /// <summary>
+    /// Liefert die von <paramref name="source"/> erreichbaren Aufrufe: das unmittelbare Kanten-Ziel als
+    /// <see cref="Call"/> — außer es ist eine Choice, dann werden stattdessen rekursiv deren Ausgänge
+    /// verfolgt (die Choice selbst erscheint nie als Call). Nur Kanten mit aufgelöstem Ziel <b>und</b>
+    /// definiertem <see cref="IEdge.EdgeMode"/> ergeben einen Call; Zyklen werden nicht erneut betreten.
+    /// Das Ergebnis ist mit <see cref="CallComparer.Default"/> dedupliziert.
+    /// </summary>
     public static IEnumerable<Call> GetReachableCalls(this IEdge source) {
         return GetReachableCallsImpl(source, new HashSet<IEdge>()).Distinct(CallComparer.Default);
     }
 
+    /// <summary>
+    /// Liefert die von den <paramref name="edges"/> erreichbaren Aufrufe (siehe
+    /// <see cref="GetReachableCalls(IEdge)"/>) — mit gemeinsamem Besucht-Set und gemeinsamer
+    /// Deduplizierung über alle Kanten hinweg.
+    /// </summary>
     public static IEnumerable<Call> GetReachableCalls(this IEnumerable<IEdge> edges) {
 
         return GetReachableCallsCore(edges).Distinct(CallComparer.Default);
@@ -121,6 +139,14 @@ public static class EdgeExtensions {
         }
     }
 
+    /// <summary>
+    /// Ob die Kante <paramref name="source"/> vom Anfang des Graphen aus erreichbar ist. Läuft
+    /// rückwärts: eine Kante ist erreichbar, wenn ihr Quellknoten eine reine Quelle ist
+    /// (<see cref="ISourceNodeSymbol"/> ohne <see cref="ITargetNodeSymbol"/>-Seite, also z.B. ein
+    /// Init-Knoten — per Definition der Anfang) oder wenn mindestens eine seiner eingehenden Kanten
+    /// (<see cref="ITargetNodeSymbol.Incomings"/>) ihrerseits erreichbar ist. Ein reiner Zyklus ohne
+    /// Anbindung an eine Quelle ist damit unerreichbar; ebenso Kanten ohne aufgelösten Quellknoten.
+    /// </summary>
     public static bool IsReachable(this IEdge source) {
 
         return IsReachableImpl(source, new HashSet<IEdge>());
