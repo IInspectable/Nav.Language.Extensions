@@ -34,10 +34,26 @@ static class Program {
 
         builder.Services.AddSingleton(new NavMcpWorkspace(root));
 
+        // Tools statisch (reflektionsfrei) registrieren — WithToolsFromAssembly() wäre trim-unsicher
+        // (IL2026). WithTools<T>() ist trim-sicher: T ist statisch bekannt, der MCP-SDK-Sourcegen erzeugt
+        // die Metadaten dafür. Beim Ergänzen eines neuen Tools hier mit eintragen.
         builder.Services
                .AddMcpServer()
                .WithStdioServerTransport()
-               .WithToolsFromAssembly();
+               .WithTools<Tools.NavValidateTool>()
+               .WithTools<Tools.NavDiagnosticsTool>()
+               .WithTools<Tools.NavOutlineTool>()
+               .WithTools<Tools.NavWorkspaceTool>()
+               .WithTools<Tools.NavFindSymbolTool>()
+               .WithTools<Tools.NavGotoTool>()
+               .WithTools<Tools.NavReferencesTool>()
+               .WithTools<Tools.NavRenameTool>()
+               .WithTools<Tools.NavCodeActionsTool>()
+               .WithTools<Tools.NavFormatTool>()
+               .WithTools<Tools.NavGrammarTool>()
+               .WithTools<Tools.NavPreviewCodegenTool>()
+               .WithTools<Tools.NavCallHierarchyTool>()
+               .WithTools<Tools.NavExitUsagesTool>();
 
         await builder.Build().RunAsync();
     }

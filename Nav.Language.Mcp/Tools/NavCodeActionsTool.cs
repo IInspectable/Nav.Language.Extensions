@@ -19,7 +19,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_code_actions</c>: liefert die an einem Symbol anwendbaren Code-Aktionen samt Edits (read-only).
 /// </summary>
 [McpServerToolType]
-public static class NavCodeActionsTool {
+public sealed class NavCodeActionsTool {
 
     [McpServerTool(Name = "nav_code_actions")]
     [Description("Returns the code actions (quick fixes / refactorings) applicable in a .nav file, each with its " +

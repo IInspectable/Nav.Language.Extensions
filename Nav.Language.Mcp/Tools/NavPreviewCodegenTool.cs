@@ -23,7 +23,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// suchen, generiert das Tool in-memory gegen das frisch von Platte gelesene semantische Modell.
 /// </summary>
 [McpServerToolType]
-public static class NavPreviewCodegenTool {
+public sealed class NavPreviewCodegenTool {
 
     /// <summary>
     /// Obergrenze für den zurückgegebenen Gesamtinhalt (Zeichen). Wird sie überschritten, entfällt der

@@ -22,7 +22,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// Cursor): die Task wird über ihren Namen in <paramref name="path"/> aufgelöst.
 /// </summary>
 [McpServerToolType]
-public static class NavExitUsagesTool {
+public sealed class NavExitUsagesTool {
 
     /// <summary>Voreinstellung für die Seitengröße der aufrufenden Tasks, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;

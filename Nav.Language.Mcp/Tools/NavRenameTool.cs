@@ -24,7 +24,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_rename</c>: berechnet das Edit-Set zum Umbenennen eines Task-/Knotennamens (read-only).
 /// </summary>
 [McpServerToolType]
-public static class NavRenameTool {
+public sealed class NavRenameTool {
 
     [McpServerTool(Name = "nav_rename")]
     [Description("Computes the edits to rename a task or node and returns them (1-based ranges + new text) plus "    +

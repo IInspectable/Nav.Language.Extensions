@@ -24,7 +24,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// <paramref name="path"/> aufgelöst und in den Engine-Kern gespeist.
 /// </summary>
 [McpServerToolType]
-public static class NavCallHierarchyTool {
+public sealed class NavCallHierarchyTool {
 
     const string DirectionIncoming = "incoming";
     const string DirectionOutgoing = "outgoing";

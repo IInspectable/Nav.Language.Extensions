@@ -13,7 +13,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_grammar</c>: liefert die EBNF-Grammatik der Nav-Sprache (oder eine einzelne Produktion).
 /// </summary>
 [McpServerToolType]
-public static class NavGrammarTool {
+public sealed class NavGrammarTool {
 
     [McpServerTool(Name = "nav_grammar")]
     [Description("Returns the EBNF grammar of the Nav language, assembled at compile time from the hand-written "  +

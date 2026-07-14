@@ -15,7 +15,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_goto</c>: liefert die Definition(en) eines Task- oder Knotennamens (Nav→Nav, cross-file).
 /// </summary>
 [McpServerToolType]
-public static class NavGotoTool {
+public sealed class NavGotoTool {
 
     [McpServerTool(Name = "nav_goto")]
     [Description("Resolves a task or node name to its Nav definition location(s), following cross-file " +

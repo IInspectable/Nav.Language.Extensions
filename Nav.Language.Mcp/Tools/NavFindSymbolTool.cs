@@ -21,7 +21,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// (<c>nav_goto</c>, <c>nav_references</c>, …) brauchen den Pfad bereits.
 /// </summary>
 [McpServerToolType]
-public static class NavFindSymbolTool {
+public sealed class NavFindSymbolTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;

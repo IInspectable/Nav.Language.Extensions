@@ -21,7 +21,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// wie bei Rename).
 /// </summary>
 [McpServerToolType]
-public static class NavFormatTool {
+public sealed class NavFormatTool {
 
     [McpServerTool(Name = "nav_format")]
     [Description("Formats a Nav (.nav) file — the whole document, or only the lines startLine..endLine — and " +

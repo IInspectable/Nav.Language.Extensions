@@ -22,7 +22,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// (<see cref="NavMcpWorkspace.GetFileDiagnostics"/> → <c>DiagnosticsComputer.FromUnit</c>), fresh pro Datei.
 /// </summary>
 [McpServerToolType]
-public static class NavDiagnosticsTool {
+public sealed class NavDiagnosticsTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;

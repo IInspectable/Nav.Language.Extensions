@@ -12,7 +12,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_outline</c>: liefert die Struktur einer <c>.nav</c>-Datei (Tasks + Knoten).
 /// </summary>
 [McpServerToolType]
-public static class NavOutlineTool {
+public sealed class NavOutlineTool {
 
     [McpServerTool(Name = "nav_outline")]
     [Description("Returns the structure of a Nav (.nav) file: every task definition with its declared nodes "     +
