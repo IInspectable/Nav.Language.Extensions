@@ -56,6 +56,8 @@ task LoginFlow [base StandardWFS: IWFServiceBase]
 - **Kommentieren / Auskommentieren** der Auswahl.
 - **Codefaltung** für Blöcke.
 - **Formatierung** — „Dokument formatieren" richtet Einrückung und Ausrichtung am Nav-Sprachmodell aus.
+  Wie der Formatter intern funktioniert, beschreibt der
+  [Technical Deep Dive](doc/Formatter-DeepDive.md).
 
 Die **Visual-Studio-Extension** integriert sich zusätzlich tiefer in die IDE:
 

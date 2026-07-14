@@ -3,10 +3,27 @@ using System.Collections.Generic;
 
 namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
+/// <summary>
+/// Nav0119 (<c>The init node '{0}' has the same parameter signature as init node '{1}'</c>,
+/// Fehler): Zwei <c>init</c>-Knoten (<see cref="IInitNodeSymbol"/>) desselben Tasks dürfen nicht
+/// dieselbe Parameter-Signatur tragen. Alle Init-Knoten werden auf dieselbe, über ihre Parameter
+/// überladene <c>Begin</c>-Methode abgebildet (der Init-Knotenname landet nur als Annotation,
+/// nicht im Methodennamen) — gleiche Signatur erzeugte also zweimal dasselbe Member und damit
+/// nicht-übersetzbaren Code (CS0111). „Gleiche Signatur" heißt: gleiche geordnete Folge der
+/// Parameter-<b>Typen</b> aus der <c>[params …]</c>-Deklaration
+/// (<see cref="InitNodeDeclarationSyntax.CodeParamsDeclaration"/>); Parameternamen sind
+/// unerheblich (<c>init I1 [params int x]; init I2 [params int y];</c> kollidiert), Whitespace im
+/// Typtext wird ignoriert (<c>List&lt;int&gt;</c> = <c>List&lt; int &gt;</c>), und parameterlose
+/// Init-Knoten teilen die leere Signatur (kollidieren also ebenfalls). Gemeldet wird jeder auf den
+/// ersten Knoten einer Signatur folgende Doppelgänger, unter Nennung dieses ersten Knotens; die
+/// Diagnose sitzt am Alias (<see cref="IInitNodeSymbol.Alias"/>), ersatzweise an der Deklaration.
+/// </summary>
 public class Nav0119InitNode0HasSameSignatureAsInitNode1: NavAnalyzer {
 
+    /// <inheritdoc/>
     public override DiagnosticDescriptor Descriptor => DiagnosticDescriptors.Semantic.Nav0119InitNode0HasSameSignatureAsInitNode1;
 
+    /// <inheritdoc/>
     public override IEnumerable<Diagnostic> Analyze(ITaskDefinitionSymbol taskDefinition, AnalyzerContext context) {
         //==============================
         // The init node '{0}' has the same parameter signature as init node '{1}'
