@@ -148,3 +148,170 @@ Der irreführende Kommentar „Kein PublishTrimmed …" in der csproj wird erset
 - Alle Tests (net472 via `nav test`, net10.0 via `dotnet test`) grün, inkl. `Nav.Language.Mcp.Tests`.
 - Getrimmte exe liefert für eine bekannte fehlerhafte `.nav` dieselben Diagnostics wie die untrimmte
   (kein still fehlender Analyzer).
+
+---
+
+## Step-1-Handoff (turnkey — nahtloser Start in neuer Session)
+
+Step 1 ist **eigenständig**: nur das neue Generator-Projekt + sein Snapshot-Test, beide grün. Der
+Generator wird hier **noch nicht** von `Nav.Language` referenziert (das ist Step 2). Alles baut mit
+`dotnet` (netstandard2.0 + net10.0) — **kein** MSBuild.exe nötig.
+
+### Vorlage: alles kopiert vom bestehenden `Nav.Visitor.SourceGenerator`
+
+Der neue Generator ist strukturell ein vereinfachter Zwilling. Referenzdateien zum Abschauen:
+`Build/SourceGenerators/Nav.Visitor.SourceGenerator/{SymbolVisitorGenerator.cs, VisitorModel.cs}`
+und `…/Nav.Visitor.SourceGenerator.Tests/{Shared/GeneratorTestBase.cs, Shared/SnapshotAssert.cs}`.
+
+### Anzulegende Dateien
+
+1. **`Build/SourceGenerators/Nav.Analyzer.SourceGenerator/Nav.Analyzer.SourceGenerator.csproj`** —
+   identisch zum Visitor-Pendant; `SourceGenerator.props` liefert netstandard2.0, `IsRoslynComponent`,
+   `Microsoft.CodeAnalysis.CSharp` **und** — via `Nav.CodeAnalysis.Shared.projitems` — den
+   `SourceBuilder` (Namespace `Pharmatechnik.Nav.Language.CodeAnalysis.Shared`). Keine weitere Referenz nötig:
+
+   ```xml
+   <Project Sdk="Microsoft.NET.Sdk">
+     <PropertyGroup>
+       <RootNamespace>Pharmatechnik.Nav.Language.Analyzer.SourceGenerator</RootNamespace>
+     </PropertyGroup>
+     <Import Project="..\SourceGenerator.props" />
+   </Project>
+   ```
+
+2. **`…/Nav.Analyzer.SourceGenerator/NavAnalyzerRegistryGenerator.cs`** — Skelett:
+
+   ```csharp
+   using System; using System.Collections.Immutable; using System.Linq; using System.Text;
+   using Microsoft.CodeAnalysis;
+   using Microsoft.CodeAnalysis.CSharp;
+   using Microsoft.CodeAnalysis.CSharp.Syntax;
+   using Microsoft.CodeAnalysis.Text;
+   using Pharmatechnik.Nav.Language.CodeAnalysis.Shared;
+
+   namespace Pharmatechnik.Nav.Language.Analyzer.SourceGenerator;
+
+   [Generator(LanguageNames.CSharp)]
+   public sealed class NavAnalyzerRegistryGenerator: IIncrementalGenerator {
+
+       const string AnalyzerInterface = "Pharmatechnik.Nav.Language.SemanticAnalyzer.INavAnalyzer";
+
+       public void Initialize(IncrementalGeneratorInitializationContext context) {
+           var analyzers = context.SyntaxProvider
+               .CreateSyntaxProvider(
+                    predicate: static (node, _) => node is ClassDeclarationSyntax c &&
+                                                   !c.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword)),
+                    transform: static (ctx, _) => ToInfo(ctx))
+               .Where(static x => x is not null)
+               .Select(static (x, _) => x!)
+               .Collect();
+           context.RegisterSourceOutput(analyzers, static (spc, items) => Emit(spc, items));
+       }
+
+       static AnalyzerInfo? ToInfo(GeneratorSyntaxContext ctx) {
+           if (ctx.SemanticModel.GetDeclaredSymbol(ctx.Node) is not INamedTypeSymbol s) return null;
+           if (s.IsAbstract) return null;
+           if (!s.AllInterfaces.Any(i => i.ToDisplayString() == AnalyzerInterface)) return null;
+           var hasCtor = s.InstanceConstructors.Any(c => c.Parameters.IsEmpty &&
+                                                         c.DeclaredAccessibility != Accessibility.Private);
+           if (!hasCtor) return null;
+           return new AnalyzerInfo(s.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)); // global::…
+       }
+
+       static void Emit(SourceProductionContext spc, ImmutableArray<AnalyzerInfo> items) {
+           var ordered = items.Distinct().OrderBy(i => i.FullTypeName, StringComparer.Ordinal).ToImmutableArray();
+           const string itf = "global::Pharmatechnik.Nav.Language.SemanticAnalyzer.INavAnalyzer";
+           var sb = new SourceBuilder();
+           sb.AppendHeader();
+           sb.Namespace("Pharmatechnik.Nav.Language.SemanticAnalyzer", ns =>
+               ns.Block("static partial class Analyzer", c =>
+                   c.Block($"internal static {itf}[] CreateAll()", b => {
+                       b.AppendLine($"return new {itf}[] {{");
+                       using (b.Indent()) {
+                           foreach (var a in ordered) b.AppendLine($"new {a.FullTypeName}(),");
+                       }
+                       b.AppendLine("};");
+                   })));
+           spc.AddSource("Analyzer.Registry.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+       }
+   }
+
+   sealed record AnalyzerInfo(string FullTypeName);
+   ```
+
+3. **`…/Nav.Analyzer.SourceGenerator.Tests/Nav.Analyzer.SourceGenerator.Tests.csproj`** — Kopie des
+   Visitor-Test-csproj (net10.0, NUnit + `Microsoft.NET.Test.Sdk` + `NUnit3TestAdapter`,
+   `Compile Remove Snapshots\**`), `ProjectReference` auf den neuen Generator, RootNamespace anpassen.
+
+4. **`…/Nav.Analyzer.SourceGenerator.Tests/Shared/{GeneratorTestBase.cs, SnapshotAssert.cs}`** — 1:1
+   vom Visitor-Test kopieren, Namespace anpassen, `assemblyName` in `CreateCompilation` umbenennen.
+
+5. **Testklasse + Snapshot** — der Generator arbeitet **semantisch**, die Test-Compilation referenziert
+   nur `object`/`Enumerable`; der Test-Quelltext muss die Minimalbasen selbst mitbringen:
+
+   ```csharp
+   const string Source = """
+       namespace Pharmatechnik.Nav.Language.SemanticAnalyzer {
+           public interface INavAnalyzer {}
+           public abstract class NavAnalyzer: INavAnalyzer {}
+           public class Nav0011Foo: NavAnalyzer {}
+           public class Nav0010Bar: NavAnalyzer {}
+           public abstract class NavBaseIgnored: NavAnalyzer {} // abstrakt → NICHT gelistet
+       }
+       """;
+   ```
+   Erwartung: `CreateAll()` listet Ordinal-sortiert `new global::…Nav0010Bar()`, dann `…Nav0011Foo()`;
+   die abstrakte Klasse fehlt. Snapshot nach
+   `Snapshots/Expected/<TestKlasse>/<Name>.cs` legen (erster Lauf schreibt `Actual`, dann übernehmen).
+
+### `.slnx`-Einträge
+
+Zwei `<Project>`-Zeilen in den Ordner `/Build/SourceGenerators/` (aktuell Zeilen 59–66), **vor**
+`Nav.AssemblyInfo.SourceGenerator` (alphabetisch „Ana" < „Ass"):
+
+```xml
+<Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator/Nav.Analyzer.SourceGenerator.csproj" />
+<Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator.Tests/Nav.Analyzer.SourceGenerator.Tests.csproj" />
+```
+
+### Fallstricke (wichtig)
+
+- **`static partial class Analyzer`** im Emit: das handgeschriebene `Analyzer` ist eine `static class`;
+  alle `partial`-Teile müssen den `static`-Modifier tragen — sonst CS-Fehler in Step 2.
+- **Positional-Records sind hier erlaubt.** Der Generator-Teilbaum nutzt sie (`VisitorModel.cs`) —
+  bewusste lokale Ausnahme von der globalen „keine Primär-Konstruktor-Records"-Regel.
+- **Voll qualifizierte Namen** (`global::…`) im Emit → unabhängig von `using`s im Zielprojekt.
+- **Kein `CompilerVisibleProperty`** nötig (der Generator liest die Compilation, keine MSBuild-Properties).
+
+### Verifikation Step 1
+
+```
+dotnet build Build/SourceGenerators/Nav.Analyzer.SourceGenerator/Nav.Analyzer.SourceGenerator.csproj
+dotnet test  Build/SourceGenerators/Nav.Analyzer.SourceGenerator.Tests/Nav.Analyzer.SourceGenerator.Tests.csproj -f net10.0
+```
+
+### Vollständige Analyzer-Liste (50, Erwartung für Step 2 zur Kontrolle)
+
+Nav0010CannotResolveTask0, Nav0011CannotResolveNode0, Nav0012CannotResolveExit0,
+Nav0023AnOutgoingEdgeForTrigger0IsAlreadyDeclared, Nav0024OutgoingEdgeForExit0AlreadyDeclared,
+Nav0025NoOutgoingEdgeForExit0Declared, Nav0103InitNodeMustNotContainIncomingEdges,
+Nav0104ChoiceNode0MustOnlyReachedByGoTo, Nav0105ExitNode0MustOnlyReachedByGoTo,
+Nav0106EndNode0MustOnlyReachedByGoTo, Nav0107ExitNode0HasNoIncomingEdges, Nav0108EndNodeHasNoIncomingEdges,
+Nav0109InitNode0HasNoOutgoingEdges, Nav0110Edge0NotAllowedIn1BecauseItsReachableFromInit2,
+Nav0111ChoiceNode0HasNoIncomingEdges, Nav0112ChoiceNode0HasNoOutgoingEdges, Nav0113TaskNode0HasNoIncomingEdges,
+Nav0114DialogNode0HasNoIncomingEdges, Nav0115DialogNode0HasNoOutgoingEdges, Nav0116ViewNode0HasNoIncomingEdges,
+Nav0117ViewNode0HasNoOutgoingEdges, Nav0118EndNode0NotAllowedBecauseReachableFromInit1,
+Nav0119InitNode0HasSameSignatureAsInitNode1, Nav0120SourceNode0OfContinuationMustBeViewOrDialog,
+Nav0121TargetNode0OfContinuationMustBeTask, Nav0122DifferentViewsInContinuationNotSupported,
+Nav0124GeneratedMember0CollidesWithAnotherMember, Nav0200SignalTriggerNotAllowedAfterInit,
+Nav0201SpontaneousNotAllowedInSignalTrigger, Nav0203TriggerNotAllowedAfterChoice,
+Nav0220ConditionsAreNotAllowedInTriggerTransitions, Nav0221OnlyIfConditionsAllowedInExitTransitions,
+Nav0222Node0IsReachableByDifferentEdgeModes, Nav1002UsingDirective0AppearedPreviously, Nav1003IncludeNotRequired,
+Nav1005TaskDeclaration0NotRequired, Nav1007ChoiceNode0HasNoIncomingEdges, Nav1008ChoiceNode0HasNoOutgoingEdges,
+Nav1009ChoiceNode0NotRequired, Nav1010TaskNode0HasNoIncomingEdges, Nav1012TaskNode0NotRequired,
+Nav1014DialogNode0NotRequired, Nav1015DialogNode0HasNoIncomingEdges, Nav1016DialogNode0HasNoOutgoingEdges,
+Nav1017ViewNode0NotRequired, Nav1018ViewNode0HasNoIncomingEdges, Nav1019ViewNode0HasNoOutgoingEdges,
+Nav2000IdentifierExpected, Nav5000FeatureRequiresNavLanguageVersion, Nav5001NavLanguageVersionNotSupported.
+
+(Alle sind `public` und haben einen impliziten parameterlosen Ctor — die heutige
+`Activator.CreateInstance`-Invariante gilt also für alle.)
