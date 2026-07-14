@@ -3,7 +3,6 @@
 using System;
 using System.Linq;
 using System.Threading;
-using System.Reflection;
 using System.Collections.Generic;
 
 #endregion
@@ -41,38 +40,17 @@ public abstract class NavAnalyzer: INavAnalyzer {
 
 }
 
-static class Analyzer {
+static partial class Analyzer {
 
-    private static readonly Lazy<IList<INavAnalyzer>> TaskDefinitionAnalyzer = new(
-        () => GetInterfaceImplementationsFromAssembly<INavAnalyzer>().ToList(),
+    // Die Analyzer-Liste wird vom Nav.Analyzer.SourceGenerator als CreateAll() erzeugt (statische Verweise
+    // auf alle INavAnalyzer-Implementierungen). Der statische Verweis ersetzt die frühere Reflection
+    // (Assembly.ExportedTypes + Activator.CreateInstance) und ist trim-sicher.
+    private static readonly Lazy<IList<INavAnalyzer>> AnalyzerList = new(
+        () => CreateAll(),
         LazyThreadSafetyMode.PublicationOnly);
 
     public static IEnumerable<INavAnalyzer> GetAnalyzer() {
-        return TaskDefinitionAnalyzer.Value;
-    }
-
-    private static IEnumerable<T> GetInterfaceImplementationsFromAssembly<T>() where T : class {
-
-        var dll   = typeof(Analyzer).GetTypeInfo().Assembly;
-        var rules = new List<T>();
-
-        foreach (var type in dll.ExportedTypes) {
-            var typeInfo = type.GetTypeInfo();
-            if (!typeInfo.IsInterface
-             && !typeInfo.IsAbstract
-             && typeInfo.ImplementedInterfaces.Contains(typeof(T))) {
-
-                var ruleObj = Activator.CreateInstance(type);
-                if (!(ruleObj is T rule)) {
-
-                    continue;
-                }
-
-                rules.Add(rule);
-            }
-        }
-
-        return rules;
+        return AnalyzerList.Value;
     }
 
 }

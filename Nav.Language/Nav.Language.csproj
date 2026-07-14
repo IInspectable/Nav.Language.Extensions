@@ -43,6 +43,11 @@
     <ProjectReference Include="..\Build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
+    <!-- Quellgenerator: erzeugt Analyzer.CreateAll() mit statischen Verweisen auf alle INavAnalyzer-
+         Implementierungen (löst die trim-unsichere Reflection in Analyzer.cs ab). Nur als Analyzer. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Analyzer.SourceGenerator\Nav.Analyzer.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
