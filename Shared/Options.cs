@@ -102,14 +102,11 @@
 //    { "h|?|help", v => ShowHelp () },
 //  };
 //
-// System.ComponentModel.TypeConverter is also supported, allowing the use of
-// custom data types in the callback type; TypeConverter.ConvertFromString()
-// is used to convert the value option to an instance of the specified
-// type:
-//
-//  var p = new OptionSet () {
-//    { "foo=", (Foo f) => Console.WriteLine (f.ToString ()) },
-//  };
+// Hinweis: Die ursprüngliche NDesk.Options-Vorlage unterstützte über
+// System.ComponentModel.TypeConverter auch typisierte Callbacks
+// (z.B. `(Foo f) => …`). Dieser reflektionsbasierte Pfad
+// (TypeDescriptor.GetConverter) ist trim-unsicher und wurde hier entfernt,
+// da nav ausschließlich untypisierte `Action<string>`-Callbacks nutzt.
 //
 // Random other tidbits:
 //  - Boolean options (those w/o '=' or ':' in the option format string)
@@ -128,7 +125,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
@@ -342,29 +338,6 @@ namespace Mono.Options
 			if (separators == null)
 				return new string [0];
 			return (string[]) separators.Clone ();
-		}
-
-		protected static T Parse<T> (string value, OptionContext c)
-		{
-			Type tt = typeof (T);
-			bool nullable = tt.IsValueType && tt.IsGenericType && 
-				!tt.IsGenericTypeDefinition && 
-				tt.GetGenericTypeDefinition () == typeof (Nullable<>);
-			Type targetType = nullable ? tt.GetGenericArguments () [0] : typeof (T);
-			TypeConverter conv = TypeDescriptor.GetConverter (targetType);
-			T t = default (T);
-			try {
-				if (value != null)
-					t = (T) conv.ConvertFromString (value);
-			}
-			catch (Exception e) {
-				throw new OptionException (
-						string.Format (
-							c.OptionSet.MessageLocalizer ("Could not convert string `{0}' to type {1} for option `{2}'."),
-							value, targetType.Name, c.OptionName),
-						c.OptionName, e);
-			}
-			return t;
 		}
 
 		internal string[] Names           {get {return names;}}
@@ -636,62 +609,6 @@ namespace Mono.Options
 					delegate (OptionValueCollection v) {action (v [0], v [1]);});
 			base.Add (p);
 			return this;
-		}
-
-		sealed class ActionOption<T> : Option {
-			Action<T> action;
-
-			public ActionOption (string prototype, string description, Action<T> action)
-				: base (prototype, description, 1)
-			{
-				if (action == null)
-					throw new ArgumentNullException ("action");
-				this.action = action;
-			}
-
-			protected override void OnParseComplete (OptionContext c)
-			{
-				action (Parse<T> (c.OptionValues [0], c));
-			}
-		}
-
-		sealed class ActionOption<TKey, TValue> : Option {
-			OptionAction<TKey, TValue> action;
-
-			public ActionOption (string prototype, string description, OptionAction<TKey, TValue> action)
-				: base (prototype, description, 2)
-			{
-				if (action == null)
-					throw new ArgumentNullException ("action");
-				this.action = action;
-			}
-
-			protected override void OnParseComplete (OptionContext c)
-			{
-				action (
-						Parse<TKey> (c.OptionValues [0], c),
-						Parse<TValue> (c.OptionValues [1], c));
-			}
-		}
-
-		public OptionSet Add<T> (string prototype, Action<T> action)
-		{
-			return Add (prototype, null, action);
-		}
-
-		public OptionSet Add<T> (string prototype, string description, Action<T> action)
-		{
-			return Add (new ActionOption<T> (prototype, description, action));
-		}
-
-		public OptionSet Add<TKey, TValue> (string prototype, OptionAction<TKey, TValue> action)
-		{
-			return Add (prototype, null, action);
-		}
-
-		public OptionSet Add<TKey, TValue> (string prototype, string description, OptionAction<TKey, TValue> action)
-		{
-			return Add (new ActionOption<TKey, TValue> (prototype, description, action));
 		}
 
 		protected virtual OptionContext CreateOptionContext ()

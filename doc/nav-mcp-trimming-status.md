@@ -30,8 +30,9 @@ Reflection-Stellen sind es, die Trimming zur Laufzeit still brechen kann.
 **A** ist die kritische Stelle: IL2075/IL2072 besagen, dass der Trimmer die Analyzer-Typen entfernen
 darf (kein statischer Verweis) — die getrimmte exe könnte also **stumm Diagnostics verlieren**.
 
-Zusätzlich (nur informativ, nicht Teil dieses Plans): `IL2104`-Rollups für `NLog`,
-`NLog.Targets.Network`, `System.CodeDom` — reine Abhängigkeits-Assemblies.
+Zusätzlich (nur informativ, nicht Teil dieses Plans): `IL2104`-Rollups für `NLog` und
+`NLog.Targets.Network` — reine Abhängigkeits-Assemblies. (Der frühere dritte Rollup `System.CodeDom`
+ist entfallen — siehe Nachtrag „System.CodeDom-Referenz aufgelöst".)
 
 ## Weitere Voraussetzung: Sprachversion
 
@@ -142,6 +143,10 @@ Der irreführende Kommentar „Kein PublishTrimmed …" in der csproj wird erset
 5. **Abnahme** — stdio-Smoke gegen die **getrimmte** `deploy\mcp\nav.mcp.exe`: `nav_validate` **und**
    `nav_diagnostics` (damit die Analyzer real laufen und bewiesen ist, dass keiner weggetrimmt wurde).
 
+6. **JSON-Source-Gen der Tool-DTOs (Nachtrag, siehe unten)** — vom ursprünglichen Plan nicht vorhergesehen,
+   vom Laufzeit-Smoke in Step 5 aufgedeckt: getrimmt braucht der Server source-generierte JSON-Metadaten für
+   die `Nav*Result`-DTOs. `NavMcpJsonSerializerContext` + Einhängen in die Tool-Serializer-Optionen.
+
 ## Abnahme-Kriterien
 
 - Trim-Publish ohne IL20xx-Warnungen aus `nav.mcp`/`Pharmatechnik.Nav.Language`.
@@ -150,6 +155,94 @@ Der irreführende Kommentar „Kein PublishTrimmed …" in der csproj wird erset
   (kein still fehlender Analyzer).
 
 ---
+
+## Nachtrag (2026-07-14): Step 5 deckt einen dritten Blocker auf — JSON-Source-Gen
+
+Der Trim-Publish (Step 4) lief `EXIT=0` **ohne** IL-Warnung aus unserem Code — gab aber **falsche Sicherheit**.
+Der Laufzeit-Smoke (Step 5) gegen die getrimmte `nav.mcp.exe` zeigte einen **Start-Crash**:
+
+```
+System.NotSupportedException: JsonTypeInfo metadata for type 'NavValidateResult' was not provided …
+ensure that all root types … annotated with 'JsonSerializableAttribute'
+```
+
+Ursache: `PublishTrimmed=true` setzt in der `runtimeconfig.json`
+`System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault=false` — der reflektionsbasierte STJ-Serializer
+ist damit **auch beim normalen Run** aus (die untrimmte Debug-DLL crasht identisch, sobald `PublishTrimmed`
+in der csproj steht). Beim Aufbau der Tool-**Ausgabeschemata** (`WithTools<T>` → `AIJsonUtilities.CreateJsonSchema`)
+braucht STJ dann source-generierte `JsonTypeInfo` für jeden Rückgabetyp — die es nicht gab. Die beiden
+Reflection-Umbauten (A+B) waren also **notwendig, aber nicht hinreichend**.
+
+**Fix (Option A, umgesetzt):** `Nav.Language.Mcp/NavMcpJsonSerializerContext.cs` — ein
+`[JsonSerializable]`-Kontext für die 14 `Nav*Result`-Wurzeltypen (verschachtelte DTOs zieht der Generator
+transitiv mit). `GenerationMode = Metadata`, damit die Serialisierung die zur Laufzeit übergebenen Optionen
+respektiert; zusätzlich `PropertyNamingPolicy = CamelCase` + `DefaultIgnoreCondition = WhenWritingNull` fixiert.
+In `Program.cs` mit **Vorrang** in eine Kopie von `McpJsonUtilities.DefaultOptions` eingehängt und an jedes
+`WithTools<T>(toolSerializerOptions)` übergeben.
+
+**Verifikation (getrimmte exe, stdio-Smoke):** Start ohne Crash, `tools/list` = 14, `nav_diagnostics` liefert
+für eine `.nav` mit `Nav0010`-Fehler eine JSON, die **byte-identisch** zur untrimmt-reflektierten Referenz ist
+(gleiches camelCase, gleiches Null-Weglassen) — Analyzer laufen also unter Trimming, kein DTO-Serialisierungsproblem.
+Trim-Publish weiter `EXIT=0`, nur IL2104-Rollups, `nav.mcp.exe` 13,9 MB. `Nav.Language.Mcp.Tests` 115/115 grün.
+
+**Fallstrick fürs künftige Smoken:** Der MCP-stdio-Host verarbeitet die Requests erst, wenn stdin **offen bleibt**;
+ein reiner `printf … | exe`-Pipe schließt stdin sofort → 0 Bytes Antwort. `( cat in.jsonl; sleep 8 ) | exe root`
+hält stdin lange genug offen (Handshake: `initialize` → `notifications/initialized` → `tools/list`/`tools/call`).
+
+## Nachtrag (2026-07-14): `nav.exe` (CLI) ebenfalls getrimmt
+
+`Nav.Cli` ist net10.0 (nicht net472 wie in älterer Doku) → trimmbar. `PublishTrimmed=true`/`TrimMode=partial` in
+`Nav.Cli.csproj`. Der Codegen ist CodeBuilder-basiert (keine Laufzeit-Template-Reflection), die Analyzer teilen
+sich die generierte Registry mit dem Rest → Trim-Publish `EXIT=0`. **Einzige echte Trim-Stelle war** der generische
+`Parse<T>()` der eingebundenen NDesk-Options (`Shared/Options.cs`): er ruft `TypeDescriptor.GetConverter(Type)`
+(reflektionsbasiert → IL2026/IL2062/IL2087). nav nutzt **ausschließlich** untypisierte Optionen
+(`Action<string>`-Callbacks), der typisierte Pfad wird nie betreten. **Laufzeit-Smoke:** getrimmte
+`nav.exe` erzeugt für eine saubere `.nav` gültiges C# (4 Dateien) und meldet für die Fehlerdatei
+`error Nav0010: Cannot resolve task 'C'` an (5,10) — Codegen + Analyzer-Registry laufen unter Trimming. `nav.exe`
+12,9 MB.
+
+## Nachtrag (2026-07-14): IL2026/IL2062/IL2087 in `nav.exe` durch Code-Entfernung statt `NoWarn` gelöst
+
+Statt die drei IL-Codes weiter per `NoWarn` zu unterdrücken, wurde der reflektierende Pfad aus
+`Shared/Options.cs` (nur in `Nav.Cli` eingebunden, sonst nirgends) **physisch entfernt**: `Option.Parse<T>()`,
+`ActionOption<T>`/`ActionOption<TKey,TValue>`, die generischen `Add<T>`/`Add<TKey,TValue>`-Overloads sowie das
+nun ungenutzte `using System.ComponentModel`. Der `OptionAction<,>`-Delegat und die nicht-generische
+`Add(string, OptionAction<string,string>)` (reiche nur Strings durch, keine Reflection) bleiben; nav nutzt eh
+nur `Action<string>`-Overloads, an den Aufrufstellen fällt nichts weg. Damit verschwinden IL2026/IL2062/IL2087
+**ehrlich** (kein toter Reflection-Code mehr) — `NoWarn` in `Nav.Cli.csproj` auf `SYSLIB0003;SYSLIB0051;CS0672`
+reduziert (die verbleiben aus dem `OptionException`-Legacy-Serialisierungsteil derselben Datei).
+
+**Verifikation:** Build 0 Warnungen; Trim-Publish von `nav.exe` ohne IL2026/2062/2087 (nur noch zwei
+`IL2104`-Rollups aus **NLog** — Drittbibliothek, von dieser Änderung unabhängig, vermutlich Paket-Bump seit dem
+vorigen Doc-Stand). Laufzeit-Smoke der getrimmten `nav.exe`: reales Fixture `RefDependency.nav` → 4 `.cs` erzeugt;
+Fehlerfixtures liefern `Nav0002`/`Nav0011` korrekt.
+
+## Nachtrag (2026-07-14): `System.CodeDom`-Referenz aufgelöst — letzte `IL2104`-Warnung weg
+
+Der Trim-Publish von `nav.exe`/`nav.mcp.exe` meldete zuletzt noch **eine** `IL2104`-Warnung: `Assembly
+'System.CodeDom' produced trim warnings`. `System.CodeDom` war ein **expliziter** `PackageReference` in
+`Nav.Language.csproj` und wurde einzig von `CodeGen/Shared/CSharp.cs` gebraucht — `CSharp.IsValidIdentifier`
+delegierte an `Microsoft.CSharp.CSharpCodeProvider.IsValidIdentifier` (dessen Basis `CodeDomProvider` das
+`System.CodeDom`-Paket einzieht). Eine ~750-KB-Framework-Assembly für einen einzigen Identifier-Check, dessen
+einzige Konsumenten die zwei Aufrufe in `SemanticAnalyzer/Nav2000IdentifierExpected.cs` sind.
+
+**Umsetzung:** `CSharp.IsValidIdentifier` reflektionsfrei nachgebaut (lexikalische C#-Bezeichner-Regeln über
+`CharUnicodeInfo.GetUnicodeCategory` + eine `ImmutableHashSet`-Tabelle der reservierten Keywords), `PackageReference`
+und CPM-`PackageVersion` für `System.CodeDom` entfernt.
+
+**Bewusste Verhaltens-Präzisierung (Nutzer-Entscheid „Status Quo statt kaputter Historie"):** Die neue Regel
+spiegelt den aktuellen Sprachstand (Roslyns `SyntaxFacts.IsValidIdentifier` + `GetKeywordKind`) statt der
+eingefrorenen CodeDom-Tabelle. CodeDom verwarf u.a. die **kontextuellen** Keywords `partial`/`where`/`yield`
+(als wären sie reserviert) und kannte neuere Keywords nicht — die neue Prüfung akzeptiert kontextuelle Keywords
+korrekt als Bezeichner und lehnt nur die **tatsächlich reservierten** ab. Über die reale Nav-Eingabe (Lexer erlaubt
+nur `[a-zA-Z0-9 ÄÖÜäöüß . _]`) ist das einzige beobachtbare Delta: ein Task namens `partial`/`where`/`yield` löst
+kein `Nav2000` mehr aus. Die Referenzverdikte wurden gegen Roslyn abgeglichen (Charakterisierungstest
+`Nav.Language.Tests/CSharpIdentifierTests.cs`).
+
+**Verifikation:** Trim-Publish `nav.exe` jetzt **ohne jede Warnung** (`System.CodeDom` restlos aus dem
+Dependency-Graph). Tests: net10.0 (inkl. neuem Test) grün, net472 1907 grün, MCP 115 grün. Laufzeit-Smoke der
+**getrimmten** `nav.exe`: `task class` → `error Nav2000: Identifier expected` an (1,6), `task partial` → **kein**
+Nav2000.
 
 ## Step-1-Handoff (turnkey — nahtloser Start in neuer Session)
 

@@ -29,7 +29,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
-    <PackageReference Include="System.CodeDom" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />

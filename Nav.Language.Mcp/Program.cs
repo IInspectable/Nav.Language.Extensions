@@ -2,11 +2,14 @@
 
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
+using ModelContextProtocol;
 
 #endregion
 
@@ -34,26 +37,33 @@ static class Program {
 
         builder.Services.AddSingleton(new NavMcpWorkspace(root));
 
+        // Getrimmt ist der reflektionsbasierte System.Text.Json-Serializer aus → die Tool-Ergebnis-DTOs
+        // brauchen source-generierte JSON-Metadaten (sonst NotSupportedException beim Schema-Aufbau).
+        // Den Nav-Kontext mit Vorrang in eine Kopie der SDK-Default-Optionen einhängen (Casing/Ignore
+        // bleiben dadurch identisch zum untrimmt-reflektierten Pfad).
+        var toolSerializerOptions = new JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
+        toolSerializerOptions.TypeInfoResolverChain.Insert(0, NavMcpJsonSerializerContext.Default);
+
         // Tools statisch (reflektionsfrei) registrieren — WithToolsFromAssembly() wäre trim-unsicher
         // (IL2026). WithTools<T>() ist trim-sicher: T ist statisch bekannt, der MCP-SDK-Sourcegen erzeugt
         // die Metadaten dafür. Beim Ergänzen eines neuen Tools hier mit eintragen.
         builder.Services
                .AddMcpServer()
                .WithStdioServerTransport()
-               .WithTools<Tools.NavValidateTool>()
-               .WithTools<Tools.NavDiagnosticsTool>()
-               .WithTools<Tools.NavOutlineTool>()
-               .WithTools<Tools.NavWorkspaceTool>()
-               .WithTools<Tools.NavFindSymbolTool>()
-               .WithTools<Tools.NavGotoTool>()
-               .WithTools<Tools.NavReferencesTool>()
-               .WithTools<Tools.NavRenameTool>()
-               .WithTools<Tools.NavCodeActionsTool>()
-               .WithTools<Tools.NavFormatTool>()
-               .WithTools<Tools.NavGrammarTool>()
-               .WithTools<Tools.NavPreviewCodegenTool>()
-               .WithTools<Tools.NavCallHierarchyTool>()
-               .WithTools<Tools.NavExitUsagesTool>();
+               .WithTools<Tools.NavValidateTool>(toolSerializerOptions)
+               .WithTools<Tools.NavDiagnosticsTool>(toolSerializerOptions)
+               .WithTools<Tools.NavOutlineTool>(toolSerializerOptions)
+               .WithTools<Tools.NavWorkspaceTool>(toolSerializerOptions)
+               .WithTools<Tools.NavFindSymbolTool>(toolSerializerOptions)
+               .WithTools<Tools.NavGotoTool>(toolSerializerOptions)
+               .WithTools<Tools.NavReferencesTool>(toolSerializerOptions)
+               .WithTools<Tools.NavRenameTool>(toolSerializerOptions)
+               .WithTools<Tools.NavCodeActionsTool>(toolSerializerOptions)
+               .WithTools<Tools.NavFormatTool>(toolSerializerOptions)
+               .WithTools<Tools.NavGrammarTool>(toolSerializerOptions)
+               .WithTools<Tools.NavPreviewCodegenTool>(toolSerializerOptions)
+               .WithTools<Tools.NavCallHierarchyTool>(toolSerializerOptions)
+               .WithTools<Tools.NavExitUsagesTool>(toolSerializerOptions);
 
         await builder.Build().RunAsync();
     }

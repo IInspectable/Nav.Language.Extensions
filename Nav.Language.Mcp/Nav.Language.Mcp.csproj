@@ -12,9 +12,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <!-- Self-contained Single-File-Publish-Ziel (analog zum LSP-Server); RID/SelfContained/PublishSingleFile
-         werden beim Publish per Kommandozeile gesetzt. Kein PublishTrimmed: das MCP-SDK serialisiert reflection-
-         basiert (System.Text.Json-SourceGen ausgenommen) — Single-File ist nur Bündelung, kein Trimming. -->
+         werden beim Publish per Kommandozeile gesetzt. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Getrimmt ausliefern (~37,8 → ~13,8 MB): die beiden früheren Reflection-Stellen sind ersetzt
+         (Analyzer-Registrierung via Nav.Analyzer.SourceGenerator, MCP-Tools via WithTools<T>), damit
+         läuft der Trimmer ohne IL2026/IL2075/IL2072 aus unserem Code. PublishTrimmed gehört
+         AUSSCHLIESSLICH hierher (nie als globale CLI-Property — sonst erbt es an die netstandard2.0-
+         Referenzen und bricht mit NETSDK1124). -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!-- Der MCP-SDK-Sourcegen verlangt unter Trimming C# 12 (sonst SYSLIB1102). Lokale Anhebung des
+         projektweit auf 11.0 gepinnten LangVersion — unkritisch, da dieses Projekt net10.0-only ist. -->
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
