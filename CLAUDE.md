@@ -82,11 +82,12 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 
 ## Build / Test — Fallstricke zuerst
 
-- **Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut mit `dotnet build`/`dotnet publish`.** Der
-  StringTemplate-Export in `Nav.Language\CustomBuild.targets` läuft über einen file-based
-  dotnet-Generator (`Build\CodeGen\GenerateCodeGenFacts.cs`, via `Exec` `dotnet run --file`) statt
-  der alten `CodeTaskFactory` (die in .NET-Core-MSBuild MSB4801 wirft). Die Single-File-Publishes
-  (LSP/MCP) in `nav publish` nutzen `dotnet publish`.
+- **Der .NET-Teil (Engine, LSP, MCP, CLI, Tests) baut mit `dotnet build`/`dotnet publish`.** Die
+  Codegen-Facts und -Emitter sind handgeschriebenes C# (`Nav.Language\CodeGen\Shared\Facts\NavCodeGenFacts.cs`
+  plus die V1/V2-`CodeBuilder`-Emitter) — die frühere StringTemplate-/`.stg`-Erzeugung über einen
+  file-based dotnet-Generator ist restlos abgelöst; es gibt keinen `dotnet run --file`-Schritt und
+  keine `CodeTaskFactory` mehr im Build. Die Single-File-Publishes (LSP/MCP) in `nav publish` nutzen
+  `dotnet publish`.
 - **Die ganze Solution (`nav build`) braucht weiterhin Full-Framework `MSBuild.exe`** — nur wegen der
   VS-Extension (`Nav.Language.Extension2026`, VSIX/`VSSDK.BuildTools`), die `dotnet build` nicht baut.
 - **Bevorzugt das `nav`-Command-System** (PowerShell-Dispatcher, Alias `nav`) statt MSBuild von Hand —

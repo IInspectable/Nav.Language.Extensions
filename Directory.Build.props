@@ -18,10 +18,9 @@
 
   <!-- JetBrains-Annotationen projektübergreifend. Rein design-time (siehe Directory.Packages.props);
        PrivateAssets="all" hält sie aus der transitiven Abhängigkeitskette der erzeugten Assemblies.
-       Die versionslose Referenz zieht ihre Version aus dem Central Package Management. File-based
-       Generatoren (z.B. Build\CodeGen\GenerateCodeGenFacts.cs) schalten CPM ab und pinnen ihre Pakete
-       per #:package inline — dort würde die versionslose Referenz mit NU1015 brechen; sie brauchen die
-       Annotationen ohnehin nicht. Daher nur einbinden, wenn CPM aktiv ist. -->
+       Die versionslose Referenz zieht ihre Version aus dem Central Package Management. Schaltet ein
+       Projekt CPM ab (ein standalone-Teilbaum ohne Directory.Packages.props), bräche die versionslose
+       Referenz mit NU1015 — daher nur einbinden, wenn CPM aktiv ist. -->
   <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' != 'false'">
     <PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
   </ItemGroup>
