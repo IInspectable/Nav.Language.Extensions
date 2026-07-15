@@ -17,10 +17,29 @@ using Pharmatechnik.Nav.Language.CodeGen;
 
 namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation; 
 
+/// <summary>
+/// Liest die Nav-Annotationen aus dem generierten C#-Code eines Roslyn-<see cref="Document"/> und macht
+/// damit die Nav↔C#-Brücke von der C#-Seite aus befahrbar. Die generierten <c>{Task}WFS</c>-Klassen und
+/// ihre Member tragen als XML-Doku-Tags (<c>&lt;NavFile&gt;</c>, <c>&lt;NavTask&gt;</c>, <c>&lt;NavInit&gt;</c>,
+/// <c>&lt;NavExit&gt;</c>, <c>&lt;NavTrigger&gt;</c>, <c>&lt;NavChoice&gt;</c>, <c>&lt;NavInitCall&gt;</c>,
+/// <c>&lt;NavChoiceCall&gt;</c>) den Rückverweis auf ihre Nav-Herkunft; der Reader wertet diese Tags über
+/// das <see cref="SemanticModel"/> des Dokuments aus und liefert sie als
+/// <see cref="NavTaskAnnotation"/>-Objektbaum. Verbraucher ist vor allem <c>LocationFinder</c>, der aus
+/// den Annotationen die Nav-<see cref="Location"/> auflöst (und umgekehrt).
+/// </summary>
 public static class AnnotationReader {
 
     #region ReadNavTaskAnnotations
 
+    /// <summary>
+    /// Der Einstiegspunkt: liest <b>alle</b> Nav-Annotationen eines Dokuments. Durchläuft jede
+    /// Klassendeklaration und liefert je annotierter Task-Klasse zuerst ihre <see cref="NavTaskAnnotation"/>,
+    /// danach — aus den Membern und Aufrufstellen der Klasse — die zugehörigen Methoden-Annotationen
+    /// (<see cref="NavMethodAnnotation"/>: Init/Exit/Trigger/Choice) sowie die Aufruf-Annotationen
+    /// (<see cref="NavInvocationAnnotation"/>: Init- und Choice-Aufrufe).
+    /// </summary>
+    /// <param name="document">Das Roslyn-Dokument mit dem generierten (oder handgeschriebenen) C#-Code.</param>
+    /// <returns>Die Folge aller gefundenen Annotationen; leer, wenn das Dokument keine Task-Klasse trägt.</returns>
     public static IEnumerable<NavTaskAnnotation> ReadNavTaskAnnotations(Document document) {
 
         var semanticModel = document.GetSemanticModelAsync().GetAwaiter().GetResult();
@@ -69,6 +88,14 @@ public static class AnnotationReader {
 
     #region ReadNavTaskAnnotation
 
+    /// <summary>
+    /// Liest die Task-Annotation einer einzelnen Klassendeklaration. Ermittelt das Klassensymbol über das
+    /// <see cref="SemanticModel"/> und delegiert an <see cref="ReadNavTaskAnnotation(ClassDeclarationSyntax, INamedTypeSymbol)"/>.
+    /// </summary>
+    /// <param name="semanticModel">Das Semantikmodell des Dokuments.</param>
+    /// <param name="classDeclarationSyntax">Die zu prüfende Klassendeklaration.</param>
+    /// <returns>Die <see cref="NavTaskAnnotation"/> oder <see langword="null"/>, wenn die Klasse keine
+    /// Nav-Task-Tags trägt (auch bei fehlendem Modell/Syntax).</returns>
     [CanBeNull]
     internal static NavTaskAnnotation ReadNavTaskAnnotation(SemanticModel semanticModel, ClassDeclarationSyntax classDeclarationSyntax) {
 
@@ -82,6 +109,16 @@ public static class AnnotationReader {
         return navTaskInfo;
     }
 
+    /// <summary>
+    /// Liest die Task-Annotation zu einer Klasse und sieht — falls die Tags nicht an der Klasse selbst
+    /// stehen — zusätzlich in deren Basisklasse nach. Die generierte <c>{Task}WFS</c>-Klasse erbt die Tags
+    /// üblicherweise von ihrer <c>{Task}WFSBase</c>; genutzt u.a. vom <c>LocationFinder</c> beim Rückweg
+    /// C#→Nav, wenn nur das Basisklassensymbol vorliegt.
+    /// </summary>
+    /// <param name="classDeclaration">Die Klassendeklaration, an der die Annotation verankert wird.</param>
+    /// <param name="classSymbol">Das Symbol der Klasse; dessen Basisklasse dient als Rückfallebene.</param>
+    /// <returns>Die <see cref="NavTaskAnnotation"/> oder <see langword="null"/>, wenn weder Klasse noch
+    /// Basisklasse die Tags trägt.</returns>
     [CanBeNull]
     internal static NavTaskAnnotation ReadNavTaskAnnotation(ClassDeclarationSyntax classDeclaration, INamedTypeSymbol classSymbol) {
 
@@ -95,6 +132,14 @@ public static class AnnotationReader {
         return navTaskInfo;
     }
 
+    /// <summary>
+    /// Sucht die Task-Tags über <em>alle</em> Teildeklarationen (<c>partial class</c>) des angegebenen
+    /// Symbols: Der generierte Code kann eine Klasse auf mehrere Dateien aufteilen, die Tags stehen nur an
+    /// einer davon. Liefert die erste gefundene Annotation.
+    /// </summary>
+    /// <param name="classDeclaration">Die Klassendeklaration, an der die Annotation verankert wird.</param>
+    /// <param name="declaringClass">Das Symbol, dessen Teildeklarationen nach Tags durchsucht werden.</param>
+    /// <returns>Die erste gefundene <see cref="NavTaskAnnotation"/> oder <see langword="null"/>.</returns>
     [CanBeNull]
     static NavTaskAnnotation ReadNavTaskAnnotationInternal(
         [NotNull] ClassDeclarationSyntax classDeclaration, 
@@ -111,6 +156,15 @@ public static class AnnotationReader {
         return navTaskInfo;
     }
 
+    /// <summary>
+    /// Baut die Task-Annotation aus den Tags einer konkreten deklarierenden Klasse: liest <c>&lt;NavFile&gt;</c>
+    /// und <c>&lt;NavTask&gt;</c>, verlangt beide paarweise und löst einen relativen <c>&lt;NavFile&gt;</c>-Pfad
+    /// gegen das Verzeichnis der deklarierenden Datei in einen absoluten Pfad auf.
+    /// </summary>
+    /// <param name="classDeclaration">Die Klasse, an der die entstehende Annotation verankert wird.</param>
+    /// <param name="declaringClassDeclaration">Die Klasse, deren XML-Doku-Tags gelesen werden.</param>
+    /// <returns>Die <see cref="NavTaskAnnotation"/> oder <see langword="null"/>, wenn Datei- oder Taskname
+    /// fehlt bzw. der relative Pfad nicht aufgelöst werden kann.</returns>
     [CanBeNull]
     static NavTaskAnnotation ReadNavTaskAnnotationInternal(
         [NotNull] ClassDeclarationSyntax classDeclaration,
@@ -158,6 +212,15 @@ public static class AnnotationReader {
 
     #region ReadMethodAnnotations
 
+    /// <summary>
+    /// Prüft die Methoden einer annotierten Task-Klasse und liefert je Methode die passende
+    /// Member-Annotation — Init, Exit, Trigger oder Choice. Eine Methode trägt höchstens eine dieser
+    /// Annotationen; Methoden ohne Nav-Tag werden übersprungen.
+    /// </summary>
+    /// <param name="semanticModel">Das Semantikmodell des Dokuments.</param>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Member-Annotationen erben.</param>
+    /// <param name="methodDeclarations">Die zu prüfenden Methodendeklarationen der Klasse.</param>
+    /// <returns>Die Folge der gefundenen <see cref="NavMethodAnnotation"/>en.</returns>
     static IEnumerable<NavMethodAnnotation> ReadMethodAnnotations(
         SemanticModel semanticModel, 
         NavTaskAnnotation navTaskAnnotation, 
@@ -200,6 +263,18 @@ public static class AnnotationReader {
         
     #region ReadNavInitAnnotation
 
+    /// <summary>
+    /// Liest die Init-Annotation einer Methode. Sieht das <c>&lt;NavInit&gt;</c>-Tag zuerst an der Methode
+    /// selbst und — falls dort nicht vorhanden — an der überschriebenen Basismethode nach, weil das Tag im
+    /// generierten Code an der abstrakten <c>{Task}WFSBase</c>-Methode steht. Wird auch vom
+    /// <c>LocationFinder</c> beim Rückweg C#→Nav aufgerufen.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="methodSymbol">Das Methodensymbol; dessen überschriebene Methode dient als Rückfallebene.</param>
+    /// <returns>Die <see cref="NavInitAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavInit&gt;</c>-Tag gefunden wird.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="navTaskAnnotation"/> ist <see langword="null"/>.</exception>
     [CanBeNull]
     internal static NavInitAnnotation ReadNavInitAnnotation(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -216,6 +291,14 @@ public static class AnnotationReader {
         return initAnnotation;
     }
 
+    /// <summary>
+    /// Sucht das <c>&lt;NavInit&gt;</c>-Tag über alle Teildeklarationen (<c>partial</c>) des angegebenen
+    /// Methodensymbols und liefert die erste gefundene Annotation.
+    /// </summary>
+    /// <param name="taskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Das Methodensymbol, dessen Teildeklarationen durchsucht werden.</param>
+    /// <returns>Die erste gefundene <see cref="NavInitAnnotation"/> oder <see langword="null"/>.</returns>
     [CanBeNull]
     static NavInitAnnotation ReadNavInitAnnotationInternal(
         [NotNull] NavTaskAnnotation taskAnnotation,
@@ -234,6 +317,14 @@ public static class AnnotationReader {
         return initAnnotation;
     }
 
+    /// <summary>
+    /// Baut die Init-Annotation aus dem <c>&lt;NavInit&gt;</c>-Tag einer konkreten Methodendeklaration.
+    /// </summary>
+    /// <param name="taskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Die Methode, deren Tags gelesen werden.</param>
+    /// <returns>Die <see cref="NavInitAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavInit&gt;</c>-Tag vorhanden ist.</returns>
     [CanBeNull]
     static NavInitAnnotation ReadNavInitAnnotationInternal(
         [NotNull] NavTaskAnnotation taskAnnotation,
@@ -255,6 +346,16 @@ public static class AnnotationReader {
 
     #region ReadNavExitAnnotation
 
+    /// <summary>
+    /// Liest die Exit-Annotation einer Methode — analog zu <see cref="ReadNavInitAnnotation"/>: sucht das
+    /// <c>&lt;NavExit&gt;</c>-Tag an der Methode und, als Rückfall, an der überschriebenen Basismethode.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="methodSymbol">Das Methodensymbol; dessen überschriebene Methode dient als Rückfallebene.</param>
+    /// <returns>Die <see cref="NavExitAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavExit&gt;</c>-Tag gefunden wird.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="navTaskAnnotation"/> ist <see langword="null"/>.</exception>
     [CanBeNull]
     static NavExitAnnotation ReadNavExitAnnotation(
         [NotNull] NavTaskAnnotation navTaskAnnotation, 
@@ -271,6 +372,13 @@ public static class AnnotationReader {
         return navExitAnnotation;
     }
 
+    /// <summary>
+    /// Sucht das <c>&lt;NavExit&gt;</c>-Tag über alle Teildeklarationen (<c>partial</c>) des Methodensymbols.
+    /// </summary>
+    /// <param name="taskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Das Methodensymbol, dessen Teildeklarationen durchsucht werden.</param>
+    /// <returns>Die erste gefundene <see cref="NavExitAnnotation"/> oder <see langword="null"/>.</returns>
     [CanBeNull]
     static NavExitAnnotation ReadNavExitAnnotationInternal(
         [NotNull] NavTaskAnnotation taskAnnotation,
@@ -289,6 +397,14 @@ public static class AnnotationReader {
         return navExitAnnotation;
     }
 
+    /// <summary>
+    /// Baut die Exit-Annotation aus dem <c>&lt;NavExit&gt;</c>-Tag einer konkreten Methodendeklaration.
+    /// </summary>
+    /// <param name="taskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Die Methode, deren Tags gelesen werden.</param>
+    /// <returns>Die <see cref="NavExitAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavExit&gt;</c>-Tag vorhanden ist.</returns>
     [CanBeNull]
     static NavExitAnnotation ReadNavExitAnnotationInternal(
         [NotNull] NavTaskAnnotation taskAnnotation,
@@ -310,6 +426,16 @@ public static class AnnotationReader {
 
     #region ReadNavTriggerAnnotation
 
+    /// <summary>
+    /// Liest die Trigger-Annotation einer Methode — analog zu <see cref="ReadNavInitAnnotation"/>: sucht das
+    /// <c>&lt;NavTrigger&gt;</c>-Tag an der Methode und, als Rückfall, an der überschriebenen Basismethode.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="methodSymbol">Das Methodensymbol; dessen überschriebene Methode dient als Rückfallebene.</param>
+    /// <returns>Die <see cref="NavTriggerAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavTrigger&gt;</c>-Tag gefunden wird.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="navTaskAnnotation"/> ist <see langword="null"/>.</exception>
     [CanBeNull]
     static NavTriggerAnnotation ReadNavTriggerAnnotation(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -326,6 +452,13 @@ public static class AnnotationReader {
         return triggerAnnotation;
     }
 
+    /// <summary>
+    /// Sucht das <c>&lt;NavTrigger&gt;</c>-Tag über alle Teildeklarationen (<c>partial</c>) des Methodensymbols.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Das Methodensymbol, dessen Teildeklarationen durchsucht werden.</param>
+    /// <returns>Die erste gefundene <see cref="NavTriggerAnnotation"/> oder <see langword="null"/>.</returns>
     [CanBeNull]
     static NavTriggerAnnotation ReadNavTriggerAnnotationInternal(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -344,6 +477,14 @@ public static class AnnotationReader {
         return triggerAnnotation;
     }
 
+    /// <summary>
+    /// Baut die Trigger-Annotation aus dem <c>&lt;NavTrigger&gt;</c>-Tag einer konkreten Methodendeklaration.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethodDeclaration">Die Methode, deren Tags gelesen werden.</param>
+    /// <returns>Die <see cref="NavTriggerAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavTrigger&gt;</c>-Tag vorhanden ist.</returns>
     [CanBeNull]
     static NavTriggerAnnotation ReadNavTriggerAnnotationInternal(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -365,6 +506,18 @@ public static class AnnotationReader {
 
     #region ReadNavChoiceAnnotation
 
+    /// <summary>
+    /// Liest die Choice-Annotation einer Methode — analog zu <see cref="ReadNavInitAnnotation"/>: sucht das
+    /// <c>&lt;NavChoice&gt;</c>-Tag an der Methode und, als Rückfall, an der überschriebenen Basismethode.
+    /// Markiert die <c>{Choice}Logic</c>-Deklaration (nicht den aufrufseitigen Forward, siehe
+    /// <see cref="ReadChoiceCallAnnotation"/>).
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="methodSymbol">Das Methodensymbol; dessen überschriebene Methode dient als Rückfallebene.</param>
+    /// <returns>Die <see cref="NavChoiceAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavChoice&gt;</c>-Tag gefunden wird.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="navTaskAnnotation"/> ist <see langword="null"/>.</exception>
     [CanBeNull]
     static NavChoiceAnnotation ReadNavChoiceAnnotation(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -381,6 +534,13 @@ public static class AnnotationReader {
         return choiceAnnotation;
     }
 
+    /// <summary>
+    /// Sucht das <c>&lt;NavChoice&gt;</c>-Tag über alle Teildeklarationen (<c>partial</c>) des Methodensymbols.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethod">Das Methodensymbol, dessen Teildeklarationen durchsucht werden.</param>
+    /// <returns>Die erste gefundene <see cref="NavChoiceAnnotation"/> oder <see langword="null"/>.</returns>
     [CanBeNull]
     static NavChoiceAnnotation ReadNavChoiceAnnotationInternal(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -399,6 +559,14 @@ public static class AnnotationReader {
         return choiceAnnotation;
     }
 
+    /// <summary>
+    /// Baut die Choice-Annotation aus dem <c>&lt;NavChoice&gt;</c>-Tag einer konkreten Methodendeklaration.
+    /// </summary>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft die Annotation erbt.</param>
+    /// <param name="methodDeclaration">Die Methode, an der die Annotation verankert wird.</param>
+    /// <param name="declaringMethodDeclaration">Die Methode, deren Tags gelesen werden.</param>
+    /// <returns>Die <see cref="NavChoiceAnnotation"/> oder <see langword="null"/>, wenn kein
+    /// <c>&lt;NavChoice&gt;</c>-Tag vorhanden ist.</returns>
     [CanBeNull]
     static NavChoiceAnnotation ReadNavChoiceAnnotationInternal(
         [NotNull] NavTaskAnnotation navTaskAnnotation,
@@ -420,6 +588,16 @@ public static class AnnotationReader {
 
     #region ReadInitCallAnnotation
 
+    /// <summary>
+    /// Liest die Init-Aufruf-Annotationen aus den Aufrufausdrücken einer Task-Klasse. Zu jedem Aufruf wird
+    /// über das <see cref="SemanticModel"/> das aufgerufene Methodensymbol bestimmt; trägt dessen
+    /// Deklaration das <c>&lt;NavInitCall&gt;</c>-Tag, entsteht eine <see cref="NavInitCallAnnotation"/>
+    /// samt Parametertypliste (zur Unterscheidung überladener Begin-Aufrufe).
+    /// </summary>
+    /// <param name="semanticModel">Das Semantikmodell des Dokuments.</param>
+    /// <param name="navTaskAnnotation">Die Task-Annotation der aufrufenden Task, deren Herkunft übernommen wird.</param>
+    /// <param name="invocationExpressions">Die zu prüfenden Aufrufausdrücke der Klasse.</param>
+    /// <returns>Die Folge der gefundenen <see cref="NavInitCallAnnotation"/>en.</returns>
     static IEnumerable<NavInitCallAnnotation> ReadInitCallAnnotation(
         SemanticModel semanticModel,
         NavTaskAnnotation navTaskAnnotation,
@@ -470,6 +648,18 @@ public static class AnnotationReader {
 
     #region ReadChoiceCallAnnotation
 
+    /// <summary>
+    /// Liest die Choice-Forward-Annotationen aus den Aufrufausdrücken einer Task-Klasse. Zu jedem Aufruf
+    /// wird das aufgerufene Methodensymbol bestimmt; trägt dessen Deklaration das
+    /// <c>&lt;NavChoiceCall&gt;</c>-Tag, entsteht eine <see cref="NavChoiceCallAnnotation"/>. Zusätzlich
+    /// wird der voll qualifizierte Name der umgebenden <c>{Task}WFSBase</c> mitgeführt (das aufgerufene
+    /// Symbol liegt im geschachtelten <c>{Choice}CallContext</c> innerhalb der <c>WFSBase</c>), damit der
+    /// C#→C#-Sprung von der Aufrufstelle zur <c>{Choice}Logic</c> möglich ist.
+    /// </summary>
+    /// <param name="semanticModel">Das Semantikmodell des Dokuments.</param>
+    /// <param name="navTaskAnnotation">Die Task-Annotation, deren Herkunft übernommen wird.</param>
+    /// <param name="invocationExpressions">Die zu prüfenden Aufrufausdrücke der Klasse.</param>
+    /// <returns>Die Folge der gefundenen <see cref="NavChoiceCallAnnotation"/>en.</returns>
     static IEnumerable<NavChoiceCallAnnotation> ReadChoiceCallAnnotation(
         SemanticModel semanticModel,
         NavTaskAnnotation navTaskAnnotation,
@@ -518,12 +708,27 @@ public static class AnnotationReader {
 
     #endregion
 
+    /// <summary>
+    /// Bildet eine nach Parameterposition geordnete, vergleichbare Liste der Parametertyp-Anzeigenamen.
+    /// Dient dazu, einen konkreten Begin-Aufruf einer von mehreren gleichnamigen Begin-Überladungen
+    /// zuzuordnen. Genutzt von <see cref="ReadInitCallAnnotation"/> und vom <c>LocationFinder</c>.
+    /// </summary>
+    /// <param name="beginLogicParameter">Die Parametersymbole der Begin-Methode.</param>
+    /// <returns>Die Typ-Anzeigenamen in Parameterreihenfolge.</returns>
     internal static List<string> ToComparableParameterTypeList(IEnumerable<IParameterSymbol> beginLogicParameter) {
         return beginLogicParameter.OrderBy(p => p.Ordinal)
                                   .Select(p => p.ToDisplayString())
                                   .ToList();
     }
 
+    /// <summary>
+    /// Extrahiert die Nav-Annotation-Tags aus der führenden XML-Doku-Trivia eines Syntaxknotens: liest die
+    /// Dokumentationskommentare, wählt daraus die XML-Elemente, deren Name mit dem Annotation-Präfix
+    /// (<c>Nav</c>, siehe <see cref="Pharmatechnik.Nav.Language.CodeGen.CodeGenInvariants.AnnotationTagPrefix"/>)
+    /// beginnt, und liefert je Treffer Tag-Name und -Inhalt. Grundlage aller <c>Read…</c>-Methoden dieses Readers.
+    /// </summary>
+    /// <param name="node">Der Syntaxknoten (Klasse bzw. Methode), dessen Doku-Trivia gelesen wird.</param>
+    /// <returns>Die gefundenen Nav-Tags; leer, wenn der Knoten keine passende Doku-Trivia trägt.</returns>
     [NotNull]
     static IEnumerable<NavTag> ReadNavTags(Microsoft.CodeAnalysis.SyntaxNode node) {
 
@@ -558,8 +763,14 @@ public static class AnnotationReader {
         }
     }
 
+    /// <summary>
+    /// Ein einzelnes gelesenes Nav-Tag — der Roh-Tupel aus Tag-Name und -Inhalt, aus dem die
+    /// <c>Read…</c>-Methoden die jeweilige Annotation bauen.
+    /// </summary>
     sealed class NavTag {
+        /// <summary>Der Name des XML-Tags (z.B. <c>NavTask</c>, <c>NavInit</c>).</summary>
         public string TagName { get; init; }
+        /// <summary>Der Textinhalt des Tags (z.B. der Task- oder Verbindungspunkt-Name).</summary>
         public string Content { get; init; }
     }        
 }
