@@ -6,8 +6,8 @@
 > auf Deutsch umgestellte englische Alt-Summaries), Build grün (0 Fehler). Ziel war: alle Dateien
 > unter `Nav.Language\Text\` durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne
 > jede Code-Änderung**. Vorgehen war die Blaupause der vorangegangenen Kampagnen
-> (`doc/nav-syntax-xmldoc-status.md`, `doc/nav-semanticanalyzer-xmldoc-status.md`,
-> `doc/nav-semanticmodel-xmldoc-status.md`).
+> (`doc/archive/nav-syntax-xmldoc-status.md`, `doc/archive/nav-semanticanalyzer-xmldoc-status.md`,
+> `doc/archive/nav-semanticmodel-xmldoc-status.md`).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-14)
 
@@ -138,7 +138,7 @@ Bereits doku-warnungsfrei und **nicht** Teil eines Batches: `SourceText`, `Sourc
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-text-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
+> - Lies zuerst `doc/archive/nav-text-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
 >   `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Vor der Formulierung je Typ: die **Verwendungen** ansehen (wo wird das Primitiv erzeugt und
 >   konsumiert — `Syntax\` für Positionen/Extents, `Formatting\` für `TextChange`,

@@ -6,7 +6,7 @@
 > `nav build` + `nav test` grün. Ziel war: alle Dateien unter `Nav.Language\SemanticAnalyzer\`
 > durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
 > Vorgehen war die Blaupause der Syntax- und SemanticModel-Kampagnen
-> (`doc/nav-syntax-xmldoc-status.md`, `doc/nav-semanticmodel-xmldoc-status.md`).
+> (`doc/archive/nav-syntax-xmldoc-status.md`, `doc/archive/nav-semanticmodel-xmldoc-status.md`).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-14)
 
@@ -156,7 +156,7 @@ den vorher etablierten Formulierungen).
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-semanticanalyzer-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln +
+> - Lies zuerst `doc/archive/nav-semanticanalyzer-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln +
 >   Gates), und `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Vor der Formulierung je Analyzer: den **Descriptor** in
 >   `Nav.Language\Diagnostic\DiagnosticDescriptors.Semantic.cs` bzw. `.DeadCode.cs`

@@ -51,7 +51,7 @@ mitdokumentiert. **0× CS1570–84.**
 
 ## 2. Eiserne Regeln
 
-Wie in den Vorkampagnen (`doc/nav-cli-xmldoc-status.md` §3), mit **einer** dokumentierten Ausnahme:
+Wie in den Vorkampagnen (`doc/archive/nav-cli-xmldoc-status.md` §3), mit **einer** dokumentierten Ausnahme:
 die **doku-only-Regel (G1) wurde vom Nutzer für dieses Projekt ausgesetzt** (IDE-Reformatting, s.o.).
 Weiterhin gilt: nur belegbare Aussagen, Deutsch mit echten Umlauten, UTF-8 mit BOM, CRLF,
 keine Plan-Step-Verweise, **nichts committen**.

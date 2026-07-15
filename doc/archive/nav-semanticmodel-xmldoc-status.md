@@ -5,7 +5,7 @@
 > Dateien mechanisch verifiziert (1490 Insertions, 10 Deletions — ausschließlich `///`-Zeilen),
 > `nav build` + `nav test` grün. Ziel war: alle Dateien unter `Nav.Language\SemanticModel\`
 > durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
-> Vorgehen war die Blaupause der Syntax-Kampagne (`doc/nav-syntax-xmldoc-status.md`).
+> Vorgehen war die Blaupause der Syntax-Kampagne (`doc/archive/nav-syntax-xmldoc-status.md`).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-14)
 
@@ -148,7 +148,7 @@ verweist per `<inheritdoc/>` nur, wo C# das trägt — an `override`/Interface-I
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-semanticmodel-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates),
+> - Lies zuerst `doc/archive/nav-semanticmodel-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates),
 >   und `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Vor der Formulierung je Typ: die **Konstruktionsstelle im Builder**
 >   (`TaskDefinitionSymbolBuilder.cs`, `TaskDeclarationSymbolBuilder.cs`,

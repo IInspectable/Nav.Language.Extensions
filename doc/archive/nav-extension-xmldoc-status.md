@@ -1,8 +1,8 @@
 ﻿# Nav.Language.ExtensionShared — XML-Doku-Kampagne (Status & Umsetzungsplan)
 
 > **Status: IN ARBEIT (gestartet 2026-07-15).** Nach dem Abschluss der XML-Doku-Kampagnen über die
-> Engine `Nav.Language` (`doc/nav-features-xmldoc-status.md`) und die Roslyn-Brücke
-> `Nav.Language.CodeAnalysis` (`doc/nav-codeanalysis-xmldoc-status.md`) ist die **Visual-Studio-Extension
+> Engine `Nav.Language` (`doc/archive/nav-features-xmldoc-status.md`) und die Roslyn-Brücke
+> `Nav.Language.CodeAnalysis` (`doc/archive/nav-codeanalysis-xmldoc-status.md`) ist die **Visual-Studio-Extension
 > `Nav.Language.ExtensionShared`** das nächste — und mit **254 Dateien** größte — Ziel. Zielbild: **alle
 > handgeschriebenen Dateien** des geteilten Extension-Projekts durchgängig mit akkurater C#-XML-Doku
 > versehen — **ohne jede Code-Änderung** — und dabei die Kanon-Begriffe des **Glossars**
@@ -228,7 +228,7 @@ undokumentierte `internal`-Kern das Ziel, den CS1591 nicht misst.
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine Umformatierung,
 >   keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare/`#region`/`[Export]`-Attribute anfassen.
-> - Lies zuerst `doc/nav-extension-xmldoc-status.md`, Abschnitte 1–5 (Ziel, Glossar, Build-/Gate-Story,
+> - Lies zuerst `doc/archive/nav-extension-xmldoc-status.md`, Abschnitte 1–5 (Ziel, Glossar, Build-/Gate-Story,
 >   Regeln, Gates), und als Stil-Referenz `Nav.Language\CodeGen\Shared\CodeBuilder.cs`.
 > - **Du baust NICHT** (Legacy-VSIX-Toolchain, siehe §3) — der Orchestrator übernimmt Gate G2/G4 zentral.
 > - **Glossar `doc/Glossar.md` konsultieren** und dessen Kanon-Begriffe verwenden.

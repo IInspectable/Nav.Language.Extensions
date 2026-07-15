@@ -138,7 +138,7 @@ so existieren die `cref`-Ziele samt Doku, wenn übergeordnete Klassen auf sie ve
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-syntax-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
+> - Lies zuerst `doc/archive/nav-syntax-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
 >   `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Vor der Formulierung je Klasse: die **Konstruktionsstelle im Parser**
 >   (`NavParser.cs`/`NavDirectiveParser.cs`), vorhandene `[SampleSyntax]`-Attribute und die

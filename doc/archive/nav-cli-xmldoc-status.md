@@ -20,13 +20,13 @@
 > Code-Änderung), Doku sitzt an der umschließenden `CreatePipeline`.
 >
 > **Kontext & Zielbild.** Nach den abgeschlossenen XML-Doku-Kampagnen über `Nav.Language`
-> (`doc/nav-features-xmldoc-status.md`), `Nav.Language.CodeAnalysis`
-> (`doc/nav-codeanalysis-xmldoc-status.md`) und `Nav.Language.ExtensionShared`
-> (`doc/nav-extension-xmldoc-status.md`) ist **`Nav.Cli`** (Assembly **`nav.exe`**) das nächste Ziel:
+> (`doc/archive/nav-features-xmldoc-status.md`), `Nav.Language.CodeAnalysis`
+> (`doc/archive/nav-codeanalysis-xmldoc-status.md`) und `Nav.Language.ExtensionShared`
+> (`doc/archive/nav-extension-xmldoc-status.md`) ist **`Nav.Cli`** (Assembly **`nav.exe`**) das nächste Ziel:
 > der schlanke Kommandozeilen-Host, der die Engine zum Codegenerator/Analyzer macht. Ziel: **alle
 > handgeschriebenen Dateien** durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede
 > Code-Änderung** — und dabei auf das **Glossar** (`doc/Glossar.md`) stützen sowie es um die neuen
-> CLI-/Host-Begriffe **ergänzen**. Vorbild und Methodik: `doc/nav-codeanalysis-xmldoc-status.md`
+> CLI-/Host-Begriffe **ergänzen**. Vorbild und Methodik: `doc/archive/nav-codeanalysis-xmldoc-status.md`
 > (Orchestrator + Subagent je Batch, Gates G1–G4).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-15)
@@ -220,7 +220,7 @@ groß — der `internal`-Generator-/Analyzer-Ablauf, den CS1591 nicht misst.
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine Umformatierung,
 >   keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare/`#region`/Attribute anfassen.
-> - Lies zuerst `doc/nav-cli-xmldoc-status.md`, Abschnitte 1–4 (Ziel, Glossar-Anschluss, Regeln,
+> - Lies zuerst `doc/archive/nav-cli-xmldoc-status.md`, Abschnitte 1–4 (Ziel, Glossar-Anschluss, Regeln,
 >   Gates), und als Stil-Referenz `Nav.Language\CodeGen\Shared\CodeBuilder.cs`.
 > - **Glossar `doc/Glossar.md` konsultieren** und dessen Kanon-Begriffe verwenden (Host, Engine,
 >   Codegenerator, `.nav`-Datei, Task, taskref, Diagnostic, WFL/IWFL, CodeFix …).

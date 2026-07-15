@@ -4,8 +4,8 @@
 > (CS1591 unter `Diagnostic\` von 70 → **0**, CS157x **0**, Doku-only-Diff verifiziert). Noch
 > uncommittet. Ziel: alle Dateien unter `Nav.Language\Diagnostic\`
 > durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
-> Vorgehen ist die Blaupause der vorangegangenen Kampagnen (`doc/nav-text-xmldoc-status.md`,
-> `doc/nav-codefixes-xmldoc-status.md`).
+> Vorgehen ist die Blaupause der vorangegangenen Kampagnen (`doc/archive/nav-text-xmldoc-status.md`,
+> `doc/archive/nav-codefixes-xmldoc-status.md`).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-15)
 
@@ -120,7 +120,7 @@ per `cref` verweisen. `DiagnosticFormatter` ist die Basis; `UnitTestDiagnosticFo
 >   `//`-Kommentare, **keine Leerzeilen zwischen Membern einfügen/verschieben, keine
 >   Trailing-Spaces trimmen** (Edit-Tool neigt dazu → doku-only-Gate bricht; nach Edits per `perl`
 >   byte-genau restaurieren, falls doch passiert).
-> - Lies zuerst `doc/nav-diagnostic-xmldoc-status.md`, Abschnitte 1 (fachlicher Kontext), 2 und 4,
+> - Lies zuerst `doc/archive/nav-diagnostic-xmldoc-status.md`, Abschnitte 1 (fachlicher Kontext), 2 und 4,
 >   und `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Belege je Typ an der Erzeugungsstelle (`SemanticAnalyzer\`, Parser), an `doc/Errors.md` und den
 >   Tests. Roslyn-Analogien (`Diagnostic`/`DiagnosticDescriptor`) dürfen tragen, wo sie zutreffen.

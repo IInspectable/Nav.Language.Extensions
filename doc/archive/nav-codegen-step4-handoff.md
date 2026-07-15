@@ -6,9 +6,9 @@
 > maschinen-lokalen Voraussetzung, die nicht im Repo liegt: dem **Bestandskorpus**.
 >
 > Die **Design-Entscheidungen** (11 Grundsätze, Ziel-Architektur der „Weiche", die V2-Richtung) stehen
-> unverändert in [`nav-codegen-versioning.md`](nav-codegen-versioning.md) — hier **nicht** dupliziert.
+> unverändert in [`nav-codegen-versioning.md`](../nav-codegen-versioning.md) — hier **nicht** dupliziert.
 > Die Parser-/Korpus-Vorgeschichte (byte-identischer Cutover, Perf-Zahlen) steht in
-> [`nav-kolibri.md`](nav-kolibri.md).
+> [`nav-kolibri.md`](../nav-kolibri.md).
 
 ## 1. Wo wir stehen (committet auf `feature/nav-parser`)
 
@@ -99,7 +99,7 @@
 
 - **Step 4 ABGESCHLOSSEN (2026-07-06): TO-Familie entfernt (nicht migriert) + ST-Sonderweg gefallen.**
   Statt eines `ToEmitter` wurde die **TO-Erzeugung ganz ausgebaut** (Entscheidung des Nutzers, s.
-  Design-Frage 7 in [`nav-codegen-versioning.md`](nav-codegen-versioning.md)): `TOCodeModel`, `TO.stg`,
+  Design-Frage 7 in [`nav-codegen-versioning.md`](../nav-codegen-versioning.md)): `TOCodeModel`, `TO.stg`,
   der `GenerateToCodeSpecs`-Pfad und der Schalter `NavGenerateToClasses`/`ToClasses`/`GenerateToClasses`
   (MSBuild-Target, BuildTasks, CLI, `GenerationOptions`, `IPathProvider.GetToFileName`) sind entfernt.
   Da damit **alle** Familien von ST weg sind, fiel der komplette ST-Sonderweg: alle `.stg`, `Resources.cs`,
@@ -193,7 +193,7 @@ weiterhin **byte-identischer** Ausgabe (Beweis: `nav snapshot` ohne Diff). Refer
 
 Alle Familien-Sub-Steps sind durch: **IBeginWFS ✓ → IWFS ✓ → WFSBase ✓ → WFSOneShot ✓** (byte-identisch
 migriert) und **TO ✓ entfernt** (nicht migriert — Details in §1 und Design-Frage 7 der
-[`nav-codegen-versioning.md`](nav-codegen-versioning.md)). Der ST-Sonderweg ist gefallen. **Als Nächstes:
+[`nav-codegen-versioning.md`](../nav-codegen-versioning.md)). Der ST-Sonderweg ist gefallen. **Als Nächstes:
 Step 5 — Dispatcher `VersionDispatchingCodeGenerator`** (bisheriger `CodeGenerator` wird `CodeGeneratorV1`);
 V1-Verhalten muss unverändert bleiben (Korpus-Parity wie in §5, jetzt mit dem TO-freien Kandidaten als
 Ausgangspunkt).

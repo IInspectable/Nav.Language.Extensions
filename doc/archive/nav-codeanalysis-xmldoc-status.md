@@ -8,12 +8,12 @@
 > Nutzer (pro Batch + Glossar).
 >
 > **Kontext & Zielbild.** Nach dem vollständigen Abschluss der engine-weiten
-> XML-Doku-Kampagne über `Nav.Language` (`doc/nav-features-xmldoc-status.md`) ist die **Roslyn-Brücke
+> XML-Doku-Kampagne über `Nav.Language` (`doc/archive/nav-features-xmldoc-status.md`) ist die **Roslyn-Brücke
 > `Nav.Language.CodeAnalysis`** das nächste Ziel: der engine-nächste Ring, der Nav-Symbole mit dem
 > generierten C#-Code verknüpft (Nav ↔ Roslyn). Ziel: **alle handgeschriebenen Dateien** des Projekts
 > durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung** — und dabei
 > auf das **Glossar** (`doc/Glossar.md`) stützen sowie es um die neuen Roslyn-Brücken-Begriffe
-> **ergänzen**. Vorbild und Methodik: `doc/nav-features-xmldoc-status.md` (Orchestrator + Subagent je
+> **ergänzen**. Vorbild und Methodik: `doc/archive/nav-features-xmldoc-status.md` (Orchestrator + Subagent je
 > Batch, Gates G1–G4).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-15)
@@ -185,7 +185,7 @@ ist der undokumentierte `internal`-Kern von `WfsReferenceFinder`, den CS1591 nic
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine Umformatierung,
 >   keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare/`#region`/`[NotNull]` anfassen.
-> - Lies zuerst `doc/nav-codeanalysis-xmldoc-status.md`, Abschnitte 1–4 (Ziel, Glossar-Anschluss, Regeln,
+> - Lies zuerst `doc/archive/nav-codeanalysis-xmldoc-status.md`, Abschnitte 1–4 (Ziel, Glossar-Anschluss, Regeln,
 >   Gates), und als Stil-Referenz eine bereits fertige Datei, z.B. `Nav.Language\CodeGen\Shared\CodeBuilder.cs`.
 > - **Glossar `doc/Glossar.md` konsultieren** und dessen Kanon-Begriffe verwenden (Location, Referenz,
 >   Symbol, Task, Aufrufhierarchie, Sprungziel, Trigger, ConnectionPoint, Deklaration vs. Definition …).

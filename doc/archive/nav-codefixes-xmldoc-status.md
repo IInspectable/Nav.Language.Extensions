@@ -5,8 +5,8 @@
 > verifiziert (830 Insertions, 1 Deletion — ausschließlich `///`-Zeilen), Build grün (0 Fehler).
 > Ziel war: alle Dateien unter `Nav.Language\CodeFixes\` durchgängig mit akkurater C#-XML-Doku
 > versehen — **ohne jede Code-Änderung**. Vorgehen war die Blaupause der vorangegangenen Kampagnen
-> (`doc/nav-syntax-xmldoc-status.md`, `doc/nav-semanticmodel-xmldoc-status.md`,
-> `doc/nav-text-xmldoc-status.md`).
+> (`doc/archive/nav-syntax-xmldoc-status.md`, `doc/archive/nav-semanticmodel-xmldoc-status.md`,
+> `doc/archive/nav-text-xmldoc-status.md`).
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-14)
 
@@ -142,7 +142,7 @@ liegen bewusst im **selben** Batch.
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen,
 >   **keine Leerzeilen zwischen Membern einfügen/verschieben**.
-> - Lies zuerst `doc/nav-codefixes-xmldoc-status.md`, Abschnitte 1 (fachlicher Kontext), 2 und 4,
+> - Lies zuerst `doc/archive/nav-codefixes-xmldoc-status.md`, Abschnitte 1 (fachlicher Kontext), 2 und 4,
 >   und `Nav.Language\Syntax\SyntaxTrivia.cs` als Stil-Referenz.
 > - Vor der Formulierung je Fix: die **auslösende Diagnose** (`Nav.Language\Diagnostic\`,
 >   `SemanticAnalyzer\`), den zugehörigen **Provider** und die erzeugten **`TextChange`s** ansehen.

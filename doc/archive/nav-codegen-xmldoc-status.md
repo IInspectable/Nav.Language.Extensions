@@ -4,7 +4,7 @@
 > (0× CS1591, 0× CS1570–CS1584); doku-only-Diff über alle 48 geänderten Dateien mechanisch
 > verifiziert, normaler Build 0 Warnungen/0 Fehler. Ziel war: alle Dateien unter
 > `Nav.Language\CodeGen\` durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede
-> Code-Änderung**. Vorbild und Methodik: `doc/nav-syntax-xmldoc-status.md`.
+> Code-Änderung**. Vorbild und Methodik: `doc/archive/nav-syntax-xmldoc-status.md`.
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-15)
 
@@ -158,7 +158,7 @@ B6) sind trotzdem inhaltlich groß — es ist der undokumentierte `internal`-Ker
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine
 >   Umformatierung, keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-codegen-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
+> - Lies zuerst `doc/archive/nav-codegen-xmldoc-status.md`, Abschnitte 2 und 4 (Regeln + Gates), und
 >   die Stil-Referenzen `Nav.Language\CodeGen\Shared\CodeBuilder.cs` +
 >   `Nav.Language\CodeGen\V2\CodeModel\CallContextCodeModel.cs`.
 > - Vor der Formulierung je Typ: die **Verwendung** ansehen — wer baut das CodeModel

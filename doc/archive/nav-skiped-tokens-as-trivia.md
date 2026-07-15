@@ -1,7 +1,7 @@
 ﻿# Skiped-Token als strukturierte Trivia (Handoff)
 
 > Selbsttragender Einstieg für eine **frische Session ohne Gesprächskontext.** Ergänzt
-> `doc/nav-kolibri.md` (Parser „Kolibri", Trivia-Modell) und `doc/nav-weg-b-structured-trivia.md` +
+> `doc/nav-kolibri.md` (Parser „Kolibri", Trivia-Modell) und `doc/archive/nav-weg-b-structured-trivia.md` +
 > `doc/nav-directive-subparser.md` (das Direktiv-Modell, das als Blaupause diente). Quelle der
 > Wahrheit bleibt der Code; Pfade sind Einstieg (Stand 2026-07-02).
 >

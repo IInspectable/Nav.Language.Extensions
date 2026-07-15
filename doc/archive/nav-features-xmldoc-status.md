@@ -6,7 +6,7 @@
 > geänderten Dateien mechanisch verifiziert (G1), BOM/CRLF sauber (G3), normaler Build 0
 > Warnungen/0 Fehler. Ziel war: **alle noch nicht dokumentierten Ordner** durchgängig mit akkurater
 > C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**. Vorbild und Methodik:
-> `doc/nav-codegen-xmldoc-status.md` und `doc/nav-syntax-xmldoc-status.md`.
+> `doc/archive/nav-codegen-xmldoc-status.md` und `doc/archive/nav-syntax-xmldoc-status.md`.
 >
 > Damit ist die engine-weite XML-Doku-Kampagne über `Nav.Language` **vollständig** (alle Ordner
 > außer generiertem `obj/`-Code und `Properties/AssemblyInfo.cs`).
@@ -148,7 +148,7 @@ trotzdem inhaltlich relevant — es ist der undokumentierte `internal`-Kern, den
 > **Regeln (bindend):**
 > - **Kein Code ändern** — ausschließlich `///`-Zeilen hinzufügen/korrigieren. Keine Umformatierung,
 >   keine `using`-Änderung, kein Umsortieren, keine `//`-Kommentare anfassen.
-> - Lies zuerst `doc/nav-features-xmldoc-status.md`, Abschnitte 1, 2 und 4 (Ziel + Regeln + Gates),
+> - Lies zuerst `doc/archive/nav-features-xmldoc-status.md`, Abschnitte 1, 2 und 4 (Ziel + Regeln + Gates),
 >   und als Stil-Referenz eine bereits fertige Datei, z.B. `Nav.Language\CodeGen\Shared\CodeBuilder.cs`.
 > - Vor der Formulierung je Typ die **Verwendung** ansehen: Wer ruft die Service-/Kernklasse (LSP-/
 >   MCP-/Extension-Host, andere Engine-Ordner), welche Tests fixieren das Verhalten, welches

@@ -1,7 +1,7 @@
 ﻿# Test-Abdeckung vor dem Parser-Austausch — Step-für-Step-Plan
 
 > **Zweck dieses Dokuments:** Bevor der ANTLR-basierte Lexer/Parser durch einen handgeschriebenen
-> ersetzt wird (siehe [`nav-kolibri.md`](./nav-kolibri.md)), soll die
+> ersetzt wird (siehe [`nav-kolibri.md`](../nav-kolibri.md)), soll die
 > **Test-Abdeckung der Syntax-Schicht maximiert** werden. Ziel ist **nicht** „mehr Tests" allgemein,
 > sondern ein **differentielles Sicherheitsnetz**, das den exakt beobachtbaren Output des *heutigen*
 > Parsers einfriert, damit der neue Parser Byte für Byte dagegen diffbar ist.
