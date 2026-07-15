@@ -36,17 +36,30 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
     // bliebe dann dauerhaft stale.
     readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 
+    /// <summary>Cache-Eintrag: geparster Syntaxbaum plus der Platten-Stempel, unter dem er gilt.</summary>
     readonly record struct CacheEntry {
 
+        /// <summary>Der geparste Syntaxbaum (<c>null</c> = Datei existiert nicht).</summary>
         public required CodeGenerationUnitSyntax? Syntax { get; init; }
+        /// <summary>Platten-Stempel, gegen den der Cache-Treffer validiert wird (<c>default</c> bei Overlays).</summary>
         public required DiskStamp                 Stamp  { get; init; }
 
     }
 
+    /// <summary>
+    /// Erzeugt den Provider über einem inneren Platten-Provider; ohne Angabe wird
+    /// <see cref="SyntaxProvider.Default"/> verwendet.
+    /// </summary>
     public OverlaySyntaxProvider(ISyntaxProvider? diskProvider = null) {
         _diskProvider = diskProvider ?? SyntaxProvider.Default;
     }
 
+    /// <summary>
+    /// Liefert den Syntaxbaum einer Datei: Ist ein Overlay gesetzt, wird dessen (ggf. ungespeicherter) Inhalt
+    /// geparst (autoritativ, kein Platten-Stempel); sonst greift der gestempelte Platten-Cache und parst bei
+    /// veraltetem/fehlendem Stempel über den inneren Provider neu. Der Pfad wird via
+    /// <see cref="PathHelper.NormalizePath"/> normalisiert (Cache-Schlüssel).
+    /// </summary>
     public CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         var normalizedPath = PathHelper.NormalizePath(filePath)
@@ -100,11 +113,13 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
         _cache.TryRemove(normalizedPath, out _);
     }
 
+    /// <summary>Ist für diesen (normalisierten) Pfad ein Overlay gesetzt, das Dokument also offen?</summary>
     public bool IsOpen(string normalizedPath) => _overlay.ContainsKey(normalizedPath);
 
     /// <summary>Die normalisierten Pfade aller aktuell offenen Dokumente (Overlay-Schlüssel).</summary>
     public IEnumerable<string> OpenDocuments => _overlay.Keys;
 
+    /// <summary>Kein-Op — der Provider hält keine freizugebenden Ressourcen; erfüllt nur den <see cref="ISyntaxProvider"/>-Vertrag.</summary>
     public void Dispose() {
     }
 
@@ -117,9 +132,15 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
 /// </summary>
 readonly record struct DiskStamp {
 
+    /// <summary>Letzter Schreibzeitpunkt der Datei (UTC).</summary>
     public required DateTime LastWriteTimeUtc { get; init; }
+    /// <summary>Dateilänge in Bytes.</summary>
     public required long     Length           { get; init; }
 
+    /// <summary>
+    /// Bildet den Stempel einer Datei. Eine fehlende oder nicht stat-bare Datei (IO-/Zugriffsfehler) ergibt
+    /// <c>default</c> — so gilt auch das Wiederauftauchen einer gelöschten Datei als Änderung.
+    /// </summary>
     public static DiskStamp FromFile(string path) {
         try {
             var fileInfo = new FileInfo(path);

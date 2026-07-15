@@ -34,9 +34,12 @@ sealed class NavIgnorePattern {
     /// <summary>Abschließendes <c>/</c> — greift nur auf Verzeichnisse (also Dateien unterhalb).</summary>
     public bool DirOnly { get; }
 
+    /// <summary>Der aus dem Muster kompilierte reguläre Ausdruck.</summary>
     public Regex  Regex  { get; }
+    /// <summary>Die ursprüngliche (unveränderte) Musterzeile — für Diagnose/Nachvollziehbarkeit.</summary>
     public string Source { get; }
 
+    /// <summary>Passt das Muster auf einen relativen, <c>/</c>-getrennten, kleingeschriebenen Pfad?</summary>
     public bool IsMatch(string relativePathPosix) => Regex.IsMatch(relativePathPosix);
 
     /// <summary>

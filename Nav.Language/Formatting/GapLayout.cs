@@ -56,6 +56,11 @@ abstract record GapLayout {
     /// Zeilenumbruch, dann Spaces bis zur Gruppenspalte statt Tiefen-Einzug — für den
     /// Task-Kopf-Block-Stapel und mehrzeiliges <c>[params]</c>.
     /// </summary>
+    /// <param name="BlankLinesBefore">
+    /// Die Autorenzahl der Leerzeilen vor dem Umbruch als Minimum — wie bei <see cref="NewLine"/>. Der
+    /// kanonische Kopf-Stapel reicht hier stets <c>0</c> herein und kollabiert die authored Leerzeilen
+    /// zwischen den gestapelten Blöcken (Deckel <c>0</c> im <see cref="GapRenderer"/>).
+    /// </param>
     /// <param name="Column">
     /// Benennt <b>welche</b> Spalte gemeint ist — reine Selbstdokumentation im Regel-Code; der
     /// <see cref="GapRenderer"/> schlägt die absolute Spalte nach dem Umbruch allein über

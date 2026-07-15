@@ -22,16 +22,32 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         _includeReferencesUnderInclude = includeReferencesUnderInclude;
     }
 
+    /// <summary>
+    /// Einstiegspunkt: bestimmt zunächst über <see cref="ReferenceRootFinder.FindRoot"/> das Wurzel-Symbol
+    /// zu <paramref name="symbol"/> und besucht es, um Deklaration + Referenzen einzusammeln.
+    /// </summary>
+    /// <param name="symbol">Das Symbol unter dem Caret (Ausgangspunkt der Highlight-Suche).</param>
+    /// <param name="includeReferencesUnderInclude">
+    /// Ob Referenzen unterhalb eines <c>using</c>/Include auch berücksichtigt werden (VS-Option
+    /// <c>HighlightReferencesUnderInclude</c>).
+    /// </param>
+    /// <returns>Deklaration (erstes Element) gefolgt von allen Referenzen; kann <c>null</c>-Einträge enthalten.</returns>
     public static IEnumerable<ISymbol?> Find(ISymbol symbol, bool includeReferencesUnderInclude = true) {
         var rootSymbol = ReferenceRootFinder.FindRoot(symbol);
         var finder     = new HighlightSymbolFinder(includeReferencesUnderInclude);
         return finder.Visit(rootSymbol);
     }
 
+    /// <summary>Symbol-Arten ohne eigene Highlight-Regel liefern keine Treffer.</summary>
     protected override IEnumerable<ISymbol?> DefaultVisit(ISymbol symbol) {
         yield break;
     }
 
+    /// <summary>
+    /// Highlight für einen Exit-Connection-Point: der Punkt selbst (sofern nicht inkludiert) plus alle
+    /// Exit-Connection-Point-Referenzen, die über die Task-Deklaration auf ihn zeigen (die
+    /// <c>Instanz:exit --&gt; …</c>-Kanten).
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitExitConnectionPointSymbol(IExitConnectionPointSymbol exitConnectionPointSymbol) {
 
         if (!exitConnectionPointSymbol.TaskDeclaration.IsIncluded) {
@@ -47,6 +63,10 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für einen Init-Knoten: der Alias (falls vorhanden, sonst der Knoten selbst) plus die
+    /// Quell-Referenzen aller ausgehenden Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitInitNodeSymbol(IInitNodeSymbol initNodeSymbol) {
 
         if (initNodeSymbol.Alias != null) {
@@ -60,10 +80,15 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>Ein Init-Alias wird auf seinen Init-Knoten zurückgeführt und wie dieser behandelt.</summary>
     public override IEnumerable<ISymbol?> VisitInitNodeAliasSymbol(IInitNodeAliasSymbol initNodeAliasSymbol) {
         return Visit(initNodeAliasSymbol.InitNode);
     }
 
+    /// <summary>
+    /// Highlight für einen Task-Knoten (Task-Instanz): der Alias (falls vorhanden, sonst der Knoten selbst)
+    /// plus die Quell-Referenzen der ausgehenden und die Ziel-Referenzen der eingehenden Kanten.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitTaskNodeSymbol(ITaskNodeSymbol taskNodeSymbol) {
 
         if (taskNodeSymbol.Alias != null) {
@@ -81,6 +106,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>Highlight für einen Exit-Knoten: der Knoten selbst plus die Ziel-Referenzen der eingehenden Kanten.</summary>
     public override IEnumerable<ISymbol?> VisitExitNodeSymbol(IExitNodeSymbol exitNodeSymbol) {
 
         yield return exitNodeSymbol;
@@ -90,6 +116,7 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>Highlight für einen End-Knoten: der Knoten selbst plus die Ziel-Referenzen der eingehenden Kanten.</summary>
     public override IEnumerable<ISymbol?> VisitEndNodeSymbol(IEndNodeSymbol endNodeSymbol) {
 
         yield return endNodeSymbol;
@@ -99,6 +126,10 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für einen Dialog-Knoten: der Knoten selbst plus die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Kanten.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitDialogNodeSymbol(IDialogNodeSymbol dialogNodeSymbol) {
 
         yield return dialogNodeSymbol;
@@ -112,6 +143,10 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für einen View-Knoten: der Knoten selbst plus die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Kanten.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitViewNodeSymbol(IViewNodeSymbol viewNodeSymbol) {
 
         yield return viewNodeSymbol;
@@ -125,6 +160,10 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für einen Choice-Knoten: der Knoten selbst plus die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Kanten.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitChoiceNodeSymbol(IChoiceNodeSymbol choiceNodeSymbol) {
 
         yield return choiceNodeSymbol;
@@ -138,6 +177,11 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für eine Task-Deklaration (<c>taskref</c>): die Deklaration selbst plus alle Task-Knoten, die
+    /// sie referenzieren. Knoten ohne Alias werden bis auf ihre Referenz-Ebene aufgelöst
+    /// (<see cref="VisitTaskNodeSymbol"/>), Knoten mit Alias direkt zurückgegeben.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitTaskDeclarationSymbol(ITaskDeclarationSymbol taskDeclarationSymbol) {
 
         yield return taskDeclarationSymbol;
@@ -154,6 +198,10 @@ sealed class HighlightSymbolFinder: SymbolVisitor<IEnumerable<ISymbol?>> {
         }
     }
 
+    /// <summary>
+    /// Highlight für ein Include (<c>using</c>): nur wenn <c>includeReferencesUnderInclude</c> gesetzt ist —
+    /// dann das Include-Symbol selbst plus die Task-Knoten, die die inkludierten Task-Deklarationen referenzieren.
+    /// </summary>
     public override IEnumerable<ISymbol?> VisitIncludeSymbol(IIncludeSymbol includeSymbol) {
 
         if (!_includeReferencesUnderInclude) {

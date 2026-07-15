@@ -143,6 +143,11 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
 /// </summary>
 static class SupportedVersionTable {
 
+    /// <summary>
+    /// Die unterstützten Versionen in aufsteigender Reihenfolge — die zugrunde liegende Tabelle hinter
+    /// <see cref="NavLanguageVersion.SupportedVersions"/>, <see cref="NavLanguageVersion.Latest"/> und
+    /// <see cref="NavLanguageVersion.IsSupported"/>.
+    /// </summary>
     public static readonly ImmutableArray<NavLanguageVersion> All = ImmutableArray.Create(
         NavLanguageVersion.Version1,
         NavLanguageVersion.Version2);

@@ -578,7 +578,7 @@ sealed class NavCompletionContext {
     /// <c>null</c>, wenn die Position in keiner Direktive liegt (dann greift die reguläre, Token-basierte
     /// Klassifikation). Direktiven sind strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und nicht
     /// Teil des flachen <see cref="SyntaxTree.Tokens"/>-Stroms; ihre lokalen Token liefert
-    /// <see cref="DirectiveTriviaSyntax.ChildTokens"/>. Der Cursor sitzt entweder im Schlüsselwort-Slot direkt
+    /// <see cref="StructuredTriviaSyntax.ChildTokens()"/>. Der Cursor sitzt entweder im Schlüsselwort-Slot direkt
     /// hinter dem <c>#</c> (<see cref="NavCompletionContextKind.DirectiveKeyword"/>) oder — bei einer erkannten
     /// <c>#version</c>-Direktive — im Werte-Slot dahinter (<see cref="NavCompletionContextKind.DirectiveVersionValue"/>).
     /// </summary>

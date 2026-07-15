@@ -12,8 +12,26 @@ using System.Threading.Tasks;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Modell einer entdeckten „Solution": die Menge aller <c>*.nav</c>-Dateien unterhalb einer Wurzel plus die
+/// zum Auswerten nötige Provider-Kette (<see cref="ISyntaxProvider"/> → <see cref="ISemanticModelProvider"/>).
+/// Grundlage solution-weiter Features (FindReferences, Call Hierarchy, Exit-Usages), die über
+/// <see cref="ProcessCodeGenerationUnitsAsync"/> alle Dateien besuchen. Wird sowohl vom CLI-Codegenerator
+/// (eigene Provider) als auch von der Workspace-Host-Schicht (<see cref="NavWorkspaceCore"/>, geteilte
+/// overlay-fähige Provider) genutzt.
+/// </summary>
 public class NavSolution {
 
+    /// <summary>
+    /// Erzeugt eine Solution über <paramref name="solutionFiles"/>. Ohne explizite Provider wird ein
+    /// <see cref="CachedSyntaxProvider"/> und ein darauf aufsetzender <see cref="SemanticModelProvider"/>
+    /// verwendet; die Host-Schicht reicht hier ihre geteilten (overlay-fähigen) Provider herein, damit Scan
+    /// und offene Dokumente denselben Cache benutzen.
+    /// </summary>
+    /// <param name="solutionRoot">Wurzelverzeichnis der Solution (oder <c>null</c> für die leere Solution).</param>
+    /// <param name="solutionFiles">Die entdeckten <c>*.nav</c>-Dateien.</param>
+    /// <param name="syntaxProvider">Optionaler Syntax-Provider; Standard: <see cref="CachedSyntaxProvider"/>.</param>
+    /// <param name="semanticModelProvider">Optionaler Semantik-Provider; Standard: <see cref="SemanticModelProvider"/> über <paramref name="syntaxProvider"/>.</param>
     public NavSolution(DirectoryInfo? solutionRoot,
                        ImmutableArray<FileInfo> solutionFiles,
                        ISyntaxProvider? syntaxProvider = null,
@@ -26,17 +44,24 @@ public class NavSolution {
         SemanticModelProvider = semanticModelProvider ?? new SemanticModelProvider(SyntaxProvider);
     }
 
+    /// <summary>Der Syntax-Provider dieser Solution (Lexer/Parser → <see cref="CodeGenerationUnitSyntax"/>).</summary>
     public ISyntaxProvider        SyntaxProvider        { get; }
+    /// <summary>Der Semantik-Provider dieser Solution (Syntaxbaum → <see cref="CodeGenerationUnit"/>).</summary>
     public ISemanticModelProvider SemanticModelProvider { get; }
 
+    /// <summary>Wurzelverzeichnis der Solution, oder <c>null</c> für die leere Solution.</summary>
     public DirectoryInfo? SolutionDirectory { get; }
 
+    /// <summary>Die entdeckten <c>*.nav</c>-Dateien der Solution.</summary>
     public ImmutableArray<FileInfo> SolutionFiles { get; }
 
+    /// <summary>Die leere Solution (keine Wurzel, keine Dateien) — neutraler Ausgangs-/Fehlzustand.</summary>
     public static NavSolution Empty = new(null, ImmutableArray<FileInfo>.Empty);
 
+    /// <summary>Die Nav-Dateiendung <c>.nav</c>.</summary>
     public const string FileExtension = ".nav";
 
+    /// <summary>Das Suchmuster <c>*.nav</c> für <see cref="Directory.EnumerateFiles(string,string)"/> (grob; siehe <see cref="HasNavExtension"/>).</summary>
     public static string SearchFilter => "*" + FileExtension;
 
     /// <summary>
@@ -47,6 +72,12 @@ public class NavSolution {
     public static bool HasNavExtension(string path) =>
         string.Equals(Path.GetExtension(path), FileExtension, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Entdeckt rekursiv alle <c>*.nav</c>-Dateien unterhalb von <paramref name="directory"/> und baut daraus
+    /// eine Solution. Das Windows-Suchmuster <see cref="SearchFilter"/> matcht auch länger endende Dateien
+    /// (z.B. <c>.navignore</c>); diese werden per <see cref="HasNavExtension"/> exakt herausgefiltert. Ohne
+    /// gültiges Verzeichnis oder bei Abbruch wird <see cref="Empty"/> geliefert.
+    /// </summary>
     public static Task<NavSolution> FromDirectoryAsync(DirectoryInfo? directory, CancellationToken cancellationToken) {
 
         // netstandard2.0: String.IsNullOrEmpty verengt nicht, und directory?.FullName lässt directory
@@ -80,6 +111,26 @@ public class NavSolution {
         return Task.FromResult(solution);
     }
 
+    /// <summary>
+    /// Ruft <paramref name="asyncAction"/> für jede <see cref="CodeGenerationUnit"/> der Solution auf —
+    /// Grundoperation solution-weiter Features (FindReferences, Call Hierarchy, Exit-Usages).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Die Besuchsreihenfolge ist auf frühe Treffer optimiert: Ist ein <paramref name="startingUnit"/> gegeben
+    /// (die Datei mit der gesuchten Definition), wird zuerst sie selbst, dann die übrigen Dateien ihres
+    /// Verzeichnisses und erst zuletzt die restliche Solution besucht. Bereits besuchte Dateien werden
+    /// case-insensitiv dedupliziert (Windows-Pfade), damit dieselbe Datei nicht doppelt verarbeitet wird.
+    /// </para>
+    /// <para>
+    /// Der teure Semantikmodell-Aufbau der Restmenge läuft parallel (der Bau-Pfad ist nebenläufigkeitssicher);
+    /// <paramref name="asyncAction"/> selbst wird dagegen weiterhin sequenziell und in stabiler Datei-Reihenfolge
+    /// (<c>AsOrdered</c>) auf dem Aufrufer-Fluss aufgerufen — die Callbacks brauchen daher nicht thread-sicher zu sein.
+    /// </para>
+    /// </remarks>
+    /// <param name="asyncAction">Pro besuchter Unit aufgerufene Aktion.</param>
+    /// <param name="startingUnit">Optionale Einstiegs-Unit für die Nah-zuerst-Reihenfolge; <c>null</c> = reine Solution-Reihenfolge.</param>
+    /// <param name="cancellationToken">Abbruch-Token.</param>
     public async Task ProcessCodeGenerationUnitsAsync(Func<CodeGenerationUnit, Task> asyncAction,
                                                       CodeGenerationUnit? startingUnit,
                                                       CancellationToken cancellationToken) {

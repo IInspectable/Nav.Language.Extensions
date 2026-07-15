@@ -68,6 +68,15 @@ sealed class FormatterSuppression {
         return _handLaidShiftByGapStart.TryGetValue(gapStart, out delta);
     }
 
+    /// <summary>
+    /// Der Einstieg des Fehler-Toleranz-Vorpasses (aus <see cref="NavFormattingService.FormatDocument"/>):
+    /// sammelt die Verbatim-Regionen aus (1) fehlenden Task-/<c>taskref</c>-Blockklammern, (2)
+    /// Error-Severity-Syntax-Diagnostics (BOM-<see cref="DiagnosticId.Nav0000"/> bei Offset 0 ausgenommen) und
+    /// (3) strukturell defekten Anweisungen (fehlendes <c>;</c>, Skiped/Direktive im Inneren), und errechnet
+    /// die Delta-Shifts der hand-gelegten (mehrzeilig, aber gültigen) Anweisungen. Die Shifts entstehen erst
+    /// <b>nach</b> dem Sammeln aller Verbatim-Regionen, damit eine hand-gelegte Anweisung in einem bereits
+    /// unterdrückten Task-Body keinen widersprüchlichen Shift bekommt.
+    /// </summary>
     public static FormatterSuppression Compute(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map statementFacts) {
 
         var verbatim = new List<TextExtent>();
@@ -138,6 +147,12 @@ sealed class FormatterSuppression {
         return suppression;
     }
 
+    /// <summary>
+    /// Trägt die Verbatim-Region eines Task-/<c>taskref</c>-Blocks mit fehlender Klammer nach: fehlendes
+    /// <c>{</c> ⇒ der ganze Block ist verbatim (der Body lässt sich nicht lokalisieren); fehlendes <c>}</c> ⇒
+    /// nur der Body ab hinter dem <c>{</c> ist verbatim (Containment nach hinten unsicher). Ist der Block
+    /// intakt, entsteht kein Eintrag.
+    /// </summary>
     static void AddBrokenBlock(SyntaxToken openBrace, SyntaxToken closeBrace, TextExtent blockExtent, List<TextExtent> verbatim) {
 
         if (openBrace.IsMissing) {
@@ -147,6 +162,7 @@ sealed class FormatterSuppression {
         }
     }
 
+    /// <summary>Die Einstufung einer Anweisung durch <see cref="Classify"/>: normal formatierbar, verbatim unterdrückt oder hand-gelegt (Delta-Shift).</summary>
     enum StatementClass {
         Normal,
         Suppressed,
@@ -224,6 +240,11 @@ sealed class FormatterSuppression {
         return null;
     }
 
+    /// <summary>
+    /// Ob die Datei brauchbare Member trägt (mindestens ein Member, <c>[using]</c> oder eine
+    /// Namespace-Deklaration). Andernfalls formatiert der Service nur die zwei konservativen Rand-Lücken
+    /// (Datei-Anfang, Final-Newline/EOF-Trim) — Global-Fallback für reinen Müll/leere Dateien.
+    /// </summary>
     static bool ComputeHasUsableMembers(SyntaxTree syntaxTree) {
         return syntaxTree.Root is CodeGenerationUnitSyntax { } unit &&
                (unit.Members.Count > 0 || unit.CodeUsings.Count > 0 || unit.CodeNamespace != null);

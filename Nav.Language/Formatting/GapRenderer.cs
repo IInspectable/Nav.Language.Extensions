@@ -269,6 +269,7 @@ sealed class GapRenderer {
         return sb.ToString();
     }
 
+    /// <summary>Der Inhalt der Final-Lücke in Strom-Reihenfolge: <c>lastToken.TrailingTrivia ++ endOfFile.LeadingTrivia</c> (das letzte Token darf fehlen).</summary>
     static IEnumerable<SyntaxTrivia> EnumerateFinalTrivia(SyntaxToken? lastToken, SyntaxToken endOfFile) {
 
         if (lastToken != null) {
@@ -461,6 +462,7 @@ sealed class GapRenderer {
         return SplitLines(EnumerateTrivia(ctx));
     }
 
+    /// <summary>Zerlegt einen beliebigen Trivia-Strom an seinen <see cref="SyntaxTokenType.NewLine"/>-Trivia in Zeilen (der gemeinsame Kern von Lücken-, Leading- und Final-Gap-Zerlegung).</summary>
     static List<List<SyntaxTrivia>> SplitLines(IEnumerable<SyntaxTrivia> triviaStream) {
 
         var lines = new List<List<SyntaxTrivia>> { new() };

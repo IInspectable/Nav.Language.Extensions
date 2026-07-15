@@ -17,6 +17,12 @@ namespace Pharmatechnik.Nav.Language;
 /// </summary>
 public static class DiagnosticsComputer {
 
+    /// <summary>
+    /// Sammelt die Diagnostics für <paramref name="filePath"/> aus <paramref name="unit"/>: Syntaxfehler des
+    /// Syntaxbaums plus die semantischen Analyzer-Diagnostics, jeweils via <c>ExpandLocations</c> auf ihre
+    /// Einzel-Orte aufgefächert, auf das betreffende Dokument gefiltert (siehe <see cref="BelongsToDocument"/>)
+    /// und nach Start-Position stabil sortiert.
+    /// </summary>
     public static IReadOnlyList<Diagnostic> FromUnit(CodeGenerationUnit unit, string filePath) {
 
         var diagnostics = unit.Syntax.SyntaxTree.Diagnostics.Concat(unit.Diagnostics);
@@ -30,6 +36,11 @@ public static class DiagnosticsComputer {
               .ToList();
     }
 
+    /// <summary>
+    /// <c>true</c>, wenn eine Diagnose zum Dokument <paramref name="normalizedPath"/> gehört. Diagnostics ohne
+    /// eigenen Pfad stammen aus dem aktuell geparsten Dokument und zählen immer dazu; sonst wird der
+    /// normalisierte Pfad case-insensitiv verglichen.
+    /// </summary>
     static bool BelongsToDocument(Diagnostic diagnostic, string? normalizedPath) {
 
         var locationPath = diagnostic.Location.NormalizedFilePath;

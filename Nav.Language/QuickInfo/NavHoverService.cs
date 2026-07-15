@@ -110,6 +110,11 @@ public static class NavHoverService {
 /// </summary>
 public sealed class NavHoverInfo {
 
+    /// <summary>Erzeugt die Hover-Information.</summary>
+    /// <param name="displayParts">Die klassifizierten Signatur-Bestandteile (<see cref="DisplayParts"/>).</param>
+    /// <param name="location">Der Namens-Bereich des Symbols unter dem Caret (<see cref="Location"/>).</param>
+    /// <param name="calls">Die von hier aus erreichbaren Knoten (<see cref="Calls"/>).</param>
+    /// <param name="documentation">Der Kommentartext über der Deklaration (<see cref="Documentation"/>); <c>null</c>, wenn keiner vorliegt.</param>
     public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, Location? location,
                         IReadOnlyList<Call> calls, string? documentation = null) {
         DisplayParts  = displayParts;

@@ -28,6 +28,11 @@ public sealed class NavWorkspaceCore {
 
     NavSolution _solution = NavSolution.Empty;
 
+    /// <summary>
+    /// Baut die Provider-Kette auf: einen overlay-fähigen <see cref="OverlaySyntaxProvider"/> (Tier-1-Syntax-Cache)
+    /// und darüber einen <see cref="CachedSemanticModelProvider"/> (Tier-2-Semantik-Cache). Der Semantik-Cache
+    /// sitzt bewusst nur in dieser Host-Schicht (LSP + MCP); die CLI bleibt ungecacht.
+    /// </summary>
     public NavWorkspaceCore() {
         _syntaxProvider = new OverlaySyntaxProvider();
         // Tier-2-Semantik-Cache über dem Syntax-Cache des OverlaySyntaxProviders (Tier 1): Wiederhol-Scans
@@ -40,6 +45,7 @@ public sealed class NavWorkspaceCore {
     /// <summary>Die geladene Solution (alle <c>*.nav</c>) — Grundlage für solution-weite Features.</summary>
     public NavSolution Solution => _solution;
 
+    /// <summary>Anzahl der <c>*.nav</c>-Dateien in der geladenen Solution.</summary>
     public int FileCount => _solution.SolutionFiles.Length;
 
     /// <summary>Wurzelverzeichnis der geladenen Solution (oder <c>null</c>, wenn nichts geladen ist).</summary>

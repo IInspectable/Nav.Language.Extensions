@@ -64,6 +64,11 @@ readonly struct GapTrivia {
         return new GapTrivia(hasComment, hasLineBreakingComment, hasSkippedTokens, hasDirective, newLineCount);
     }
 
+    /// <summary>
+    /// Verrechnet eine einzelne Trivia in die laufenden Befunde: Kommentare setzen <paramref name="hasComment"/>
+    /// (und, bei <c>//</c> bzw. mehrzeiligem Block-Kommentar, <paramref name="hasLineBreakingComment"/>),
+    /// Skiped/Direktive/Newline die jeweiligen Flags bzw. den Zähler.
+    /// </summary>
     static void Accumulate(in SyntaxTrivia trivia, SourceText sourceText, ref bool hasComment, ref bool hasLineBreakingComment,
                            ref bool hasSkippedTokens, ref bool hasDirective, ref int newLineCount) {
 

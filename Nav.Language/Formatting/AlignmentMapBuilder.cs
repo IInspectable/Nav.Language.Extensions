@@ -33,6 +33,14 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// </remarks>
 static class AlignmentMapBuilder {
 
+    /// <summary>
+    /// Rechnet die <see cref="AlignmentMap"/> für den ganzen Baum aus — der Einstieg des
+    /// Ausrichtungs-Vorpasses, aufgerufen aus <see cref="NavFormattingService.FormatDocument"/>. Läuft je
+    /// Task-Definition und <c>taskref</c>-Deklaration die aktivierten Spalten in fester Abhängigkeitsreihenfolge
+    /// durch (Kopf-Blöcke; Node-Raster; Pfeil-, dann Continuation-, dann Trigger-, dann Condition-Spalte, die
+    /// aufeinander aufbauen; zuletzt die Trailing-Kommentar-Spalte). Sind alle Ausrichtungs-Schalter aus,
+    /// liefert er <see cref="AlignmentMap.Empty"/>, ohne den Baum zu durchlaufen.
+    /// </summary>
     public static AlignmentMap Build(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts) {
 
         if (!options.AlignArrows && !options.AlignNodeGrid && !options.AlignTaskHeadBlocks &&
@@ -259,6 +267,13 @@ static class AlignmentMapBuilder {
 
     // ---- Pfeil-Spalte ----------------------------------------------------------------------------
 
+    /// <summary>
+    /// Der Kandidat der Pfeil-Spalte: eine (Exit-)Transition mit ihrer kanonischen Vor-Pfeil-Breite und der
+    /// Startposition der zu paddenden Lücke (Quell-Teil → Edge-Keyword). <see cref="BreaksGroup"/> = defekt/
+    /// hand-gelegt (bricht die Gruppe), <see cref="IsAligned"/> = trägt die Spalte tatsächlich (ein Ausschluss
+    /// per Inline-Kommentar läuft als Gruppen-erhaltender Mitläufer mit). <see cref="AuthoredColumn"/> ist die
+    /// Ist-Spalte, die nur die <see cref="AlignmentColumnPolicy.PreserveDominant"/> auswertet.
+    /// </summary>
     sealed class ArrowCandidate {
 
         public ArrowCandidate(SyntaxNode statement) {
@@ -274,6 +289,13 @@ static class AlignmentMapBuilder {
 
     }
 
+    /// <summary>
+    /// Legt die Pfeil-Spalte (<see cref="ColumnId.Arrow"/>) eines Transitions-Blocks an: alle Transitionen und
+    /// Exit-Transitionen vermessen, in Quellreihenfolge in Gruppen partitionieren und je Gruppe mit ≥ 2
+    /// Teilnehmern die policy-gesteuerte Zielspalte auflösen; das Padding <c>targetCol − Breite</c> landet je
+    /// Lücke in <paramref name="spaces"/>. Basis der später aufsetzenden Continuation-, Trigger- und
+    /// Condition-Spalten.
+    /// </summary>
     static void AddArrowColumns(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts, TransitionDefinitionBlockSyntax block, Dictionary<int, int> spaces) {
 
         var candidates = new List<ArrowCandidate>();
@@ -578,6 +600,15 @@ static class AlignmentMapBuilder {
 
     // ---- Node-Deklarations-Raster (keyword | node | rest) ----------------------------------------
 
+    /// <summary>
+    /// Der Kandidat des 3-Spalten-Node-Rasters: eine Node-Deklaration mit den drei Raster-Token
+    /// <see cref="Keyword"/> | <see cref="Node"/> | <see cref="Rest"/> (fehlende bleiben
+    /// <see cref="SyntaxToken.Missing"/>). <see cref="BreaksGroup"/> = hand-gelegt/defekt (bricht die Gruppe),
+    /// <see cref="IsAligned"/> = trägt einen node-Identifier (nur <c>end;</c> nicht). <see cref="RestIsParams"/>
+    /// unterscheidet den <c>[params]</c>-Block (eigene tight <see cref="ColumnId.NodeParams"/>-Spalte) vom
+    /// übrigen Alias-Rest (<see cref="ColumnId.DeclRest"/>); die <c>Authored…</c>-Spalten wertet nur die
+    /// <see cref="AlignmentColumnPolicy.PreserveDominant"/> aus.
+    /// </summary>
     sealed class NodeGridCandidate {
 
         public NodeGridCandidate(SyntaxNode declaration) {
@@ -596,6 +627,14 @@ static class AlignmentMapBuilder {
 
     }
 
+    /// <summary>
+    /// Legt die drei Raster-Spalten der Node-Deklarationen an (<c>keyword | node | rest</c>): je Gruppe mit
+    /// ≥ 2 node-tragenden Teilnehmern die Node-Spalte policy-gesteuert, darauf aufbauend die Alias-Rest-Spalte
+    /// (<see cref="ColumnId.DeclRest"/>, policy-gesteuert, ohne <c>[params]</c>) sowie eine eigene, immer
+    /// <b>tight</b> ausgerichtete <c>[params]</c>-Spalte (<see cref="ColumnId.NodeParams"/>), damit ein langer
+    /// Alias den schwergewichtigen Block nicht nach rechts schiebt. Jedes Padding landet je Lücke in
+    /// <paramref name="spaces"/>.
+    /// </summary>
     static void AddNodeGridColumns(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
                                    IEnumerable<NodeDeclarationSyntax> declarations, Dictionary<int, int> spaces) {
 

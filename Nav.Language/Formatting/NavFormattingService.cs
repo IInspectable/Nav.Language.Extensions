@@ -300,6 +300,12 @@ public static class NavFormattingService {
         return false;
     }
 
+    /// <summary>
+    /// Baut den <see cref="GapContext"/> der Lücke <c>[prev.End, next.Start)</c> aus den bereits erhobenen
+    /// Vorpass-Ergebnissen: Einzugstiefe (<see cref="ComputeIndentDepth"/>), Trivia-Befund
+    /// (<see cref="GapTrivia"/>), Unterdrückungs-Flag (<see cref="FormatterSuppression"/>) und
+    /// Ausrichtungs-Tabelle. Damit entscheiden die <see cref="GapRules"/> allein über pure, vorberechnete Fakten.
+    /// </summary>
     static GapContext CreateContext(SyntaxTree syntaxTree, SyntaxToken prev, SyntaxToken next,
                                     AlignmentMap alignment, FormatterSuppression suppression, NavFormattingOptions options) {
 

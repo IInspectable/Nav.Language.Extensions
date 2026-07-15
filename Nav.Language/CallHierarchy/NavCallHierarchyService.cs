@@ -139,10 +139,13 @@ public static class NavCallHierarchyService {
     /// der Task übereinstimmt (so referenzieren TaskNodes sie, auch cross-file via <c>taskref</c>).
     /// </para>
     /// </summary>
+    /// <param name="task">Die Task, deren Exit-Nutzungen gesucht werden; die Identität ist ihre Deklarations-<see cref="Location"/>.</param>
     /// <param name="exitName">
     /// Exakter (ordinaler) Exit-Name; <c>null</c>/leer liefert die Nutzungen ALLER Exit-Connection-Points der
     /// Task. Der Name muss nicht auf einen tatsächlich deklarierten Exit passen — dann bleibt das Ergebnis leer.
     /// </param>
+    /// <param name="solution">Die solution-weit zu durchsuchende <see cref="NavSolution"/>.</param>
+    /// <param name="cancellationToken">Bricht den solution-weiten Scan ab.</param>
     public static async Task<IReadOnlyList<ExitConnectionPointUsage>> GetExitUsagesAsync(ITaskDefinitionSymbol task,
                                                                                          string? exitName,
                                                                                          NavSolution solution,
@@ -211,6 +214,7 @@ public static class NavCallHierarchyService {
 /// <summary>Ein ausgehender Aufruf: die aufgerufene Task-Deklaration und die Aufrufstellen (TaskNodes).</summary>
 public sealed class OutgoingCall {
 
+    /// <summary>Erzeugt einen ausgehenden Aufruf aus der aufgerufenen Task-Deklaration und ihren Aufrufstellen.</summary>
     public OutgoingCall(ITaskDeclarationSymbol target, IReadOnlyList<Location> callSites) {
         Target    = target;
         CallSites = callSites;
@@ -227,6 +231,7 @@ public sealed class OutgoingCall {
 /// <summary>Ein eingehender Aufruf: die aufrufende Task und ihre Aufrufstellen (TaskNodes).</summary>
 public sealed class IncomingCall {
 
+    /// <summary>Erzeugt einen eingehenden Aufruf aus der aufrufenden Task und ihren Aufrufstellen.</summary>
     public IncomingCall(ITaskDefinitionSymbol caller, IReadOnlyList<Location> callSites) {
         Caller    = caller;
         CallSites = callSites;
@@ -243,6 +248,7 @@ public sealed class IncomingCall {
 /// <summary>Alle Exit-Nutzungen einer Task durch EINE aufrufende Task (siehe <see cref="NavCallHierarchyService.GetExitUsagesAsync"/>).</summary>
 public sealed class ExitConnectionPointUsage {
 
+    /// <summary>Erzeugt die Exit-Nutzungen einer aufrufenden Task aus der Task und ihren einzelnen Nutzungsstellen.</summary>
     public ExitConnectionPointUsage(ITaskDefinitionSymbol caller, IReadOnlyList<ExitUsageSite> sites) {
         Caller = caller;
         Sites  = sites;
@@ -259,6 +265,7 @@ public sealed class ExitConnectionPointUsage {
 /// <summary>Eine einzelne <c>Instanz:Exit --&gt; …</c>-Kante: der benutzte Exit, seine Position und die Instanz.</summary>
 public sealed class ExitUsageSite {
 
+    /// <summary>Erzeugt eine einzelne Exit-Nutzungsstelle aus Exit-Name, Position und Instanz-Name.</summary>
     public ExitUsageSite(string exitName, Location location, string instanceName) {
         ExitName     = exitName;
         Location     = location;

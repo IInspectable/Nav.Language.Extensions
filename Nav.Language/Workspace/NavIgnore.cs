@@ -28,6 +28,7 @@ public sealed class NavIgnore {
         _files = files;
     }
 
+    /// <summary>Ein Matcher ohne Regeln — <see cref="IsIgnored"/> liefert stets <c>false</c>.</summary>
     public static NavIgnore Empty { get; } = new(ImmutableArray<NavIgnoreFile>.Empty);
 
     /// <summary>

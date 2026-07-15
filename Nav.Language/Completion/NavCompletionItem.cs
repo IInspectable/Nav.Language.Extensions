@@ -9,13 +9,21 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// </summary>
 public enum NavCompletionItemKind {
 
+    /// <summary>Ein Sprach-Schlüsselwort oder Edge-Operator (<c>task</c>, <c>on</c>, <c>--&gt;</c> …).</summary>
     Keyword,
+    /// <summary>Ein Task — eine Task-Deklaration (<c>taskref</c>) oder ein Task-Knoten.</summary>
     Task,
+    /// <summary>Ein Connection-Point (<c>init</c>/<c>exit</c>/<c>end</c>).</summary>
     ConnectionPoint,
+    /// <summary>Ein Choice-Knoten.</summary>
     Choice,
+    /// <summary>Ein GUI-Knoten (<c>view</c>/<c>dialog</c>).</summary>
     GuiNode,
+    /// <summary>Ein sonstiger Knoten ohne spezifischere Kategorie.</summary>
     Node,
+    /// <summary>Eine Datei — Ergebnis der Pfad-Vervollständigung in <c>taskref "…"</c>.</summary>
     File,
+    /// <summary>Ein Verzeichnis — Ergebnis der Pfad-Vervollständigung in <c>taskref "…"</c>.</summary>
     Folder
 
 }
@@ -23,6 +31,14 @@ public enum NavCompletionItemKind {
 /// <summary>Ein einzelner Vervollständigungs-Vorschlag (Anzeigetext + Kategorie + optional Einfügetext/Ersetzungsbereich).</summary>
 public sealed class NavCompletionItem {
 
+    /// <summary>Erzeugt einen Vorschlag.</summary>
+    /// <param name="label">Der angezeigte Text (<see cref="Label"/>).</param>
+    /// <param name="kind">Die Kategorie (<see cref="Kind"/>) — bestimmt das Icon im Client.</param>
+    /// <param name="insertText">Der einzufügende Text (<see cref="InsertText"/>); <c>null</c> übernimmt <paramref name="label"/>.</param>
+    /// <param name="replacementExtent">Der zu ersetzende Bereich (<see cref="ReplacementExtent"/>); <c>null</c>, wenn der Client ihn selbst bestimmt.</param>
+    /// <param name="detail">Optionaler Zusatztext (<see cref="Detail"/>).</param>
+    /// <param name="symbol">Das zugrunde liegende Symbol bei symbolbasierten Vorschlägen (<see cref="Symbol"/>); sonst <c>null</c>.</param>
+    /// <param name="description">Optionale Erläuterung fürs Doku-Panel (<see cref="Description"/>).</param>
     public NavCompletionItem(string label, NavCompletionItemKind kind, string? insertText = null, TextExtent? replacementExtent = null, string? detail = null, ISymbol? symbol = null, string? description = null) {
         Label             = label;
         Kind              = kind;

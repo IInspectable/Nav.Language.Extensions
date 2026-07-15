@@ -51,6 +51,10 @@ sealed class NavIgnoreFile {
         return verdict;
     }
 
+    /// <summary>
+    /// Lädt und parst eine <c>.navignore</c>-Datei; das Basis-Verzeichnis wird aus dem Dateipfad abgeleitet.
+    /// Liefert <c>null</c> bei fehlendem Verzeichnisnamen oder wenn die Datei nicht lesbar ist (IO-/Zugriffsfehler).
+    /// </summary>
     public static NavIgnoreFile? Load(string navIgnoreFilePath) {
 
         var baseDir = Path.GetDirectoryName(navIgnoreFilePath);
@@ -84,6 +88,7 @@ sealed class NavIgnoreFile {
         return new NavIgnoreFile(baseDirNormalized, patterns);
     }
 
+    /// <summary>Zählt die Pfad-Segmente (Separatoren) eines normalisierten Verzeichnisses — Basis für <see cref="Depth"/>.</summary>
     static int CountSegments(string normalizedDir) {
 
         if (string.IsNullOrEmpty(normalizedDir)) {

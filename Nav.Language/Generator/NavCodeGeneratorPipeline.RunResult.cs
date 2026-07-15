@@ -19,8 +19,16 @@ public sealed partial class NavCodeGeneratorPipeline {
     /// </summary>
     public sealed class RunResult {
 
+        /// <summary>Das gemeinsame Fehlschlag-Ergebnis: <see cref="Succeeded"/> ist
+        /// <see langword="false"/>, beide Dateilisten sind leer.</summary>
         public static readonly RunResult Failed = new(succeeded: false, ImmutableArray<FileGeneratorResult>.Empty, ImmutableArray<string>.Empty);
 
+        /// <summary>Erzeugt ein Erfolgs-Ergebnis mit den erzeugten und den per <c>taskref</c>
+        /// eingelesenen Abhängigkeitsdateien.</summary>
+        /// <param name="generatedFiles">Die erzeugten (bzw. inhaltsgleich übersprungenen)
+        /// Ausgabedateien.</param>
+        /// <param name="includedFiles">Die per <c>taskref</c> eingelesenen Abhängigkeitsdateien.</param>
+        /// <returns>Das Erfolgs-Ergebnis.</returns>
         public static RunResult Success(ImmutableArray<FileGeneratorResult> generatedFiles, ImmutableArray<string> includedFiles)
             => new(succeeded: true, generatedFiles, includedFiles);
 
@@ -31,7 +39,11 @@ public sealed partial class NavCodeGeneratorPipeline {
             IncludedFiles  = includedFiles;
         }
 
+        /// <summary><see langword="true"/>, wenn der Lauf ohne Fehler durchlief.</summary>
         public bool                                Succeeded      { get; }
+        /// <summary>Die erzeugten Ausgabedateien — inkl. der inhaltsgleich übersprungenen, deren
+        /// <see cref="FileGeneratorResult.Action"/> das kennzeichnet. Nur im Erfolgsfall
+        /// gefüllt.</summary>
         public ImmutableArray<FileGeneratorResult> GeneratedFiles { get; }
 
         /// <summary>

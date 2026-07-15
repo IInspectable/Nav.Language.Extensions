@@ -9,6 +9,13 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Internal;
 
+/// <summary>
+/// Positionsbasierte Nachschlage-Helfer über eine nach <see cref="IExtent.Start"/> aufsteigend sortierte
+/// Liste von <see cref="IExtent"/>-Elementen (Tokens, Symbole). Die Verfahren setzen diese Sortierung voraus
+/// und arbeiten daher mit Binärsuche (<see cref="FindIndexAtPosition{T}"/>), sodass Positions-Abfragen
+/// logarithmisch statt linear laufen. Genutzt von den positionsindizierten Sammlungen der Engine — etwa
+/// <see cref="Text.SourceText"/>, <see cref="SyntaxTokenList"/> und <see cref="SymbolList"/>.
+/// </summary>
 static class ExtentExtensions {
 
     /// <summary>
