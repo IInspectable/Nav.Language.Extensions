@@ -103,4 +103,5 @@ Laufzeit-Installation. Sie stellt dieselbe Sprachintelligenz bereit wie die Visu
 ## Links
 
 - **Repository:** <https://github.com/IInspectable/Nav.Language.Extensions>
+- **Entwicklung & Tooling:** siehe [`doc/Development.md`](https://github.com/IInspectable/Nav.Language.Extensions/blob/master/doc/Development.md)
 - **Aus dem Quellcode bauen (VS Code):** siehe [`vscode-nav-lsp/Development.md`](https://github.com/IInspectable/Nav.Language.Extensions/blob/master/vscode-nav-lsp/Development.md)

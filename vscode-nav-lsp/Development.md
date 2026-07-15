@@ -1,24 +1,23 @@
-﻿# Nav Language — Entwicklung & Paketierung
+﻿# Nav Language — VS-Code-Extension entwickeln & paketieren
 
-Entwickler-Doku für die VS-Code-Extension (`vscode-nav-lsp`) und den Nav-LSP-Server (`nav.lsp`). Die
-nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Status des LSP-Projekts in
-[`../doc/nav-lsp-status.md`](../doc/nav-lsp-status.md).
+VS-Code-spezifische Entwickler-Doku für die Extension (`vscode-nav-lsp`) und die Anbindung des
+Nav-LSP-Servers (`nav.lsp`). Das **Gesamtbild** (bauen/testen/publizieren über alle Hosts) steht in
+[`../doc/Development.md`](../doc/Development.md); die nutzerseitige Beschreibung in
+[`README.md`](./README.md); der LSP-Status in [`../doc/nav-lsp-status.md`](../doc/nav-lsp-status.md).
 
 ## Voraussetzungen
 
-- **Visual Studio / Full-Framework-`MSBuild.exe`** — für den Server-Build (die Engine nutzt in
-  `Nav.Language\CustomBuild.targets` die `CodeTaskFactory`, die `dotnet build`/`dotnet publish` nicht kennt).
-- **.NET-10-Runtime** (`dotnet` im PATH) — nur für den framework-dependent Debug-Lauf. Der self-contained
-  Publish bringt die Runtime selbst mit.
+- **.NET-10-SDK** (`dotnet` im PATH) — baut den LSP-Server (framework-dependent für den F5-Debug)
+  bzw. publiziert ihn self-contained. Full-Framework-`MSBuild.exe` ist hierfür **nicht** nötig.
 - **Node.js / npm** — für `npm install` und die VSIX-Paketierung.
 - **VS Code**.
 
 ## Einrichten
 
-1. Server bauen (Full-Framework-MSBuild):
+1. Server bauen:
 
    ```
-   MSBuild.exe Nav.Language.Lsp\Nav.Language.Lsp.csproj -t:Build -p:Configuration=Debug
+   dotnet build Nav.Language.Lsp\Nav.Language.Lsp.csproj -c Debug
    ```
 
    Ergebnis: `Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll`.
@@ -40,9 +39,10 @@ nutzerseitige Beschreibung steht in [`README.md`](./README.md); der Gesamt-Statu
 
 ## Bündeln (esbuild)
 
-Die Extension wird mit **esbuild** zu einer einzigen Datei `dist/extension.js` gebündelt — `vscode-languageclient`
-samt Abhängigkeiten landet inline, `node_modules` wandert NICHT ins VSIX (sonst Hunderte loser JS-Dateien und die
-vsce-Warnung „you should bundle your extension"). Das `dist/`-Verzeichnis ist ein Build-Artefakt (in `.gitignore`).
+Die Extension wird mit **esbuild** zu einer einzigen Datei `dist/extension.js` gebündelt —
+`vscode-languageclient` samt Abhängigkeiten landet inline, `node_modules` wandert NICHT ins VSIX (sonst
+Hunderte loser JS-Dateien und die vsce-Warnung „you should bundle your extension"). Das
+`dist/`-Verzeichnis ist ein Build-Artefakt (in `.gitignore`).
 
 - `npm run esbuild` — Dev-Build mit Sourcemap.
 - `npm run esbuild-watch` — Watch-Build für die Entwicklung.
@@ -53,8 +53,8 @@ Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hinter
 
 ## Server-Auflösung (`extension.js`)
 
-`resolveServer(extRoot)` leitet alle Pfade von `context.extensionPath` (der Extension-Wurzel) ab — NICHT von
-`__dirname`, das nach dem Bündeln ins `dist/`-Verzeichnis zeigt. Gesucht wird in dieser Reihenfolge:
+`resolveServer(extRoot)` leitet alle Pfade von `context.extensionPath` (der Extension-Wurzel) ab — NICHT
+von `__dirname`, das nach dem Bündeln ins `dist/`-Verzeichnis zeigt. Gesucht wird in dieser Reihenfolge:
 
 1. Konfigurierter Pfad (`navLanguageServer.serverPath`) — `.exe` direkt, `.dll` via `dotnet`.
 2. **Eingebettet:** `server/nav.lsp.exe` in der Extension-Wurzel (greift im installierten VSIX).
@@ -64,20 +64,23 @@ Vor dem **F5**-Debuggen einmal `npm run esbuild` (oder `esbuild-watch` im Hinter
 
 ## VSIX paketieren & installieren
 
-`nav publish` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX**: es publiziert den LSP-Server
-als **self-contained Single-File** (`win-x64`, **genau eine Datei**, inkl. gebündelter .NET-Runtime,
-~39 MB komprimiert — keine separate Runtime, keine losen DLLs, keine Satellite-Ordner) **direkt** als
-`vscode-nav-lsp/server/nav.lsp.exe` in die Extension und paketiert plattform-spezifisch via
-`npx @vscode/vsce package --target win32-x64`. Ein eigenständiges `deploy\lsp` entsteht dabei nicht mehr.
+`nav publish` erzeugt in einem Aufruf ein **fertiges, self-contained VSIX** (als Teil des
+Gesamt-Publishes; siehe [`../doc/Development.md`](../doc/Development.md)): Der LSP-Server wird
+self-contained als Single-File (`win-x64`, genau eine Datei inkl. gebündelter .NET-Runtime — keine
+separate Runtime, keine losen DLLs) **direkt** als `vscode-nav-lsp/server/nav.lsp.exe` in die Extension
+publiziert und plattform-spezifisch via `npx @vscode/vsce package --target win32-x64` paketiert. Ein
+eigenständiges `deploy\lsp` entsteht dabei nicht.
 
 Unter der Haube (gekürzt): `dotnet publish …Nav.Language.Lsp.csproj -r win-x64 --self-contained true
 -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
 -p:SatelliteResourceLanguages=en -p:DebugType=embedded -o …\vscode-nav-lsp\server`.
 
-Ergebnis: `deploy\vscode\nav-language-vscode-<version>-win32-x64.vsix` (~33 MB, bringt Server + .NET-Runtime mit —
+Ergebnis: `deploy\vscode\nav-language-vscode-<version>-win32-x64.vsix` (bringt Server + .NET-Runtime mit —
 kein separates `dotnet`, keine Pfad-Konfiguration nötig). Die `<version>` ermittelt das Skript
-git-abgeleitet (`Get-ProductVersion`, aus `git describe`) — eine Quelle der Wahrheit; `package.json`
-wird beim Paketieren nicht verändert. Voraussetzung: **Node/npm im PATH**.
+git-abgeleitet (`Get-ProductVersion`, aus `git describe`) — eine Quelle der Wahrheit; `package.json` wird
+beim Paketieren nicht verändert. Die Marketplace-README wird beim Paketieren aus der Repo-Root-`README.md`
+in die Extension gespiegelt (`vscode-nav-lsp\README.md` ist generiert und in `.gitignore`). Voraussetzung:
+**Node/npm im PATH**.
 
 Installieren in VS Code: **Extensions ▸ ⋯ ▸ „Install from VSIX…"** → die obige Datei wählen. Danach eine
 `.nav`-Datei öffnen; der Server startet aus dem eingebetteten `server/nav.lsp.exe`.

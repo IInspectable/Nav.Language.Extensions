@@ -68,6 +68,7 @@
     <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator.Tests/Nav.Visitor.SourceGenerator.Tests.csproj" />
   </Folder>
   <Folder Name="/doc/">
+    <File Path="doc/Development.md" />
     <File Path="doc/Errors.md" />
     <File Path="doc/Features.md" />
     <File Path="doc/Formatter-DeepDive.md" />
