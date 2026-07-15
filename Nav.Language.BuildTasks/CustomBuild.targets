@@ -19,7 +19,6 @@
   <Target Name="DeployFiles" AfterTargets="CopyFilesToOutputDirectory">
     <ItemGroup>
       <_FilesToDelete Include="$(DeployDirectory)\**\*" />
-      <!--<_itemsToDeploy Include="$(OutputPath)\**\*" Exclude="$(OutputPath)\**\*.xml;$(OutputPath)\**\*.pdb" />-->
       <_itemsToDeploy Include="@(Deploy)" />
     </ItemGroup>
     <Message Text="Copy files to directory '$([System.IO.Path]::GetFullPath('$(DeployDirectory)'))'" Importance="high" />

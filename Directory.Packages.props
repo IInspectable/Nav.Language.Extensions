@@ -51,8 +51,6 @@
     <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
 
-    <PackageVersion Include="FluentCommandLineParser" Version="1.4.3" />
-
     <!-- This package contains helper functionality for MSBuild extenders Achtung: Komische Versionierung!
          Auf der 17.14-Linie gehalten (verlangt Immutable >= 9.0.0, passt damit zu Roslyn 4.14); die 18.x-Pakete
          verlangen Immutable >= 10.0.4 und wuerden die fuer die Tests noetige 9.0.0-Ausrichtung sprengen. -->

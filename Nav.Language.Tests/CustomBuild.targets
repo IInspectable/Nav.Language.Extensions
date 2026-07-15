@@ -22,18 +22,4 @@
     </ItemGroup>
     <RemoveDir Directories="@(DirToDelete)" />
   </Target>
-  <!--<ItemGroup>
-    <RegressionsTest Include="Regression/**/*.*" Exclude="Regression/*.cs"/>
-  </ItemGroup>
-
-  <Target Name="CopyRegressionTests" AfterTargets="CleanupBinFolder">
-
-    <Message Text="@(RegressionsTest -> '$(TargetDir)Regression%(RecursiveDir)' )"/>
-
-      <Copy SourceFiles="@(RegressionsTest)" DestinationFiles="@(RegressionsTest -> '$(TargetDir)Regression/%(RecursiveDir)%(Filename)%(Extension)' )" />
-  </Target>
-  
-  <Target Name="CleanRegressionTests" AfterTargets="AfterClean">    
-    <RemoveDir Directories="@(RegressionsTest -> Directory)"/>
-  </Target>-->
 </Project>
