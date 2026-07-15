@@ -8,10 +8,17 @@ using System.Threading;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Der Standard-<see cref="ISyntaxProvider"/>: liest die Datei vom Dateisystem (BOM-Erkennung) und
+/// parst sie. Ohne eigenen Cache — jeder Aufruf liest und parst neu (siehe
+/// <see cref="CachedSyntaxProvider"/> für die cachende Variante).
+/// </summary>
 public class SyntaxProvider: ISyntaxProvider {
 
+    /// <summary>Die gemeinsam nutzbare Standard-Instanz.</summary>
     public static readonly ISyntaxProvider Default = new SyntaxProvider();
 
+    /// <inheritdoc/>
     public virtual CodeGenerationUnitSyntax? GetSyntax(string filePath, CancellationToken cancellationToken = default) {
 
         if (!File.Exists(filePath)) {
@@ -24,6 +31,7 @@ public class SyntaxProvider: ISyntaxProvider {
         return syntaxTree;
     }
 
+    /// <inheritdoc/>
     public virtual void Dispose() {
     }
 

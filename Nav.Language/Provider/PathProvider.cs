@@ -10,21 +10,22 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Standard-Implementierung von <see cref="IPathProvider"/>. Leitet die Zielverzeichnisse aus den
+/// Wurzelverzeichnissen der <see cref="GenerationOptions"/> ab und setzt die Artefakt-Dateinamen aus
+/// Task-Name und den Namens-Bausteinen zusammen. Trennt die <b>invariante</b> Interface-Ablage
+/// (Schnittstellen-Vertrag, aus <c>CodeGenInvariants</c>) von der <b>versionierbaren</b>
+/// Implementierungs-Ablage (Namens-Suffixe aus den <c>ICodeGenFacts</c> der Sprach-Generation).
+/// </summary>
 public class PathProvider: IPathProvider {
 
-    /// <summary>
-    /// generated
-    /// </summary>
+    /// <summary>Der Name des Unterordners, in dem generierte Dateien abgelegt werden (<c>generated</c>).</summary>
     public const string GeneratedFolderName = "generated";
 
-    /// <summary>
-    /// generated
-    /// </summary>
+    /// <summary>Der Namensbaustein, der generierte Dateien vor der Endung kennzeichnet (<c>…generated.cs</c>).</summary>
     public const string GeneratedFileNameSuffix = "generated";
 
-    /// <summary>
-    /// cs
-    /// </summary>
+    /// <summary>Die Dateiendung der erzeugten C#-Dateien (<c>cs</c>).</summary>
     public const string CSharpFileExtension = "cs";
 
     readonly ICodeGenFacts _facts;
@@ -34,6 +35,15 @@ public class PathProvider: IPathProvider {
     // versionierbaren Implementierungs-Namespace der {Task}WFS-Typen (WflGeneratedDirectory).
     readonly string _beginInterfaceGeneratedDirectory;
 
+    /// <summary>
+    /// Erzeugt einen Pfad-Provider für eine Task und berechnet die Zielverzeichnisse.
+    /// </summary>
+    /// <param name="syntaxFileName">Der Pfad der <c>.nav</c>-Quelldatei; darf nicht leer sein.</param>
+    /// <param name="taskName">Der Name der Task; darf nicht leer sein.</param>
+    /// <param name="generateTo">Optionaler Ziel-Unterordner (aus <c>generate to</c>).</param>
+    /// <param name="options">Die Generierungsoptionen; <c>null</c> nutzt <see cref="GenerationOptions.Default"/>.</param>
+    /// <param name="facts">Die versionsabhängigen Codegen-Fakten; <c>null</c> nutzt die Default-Generation.</param>
+    /// <exception cref="ArgumentException"><paramref name="syntaxFileName"/> oder <paramref name="taskName"/> ist leer.</exception>
     public PathProvider(string syntaxFileName, string taskName, string? generateTo = null, GenerationOptions? options = null, ICodeGenFacts? facts = null) {
 
         if (String.IsNullOrEmpty(syntaxFileName)) {
@@ -67,23 +77,34 @@ public class PathProvider: IPathProvider {
         WflDirectory          = CombinePath(wflDirectory, _facts.WflNamespaceSuffix, generateTo);
     }
 
+    /// <summary>Der Name der Task, aus dem die Artefakt-Namen gebildet werden.</summary>
     public string TaskName               { get; }
+    /// <summary>Das Verzeichnis der benutzergepflegten Implementierungs-Dateien (WFL).</summary>
     public string WflDirectory           { get; }
+    /// <summary>Das Verzeichnis der generierten Implementierungs-Dateien (WFL, <c>generated</c>-Ordner).</summary>
     public string WflGeneratedDirectory  { get; }
+    /// <summary>Das Verzeichnis der generierten Schnittstellen-Dateien (IWFL, <c>generated</c>-Ordner).</summary>
     public string IwflGeneratedDirectory { get; }
 
+    /// <inheritdoc/>
     public virtual string SyntaxFileName    { get; }
     // Implementierungs-Dateinamen: versionierbar (Klassen-/Basisklassen-Suffix aus den Facts).
+    /// <inheritdoc/>
     public virtual string WfsBaseFileName   => CombinePath(WflGeneratedDirectory,             $"{TaskName}{_facts.WfsBaseClassSuffix}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
+    /// <inheritdoc/>
     public virtual string WfsFileName       => CombinePath(WflDirectory,                      $"{TaskName}{_facts.WfsClassSuffix}.{CSharpFileExtension}");
     // Interface-Dateinamen: invariant (Interface-Präfix/-Suffix aus den CodeGenInvariants).
+    /// <inheritdoc/>
     public virtual string IWfsFileName      => CombinePath(IwflGeneratedDirectory,            $"{CodeGenInvariants.InterfacePrefix}{TaskName}{CodeGenInvariants.InterfaceSuffix}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
+    /// <inheritdoc/>
     public virtual string IBeginWfsFileName => CombinePath(_beginInterfaceGeneratedDirectory, $"{CodeGenInvariants.BeginInterfacePrefix}{TaskName}{CodeGenInvariants.InterfaceSuffix}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
 
+    /// <inheritdoc/>
     public string GetToFileName(string toClassName) {
         return CombinePath(IwflGeneratedDirectory, $"{toClassName}.{GeneratedFileNameSuffix}.{CSharpFileExtension}");
     }
 
+    /// <inheritdoc/>
     public string GetRelativePath(string fromPath, string toPath) {
         return PathHelper.GetRelativePath(fromPath, toPath);
     }

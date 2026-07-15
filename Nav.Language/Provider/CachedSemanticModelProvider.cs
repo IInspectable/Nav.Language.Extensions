@@ -50,11 +50,20 @@ public sealed class CachedSemanticModelProvider: ISemanticModelProvider {
 
     }
 
+    /// <summary>
+    /// Erzeugt den cachenden Decorator über <paramref name="inner"/>, wobei <paramref name="syntaxProvider"/>
+    /// (derselbe Tier-1-Provider, aus dem die Units gebaut werden) zur Validierung der Cache-Einträge
+    /// herangezogen wird.
+    /// </summary>
+    /// <param name="inner">Der innere Provider, der die Units tatsächlich baut.</param>
+    /// <param name="syntaxProvider">Der Syntax-Provider, gegen dessen Instanzen die Einträge validiert werden.</param>
+    /// <exception cref="ArgumentNullException">Ein Argument ist <c>null</c>.</exception>
     public CachedSemanticModelProvider(ISemanticModelProvider inner, ISyntaxProvider syntaxProvider) {
         _inner          = inner          ?? throw new ArgumentNullException(nameof(inner));
         _syntaxProvider = syntaxProvider ?? throw new ArgumentNullException(nameof(syntaxProvider));
     }
 
+    /// <inheritdoc/>
     public CodeGenerationUnit? GetSemanticModel(string filePath, CancellationToken cancellationToken = default) {
 
         var normalizedPath = PathHelper.NormalizePath(filePath);
@@ -72,6 +81,7 @@ public sealed class CachedSemanticModelProvider: ISemanticModelProvider {
         return GetOrBuild(normalizedPath, syntax, cancellationToken);
     }
 
+    /// <inheritdoc/>
     public CodeGenerationUnit GetSemanticModel(CodeGenerationUnitSyntax syntax, CancellationToken cancellationToken = default) {
 
         var normalizedPath = PathHelper.NormalizePath(syntax.SyntaxTree.SourceText.FileInfo?.FullName);
@@ -144,6 +154,7 @@ public sealed class CachedSemanticModelProvider: ISemanticModelProvider {
         return snapshot.ToImmutable();
     }
 
+    /// <inheritdoc/>
     public void Dispose() {
         _cache.Clear();
         _inner.Dispose();

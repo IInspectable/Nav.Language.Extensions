@@ -8,10 +8,20 @@ using Pharmatechnik.Nav.Language.CodeGen;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Standard-Implementierung von <see cref="IPathProviderFactory"/>. Ermittelt aus der Task-Definition
+/// den Quelldateipfad, den Task-Namen, ein etwaiges <c>generate to</c>-Ziel und die zur Sprach-Version
+/// passenden Codegen-Fakten (nicht unterstützte Versionen fallen auf die Default-Generation zurück) und
+/// erzeugt daraus einen <see cref="PathProvider"/>.
+/// </summary>
 public class PathProviderFactory: IPathProviderFactory {
 
+    /// <summary>Die gemeinsam nutzbare Standard-Fabrik.</summary>
     public static readonly PathProviderFactory Default = new();
 
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException"><paramref name="taskDefinition"/> ist <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">Die Task-Definition hat keine Datei-Information.</exception>
     public virtual IPathProvider CreatePathProvider(ITaskDefinitionSymbol taskDefinition, GenerationOptions options) {
 
         if (taskDefinition == null) {
