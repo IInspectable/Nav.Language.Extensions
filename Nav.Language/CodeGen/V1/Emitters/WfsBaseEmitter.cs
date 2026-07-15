@@ -21,6 +21,13 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 static class WfsBaseEmitter {
 
+    /// <summary>
+    /// Erzeugt die vollständige <c>{Task}WFSBase.cs</c>-Datei aus dem <see cref="WfsBaseCodeModel"/>:
+    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen und darin — durch eine Leerzeile getrennt —
+    /// die abstrakte Basisklasse <c>{Task}WFSBase</c> (<see cref="WriteBaseClass"/>) samt der partiellen
+    /// Implementierungsklasse <c>{Task}WFS</c> (<see cref="WriteWfsClass"/>). Liefert den fertigen
+    /// Quelltext als Zeichenkette.
+    /// </summary>
     public static string Emit(WfsBaseCodeModel model, CodeGeneratorContext context) {
 
         var cb    = new CodeBuilder();
@@ -48,6 +55,15 @@ static class WfsBaseEmitter {
 
     // -- {Task}WFSBase: die abstrakte Maschinerie-Basisklasse -----------------------------------------
 
+    /// <summary>
+    /// Schreibt die abstrakte Basisklasse <c>public abstract partial class {Task}WFSBase</c> mit ihrer
+    /// gesamten Maschinerie: die <c>{Node}NodeName</c>-Konstanten der Begin-Wrapper, die
+    /// <c>readonly</c>-Felder der injizierten Task-Begins, beide Konstruktoren
+    /// (<see cref="WriteBaseConstructor"/>), je eine <c>BeforeTriggerLogic</c>-Hook pro View-Parameter,
+    /// die Init-/Exit-/Trigger-Weichen (<see cref="WriteInitTransition"/>, <see cref="WriteExitTransition"/>,
+    /// <see cref="WriteTriggerTransition"/>), die Begin-Wrapper-Methoden (<see cref="WriteWrapperBeginMethod"/>)
+    /// und die <c>TaskResult</c>-Hilfsmethode.
+    /// </summary>
     static void WriteBaseClass(CodeBuilder cb, WfsBaseCodeModel model, ICodeGenFacts facts) {
 
         EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
@@ -112,6 +128,10 @@ static class WfsBaseEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt den injizierenden Basiskonstruktor <c>public {Task}WFSBase(…)</c>, der die Task-Begins
+    /// als Parameter entgegennimmt und in die gleichnamigen <c>readonly</c>-Felder zuweist.
+    /// </summary>
     static void WriteBaseConstructor(CodeBuilder cb, WfsBaseCodeModel model) {
 
         cb.Write($"public {model.WfsBaseTypeName}(");
@@ -129,6 +149,14 @@ static class WfsBaseEmitter {
 
     // -- {Task}WFS: die partielle Implementierungsklasse ----------------------------------------------
 
+    /// <summary>
+    /// Schreibt die partielle Implementierungsklasse
+    /// <c>public partial class {Task}WFS: {Task}WFSBase, I{Task}WFS, IBegin{Task}WFS</c>: die
+    /// <c>readonly</c>-Felder der injizierten Task-Parameter, den <c>IClientSideWFS</c>-Konstruktor sowie
+    /// den vollen Injektions-Konstruktor, der (Task-Begins ∪ Task-Parameter) entgegennimmt, die Begins
+    /// an <c>:base(…)</c> durchreicht und die Parameter-Felder zuweist. Die referenzierten Interface-Namen
+    /// sind invariant (<see cref="CodeGenInvariants"/>), Klassenname und Namespace versionierbar.
+    /// </summary>
     static void WriteWfsClass(CodeBuilder cb, WfsBaseCodeModel model) {
 
         // I{Task}WFS/IBegin{Task}WFS sind invariante Schnittstellen (Grundsatz 3) → Namen aus den Invarianten.
@@ -176,6 +204,14 @@ static class WfsBaseEmitter {
 
     // -- Init-/Exit-/Trigger-Transitionen -------------------------------------------------------------
 
+    /// <summary>
+    /// Schreibt eine Init-Transition. Ist sie abstrakt (<see cref="InitTransitionCodeModel.GenerateAbstractMethod"/>),
+    /// entsteht nur die abstrakte <c>public abstract IINIT_TASK Begin(…)</c>-Deklaration. Andernfalls das Paar
+    /// aus öffentlicher Weiche <c>public virtual IINIT_TASK Begin(…)</c> — die die <c>BeginLogic(…)</c> aufruft
+    /// und deren Ergebnis über einen <c>switch(body)</c> auf die erreichbaren Calls verteilt
+    /// (<see cref="WriteTransitionCallBlock"/>) — und der abstrakten <c>protected abstract INavCommandBody BeginLogic(…)</c>,
+    /// die der Nutzer in der OneShot-Datei implementiert.
+    /// </summary>
     static void WriteInitTransition(CodeBuilder cb, InitTransitionCodeModel initTransition, ICodeGenFacts facts) {
 
         var beginMethod = facts.BeginMethodPrefix;
@@ -211,6 +247,15 @@ static class WfsBaseEmitter {
         cb.WriteLine();
     }
 
+    /// <summary>
+    /// Schreibt eine Exit-Transition. Ist sie abstrakt (<see cref="ExitTransitionCodeModel.GenerateAbstractMethod"/>),
+    /// entsteht nur die abstrakte <c>protected abstract INavCommand After{Node}Logic(…)</c>-Deklaration.
+    /// Andernfalls das Paar aus <c>protected virtual INavCommand After{Node}(…)</c> — die die
+    /// <c>After{Node}Logic(…)</c> aufruft und über einen <c>switch(body)</c> auf die erreichbaren Calls
+    /// verteilt (<see cref="WriteTransitionCallBlock"/>) — und der zugehörigen abstrakten
+    /// <c>protected abstract INavCommandBody After{Node}Logic(…)</c>. Der Methodenname setzt sich aus
+    /// <see cref="ICodeGenFacts.ExitMethodPrefix"/> und dem Pascalcase-Knotennamen zusammen.
+    /// </summary>
     static void WriteExitTransition(CodeBuilder cb, ExitTransitionCodeModel exitTransition, ICodeGenFacts facts) {
 
         var exitMethod  = $"{facts.ExitMethodPrefix}{exitTransition.NodeNamePascalcase}";
@@ -246,6 +291,14 @@ static class WfsBaseEmitter {
         cb.WriteLine();
     }
 
+    /// <summary>
+    /// Schreibt eine Trigger-Transition als Paar: die öffentliche Weiche
+    /// <c>public virtual INavCommand {Trigger}(…)</c> — die zunächst den <c>BeforeTriggerLogic</c>-Hook
+    /// auf den View-Parameter anwendet, dann <c>{Trigger}Logic(…)</c> aufruft und über einen
+    /// <c>switch(body)</c> auf die erreichbaren Calls verteilt (<see cref="WriteTransitionCallBlock"/>) —
+    /// und die zugehörige abstrakte <c>protected abstract INavCommandBody {Trigger}Logic(…)</c>.
+    /// Trigger sind — anders als Init/Exit — immer konkret; einen Abstrakt-Zweig gibt es nicht.
+    /// </summary>
     static void WriteTriggerTransition(CodeBuilder cb, TriggerTransitionCodeModel triggerTransition, ICodeGenFacts facts) {
 
         var trigger     = triggerTransition.TriggerName;
@@ -274,6 +327,13 @@ static class WfsBaseEmitter {
         cb.WriteLine();
     }
 
+    /// <summary>
+    /// Schreibt eine Begin-Wrapper-Methode <c>protected INavCommandBody {BeginMethodPrefix}{Node}(…)</c>,
+    /// die einen <c>TaskCall</c> auf den aufgerufenen Sub-Task erzeugt: entweder mit einem deferred
+    /// <c>() =&gt; wfs.Begin(…)</c>-Thunk oder — bei <c>[notimplemented]</c>
+    /// (<see cref="TaskBeginCodeModel.NotImplemented"/>) — mit <c>null</c> als Wrapper. Die
+    /// <c>NavInitCall</c>-Annotation trägt den Rückweg auf das aufgerufene Begin-Interface.
+    /// </summary>
     static void WriteWrapperBeginMethod(CodeBuilder cb, TaskBeginCodeModel taskBegin, ICodeGenFacts facts) {
 
         EmitterCommon.WriteInitCallAnnotation(cb, taskBegin.TaskBeginParameter.ParameterType);
@@ -296,6 +356,12 @@ static class WfsBaseEmitter {
 
     // -- switch(body)-Weiche über die erreichbaren Calls ----------------------------------------------
 
+    /// <summary>
+    /// Schreibt den <c>switch(body)</c>-Block, der das <c>INavCommandBody</c>-Ergebnis der
+    /// <c>…Logic(…)</c>-Methode auf die aus dieser Transition erreichbaren Calls verteilt: je Call ein
+    /// <c>case</c> (<see cref="WriteCall"/>), gefolgt von einem <c>default</c>-Zweig, der bei einem
+    /// unerwarteten Rückgabewert eine <c>InvalidOperationException</c> mit dem Namen der Logic-Methode wirft.
+    /// </summary>
     static void WriteTransitionCallBlock(CodeBuilder cb, IEnumerable<CallCodeModel> reachableCalls, string logicMethodName, ICodeGenFacts facts) {
 
         cb.Write("switch(body) ");
@@ -313,6 +379,13 @@ static class WfsBaseEmitter {
         cb.WriteLine();
     }
 
+    /// <summary>
+    /// Schreibt den <c>case</c>-Zweig eines einzelnen Calls, ausgewählt über
+    /// <see cref="CallCodeModel.TemplateName"/> (der Name des ehemaligen StringTemplate-Zweigs): die
+    /// terminalen Kommandos <c>cancel</c>/<c>goToExit</c>/<c>goToEnd</c> direkt, die Task-Calls
+    /// (<c>openModalTask</c>/<c>startNonModalTask</c>/<c>gotoTask</c>) über <see cref="WriteTaskCall"/> und
+    /// die GUI-Calls (<c>openModalGUI</c>/<c>startNonModalGUI</c>/<c>gotoGUI</c>) über <see cref="WriteGuiCall"/>.
+    /// </summary>
     static void WriteCall(CodeBuilder cb, CallCodeModel call, ICodeGenFacts facts) {
 
         switch (call.TemplateName) {
@@ -358,6 +431,13 @@ static class WfsBaseEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt den <c>case TaskCall taskCall when …</c>-Zweig eines Task-Calls: bei
+    /// <c>[notimplemented]</c> ein <c>throw new NotImplementedException(…)</c>, sonst der Aufruf der
+    /// Navigation-Engine-Methode (<paramref name="engineMethod"/>, z.&#160;B. <c>OpenModalTask</c>) — bei
+    /// <paramref name="generic"/> mit dem <c>&lt;TaskResult&gt;</c>-Typargument — unter Weitergabe des
+    /// Begin-Wrappers und der Exit-Fortsetzungsmethode.
+    /// </summary>
     static void WriteTaskCall(CodeBuilder cb, TaskCallCodeModel call, string engineMethod, bool generic, ICodeGenFacts facts) {
 
         cb.WriteLine($"case TaskCall taskCall when taskCall.NodeName == {call.PascalcaseName}NodeName:");
@@ -377,6 +457,11 @@ static class WfsBaseEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt den <c>case {View}TO {view}TO:</c>-Zweig eines GUI-Calls, der die Navigation-Engine-Methode
+    /// (<paramref name="engineMethod"/>, z.&#160;B. <c>GotoGUI</c>) mit dem Transfer-Objekt aufruft. Der
+    /// <c>TO</c>-Suffix stammt aus <see cref="CodeGenInvariants.ToClassNameSuffix"/>.
+    /// </summary>
     static void WriteGuiCall(CodeBuilder cb, CallCodeModel call, string engineMethod) {
 
         var toSuffix = CodeGenInvariants.ToClassNameSuffix;

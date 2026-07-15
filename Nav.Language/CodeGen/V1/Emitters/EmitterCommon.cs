@@ -111,6 +111,11 @@ static class EmitterCommon {
                       """);
     }
 
+    /// <summary>
+    /// Schreibt die Choice-Call-Annotation (<c>NavChoiceCall</c>) an der Aufrufstelle einer Choice —
+    /// den C#→Nav-Rückweg von <c>next.{Choice}(…)</c> zur Choice-Definition. In der V1-Generation nicht
+    /// verwendet (Choices tragen dort keinen Call-Context); nur der V2-Emitter ruft sie auf.
+    /// </summary>
     public static void WriteNavChoiceCallAnnotation(CodeBuilder cb, string choiceName) {
         cb.WriteLine($"""
                       #region {AnnotationRegionName}

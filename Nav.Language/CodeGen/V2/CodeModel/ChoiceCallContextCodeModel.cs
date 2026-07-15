@@ -50,6 +50,14 @@ sealed class ChoiceCallContextCodeModel {
     /// <summary>Der Call-Context der Choice — die Aufruffläche ihrer Ausgänge.</summary>
     public CallContextCodeModel Context { get; }
 
+    /// <summary>
+    /// Baut den V2-Baustein einer Choice aus ihrem <see cref="IChoiceNodeSymbol"/>: Name, <c>{Choice}Logic</c>,
+    /// Choice-Parameter und den <see cref="CallContextCodeModel"/> ihrer Ausgänge. <paramref name="ownerTaskResult"/>
+    /// ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Fabrik des Contexts). <paramref name="initReachable"/>
+    /// steuert den Command-Typ (§3.8/④): <c>true</c> ⇒ <see cref="CallContextCodeModel.CommandType"/> ist
+    /// <see cref="TransitionCallContextCodeModel.InitCommandType"/>, sonst
+    /// <see cref="TransitionCallContextCodeModel.TransitionCommandType"/>.
+    /// </summary>
     public static ChoiceCallContextCodeModel FromChoice(IChoiceNodeSymbol choiceNode,
                                                         ParameterCodeModel ownerTaskResult,
                                                         bool initReachable) {

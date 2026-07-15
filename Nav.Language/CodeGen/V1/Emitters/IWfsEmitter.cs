@@ -17,6 +17,12 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable once InconsistentNaming
 static class IWfsEmitter {
 
+    /// <summary>
+    /// Erzeugt die vollständige <c>I{Task}WFS.cs</c>-Datei aus dem <see cref="IWfsCodeModel"/>:
+    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen und das <c>public interface I{Task}WFS</c> mit
+    /// je einer <c>INavCommand</c>-Methode pro Trigger-Transition. Liefert den fertigen Quelltext als
+    /// Zeichenkette.
+    /// </summary>
     public static string Emit(IWfsCodeModel model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();
@@ -41,6 +47,10 @@ static class IWfsEmitter {
         return cb.ToString();
     }
 
+    /// <summary>
+    /// Schreibt die Trigger-Methoden-Deklarationen des Interface-Rumpfs — je eine pro
+    /// Trigger-Transition, durch je eine Leerzeile getrennt.
+    /// </summary>
     static void WriteTriggerMethodDeclarations(CodeBuilder cb, IReadOnlyList<TriggerTransitionCodeModel> triggerTransitions) {
 
         cb.WriteJoin(
@@ -53,6 +63,10 @@ static class IWfsEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt eine einzelne Trigger-Deklaration: die <c>NavTrigger</c>-Annotation und die Signatur
+    /// <c>INavCommand {TriggerName}({ViewParameter})</c> — genau ein View-Parameter je Trigger.
+    /// </summary>
     static void WriteTriggerMethodDeclaration(CodeBuilder cb, TriggerTransitionCodeModel triggerTransition) {
 
         EmitterCommon.WriteTriggerAnnotation(cb, triggerTransition.TriggerName);

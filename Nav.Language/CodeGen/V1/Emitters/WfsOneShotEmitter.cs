@@ -25,6 +25,13 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable once InconsistentNaming
 static class WfsOneShotEmitter {
 
+    /// <summary>
+    /// Erzeugt die vollständige <c>{Task}WFS.cs</c>-OneShot-Datei aus dem <see cref="WfsCodeModel"/>:
+    /// Using-Direktiven (ohne <c>&lt;auto-generated&gt;</c>-Kopf — es ist eine Benutzer-Datei), den
+    /// Namespace-Rahmen und die partielle Klasse <c>public partial class {Task}WFS</c> mit je einem
+    /// <c>NotImplementedException</c>-Stub pro zu implementierender Methode
+    /// (<see cref="WriteMethodStubs"/>). Liefert den fertigen Quelltext als Zeichenkette.
+    /// </summary>
     public static string Emit(WfsCodeModel model, CodeGeneratorContext context) {
 
         var cb    = new CodeBuilder();
@@ -48,6 +55,12 @@ static class WfsOneShotEmitter {
 
     // -- Die Methoden-Stubs der Implementierungsklasse ------------------------------------------------
 
+    /// <summary>
+    /// Schreibt die Methoden-Stubs der Implementierungsklasse — je einen für jede Init-, Exit- und
+    /// Trigger-Transition (in dieser Reihenfolge), jeweils durch genau eine Leerzeile getrennt. Jeder
+    /// Stub überschreibt die passende abstrakte Methode aus <c>{Task}WFSBase</c> und wirft
+    /// <c>NotImplementedException</c>, damit der Nutzer sie ausprogrammiert.
+    /// </summary>
     static void WriteMethodStubs(CodeBuilder cb, WfsCodeModel model, ICodeGenFacts facts) {
 
         var wroteAny = false;
@@ -84,6 +97,12 @@ static class WfsOneShotEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt den Stub einer Init-Transition: bei einer abstrakten Init
+    /// (<see cref="InitTransitionCodeModel.GenerateAbstractMethod"/>) das <c>override</c> der
+    /// öffentlichen <c>Begin(…)</c>-Methode, sonst das der abstrakten <c>BeginLogic(…)</c>. Der Rumpf ist
+    /// stets <see cref="WriteNotImplementedBody"/>.
+    /// </summary>
     static void WriteInitStub(CodeBuilder cb, InitTransitionCodeModel initTransition, ICodeGenFacts facts) {
 
         if (initTransition.GenerateAbstractMethod) {
@@ -97,6 +116,12 @@ static class WfsOneShotEmitter {
         WriteNotImplementedBody(cb);
     }
 
+    /// <summary>
+    /// Schreibt den Stub einer Exit-Transition: bei einer abstrakten Exit
+    /// (<see cref="ExitTransitionCodeModel.GenerateAbstractMethod"/>) das <c>override</c> der
+    /// <c>After{Node}(…)</c>-Methode, sonst das der <c>After{Node}Logic(…)</c>. Der Rumpf ist stets
+    /// <see cref="WriteNotImplementedBody"/>.
+    /// </summary>
     static void WriteExitStub(CodeBuilder cb, ExitTransitionCodeModel exitTransition, ICodeGenFacts facts) {
 
         var exitMethod = $"{facts.ExitMethodPrefix}{exitTransition.NodeNamePascalcase}";
@@ -112,6 +137,11 @@ static class WfsOneShotEmitter {
         WriteNotImplementedBody(cb);
     }
 
+    /// <summary>
+    /// Schreibt den Stub einer Trigger-Transition: das <c>override</c> der abstrakten
+    /// <c>{Trigger}Logic(…)</c>-Methode. Trigger sind stets konkret, daher gibt es — anders als bei Init
+    /// und Exit — keinen Abstrakt-Zweig. Der Rumpf ist <see cref="WriteNotImplementedBody"/>.
+    /// </summary>
     static void WriteTriggerStub(CodeBuilder cb, TriggerTransitionCodeModel triggerTransition, ICodeGenFacts facts) {
 
         cb.Write($"protected override INavCommandBody {triggerTransition.TriggerName}{facts.LogicMethodSuffix}(");

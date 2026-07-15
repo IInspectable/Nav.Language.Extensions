@@ -20,6 +20,11 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 static class WfsOneShotEmitterV2 {
 
+    /// <summary>
+    /// Rendert die einmalige Benutzer-Datei <c>{Task}WFS</c> aus <paramref name="model"/>: <c>using</c>s
+    /// (ohne <c>&lt;auto-generated&gt;</c>-Kopf) und im Task-Namespace die partielle Klasse <c>{Task}WFS</c>
+    /// mit je einem <c>NotImplementedException</c>-Stub für die abstrakten Logic-/Maschinerie-Methoden.
+    /// </summary>
     public static string Emit(WfsCodeModelV2 model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();
@@ -40,6 +45,10 @@ static class WfsOneShotEmitterV2 {
         return cb.ToString();
     }
 
+    /// <summary>
+    /// Schreibt die Methoden-Stubs — erst je Init-/Exit-/Trigger-Transition (<see cref="WriteStub"/>), dann je
+    /// Choice (<see cref="WriteChoiceStub"/>), jeweils durch genau eine Leerzeile getrennt.
+    /// </summary>
     static void WriteMethodStubs(CodeBuilder cb, WfsCodeModelV2 model) {
 
         var transitions = model.InitTransitions
@@ -73,6 +82,11 @@ static class WfsOneShotEmitterV2 {
         }
     }
 
+    /// <summary>
+    /// Schreibt den <c>NotImplementedException</c>-Stub einer Transition: bei
+    /// <see cref="TransitionCallContextCodeModel.GenerateAbstractMachinery"/> überschreibt er die
+    /// Maschinerie-Methode selbst, sonst die abstrakte <c>…Logic</c>-Methode (inkl. Context-Parameter).
+    /// </summary>
     static void WriteStub(CodeBuilder cb, TransitionCallContextCodeModel transition) {
 
         if (transition.GenerateAbstractMachinery) {
@@ -91,6 +105,7 @@ static class WfsOneShotEmitterV2 {
         }
     }
 
+    /// <summary>Schreibt den <c>NotImplementedException</c>-Stub der abstrakten <c>{Choice}Logic</c>-Methode (die einmalige Entscheidung, §3.5).</summary>
     static void WriteChoiceStub(CodeBuilder cb, ChoiceCallContextCodeModel choice) {
 
         cb.Write($"protected override {choice.Context.ContextTypeName}.Result {choice.LogicName}(");
@@ -102,16 +117,19 @@ static class WfsOneShotEmitterV2 {
         }
     }
 
+    /// <summary>Die Parameter-Deklarationen der zu überschreibenden <c>…Logic(…)</c>-Signatur (Transitions-Parameter plus Context-Parameter).</summary>
     static IEnumerable<string> LogicSignatureDeclarations(TransitionCallContextCodeModel transition) {
         return transition.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
                          .Concat(new[] { $"{transition.Context!.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
+    /// <summary>Die Parameter-Deklarationen der zu überschreibenden <c>{Choice}Logic(…)</c>-Signatur (Choice-Parameter plus Context-Parameter).</summary>
     static IEnumerable<string> ChoiceLogicDeclarations(ChoiceCallContextCodeModel choice) {
         return choice.Parameters.Select(p => $"{p.ParameterType} {p.ParameterName}")
                      .Concat(new[] { $"{choice.Context.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
+    /// <summary>Umbrochene, an der öffnenden Klammer ausgerichtete Deklarationsliste (vorformatierte <c>{Typ} {Name}</c>-Strings).</summary>
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {
         cb.WriteAlignedJoin(declarations, d => cb.Write(d), separator: $",{cb.NewLine}");
     }

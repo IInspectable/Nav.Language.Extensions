@@ -46,21 +46,39 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
                                            .ToImmutableList();
     }
 
+    /// <summary>Der Ziel-Namespace der generierten Klassen (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WflNamespace        => Task.WflNamespace;
+    /// <summary>Typname der abstrakten Basisklasse <c>{Task}WFSBase</c> (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WfsBaseTypeName     => Task.WfsBaseTypeName;
+    /// <summary>Typname der partiellen Implementierungsklasse <c>{Task}WFS</c> (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WfsTypeName         => Task.WfsTypeName;
+    /// <summary>Typname der Basisklasse von <c>{Task}WFSBase</c> (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WfsBaseBaseTypeName => Task.WfsBaseBaseTypeName;
 
+    /// <summary>Das Ergebnis des Tasks (Typ des <c>Exit</c>-Parameters, Generic der Task-Engine-Methoden).</summary>
     public ParameterCodeModel                             TaskResult         { get; }
+    /// <summary>Die (sortierten) <c>using</c>-Namespaces der generierten Datei.</summary>
     public ImmutableList<string>                          UsingNamespaces    { get; }
+    /// <summary>Die injizierten Begin-Wrapper der Sub-Tasks (<c>_x</c>-Felder, Konstruktorparameter).</summary>
     public ImmutableList<ParameterCodeModel>              TaskBegins         { get; }
+    /// <summary>Die Task-Parameter (in <c>{Task}WFS</c> als Felder, in dessen Konstruktor).</summary>
     public ImmutableList<ParameterCodeModel>              TaskParameter      { get; }
+    /// <summary>Die Init-Transitionen (<c>Begin</c>-Maschinerie + Logic + Context).</summary>
     public ImmutableList<TransitionCallContextCodeModel>  InitTransitions    { get; }
+    /// <summary>Die Exit-Transitionen (<c>After{Node}</c>-Maschinerie der Sub-Task-Rücksprünge).</summary>
     public ImmutableList<TransitionCallContextCodeModel>  ExitTransitions    { get; }
+    /// <summary>Die Trigger-Transitionen (Signal-<c>{Trigger}</c>-Maschinerie).</summary>
     public ImmutableList<TransitionCallContextCodeModel>  TriggerTransitions { get; }
+    /// <summary>Die erreichbaren Choices als eigene Bausteine (§3.5).</summary>
     public ImmutableList<ChoiceCallContextCodeModel>      Choices            { get; }
+    /// <summary>Die distinkten Trigger-View-TOs — je eines eine <c>BeforeTriggerLogic</c>-Überladung.</summary>
     public ImmutableList<ParameterCodeModel>              ViewParameters     { get; }
 
+    /// <summary>
+    /// Baut das <c>{Task}WFSBase</c>-Codemodell aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
+    /// (via <paramref name="pathProvider"/>), Task-Result/-Begins/-Parameter sowie die Init-/Exit-/Trigger-
+    /// Transitionen und Choices (über <see cref="CodeModelBuilderV2"/>).
+    /// </summary>
     public static WfsBaseCodeModelV2 FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {
 
         if (taskDefinition == null) {
@@ -88,6 +106,10 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
             choices               : CodeModelBuilderV2.GetChoices(taskDefinition, taskResult).ToImmutableList());
     }
 
+    /// <summary>
+    /// Sammelt die <c>using</c>-Namespaces der generierten Datei (System, IWFL-Namespace des Tasks, die
+    /// Navigation-Engine-Namespaces und die im <c>.nav</c> deklarierten <c>using</c>s) und gibt sie sortiert zurück.
+    /// </summary>
     static IEnumerable<string> GetUsingNamespaces(ITaskDefinitionSymbol taskDefinition, TaskCodeInfo taskCodeInfo) {
         // ReSharper disable once UseObjectOrCollectionInitializer
         var namespaces = new List<string>();

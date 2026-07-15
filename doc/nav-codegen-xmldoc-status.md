@@ -1,8 +1,10 @@
 ﻿# Nav.Language/CodeGen — XML-Doku-Kampagne (Status & Umsetzungsplan)
 
-> **Status: IN ARBEIT (Start 2026-07-15).** Ziel: alle Dateien unter `Nav.Language\CodeGen\`
-> durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
-> Vorbild und Methodik: `doc/nav-syntax-xmldoc-status.md` (abgeschlossene Schwester-Kampagne).
+> **Status: ABGESCHLOSSEN (2026-07-15).** Alle 8 Batches fertig, `CodeGen\` ist doku-warnungsfrei
+> (0× CS1591, 0× CS1570–CS1584); doku-only-Diff über alle 48 geänderten Dateien mechanisch
+> verifiziert, normaler Build 0 Warnungen/0 Fehler. Ziel war: alle Dateien unter
+> `Nav.Language\CodeGen\` durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede
+> Code-Änderung**. Vorbild und Methodik: `doc/nav-syntax-xmldoc-status.md`.
 
 ## 1. Ziel & Ausgangslage (Audit vom 2026-07-15)
 
@@ -137,13 +139,13 @@ Generatoren und Emitter per `cref` verweisen, dann die konsumierenden Schichten 
 | Batch | Inhalt (Dateien) | CS1591 | Status |
 |---|---|---:|---|
 | **B1 — Fakten-Schicht** (4) | `Shared/Facts/CodeGenInvariants`, `Shared/Facts/ICodeGenFacts`, `Shared/Facts/NavCodeGenFacts`, `V1/CodeGenFacts` | 62 | **fertig** (2026-07-15) |
-| **B2 — CodeInfo (Namens-/Pfadschicht)** (6) | `Shared/CodeInfo/ChoiceCodeInfo`, `SignalTriggerCodeInfo`, `TaskCodeInfo`, `TaskDeclarationCodeInfo`, `TaskExitCodeInfo`, `TaskInitCodeInfo` | 74 | offen |
-| **B3 — Shared-Infrastruktur** (5) | `Shared/CSharp`, `Shared/CodeBuilder`, `Shared/CodeGeneratorContext`, `Shared/Generator`, `Shared/Resilience` | 8 | offen |
-| **B4 — Pipeline & Ergebnistypen** (9) | `CodeGenerator`, `VersionDispatchingCodeGenerator`, `CodeGenerationResult`, `CodeGenerationSpec`, `OverwritePolicy`, `GenerationOptions`, `FileGenerator`, `FileGeneratorAction`, `FileGeneratorResult` | 46 | offen |
-| **B5 — V1 CodeModel: Basis & Struktur** (10) | `V1/CodeModel/CodeModel`, `CodeModelBuilder`, `FileGenerationCodeModel`, `WfsBaseCodeModel`, `WfsCodeModel`, `IWfsCodeModel`, `IBeginWfsCodeModel`, `BeginWrapperCodeModel`, `FieldCodeModel`, `V1/CodeModelResult` | 2 | offen |
-| **B6 — V1 CodeModel: Transitionen & Calls** (9) | `V1/CodeModel/TransitionCodeModel`, `InitTransitionCodeModel`, `ExitTransitionCodeModel`, `TriggerTransitionCodeMode`, `CallCodeModel`, `CallCodeModelBuilder`, `ParameterCodeModel`, `TaskBeginCodeModel`, `TOCodeModel` | 0 | offen |
-| **B7 — V1 Emitters + Generator** (7) | `V1/Emitters/EmitterCommon`, `IBeginWfsEmitter`, `IWfsEmitter`, `TOEmitter`, `WfsBaseEmitter`, `WfsOneShotEmitter`, `V1/CodeGeneratorV1` | 6 | offen |
-| **B8 — V2 (Lücken-Audit)** (9) | `V2/CodeGeneratorV2`, `V2/CodeModel/CallContextCodeModel`, `ChoiceCallContextCodeModel`, `TransitionCallContextCodeModel`, `WfsBaseCodeModelV2`, `WfsCodeModelV2`, `CodeModelBuilderV2`, `V2/Emitters/WfsBaseEmitterV2`, `WfsOneShotEmitterV2` | 6 | offen |
+| **B2 — CodeInfo (Namens-/Pfadschicht)** (6) | `Shared/CodeInfo/ChoiceCodeInfo`, `SignalTriggerCodeInfo`, `TaskCodeInfo`, `TaskDeclarationCodeInfo`, `TaskExitCodeInfo`, `TaskInitCodeInfo` | 74 | **fertig** (2026-07-15) |
+| **B3 — Shared-Infrastruktur** (5) | `Shared/CSharp`, `Shared/CodeBuilder`, `Shared/CodeGeneratorContext`, `Shared/Generator`, `Shared/Resilience` | 8 | **fertig** (2026-07-15) |
+| **B4 — Pipeline & Ergebnistypen** (9) | `CodeGenerator`, `VersionDispatchingCodeGenerator`, `CodeGenerationResult`, `CodeGenerationSpec`, `OverwritePolicy`, `GenerationOptions`, `FileGenerator`, `FileGeneratorAction`, `FileGeneratorResult` | 46 | **fertig** (2026-07-15) |
+| **B5 — V1 CodeModel: Basis & Struktur** (10) | `V1/CodeModel/CodeModel`, `CodeModelBuilder`, `FileGenerationCodeModel`, `WfsBaseCodeModel`, `WfsCodeModel`, `IWfsCodeModel`, `IBeginWfsCodeModel`, `BeginWrapperCodeModel`, `FieldCodeModel`, `V1/CodeModelResult` | 2 | **fertig** (2026-07-15) |
+| **B6 — V1 CodeModel: Transitionen & Calls** (9) | `V1/CodeModel/TransitionCodeModel`, `InitTransitionCodeModel`, `ExitTransitionCodeModel`, `TriggerTransitionCodeMode`, `CallCodeModel`, `CallCodeModelBuilder`, `ParameterCodeModel`, `TaskBeginCodeModel`, `TOCodeModel` | 0 | **fertig** (2026-07-15) |
+| **B7 — V1 Emitters + Generator** (7) | `V1/Emitters/EmitterCommon`, `IBeginWfsEmitter`, `IWfsEmitter`, `TOEmitter`, `WfsBaseEmitter`, `WfsOneShotEmitter`, `V1/CodeGeneratorV1` | 6 | **fertig** (2026-07-15) |
+| **B8 — V2 (Lücken-Audit)** (9) | `V2/CodeGeneratorV2`, `V2/CodeModel/CallContextCodeModel`, `ChoiceCallContextCodeModel`, `TransitionCallContextCodeModel`, `WfsBaseCodeModelV2`, `WfsCodeModelV2`, `CodeModelBuilderV2`, `V2/Emitters/WfsBaseEmitterV2`, `WfsOneShotEmitterV2` | 6 | **fertig** (2026-07-15) |
 
 Die CS1591-Spalte je Batch summiert auf 204 (Baseline). Batches mit niedriger CS1591-Zahl (B5,
 B6) sind trotzdem inhaltlich groß — es ist der undokumentierte `internal`-Kern, den CS1591 nicht misst.
@@ -188,3 +190,5 @@ Nav-Engine: XML-Doku für CodeGen/<Bereich> (Batch <n>/8) — nur ///-Zeilen, do
 |---|---|---|
 | 2026-07-15 | — | Plan erstellt, Audit durchgeführt (60 Dateien; V2 weitgehend fertig, V1\CodeModel\ fast komplett undokumentiert). Gate G2 verifiziert und kalibriert (Baseline: 204× CS1591, 0× CS1570–84 unter `CodeGen\`). Scope-Entscheidung des Nutzers: voller Ordner inkl. `internal`-Kern. |
 | 2026-07-15 | B1 | Nur `V1\CodeGenFacts.cs` geändert (32 Member: 31 `const` + `BuildQualifiedName`); die 3 `Shared\Facts\`-Dateien waren bereits vollständig dokumentiert. G1–G4 grün, CS1591 unter `CodeGen\` 204→142 (−62, exakt B1-Anteil), keine neuen CS1570–84. Aussagen am erzeugten C# (`{Task}WFS`/Annotation-Tags) + `CodeGenInvariants`/`ICodeGenFacts` belegt. Notiert: `UnknownNamespace`-Sentinel hat keinen aktiven Konsumenten (nur wertpinnender Test) — Doku wert-belegt. |
+| 2026-07-15 | B2–B8 | Restliche 7 Batches parallel per Subagent abgearbeitet (Doku-Schreiben parallel, zentrale G2/G4-Verifikation danach einmal). B2 CodeInfo (41 Member), B3 Shared-Infra (8; `CSharp`/`CodeBuilder`/`Resilience` waren bereits vollständig), B4 Pipeline (31; `CodeGenerationResult`/`-Spec`/`OverwritePolicy`/`GenerationOptions` bereits fertig), B5 V1-CodeModel-Basis (71), B6 V1-CodeModel-Transitionen/Calls (66), B7 V1-Emitter+Generator (35, 1 stale-Pfad-Korrektur in `CodeGeneratorV1`-Doku), B8 V2-Lücken-Audit (68). |
+| 2026-07-15 | Ende | Konsolidierte Verifikation: **2 Nacharbeiten** nötig — (1) B5s 10 `V1\CodeModel\`-Dateien hatten LF-Zeilenenden an neuen `///`-Zeilen (Merge-Skript-Nebenwirkung) → idempotent auf CRLF normalisiert (nur einzelne LF, EOF-Zustand+BOM erhalten); (2) 1 neuer CS1574 in `ChoiceCodeInfo.cs` (`cref` auf `IChoiceNodeSymbol.ContainingTask`, dort geerbt von `INodeSymbol`) → `cref` auf `INodeSymbol.ContainingTask` korrigiert. Danach: **CS1591 unter `CodeGen\` = 0**, 0× CS1570–84, G1 doku-only über alle 48 Dateien, BOM/CRLF sauber; normaler Build (ohne Doku-Flag) 0 Warnungen/0 Fehler. **Kampagne abgeschlossen.** |

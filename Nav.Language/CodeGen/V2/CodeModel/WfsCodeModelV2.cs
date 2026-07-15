@@ -35,15 +35,27 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
         Choices            = choices            ?? throw new ArgumentNullException(nameof(choices));
     }
 
+    /// <summary>Der Ziel-Namespace der OneShot-Datei (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WflNamespace => Task.WflNamespace;
+    /// <summary>Typname der partiellen Implementierungsklasse <c>{Task}WFS</c> (durchgereicht aus <see cref="TaskCodeInfo"/>).</summary>
     public string WfsTypeName   => Task.WfsTypeName;
 
+    /// <summary>Die (sortierten) <c>using</c>-Namespaces der OneShot-Datei.</summary>
     public ImmutableList<string>                         UsingNamespaces    { get; }
+    /// <summary>Die Init-Transitionen, deren <c>Begin{…}Logic</c>-Stub erzeugt wird.</summary>
     public ImmutableList<TransitionCallContextCodeModel> InitTransitions    { get; }
+    /// <summary>Die Exit-Transitionen, deren <c>After{Node}Logic</c>-Stub erzeugt wird.</summary>
     public ImmutableList<TransitionCallContextCodeModel> ExitTransitions    { get; }
+    /// <summary>Die Trigger-Transitionen, deren <c>{Trigger}Logic</c>-Stub erzeugt wird.</summary>
     public ImmutableList<TransitionCallContextCodeModel> TriggerTransitions { get; }
+    /// <summary>Die Choices, deren <c>{Choice}Logic</c>-Stub erzeugt wird (§3.5).</summary>
     public ImmutableList<ChoiceCallContextCodeModel>     Choices            { get; }
 
+    /// <summary>
+    /// Baut das <c>{Task}WFS</c>-OneShot-Codemodell aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
+    /// (via <paramref name="pathProvider"/>) und die Init-/Exit-/Trigger-Transitionen samt Choices (über
+    /// <see cref="CodeModelBuilderV2"/>) — die Quellen der zu erzeugenden Logic-Stubs.
+    /// </summary>
     public static WfsCodeModelV2 FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {
 
         if (taskDefinition == null) {
@@ -65,6 +77,10 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
             choices               : CodeModelBuilderV2.GetChoices(taskDefinition, taskResult).ToImmutableList());
     }
 
+    /// <summary>
+    /// Sammelt die <c>using</c>-Namespaces der OneShot-Datei (System, IWFL-Namespace des Tasks, die
+    /// Navigation-Engine-Namespaces und die im <c>.nav</c> deklarierten <c>using</c>s) und gibt sie sortiert zurück.
+    /// </summary>
     static IEnumerable<string> GetUsingNamespaces(ITaskDefinitionSymbol taskDefinition, TaskCodeInfo taskCodeInfo) {
         // ReSharper disable once UseObjectOrCollectionInitializer
         var namespaces = new List<string>();

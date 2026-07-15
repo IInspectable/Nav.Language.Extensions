@@ -26,6 +26,11 @@ static class WfsBaseEmitterV2 {
     /// <summary>Name des zentralen <c>Result.Unwrap()</c>-Guards (einmal je <c>{Task}WFSBase</c>).</summary>
     const string UnwrapHelperName = "UnwrapOrThrow";
 
+    /// <summary>
+    /// Rendert die <c>{Task}WFSBase</c>-Datei aus <paramref name="model"/>: den <c>&lt;auto-generated&gt;</c>-Kopf,
+    /// die <c>using</c>s und im Task-Namespace die abstrakte Basisklasse <c>{Task}WFSBase</c> gefolgt von der
+    /// partiellen Implementierungsklasse <c>{Task}WFS</c>.
+    /// </summary>
     public static string Emit(WfsBaseCodeModelV2 model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();
@@ -53,6 +58,11 @@ static class WfsBaseEmitterV2 {
 
     // -- {Task}WFSBase: die abstrakte Maschinerie-Basisklasse -----------------------------------------
 
+    /// <summary>
+    /// Schreibt die abstrakte Basisklasse <c>{Task}WFSBase</c>: Begin-Wrapper-Felder, Konstruktoren, die
+    /// <c>BeforeTriggerLogic</c>-Überladungen, den einmaligen <see cref="WriteUnwrapHelper"/>-Guard sowie je
+    /// Init-/Exit-/Trigger-Transition und Choice deren Maschinerie/Logic/Call-Context.
+    /// </summary>
     static void WriteBaseClass(CodeBuilder cb, WfsBaseCodeModelV2 model) {
 
         EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
@@ -107,6 +117,7 @@ static class WfsBaseEmitterV2 {
         }
     }
 
+    /// <summary>Schreibt den Konstruktor, der die Begin-Wrapper der Sub-Tasks entgegennimmt und in die <c>_x</c>-Felder legt.</summary>
     static void WriteBaseConstructor(CodeBuilder cb, WfsBaseCodeModelV2 model) {
 
         cb.Write($"public {model.WfsBaseTypeName}(");
@@ -124,6 +135,12 @@ static class WfsBaseEmitterV2 {
 
     // -- Eine Transition: Maschinerie + abstrakte Logic + Call-Context --------------------------------
 
+    /// <summary>
+    /// Schreibt eine Transition: bei <see cref="TransitionCallContextCodeModel.GenerateAbstractMachinery"/> nur
+    /// die abstrakte Maschinerie-Methode; sonst die (bei Trigger um den <c>BeforeTriggerLogic</c>-Vorlauf ergänzte)
+    /// Maschinerie-Methode, die auf <c>…Logic(args, new {Context}(this)).Unwrap()</c> kollabiert (§3.3), gefolgt
+    /// von der abstrakten <c>…Logic</c>-Gegenstelle und dem Call-Context der Quelle.
+    /// </summary>
     static void WriteTransition(CodeBuilder cb, WfsBaseCodeModelV2 model, TransitionCallContextCodeModel transition) {
 
         WriteTransitionAnnotation(cb, transition);
@@ -179,6 +196,11 @@ static class WfsBaseEmitterV2 {
 
     // -- Eine Choice: abstrakte Logic + Call-Context (keine Maschinerie-Methode) ----------------------
 
+    /// <summary>
+    /// Schreibt eine Choice (§3.5): nur die abstrakte <c>{Choice}Logic</c> (mit <c>&lt;NavChoice&gt;</c>-Annotation)
+    /// und ihren Call-Context — keine öffentliche Maschinerie-Methode, da eine Choice nur über die
+    /// <c>{Choice}(…)</c>-Forwards ihrer Quellen erreicht wird.
+    /// </summary>
     static void WriteChoice(CodeBuilder cb, WfsBaseCodeModelV2 model, ChoiceCallContextCodeModel choice) {
 
         // Die Entscheidung liegt EINMAL beim Nutzer — die Quellen forwarden nur (§3.5). Anders als eine
@@ -196,6 +218,12 @@ static class WfsBaseEmitterV2 {
 
     // -- Der Call-Context einer Quelle ----------------------------------------------------------------
 
+    /// <summary>
+    /// Schreibt den geschachtelten <c>protected sealed class {Context}CallContext</c>: das <c>_wfs</c>-Backing-Feld,
+    /// den <see cref="WriteResultStruct"/>-Ergebnistyp und je Callable die Aufrufmethode — schlichte
+    /// <c>public Result … => new(() =&gt; {Thunk});</c> (mit ggf. <c>NavInitCall</c>-/<c>NavChoiceCall</c>-Annotation)
+    /// bzw. eine Continuation-Aufruffläche (<see cref="WriteShowContinuation"/>).
+    /// </summary>
     static void WriteCallContext(CodeBuilder cb, WfsBaseCodeModelV2 model, CallContextCodeModel context) {
 
         cb.Write($"protected sealed class {context.ContextTypeName} ");
@@ -237,6 +265,12 @@ static class WfsBaseEmitterV2 {
 
     // -- Die Continuation-Aufruffläche einer View-Kante (… o-^ Task / … --^ Task) ----------------------
 
+    /// <summary>
+    /// Schreibt die Continuation-Aufruffläche: die <c>Show{Node}</c>-Einstiegsmethode (liefert den
+    /// geschachtelten <c>Show{Node}Continuation</c>-Typ statt eines <c>Result</c>) und diesen Typ selbst — mit
+    /// seinen <c>_wfs</c>/<c>_to</c>-Feldern, dem impliziten <c>Result</c>-Operator (nur bei plain-Schwesterkante,
+    /// §3.6) und je <c>Begin{Task}</c>-Fortsetzung einer <c>Result</c>-Methode.
+    /// </summary>
     static void WriteShowContinuation(CodeBuilder cb, WfsBaseCodeModelV2 model, ShowContinuationCallableModel continuation) {
 
         // Einstieg auf dem Context: Show{Node} liefert den Continuation-Typ (kein Result).
@@ -269,6 +303,11 @@ static class WfsBaseEmitterV2 {
         cb.WriteLine();
     }
 
+    /// <summary>
+    /// Schreibt den opaken <c>public readonly struct Result</c> des Contexts (§3.2): trägt den deferred
+    /// <c>Func&lt;{CommandType}&gt;</c>-Thunk, ein <c>internal</c> <c>Unwrap()</c>, das über den geteilten
+    /// <see cref="UnwrapHelperName"/>-Guard entfaltet und dabei per <c>nameof</c> das schuldige Logic-Override benennt.
+    /// </summary>
     static void WriteResultStruct(CodeBuilder cb, CallContextCodeModel context) {
 
         var commandType = context.CommandType;
@@ -322,6 +361,11 @@ static class WfsBaseEmitterV2 {
 
     // -- {Task}WFS: die partielle Implementierungsklasse (V1-deckungsgleich) --------------------------
 
+    /// <summary>
+    /// Schreibt die partielle Implementierungsklasse <c>{Task}WFS</c> (V1-deckungsgleich): sie leitet von
+    /// <c>{Task}WFSBase</c> ab und implementiert <c>I{Task}WFS</c>/<c>IBegin{Task}WFS</c>; trägt die
+    /// Task-Parameter-Felder und die beiden Konstruktoren.
+    /// </summary>
     static void WriteWfsClass(CodeBuilder cb, WfsBaseCodeModelV2 model) {
 
         var iwfsName      = model.Task.IWfsTypeName;
@@ -368,6 +412,7 @@ static class WfsBaseEmitterV2 {
 
     // -- Annotationen ---------------------------------------------------------------------------------
 
+    /// <summary>Schreibt die Nav-Annotation der Transition je nach <see cref="TransitionCallContextCodeModel.AnnotationKind"/>.</summary>
     static void WriteTransitionAnnotation(CodeBuilder cb, TransitionCallContextCodeModel transition) {
         switch (transition.AnnotationKind) {
             case TransitionAnnotationKind.Init:
@@ -403,6 +448,7 @@ static class WfsBaseEmitterV2 {
                      .Concat(new[] { $"{choice.Context.ContextTypeName} {CallContextCodeModel.ContextParameterName}" });
     }
 
+    /// <summary>Umbrochene, an der öffnenden Klammer ausgerichtete Deklarationsliste (vorformatierte <c>{Typ} {Name}</c>-Strings).</summary>
     static void WriteAlignedDecls(CodeBuilder cb, IEnumerable<string> declarations) {
         cb.WriteAlignedJoin(declarations, d => cb.Write(d), separator: $",{cb.NewLine}");
     }

@@ -10,6 +10,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
+/// <summary>
+/// Ein einzelner Methoden-/Konstruktor-Parameter des erzeugten C#-Codes — schlicht ein Paar aus
+/// <see cref="ParameterType"/> und <see cref="ParameterName"/>. Baustein der Signaturen und Argumentlisten
+/// aller V1-CodeModels (Transitions-Parameter, Task-Begin-Wrapper, Task-Ergebnisse, Feld-Initialisierer); der
+/// <see cref="WfsBaseEmitter"/> schreibt daraus <c>{ParameterType} {ParameterName}</c> bzw. den bloßen Namen als Argument.
+/// </summary>
 class ParameterCodeModel : CodeModel {
 
     public ParameterCodeModel(string? parameterType, string? parameterName) {
@@ -17,13 +23,21 @@ class ParameterCodeModel : CodeModel {
         ParameterName = parameterName ?? String.Empty;
     }
 
+    /// <summary>Der (C#-)Typ des Parameters.</summary>
     public virtual string ParameterType { get; }
+    /// <summary>Der Name des Parameters.</summary>
     public virtual string ParameterName { get; }
 
+    /// <summary>Liefert eine Kopie mit gleichem Typ, aber umbenannt — genutzt, um denselben Begin-Wrapper unter dem kanonischen Feld-/Parameternamen wiederzuverwenden.</summary>
     public ParameterCodeModel WithParameterName(string parameterName) {
         return new ParameterCodeModel(parameterType: ParameterType, parameterName: parameterName);
     }
 
+    /// <summary>
+    /// Der Ergebnis-Parameter eines Tasks aus Sicht seiner <b>Definition</b> (<c>[result]</c>-Deklaration).
+    /// Fehlt die Angabe, gilt der Default (<see cref="CodeGenFacts.DefaultTaskResultType"/> /
+    /// <see cref="CodeGenFacts.DefaultParamterName"/>).
+    /// </summary>
     public static ParameterCodeModel TaskResult(ITaskDefinitionSymbol taskDefinition) {
         var codeParameter = taskDefinition.AsTaskDeclaration?.CodeTaskResult;
         var parameterType = CodeGenFacts.DefaultTaskResultType;
@@ -35,6 +49,11 @@ class ParameterCodeModel : CodeModel {
         return new ParameterCodeModel(parameterType, parameterName);
     }
 
+    /// <summary>
+    /// Der Ergebnis-Parameter eines Tasks aus Sicht seiner <b>Deklaration</b> — Grundlage des
+    /// <c>After{Node}(result)</c>-Parameters und des generischen Task-Engine-Typarguments. Der Name ist stets
+    /// <c>result</c>; fehlt die <c>[result]</c>-Angabe, wird auf <c>bool</c> zurückgefallen.
+    /// </summary>
     public static ParameterCodeModel TaskResult(ITaskDeclarationSymbol? taskDeclaration) {
         var codeParameter = taskDeclaration?.CodeTaskResult;
         if (codeParameter == null) {
@@ -45,6 +64,10 @@ class ParameterCodeModel : CodeModel {
         return new ParameterCodeModel(codeParameter.ParameterType, "result");
     }        
 
+    /// <summary>
+    /// Projiziert Parameter-Syntaxknoten (Init-/Trigger-/Task-Parameterlisten) in Parameter-Modelle. Unbenannte
+    /// Parameter erhalten einen generierten Positionsnamen <c>p1</c>, <c>p2</c>, …
+    /// </summary>
     public static IEnumerable<ParameterCodeModel> FromParameterSyntaxes(IEnumerable<ParameterSyntax>? parameters) {
         if (parameters == null) {
             yield break;
@@ -62,10 +85,17 @@ class ParameterCodeModel : CodeModel {
         }
     }
 
+    /// <summary>Bildet mehrere Task-Deklarationen auf ihre Begin-Wrapper-Parameter ab (siehe <see cref="GetTaskBeginAsParameter"/>).</summary>
     public static IEnumerable<ParameterCodeModel> GetTaskBeginsAsParameter(IEnumerable<ITaskDeclarationSymbol> taskDeclarations) {
         return taskDeclarations.Select(GetTaskBeginAsParameter);
     }
 
+    /// <summary>
+    /// Der Begin-Wrapper eines Sub-Tasks als Parameter: Typ ist das voll qualifizierte <c>IBegin{Task}WFS</c>-Interface
+    /// (<see cref="TaskDeclarationCodeInfo.FullyQualifiedBeginInterfaceName"/>), Name der Task-Name in Camelcase — dies
+    /// wird zum injizierten Konstruktor-Parameter und Backing-Feld. Für <c>[notimplemented]</c>-Tasks fällt der Typ auf
+    /// <see cref="CodeGenFacts.DefaultIwfsBaseType"/> zurück (kein spezifisches Begin-Interface).
+    /// </summary>
     public static ParameterCodeModel GetTaskBeginAsParameter(ITaskDeclarationSymbol taskDeclaration) {
 
         var codeInfo = TaskDeclarationCodeInfo.FromTaskDeclaration(taskDeclaration);

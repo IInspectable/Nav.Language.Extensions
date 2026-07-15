@@ -18,6 +18,12 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable once InconsistentNaming
 static class TOEmitter {
 
+    /// <summary>
+    /// Erzeugt die vollständige <c>{View}TO.cs</c>-Datei aus dem <see cref="TOCodeModel"/>: den
+    /// „nur einmalig erzeugt"-Dateikopf, die Using-Direktiven, den IWFL-Namespace-Rahmen und den
+    /// leeren Platzhalter <c>public partial class {View}TO : TO</c> (Rumpf nur ein Hinweis-Kommentar).
+    /// Liefert den fertigen Quelltext als Zeichenkette.
+    /// </summary>
     public static string Emit(TOCodeModel model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();

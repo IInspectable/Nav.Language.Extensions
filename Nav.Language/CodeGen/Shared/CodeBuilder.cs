@@ -343,6 +343,11 @@ public sealed class CodeBuilder {
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Die <see cref="IDisposable"/>-Klammer, die <see cref="Indent()"/>, <see cref="Block(string, string)"/>
+    /// und <see cref="Align()"/> zurückgeben: führt die übergebene Rücknahme-Aktion beim <see cref="Dispose"/>
+    /// genau einmal aus (mehrfaches <c>Dispose</c> ist ein No-op).
+    /// </summary>
     sealed class Scope: IDisposable {
 
         Action? _onDispose;

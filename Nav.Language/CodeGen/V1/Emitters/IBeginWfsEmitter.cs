@@ -16,6 +16,14 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable once InconsistentNaming
 static class IBeginWfsEmitter {
 
+    /// <summary>
+    /// Erzeugt die vollständige <c>IBegin{Task}WFS.cs</c>-Datei aus dem <see cref="IBeginWfsCodeModel"/>:
+    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen samt <c>#pragma warning disable 0108</c>
+    /// (Redeklaration ererbter Begins ohne <c>new</c>), die nutzerdeklarierten <c>code</c>-Blöcke
+    /// (<see cref="IBeginWfsCodeModel.CodeDeclarations"/>) sowie das eigentliche
+    /// <c>public interface IBegin{Task}WFS</c> mit je einer <c>Begin</c>-Methode pro Init-Transition.
+    /// Liefert den fertigen Quelltext als Zeichenkette.
+    /// </summary>
     public static string Emit(IBeginWfsCodeModel model, CodeGeneratorContext context) {
 
         var cb = new CodeBuilder();
@@ -53,6 +61,11 @@ static class IBeginWfsEmitter {
         return cb.ToString();
     }
 
+    /// <summary>
+    /// Schreibt die <c>Begin</c>-Methoden-Deklarationen des Interface-Rumpfs — je eine pro
+    /// Init-Transition, durch je eine Leerzeile getrennt. Der Methodenname stammt aus
+    /// <see cref="ICodeGenFacts.BeginMethodPrefix"/> (versionierbares Fakt).
+    /// </summary>
     static void WriteBeginMethodDeclarations(CodeBuilder cb, IReadOnlyList<InitTransitionCodeModel> initTransitions, ICodeGenFacts facts) {
 
         // Interface-Rumpf ohne Init ist im gültigen Modell nicht möglich (eine Task-Definition trägt
@@ -67,6 +80,11 @@ static class IBeginWfsEmitter {
         }
     }
 
+    /// <summary>
+    /// Schreibt eine einzelne <c>Begin</c>-Deklaration: die <c>NavInit</c>-Annotation (Rückweg auf den
+    /// init-Knoten) und die Signatur <c>IINIT_TASK {BeginMethodPrefix}(…)</c> mit der an der öffnenden
+    /// Klammer ausgerichteten Parameterliste der Init-Transition.
+    /// </summary>
     static void WriteBeginMethodDeclaration(CodeBuilder cb, InitTransitionCodeModel initTransition, ICodeGenFacts facts) {
 
         EmitterCommon.WriteNavInitAnnotation(cb, initTransition.NodeName);

@@ -10,6 +10,20 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
+/// <summary>
+/// Die zentrale Nav→C#-Namens-/Pfadschicht eines Tasks: leitet aus einem
+/// <see cref="ITaskDefinitionSymbol"/> die vollständige C#-Namensalgebra der generierten Workflow-Typen
+/// ab — Implementierungs-Klasse <c>{Task}WFS</c>, Basisklasse <c>{Task}WFSBase</c>, Interface
+/// <c>I{Task}WFS</c>, deren Namespaces (<c>{ns}.WFL</c>/<c>{ns}.IWFL</c>) und die voll qualifizierten
+/// Namen. Wurzel-Anker der abgeleiteten CodeInfos (<see cref="TaskInitCodeInfo"/>,
+/// <see cref="TaskExitCodeInfo"/>, <see cref="SignalTriggerCodeInfo"/>, <see cref="ChoiceCodeInfo"/>),
+/// die ihre versionierbaren Namensbausteine über <see cref="Facts"/> beziehen.
+/// <para>
+/// <b>Versionsweiche:</b> die Implementierungs-Namen (Klassen-/Namespace-Suffixe) sind versionierbar und
+/// kommen aus <see cref="ICodeGenFacts"/>; die Interface-Namen und -Ablage sind
+/// generationsübergreifend fix und kommen aus <see cref="CodeGenInvariants"/>.
+/// </para>
+/// </summary>
 public sealed class TaskCodeInfo {
 
     TaskCodeInfo(ICodeGenFacts facts, string? taskName, string? baseNamespace, string? wfsBaseBaseClassName, string? iIBeginWfsBaseTypeName) {
@@ -27,20 +41,37 @@ public sealed class TaskCodeInfo {
     /// </summary>
     internal ICodeGenFacts Facts { get; }
 
+    /// <summary>Der Basis-Namespace des Tasks (<c>CodeNamespace</c>), unter den die WFL-/IWFL-Suffixe gehängt werden.</summary>
     string        BaseNamespace         { get; }
+    /// <summary>Der rohe Task-Name aus dem Nav-Symbol; Basis von <see cref="TaskNamePascalcase"/> (leer, wenn abwesend).</summary>
     public string TaskName              { get; }
+    /// <summary>
+    /// Der Name der benutzerseitigen Basisklasse, von der <c>{Task}WFSBase</c> erbt (aus der
+    /// <c>code base</c>-Deklaration; sonst der Default aus <see cref="CodeGenFacts.DefaultWfsBaseClass"/>).
+    /// </summary>
     public string WfsBaseBaseTypeName   { get; }
+    /// <summary>
+    /// Der Name des benutzerseitigen Begin-Basis-Interfaces (aus der <c>code base</c>-Deklaration; sonst
+    /// der Default aus <see cref="CodeGenFacts.DefaultIBeginWfsBaseType"/>).
+    /// </summary>
     public string IBeginWfsBaseTypeName { get; }
 
+    /// <summary>Der Task-Name in PascalCase — der Kern aller generierten Typnamen (<c>{Task}</c> in <c>{Task}WFS</c>).</summary>
     public string TaskNamePascalcase        => TaskName.ToPascalcase();
     // Implementierungs-Namespace/-Typnamen: versionierbar (aus Facts).
+    /// <summary>Namespace der Implementierungstypen (<c>{ns}.WFL</c>); Suffix versionierbar aus <see cref="ICodeGenFacts.WflNamespaceSuffix"/>.</summary>
     public string WflNamespace              => BuildQualifiedName(BaseNamespace, Facts.WflNamespaceSuffix);
+    /// <summary>Name der generierten Basisklasse (<c>{Task}WFSBase</c>); Suffix versionierbar aus <see cref="ICodeGenFacts.WfsBaseClassSuffix"/>.</summary>
     public string WfsBaseTypeName           => $"{TaskNamePascalcase}{Facts.WfsBaseClassSuffix}";
+    /// <summary>Name der generierten Implementierungsklasse (<c>{Task}WFS</c>); Suffix versionierbar aus <see cref="ICodeGenFacts.WfsClassSuffix"/>.</summary>
     public string WfsTypeName               => $"{TaskNamePascalcase}{Facts.WfsClassSuffix}";
     // Interface-Namensbildung/-Ablage: invariant (Schnittstellen-Vertrag). Das „WFS" in IWfsTypeName
     // ist der invariante Interface-Suffix, nicht der (gleichlautende) versionierbare Klassen-Suffix.
+    /// <summary>Namespace der <c>I{Task}WFS</c>-Interfaces (<c>{ns}.IWFL</c>); invariant aus <see cref="CodeGenInvariants.IwflNamespaceSuffix"/>.</summary>
     public string IwflNamespace             => BuildQualifiedName(BaseNamespace, CodeGenInvariants.IwflNamespaceSuffix);
+    /// <summary>Name des generierten Interfaces (<c>I{Task}WFS</c>); invariant aus <see cref="CodeGenInvariants.InterfacePrefix"/>/<see cref="CodeGenInvariants.InterfaceSuffix"/>.</summary>
     public string IWfsTypeName              => $"{CodeGenInvariants.InterfacePrefix}{TaskNamePascalcase}{CodeGenInvariants.InterfaceSuffix}";
+    /// <summary>Voll qualifizierter Name der Implementierungsklasse (<c>{ns}.WFL.{Task}WFS</c>).</summary>
     public string FullyQualifiedWfsName     => BuildQualifiedName(WflNamespace, WfsTypeName);
 
     /// <summary>
@@ -53,6 +84,13 @@ public sealed class TaskCodeInfo {
     /// </summary>
     public string FullyQualifiedWfsBaseName => BuildQualifiedName(WflNamespace, WfsBaseTypeName);
 
+    /// <summary>
+    /// Fabrik: baut die <see cref="TaskCodeInfo"/> aus einer Task-Definition. Wählt die
+    /// <see cref="ICodeGenFacts"/> nach der Sprach-Version der Datei
+    /// (<see cref="NavCodeGenFacts.For(NavLanguageVersion)"/>) und fällt bei (noch) nicht unterstützter
+    /// Version bewusst auf die Default-Generation zurück — CodeInfos entstehen auch für Anzeige und
+    /// Navigation auf fehlerhaften Dateien.
+    /// </summary>
     public static TaskCodeInfo FromTaskDefinition(ITaskDefinitionSymbol taskDefinition) {
 
         if (taskDefinition == null) {

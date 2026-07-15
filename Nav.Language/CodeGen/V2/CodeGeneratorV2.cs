@@ -27,12 +27,22 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 // ReSharper disable InconsistentNaming
 public class CodeGeneratorV2: Generator, ICodeGenerator {
 
+    /// <summary>
+    /// Erzeugt den V2-Generator mit optionalen <see cref="GenerationOptions"/> und einer optionalen
+    /// <see cref="IPathProviderFactory"/> (Default: <c>PathProviderFactory.Default</c>).
+    /// </summary>
     public CodeGeneratorV2(GenerationOptions? options = null, IPathProviderFactory? pathProviderFactory = null): base(options) {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
     }
 
+    /// <summary>Die Fabrik, die je <see cref="ITaskDefinitionSymbol"/> die Ausgabepfade der vier Artefakte liefert.</summary>
     public IPathProviderFactory PathProviderFactory { get; }
 
+    /// <summary>
+    /// Erzeugt für jede <see cref="ITaskDefinitionSymbol"/> der <paramref name="codeGenerationUnit"/> ein
+    /// <see cref="CodeGenerationResult"/> (die vier Artefakte). Wirft eine <see cref="ArgumentException"/>,
+    /// wenn der Syntaxbaum, das Semantikmodell oder eine eingebundene Datei der Unit Fehler-Diagnostiken trägt.
+    /// </summary>
     public ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit) {
 
         if (codeGenerationUnit == null) {
@@ -64,6 +74,12 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         }
     }
 
+    /// <summary>
+    /// Erzeugt die vier Artefakt-Specs einer einzelnen Task-Definition (<c>I{Task}WFS</c>,
+    /// <c>IBegin{Task}WFS</c>, <c>{Task}WFSBase</c>, <c>{Task}WFS</c>) und bündelt sie im
+    /// <see cref="CodeGenerationResult"/>; leere Specs (via <see cref="GenerationOptions"/> abgeschaltet)
+    /// werden herausgefiltert.
+    /// </summary>
     CodeGenerationResult GenerateCode(ITaskDefinitionSymbol taskDefinition) {
 
         var pathProvider = PathProviderFactory.CreatePathProvider(taskDefinition, Options);
@@ -82,6 +98,11 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         return new CodeGenerationResult(taskDefinition, specs);
     }
 
+    /// <summary>
+    /// Erzeugt die Spec der invarianten <c>I{Task}WFS</c>-Interface-Datei (aus der geteilten V1-Schicht:
+    /// <see cref="IWfsCodeModel"/>/<see cref="IWfsEmitter"/>). Leer, wenn <see cref="GenerationOptions.GenerateIwflClasses"/>
+    /// abgeschaltet ist. <see cref="OverwritePolicy.WhenChanged"/> — generierte Datei, bei Änderung überschrieben.
+    /// </summary>
     CodeGenerationSpec GenerateIWfsCodeSpec(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, CodeGeneratorContext context) {
 
         if (!Options.GenerateIwflClasses) {
@@ -94,6 +115,11 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Erzeugt die Spec der invarianten <c>IBegin{Task}WFS</c>-Interface-Datei (aus der geteilten V1-Schicht:
+    /// <see cref="IBeginWfsCodeModel"/>/<see cref="IBeginWfsEmitter"/>). Leer, wenn
+    /// <see cref="GenerationOptions.GenerateWflClasses"/> abgeschaltet ist. <see cref="OverwritePolicy.WhenChanged"/>.
+    /// </summary>
     CodeGenerationSpec GenerateIBeginWfsCodeSpec(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, CodeGeneratorContext context) {
 
         if (!Options.GenerateWflClasses) {
@@ -106,6 +132,12 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Erzeugt die Spec der <c>{Task}WFSBase</c>-Datei in der neuen CallContext-Gestalt
+    /// (<see cref="WfsBaseCodeModelV2"/>/<see cref="WfsBaseEmitterV2"/>) — hier trägt V2 seine eigene
+    /// Maschinerie. Leer, wenn <see cref="GenerationOptions.GenerateWflClasses"/> abgeschaltet ist.
+    /// <see cref="OverwritePolicy.WhenChanged"/>.
+    /// </summary>
     CodeGenerationSpec GenerateWfsBaseCodeSpec(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, CodeGeneratorContext context) {
 
         if (!Options.GenerateWflClasses) {
@@ -118,6 +150,12 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Erzeugt die Spec der einmaligen Benutzer-Datei <c>{Task}WFS</c> in der neuen CallContext-Gestalt
+    /// (<see cref="WfsCodeModelV2"/>/<see cref="WfsOneShotEmitterV2"/>). Leer, wenn
+    /// <see cref="GenerationOptions.GenerateWflClasses"/> abgeschaltet ist. <see cref="OverwritePolicy.Never"/> —
+    /// nur einmalig angelegt, danach nie überschrieben (der Nutzer füllt die Logic-Stubs).
+    /// </summary>
     CodeGenerationSpec GenerateWfsCodeSpec(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, CodeGeneratorContext context) {
 
         if (!Options.GenerateWflClasses) {

@@ -24,9 +24,21 @@ public sealed class ChoiceCodeInfo {
         ChoiceLogicMethodName = $"{nodeNamePascalcase}{containingTask.Facts.LogicMethodSuffix}";
     }
 
+    /// <summary>Der die Choice umschließende Task als Namens-/Pfad-Anker (<see cref="TaskCodeInfo"/>).</summary>
     public TaskCodeInfo ContainingTask        { get; }
+    /// <summary>
+    /// Der Name der abstrakten Entscheidungsmethode im generierten Code (<c>{Choice}Logic</c>, z.B.
+    /// <c>RetryLogic</c>). Ziel der GoTo-Navigation vom Choice-Knoten in den C#-Code; der Suffix
+    /// <c>Logic</c> stammt versionsrichtig aus <see cref="ICodeGenFacts.LogicMethodSuffix"/> (via
+    /// <see cref="TaskCodeInfo.Facts"/>).
+    /// </summary>
     public string       ChoiceLogicMethodName { get; }
 
+    /// <summary>
+    /// Fabrik: baut die <see cref="ChoiceCodeInfo"/> zu einem Choice-Knoten-Symbol; leitet den
+    /// enthaltenden Task über <see cref="TaskCodeInfo.FromTaskDefinition"/> aus
+    /// <see cref="INodeSymbol.ContainingTask"/> ab.
+    /// </summary>
     public static ChoiceCodeInfo FromChoiceNode(IChoiceNodeSymbol choiceNode) {
 
         if (choiceNode == null) {

@@ -9,6 +9,13 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
+/// <summary>
+/// Modelliert eine generierte <c>Begin{Node}</c>-Wrapper-Methode der <c>{Task}WFSBase</c> — eine Überladung je
+/// <c>init</c>-Knoten des aufgerufenen Sub-Tasks. Der <see cref="WfsBaseEmitter"/> schreibt daraus
+/// <c>protected INavCommandBody Begin{Node}(IBegin{Task}WFS wfs, {TaskParameter…}) => new TaskCall({Node}NodeName, () =&gt; wfs.Begin(…))</c>;
+/// bei <see cref="NotImplemented"/> entfällt der Begin-Thunk (<c>new TaskCall(…, null)</c>). Gebündelt je Task-Knoten
+/// im <see cref="BeginWrapperCodeModel"/>.
+/// </summary>
 class TaskBeginCodeModel : CodeModel {
 
     public TaskBeginCodeModel(string? taskNodeName,
@@ -22,7 +29,9 @@ class TaskBeginCodeModel : CodeModel {
         NotImplemented     = notImplemented;
     }
 
+    /// <summary>Der Name des aufgerufenen Task-Knotens (Basis der <c>{Node}NodeName</c>-Konstante und der <c>&lt;NavInitCall&gt;</c>-Zuordnung).</summary>
     public string TaskNodeName           { get; }
+    /// <summary>Der Knotenname in Pascalcase — bildet den Methodennamen <c>Begin{Node}</c>.</summary>
     public string TaskNodeNamePascalcase => TaskNodeName.ToPascalcase();
     /// <summary>
     /// Parameter, der das IBegin...WFS interface des Tasks darstellt.

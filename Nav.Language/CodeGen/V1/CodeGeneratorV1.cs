@@ -13,18 +13,31 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// <summary>
 /// Der Codegenerator der Sprach-Generation 1 — das historische, byte-identisch eingefrorene
 /// Verhalten (siehe <see cref="NavLanguageVersion.Version1"/>). Nach der Ablösung von StringTemplate
-/// CodeBuilder-basiert (Emitter unter <c>CodeGen/CodeBuilder/</c>). Die Auswahl je
+/// CodeBuilder-basiert (Emitter unter <c>CodeGen/V1/Emitters/</c>). Die Auswahl je
 /// <see cref="CodeGenerationUnit"/> trifft der <see cref="VersionDispatchingCodeGenerator"/>.
 /// </summary>
 // ReSharper disable InconsistentNaming
 public class CodeGeneratorV1: Generator, ICodeGenerator {
 
+    /// <summary>
+    /// Erzeugt den V1-Generator mit den angegebenen <paramref name="options"/> (Standard, falls
+    /// <c>null</c>) und einer <paramref name="pathProviderFactory"/> für die Ziel-Dateipfade
+    /// (<see cref="Language.PathProviderFactory.Default"/>, falls <c>null</c>).
+    /// </summary>
     public CodeGeneratorV1(GenerationOptions? options = null, IPathProviderFactory? pathProviderFactory = null): base(options) {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
     }
 
+    /// <summary>Die Fabrik, die je Task-Definition den <c>IPathProvider</c> für die Ziel-Dateipfade der Artefakte liefert.</summary>
     public IPathProviderFactory PathProviderFactory { get; }
 
+    /// <summary>
+    /// Der V1-Einstieg: erzeugt für jede Task-Definition der <paramref name="codeGenerationUnit"/> das
+    /// vollständige C#-Artefaktset. Wirft eine <see cref="ArgumentException"/>, wenn die Unit selbst,
+    /// eine ihrer Includes oder ihr Syntaxbaum Fehler-Diagnosen trägt (Codegen setzt einen fehlerfreien
+    /// Semantikstand voraus). Pro Task-Definition wird erst das CodeModel (<see cref="GenerateCodeModel"/>)
+    /// und daraus der Code (<see cref="GenerateCode"/>) erzeugt.
+    /// </summary>
     public ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit) {
 
         if (codeGenerationUnit == null) {
@@ -57,6 +70,12 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         }
     }
 
+    /// <summary>
+    /// Baut das <see cref="CodeModelResult"/> einer einzelnen Task-Definition — je ein CodeModel pro
+    /// Artefaktfamilie (IBeginWfs, IWfs, WfsBase, Wfs/OneShot, TOs), wobei jedes gemäß der
+    /// <c>Generate…Classes</c>-Flags in <see cref="Generator.Options"/> gebaut oder ausgelassen (<c>null</c>)
+    /// wird. Die Ziel-Dateipfade liefert der über <see cref="PathProviderFactory"/> erzeugte Path-Provider.
+    /// </summary>
     CodeModelResult GenerateCodeModel(ITaskDefinitionSymbol taskDefinition) {
 
         var pathProvider = PathProviderFactory.CreatePathProvider(taskDefinition, Options);
@@ -73,6 +92,13 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return codeModelResult;
     }
 
+    /// <summary>
+    /// Rendert die CodeModels eines <see cref="CodeModelResult"/> über die zuständigen Emitter zu den
+    /// konkreten <see cref="CodeGenerationSpec"/>s (Inhalt, Dateipfad, <see cref="OverwritePolicy"/>) und
+    /// bündelt sie in einem <see cref="CodeGenerationResult"/>. Die Reihenfolge (IWfs, IBeginWfs, WfsBase,
+    /// Wfs, TOs) ist nur log-/statistikrelevant; leere Specs ausgeschalteter Options-Flags werden
+    /// herausgefiltert.
+    /// </summary>
     CodeGenerationResult GenerateCode(CodeModelResult codeModelResult) {
 
         // Das TaskDefinition stammt aus codeGenerationUnit.TaskDefinitions; dessen CodeGenerationUnit
@@ -95,6 +121,11 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return new CodeGenerationResult(codeModelResult.TaskDefinition, specs);
     }
 
+    /// <summary>
+    /// Rendert das <c>IBegin{Task}WFS</c>-Interface (<see cref="IBeginWfsEmitter"/>) zur
+    /// <see cref="CodeGenerationSpec"/> mit <see cref="OverwritePolicy.WhenChanged"/>; bei fehlendem
+    /// Modell die leere Spec (<see cref="CodeGenerationSpec.Empty"/>).
+    /// </summary>
     static CodeGenerationSpec GenerateIBeginWfsCodeSpec(IBeginWfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
@@ -106,6 +137,11 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Rendert das <c>I{Task}WFS</c>-Interface (<see cref="IWfsEmitter"/>) zur
+    /// <see cref="CodeGenerationSpec"/> mit <see cref="OverwritePolicy.WhenChanged"/>; bei fehlendem
+    /// Modell die leere Spec (<see cref="CodeGenerationSpec.Empty"/>).
+    /// </summary>
     static CodeGenerationSpec GenerateIWfsCodeSpec(IWfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
@@ -117,6 +153,11 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Rendert die Basisklasse <c>{Task}WFSBase</c> (<see cref="WfsBaseEmitter"/>) zur
+    /// <see cref="CodeGenerationSpec"/> mit <see cref="OverwritePolicy.WhenChanged"/>; bei fehlendem
+    /// Modell die leere Spec (<see cref="CodeGenerationSpec.Empty"/>).
+    /// </summary>
     static CodeGenerationSpec GenerateWfsBaseCodeSpec(WfsBaseCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
@@ -128,6 +169,11 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.WhenChanged);
     }
 
+    /// <summary>
+    /// Rendert die OneShot-Benutzerdatei <c>{Task}WFS</c> (<see cref="WfsOneShotEmitter"/>) zur
+    /// <see cref="CodeGenerationSpec"/> mit <see cref="OverwritePolicy.Never"/> — nur einmalig anlegen,
+    /// danach nie überschreiben; bei fehlendem Modell die leere Spec (<see cref="CodeGenerationSpec.Empty"/>).
+    /// </summary>
     static CodeGenerationSpec GenerateWfsCodeSpec(WfsCodeModel? model, CodeGeneratorContext context) {
 
         if (model == null) {
@@ -140,6 +186,11 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         return new CodeGenerationSpec(content, model.FilePath, OverwritePolicy.Never);
     }
 
+    /// <summary>
+    /// Rendert je referenziertem View-Knoten den <c>{View}TO</c>-Platzhalter (<see cref="TOEmitter"/>) zu
+    /// einer <see cref="CodeGenerationSpec"/> mit <see cref="OverwritePolicy.Never"/> — nur einmalig
+    /// anlegen; den Inhalt pflegt der externe GUI-Generator.
+    /// </summary>
     static IEnumerable<CodeGenerationSpec> GenerateToCodeSpecs(IEnumerable<TOCodeModel> models, CodeGeneratorContext context) {
         return models.Select(model => GenerateToCodeSpec(model, context));
 

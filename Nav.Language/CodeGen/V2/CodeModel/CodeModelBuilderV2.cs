@@ -15,12 +15,20 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </summary>
 static class CodeModelBuilderV2 {
 
+    /// <summary>
+    /// Baut je <see cref="IInitNodeSymbol"/> des Tasks eine Init-Transition (in Deklarationsreihenfolge) —
+    /// das V2-Pendant zu <c>CodeModelBuilder.GetInitTransitions</c>.
+    /// </summary>
     public static IEnumerable<TransitionCallContextCodeModel> GetInitTransitions(ITaskDefinitionSymbol taskDefinition, ParameterCodeModel taskResult) {
         return taskDefinition.NodeDeclarations
                              .OfType<IInitNodeSymbol>()
                              .Select(initNode => TransitionCallContextCodeModel.FromInit(initNode, taskResult));
     }
 
+    /// <summary>
+    /// Baut je <b>erreichbarem</b>, nicht-<c>[notimplemented]</c> <see cref="ITaskNodeSymbol"/> eine
+    /// Exit-Transition (<c>After{Node}</c>-Rücksprung), entdoppelt — deckungsgleich mit der V1-Quellenauswahl.
+    /// </summary>
     public static IEnumerable<TransitionCallContextCodeModel> GetExitTransitions(ITaskDefinitionSymbol taskDefinition, ParameterCodeModel taskResult) {
         return taskDefinition.NodeDeclarations
                              .OfType<ITaskNodeSymbol>()
@@ -30,6 +38,10 @@ static class CodeModelBuilderV2 {
                              .Select(taskNode => TransitionCallContextCodeModel.FromExit(taskNode, taskResult));
     }
 
+    /// <summary>
+    /// Baut je Signal-Trigger der <see cref="ITaskDefinitionSymbol"/> eine Trigger-Transition, sortiert nach
+    /// Namenslänge und dann alphabetisch (wie V1).
+    /// </summary>
     public static IEnumerable<TransitionCallContextCodeModel> GetTriggerTransitions(ITaskDefinitionSymbol taskDefinition, ParameterCodeModel taskResult) {
         return taskDefinition.TriggerTransitions
                              .SelectMany(triggerTransition => TransitionCallContextCodeModel.FromTrigger(triggerTransition, taskResult))

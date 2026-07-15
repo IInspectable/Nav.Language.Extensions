@@ -27,11 +27,19 @@ sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
 
     readonly Dictionary<NavLanguageVersion, ICodeGenerator> _generators = new();
 
+    /// <summary>
+    /// Merkt sich <paramref name="options"/> und <paramref name="pathProviderFactory"/>, um sie an
+    /// die je Version erzeugten Untergeneratoren durchzureichen.
+    /// </summary>
     public VersionDispatchingCodeGenerator(GenerationOptions options, IPathProviderFactory pathProviderFactory) {
         _options             = options             ?? throw new ArgumentNullException(nameof(options));
         _pathProviderFactory = pathProviderFactory ?? throw new ArgumentNullException(nameof(pathProviderFactory));
     }
 
+    /// <summary>
+    /// Delegiert an den Generator der <see cref="CodeGenerationUnit.LanguageVersion"/> der
+    /// übergebenen Unit und liefert dessen Artefakte je Task-Definition unverändert weiter.
+    /// </summary>
     public ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit) {
 
         if (codeGenerationUnit == null) {
@@ -41,6 +49,11 @@ sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
         return GetGenerator(codeGenerationUnit.LanguageVersion).Generate(codeGenerationUnit);
     }
 
+    /// <summary>
+    /// Liefert den (bei Bedarf einmalig erzeugten und danach zwischengespeicherten) Generator zur
+    /// gegebenen <paramref name="version"/>; eine nicht unterstützte Version fällt robust auf
+    /// <see cref="NavLanguageVersion.Default"/> zurück.
+    /// </summary>
     ICodeGenerator GetGenerator(NavLanguageVersion version) {
 
         // Eine nicht unterstützte Version (z.B. #version 99) wird semantisch als Nav5001 gemeldet und
@@ -56,6 +69,15 @@ sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
         return generator;
     }
 
+    /// <summary>
+    /// Instanziiert den zur <paramref name="version"/> passenden Generator
+    /// (<see cref="CodeGeneratorV1"/> bzw. <c>CodeGeneratorV2</c>). Hier reiht sich eine neue
+    /// Sprach-Generation mit einem weiteren Zweig ein.
+    /// </summary>
+    /// <exception cref="NotSupportedException">
+    /// Für eine (unterstützte) Version fehlt ein Zweig — Wächter gegen ein vergessenes Mapping beim
+    /// Freischalten einer neuen Generation.
+    /// </exception>
     ICodeGenerator CreateGenerator(NavLanguageVersion version) {
 
         if (version == NavLanguageVersion.Version1) {
@@ -72,6 +94,7 @@ sealed class VersionDispatchingCodeGenerator: ICodeGenerator {
         throw new NotSupportedException($"Für die Nav-Sprachversion {version} ist kein Codegenerator implementiert.");
     }
 
+    /// <summary>Gibt alle je Version erzeugten Untergeneratoren frei und leert den Cache.</summary>
     public void Dispose() {
 
         foreach (var generator in _generators.Values) {

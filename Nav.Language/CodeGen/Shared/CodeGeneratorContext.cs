@@ -13,8 +13,17 @@ sealed class CodeGeneratorContext {
         LanguageVersion = languageVersion;
     }
 
+    /// <summary>Die dieser Erzeugung zugrunde liegenden <see cref="GenerationOptions"/>.</summary>
     public GenerationOptions Options         { get; }
+    /// <summary>
+    /// Die Produktversion (aus <see cref="MyAssembly.ProductVersion"/>), die die Emitter in den erzeugten
+    /// Datei-Header schreiben.
+    /// </summary>
     public string            ProductVersion  => MyAssembly.ProductVersion;
+    /// <summary>
+    /// Ob der erzeugte C#-Code im aktivierten Nullable-Kontext stehen soll (Durchreiche von
+    /// <see cref="GenerationOptions.NullableContext"/>).
+    /// </summary>
     public bool              NullableContext => Options.NullableContext;
 
     /// <summary>
