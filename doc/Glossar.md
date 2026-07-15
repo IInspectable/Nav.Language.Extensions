@@ -52,10 +52,9 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Einrückung / Einzug](#einrückung--einzug) ·
 [Emitter](#emitter) ·
 [Extent / Span](#extent--span) ·
-[Fabrik](#fabrik) ·
+[Factory](#factory) ·
 [Facts / Fakten](#facts--fakten) ·
 [Gap / Lücke](#gap--lücke) ·
-[hand-gelegt](#hand-gelegt) ·
 [Host (Code-Block)](#host-code-block) ·
 [Host / Schale](#host--schale-server) ·
 [Include / Einbindung](#include--einbindung) ·
@@ -65,6 +64,7 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Knoten](#knoten) ·
 [Location](#location) ·
 [Maschinerie](#maschinerie) ·
+[manuell umbrochen](#manuell-umbrochen) ·
 [Obergrenze](#obergrenze) ·
 [Overlay](#overlay) ·
 [OverwritePolicy](#overwritepolicy) ·
@@ -371,9 +371,13 @@ Die Regel, ob eine Datei überschrieben werden darf.
 **Kanon:** PathProvider / Pfad-Provider (beide zulässig) · **Symbol:** `IPathProvider`
 *Nur Bindestrich-/Sprachvariation, unkritisch — im selben Text konsistent halten.*
 
-### Fabrik
-Konsequente Eindeutschung von *Factory* — bleibt.
-**Kanon:** Fabrik · **Symbol:** `*Factory`
+### Factory
+Eine **Factory** — Erzeuger-Baustein (Factory-Pattern) für Provider, CodeInfos, CodeModels usw.
+**Kanon:** Factory · **Symbol:** `*Factory`
+**verwirft:** Fabrik, Fabrikmethode (→ Factory-Methode) ⚠
+*Im .NET-/Pattern-Kontext ist „Factory" der etablierte Fachbegriff (man sagt „eine Factory",
+„Factory-Methode"); „Fabrik" ist sauberes Deutsch, aber als Pattern-Bezeichnung unüblich und weicht
+vom Symbol `*Factory` ab — dieselbe Logik wie Wirt→Host.*
 
 ### Emitter
 Englisch, konsistent — bleibt.
@@ -426,12 +430,13 @@ Die **Unterdrückung** von Formatierung (verbatim gehaltene Regionen).
 ### Regel / Rule
 **Kanon:** Regel · **Symbol:** `IGapRule`, `GapRules`, `RulePriority`
 
-### hand-gelegt
-Eine **hand-gelegte** Anweisung — vom Autor bewusst mehrzeilig umbrochen; der Formatter hält ihr
-Inneres verbatim. Durchgängige Lehnübersetzung von `IsHandLaid`; bleibt.
-**Kanon:** hand-gelegt · **Symbol:** `AlignmentMapBuilder.IsHandLaid` 🔸
-🔸 *Empfehlung behalten (konsistent, klar am Symbol). Wer die Lehnübersetzung meiden will: „manuell
-umbrochen" — dann durchgängig.*
+### manuell umbrochen
+Eine **manuell umbrochene** Anweisung — vom Autor bewusst mehrzeilig umbrochen; der Formatter hält ihr
+Inneres verbatim und re-setzt nur den äußeren Einzug.
+**Kanon:** manuell umbrochen · **Symbol:** `AlignmentMapBuilder.IsHandLaid`
+**verwirft:** hand-gelegt, Hand-gelegt-Delta ⚠
+*Lehnübersetzung von „hand-laid"; „manuell umbrochen" benennt das tatsächliche Verhalten. Das Symbol
+`IsHandLaid` bleibt (eine Umbenennung wäre ein eigener Schritt).*
 
 ### Obergrenze
 Das **Leerzeilen-Limit** (`MaxBlankLines`), auf das aufeinanderfolgende Leerzeilen gekappt werden.
@@ -614,6 +619,34 @@ gelistet — Symbolnamen bleiben, bis sie separat umbenannt werden.)
 
 ### Wert-Slot — verwirft „Werte-Slot" (⚠)
 - `Completion/NavCompletionContext.cs`: 40, 583, 600
+
+### Factory — verwirft „Fabrik" (⚠, ~55 Stellen, breit gestreut)
+- `Generator/NavCodeGeneratorPipeline.cs`: 19, 29, 35, 36, 38, 75, 76, 77, 99, 103, 116
+- `CodeGen/CodeGenerator.cs`: 11, 21, 29, 48 · `CodeGen/FileGenerator.cs`: 13, 40 ·
+  `CodeGen/V2/CodeGeneratorV2.cs`: 38 · `CodeGen/V1/CodeGeneratorV1.cs`: 31
+- `CodeGen/V2/CodeModel/`: `CallContextCodeModel.cs`: 79, 88, 135, 140, 154 ·
+  `TransitionCallContextCodeModel.cs`: 88, 126, 164 · `ChoiceCallContextCodeModel.cs`: 56 ·
+  `CodeModelBuilderV2.cs`: 12
+- `CodeGen/V1/CodeModel/`: `CodeModelBuilder.cs`: 8 · `IBeginWfsCodeModel.cs`: 48 ·
+  `IWfsCodeModel.cs`: 49 · `WfsCodeModel.cs`: 54 · `WfsBaseCodeModel.cs`: 84 · `BeginWrapperCodeModel.cs`: 39
+- `CodeGen/Shared/CodeInfo/`: `TaskCodeInfo.cs`: 88 · `TaskInitCodeInfo.cs`: 37, 52 ·
+  `TaskExitCodeInfo.cs`: 38, 55 · `TaskDeclarationCodeInfo.cs`: 46 · `ChoiceCodeInfo.cs`: 38 ·
+  `SignalTriggerCodeInfo.cs`: 48, 54
+- `CodeGen/Shared/Facts/NavCodeGenFacts.cs`: 6
+- `Provider/`: `SyntaxProviderFactory.cs`: 8, 10 · `SemanticModelProviderFactory.cs`: 4, 9 ·
+  `PathProviderFactory.cs`: 19
+- `FindReferences/DefinitionItem.cs`: 15 · `FindReferences/DefinitionItem.Factory.cs`: 44 ·
+  `Diagnostic/DiagnosticDescriptors.cs`: 9 · `Internal/SyntaxTokenFactory.cs`: 10 ·
+  `Generator/FileSpec.cs`: 18 · `Text/ClassifiedText.cs`: 8 · `Text/ClassifiedTexts.cs`: 4
+- `SemanticAnalyzer/Nav0121TargetNode0OfContinuationMustBeTask.cs`: 12, 34 ·
+  `SemanticAnalyzer/Nav0124GeneratedMember0CollidesWithAnotherMember.cs`: 30
+  *(Komposita: „Fabrikmethode" → „Factory-Methode"; „Begin-/Exit-/Show-Fabrik" → „…-Factory".)*
+
+### manuell umbrochen — verwirft „hand-gelegt" (⚠)
+- `Formatting/AlignmentMapBuilder.cs`: 22, 273, 332, 387, 441, 546, 606, 690
+- `Formatting/FormatterSuppression.cs`: 10, 24, 31, 64, 65, 76, 77, 132, 165, 176, 188
+- `Formatting/GapRenderer.cs`: 342, 393 · `Formatting/NavFormattingService.cs`: 92, 187
+- `Formatting/StatementFacts.cs`: 20, 52
 
 > Nicht einzeln aufgelistet, weil breit gestreut (per `grep` im Rewrite präzise zu ziehen):
 > **Auslöser→Trigger**, **Übergang→Transition** (Fließtext), **Verweis→Referenz**,
