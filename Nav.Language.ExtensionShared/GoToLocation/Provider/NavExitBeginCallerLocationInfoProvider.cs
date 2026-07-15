@@ -26,6 +26,7 @@ class NavExitBeginCallerLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
     readonly NavExitAnnotation _exitAnnotation;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die After-Methoden-Annotation <paramref name="exitAnnotation"/>.</summary>
     public NavExitBeginCallerLocationInfoProvider(ITextBuffer sourceBuffer,
                                                   NavExitAnnotation exitAnnotation): base(sourceBuffer) {
         _exitAnnotation = exitAnnotation;
@@ -59,6 +60,7 @@ class NavExitBeginCallerLocationInfoProvider: CodeAnalysisLocationInfoProvider {
                                       imageMoniker: ImageMoniker));
     }
 
+    /// <summary>Entfernt das <paramref name="beginPrefix"/> vom <paramref name="identifier"/>, sofern vorhanden.</summary>
     static string StripBeginPrefix(string identifier, string beginPrefix) {
         return identifier.StartsWith(beginPrefix) ? identifier.Substring(beginPrefix.Length) : identifier;
     }

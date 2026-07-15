@@ -19,20 +19,41 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Extension.Classification; 
 
+/// <summary>
+/// Semantischer Klassifizierungs-Tagger: färbt Textstellen ein, die erst aus dem Semantikmodell
+/// hervorgehen — toten Code, in String-Literalen eingebetteten C#-Code sowie (bei aktivem
+/// „Semantic Highlighting") ConnectionPoints (Init-/Exit-Knoten), Choice-Knoten und GUI-Knoten.
+/// Als <see cref="SemanticModelServiceDependent"/> lauscht er auf Änderungen des Semantikmodells und
+/// meldet betroffene Bereiche über <see cref="TagsChanged"/> zur Neu-Einfärbung. Ergänzt den rein
+/// lexikalischen <see cref="SyntacticClassificationTagger"/>. Über
+/// <see cref="SemanticClassificationTaggerProvider"/> je <see cref="ITextBuffer"/> instanziiert.
+/// </summary>
 sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagger<IClassificationTag> {
 
     SemanticClassificationTagger(IClassificationTypeRegistryService classificationTypeRegistryService, ITextBuffer textBuffer): base(textBuffer) {
         ClassificationTypeRegistryService = classificationTypeRegistryService;
     }
 
+    /// <summary>Erzeugt einen Tagger für den angegebenen Puffer.</summary>
+    /// <param name="classificationTypeRegistryService">Registrierungsdienst zum Auflösen der Nav-Klassifizierungstypen.</param>
+    /// <param name="textBuffer">Der zu taggende Textpuffer.</param>
     public static SemanticClassificationTagger Create(IClassificationTypeRegistryService classificationTypeRegistryService, ITextBuffer textBuffer) {
         return new SemanticClassificationTagger(classificationTypeRegistryService, textBuffer);
     }
 
+    /// <summary>Registrierungsdienst, über den die benannten Klassifizierungstypen aufgelöst werden.</summary>
     public IClassificationTypeRegistryService ClassificationTypeRegistryService { get; }
 
+    /// <summary>Wird ausgelöst, wenn sich die Klassifizierung für einen Bereich geändert hat (VS fordert dann neue Tags an).</summary>
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+    /// <summary>
+    /// Liefert die Klassifizierungs-Tags für die angeforderten Bereiche. Reihenfolge: toter Code,
+    /// eingebetteter C#-Code, danach — sofern <see cref="NavLanguagePackage.AdvancedOptions"/> das
+    /// Semantic Highlighting aktiviert — Init-, Exit-, Choice- und GUI-Knoten.
+    /// </summary>
+    /// <param name="spans">Die vom Editor angefragten Bereiche des aktuellen Snapshots.</param>
+    /// <returns>Die Klassifizierungs-Tags der überlappenden Textstellen.</returns>
     public IEnumerable<ITagSpan<IClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         var codeGenerationUnitAndSnapshot = SemanticModelService.CodeGenerationUnitAndSnapshot;
@@ -104,10 +125,16 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>Meldet nach einer Semantikmodell-Änderung den betroffenen Bereich zur Neu-Einfärbung.</summary>
     protected override void OnSemanticModelChanged(object sender, SnapshotSpanEventArgs e) {
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(e.Span));
     }
 
+    /// <summary>
+    /// Erzeugt für die angegebenen <see cref="TextExtent"/>-Bereiche Klassifizierungs-Tags des
+    /// gewünschten Typs, sofern sie mit dem angefragten <paramref name="range"/> überlappen; fehlende
+    /// (Missing-)Extents werden übersprungen und die Spannen auf den angefragten Snapshot übersetzt.
+    /// </summary>
     static IEnumerable<ITagSpan<IClassificationTag>> BuildClassificationSpan(IEnumerable<TextExtent> textExtents, IClassificationType classificationType, SnapshotSpan range, CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot) {
 
         var rangeExtent = TextExtent.FromBounds(range.Start.Position, range.End.Position);
@@ -127,12 +154,17 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>Ermittelt die Bereiche toten Codes aus den <see cref="DiagnosticCategory.DeadCode"/>-Diagnosen der Einheit.</summary>
     static IEnumerable<TextExtent> GetDeadCodeExtents(CodeGenerationUnit codeGenerationUnit) {
         var diagnostics = codeGenerationUnit.Diagnostics;
         var candidates  = diagnostics.Where(diagnostic => diagnostic.Category == DiagnosticCategory.DeadCode);
         return candidates.SelectMany(diag => diag.GetLocations()).Select(loc => loc.Extent);
     }
 
+    /// <summary>
+    /// Liefert die einzufärbenden Bereiche aller Choice-Knoten: den Bezeichner der Definition sowie die
+    /// Referenzen an den ein- und ausgehenden Transitionen.
+    /// </summary>
     static IEnumerable<TextExtent> GetChoiceNodeExtents(CodeGenerationUnit codeGenerationUnit) {
         var choiceNodes = codeGenerationUnit.Symbols.OfType<IChoiceNodeSymbol>();
         foreach (var choiceNode in choiceNodes) {
@@ -148,6 +180,10 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>
+    /// Liefert die einzufärbenden Bereiche aller GUI-Knoten (View- und Dialog-Knoten): je den Bezeichner
+    /// der Definition sowie die Referenzen an den ein- und ausgehenden Transitionen.
+    /// </summary>
     static IEnumerable<TextExtent> GetGuiNodeExtents(CodeGenerationUnit codeGenerationUnit) {
         var viewNodes = codeGenerationUnit.Symbols.OfType<IViewNodeSymbol>();
         foreach (var viewNode in viewNodes) {
@@ -176,6 +212,10 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>
+    /// Liefert die einzufärbenden Bereiche aller Init-Knoten: den Alias (falls vorhanden) sowie die
+    /// Referenzen an den ausgehenden Transitionen.
+    /// </summary>
     static IEnumerable<TextExtent> GetInitNodeExtents(CodeGenerationUnit codeGenerationUnit) {
         var initNodes = codeGenerationUnit.Symbols.OfType<IInitNodeSymbol>();
         foreach (var initNode in initNodes) {
@@ -189,6 +229,10 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>
+    /// Liefert die einzufärbenden Bereiche aller Exit-Knoten (Bezeichner und eingehende Referenzen) sowie
+    /// der Exit-ConnectionPoint-Referenzen an den ausgehenden Transitionen von Task-Knoten.
+    /// </summary>
     static IEnumerable<TextExtent> GetExitNodeExtents(CodeGenerationUnit codeGenerationUnit) {
         var exitNodes = codeGenerationUnit.Symbols.OfType<IExitNodeSymbol>();
         foreach (var exitNode in exitNodes) {
@@ -206,6 +250,11 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>
+    /// Klassifiziert den in Nav-String-Literalen eingebetteten C#-Code: schneidet die Code-Bereiche aus,
+    /// lässt sie von Roslyn (<see cref="ClassifyCSharpCodeAsync"/>) klassifizieren und übersetzt die
+    /// Ergebnis-Spannen zurück in Snapshot-Positionen des Nav-Dokuments.
+    /// </summary>
     IEnumerable<ITagSpan<IClassificationTag>> GetCSharpCodeClassifications(SnapshotSpan range, CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot) {
 
         var codeExtents = GetCodeExtents(codeGenerationUnitAndSnapshot.CodeGenerationUnit);
@@ -239,11 +288,19 @@ sealed class SemanticClassificationTagger: SemanticModelServiceDependent, ITagge
         }
     }
 
+    /// <summary>
+    /// Ermittelt die Bereiche des in Code-Deklarationen eingebetteten C#-Codes — die Inhalte der
+    /// String-Literale, jeweils ohne die umschließenden Anführungszeichen.
+    /// </summary>
     static IEnumerable<TextExtent> GetCodeExtents(CodeGenerationUnit codeGenerationUnit) {
         return codeGenerationUnit.Syntax.DescendantNodes<CodeDeclarationSyntax>().SelectMany(cds=> cds.GetGetStringLiterals())
                                  .Select(n => TextExtent.FromBounds(n.Extent.Start +1, n.Extent.End -1));            
     }
 
+    /// <summary>
+    /// Klassifiziert einen C#-Quelltext über einen kurzlebigen <see cref="AdhocWorkspace"/> mit Roslyns
+    /// <see cref="Classifier"/> und liefert die klassifizierten Spannen zurück.
+    /// </summary>
     static async Task<IEnumerable<ClassifiedSpan>> ClassifyCSharpCodeAsync(Microsoft.CodeAnalysis.Text.SourceText sourceText) {
 
         var workspace    = new AdhocWorkspace();

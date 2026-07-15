@@ -12,6 +12,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Extension.NavigationBar; 
 
+/// <summary>
+/// Ein Eintrag der Navigationsleiste (die Dropdown-Comboboxen oberhalb des Editors): trägt Anzeigename,
+/// Icon, den abgedeckten <see cref="TextExtent"/> (zur Auswahlberechnung anhand der Caretposition) sowie
+/// das Sprungziel <see cref="NavigationPoint"/>. Gebaut vom <see cref="NavigationBarProjectItemBuilder"/>
+/// (Projekt-Combobox) bzw. <see cref="NavigationBarTaskItemBuilder"/> (Task-Combobox).
+/// </summary>
 class NavigationBarItem {
 
     public NavigationBarItem(string displayName, ImageMoniker imageMoniker): this(displayName, imageMoniker, null, -1) {
@@ -56,6 +62,7 @@ class NavigationBarItem {
     /// </summary>
     public int NavigationPoint { get; }
 
+    /// <summary>Untergeordnete Einträge (Member-Combobox) — leer, sofern der Eintrag keine Kinder hat.</summary>
     [NotNull]
     public ImmutableList<NavigationBarItem> Children { get; set; }
 

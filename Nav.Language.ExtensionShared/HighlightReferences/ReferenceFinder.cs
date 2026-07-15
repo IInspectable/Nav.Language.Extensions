@@ -10,6 +10,13 @@ namespace Pharmatechnik.Nav.Language.Extension.HighlightReferences;
 
 // Das erste zurückgeliferte Symbol hat immer den Charakter der "Definition", alle weiteren
 // stellen die Referenzen auf diese Definition dar
+/// <summary>
+/// Sammelt vom Wurzel-Symbol (siehe <see cref="ReferenceRootFinder"/>) ausgehend alle Fundstellen ein,
+/// die beim Referenz-Highlighting hervorgehoben werden: das Symbol selbst plus alle seine Referenzen.
+/// Der Visitor läuft im Symbolgraph „nach unten" — von einer Deklaration/Definition zu ihren
+/// Verwendungen. <b>Das erste gelieferte Symbol gilt immer als Definition</b> (abgesetzt hervorgehoben,
+/// siehe <see cref="DefinitionHighlightTag"/>), alle weiteren sind dessen Referenzen.
+/// </summary>
 sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
 
     readonly IAdvancedOptions _advancedOptions;
@@ -18,6 +25,12 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         _advancedOptions = advancedOptions;
     }
 
+    /// <summary>
+    /// Ermittelt Definition und Referenzen zu <paramref name="symbol"/> — bestimmt zuvor über
+    /// <see cref="ReferenceRootFinder.FindRoot"/> das Wurzel-Symbol. Liefert eine leere Folge, wenn das
+    /// Referenz-Highlighting in den <paramref name="advancedOptions"/> abgeschaltet ist
+    /// (<see cref="IAdvancedOptions.HighlightReferencesUnderCursor"/>).
+    /// </summary>
     public static IEnumerable<ISymbol> FindReferences(ISymbol symbol, IAdvancedOptions advancedOptions) {
 
         if( !advancedOptions.HighlightReferencesUnderCursor) {
@@ -29,6 +42,7 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         return finder.Visit(rootSymbol);
     }
 
+    /// <summary>Fallback: Symbole ohne eigene Regel liefern keine Fundstellen (kein Highlighting).</summary>
     protected override IEnumerable<ISymbol> DefaultVisit(ISymbol symbol) {
         yield break;
     }
@@ -48,6 +62,11 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
     //    }
     //}
 
+    /// <summary>
+    /// Hebt einen Exit-Verbindungspunkt hervor: den Verbindungspunkt selbst (falls seine Task-Deklaration
+    /// im aktuellen File liegt) und alle Exit-Verbindungspunkt-Referenzen an den ausgehenden Transitionen
+    /// der Task-Knoten, die genau auf diesen Verbindungspunkt zeigen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitExitConnectionPointSymbol(IExitConnectionPointSymbol exitConnectionPointSymbol) {
 
         if (!exitConnectionPointSymbol.TaskDeclaration.IsIncluded) {
@@ -63,6 +82,10 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt einen Init-Knoten hervor: dessen Alias (falls vorhanden) bzw. sonst den Knoten selbst als
+    /// Definition, dazu die Quell-Referenzen seiner ausgehenden Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitInitNodeSymbol(IInitNodeSymbol initNodeSymbol) {
 
         if (initNodeSymbol.Alias != null) {
@@ -77,10 +100,16 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>Ein Init-Alias delegiert an die Hervorhebung seines Init-Knotens.</summary>
     public override IEnumerable<ISymbol> VisitInitNodeAliasSymbol(IInitNodeAliasSymbol initNodeAliasSymbol) {
         return Visit(initNodeAliasSymbol.InitNode);
     }
 
+    /// <summary>
+    /// Hebt einen Task-Knoten hervor: dessen Alias (falls vorhanden) bzw. sonst den Knoten selbst als
+    /// Definition, dazu die Quell-Referenzen der ausgehenden und die Ziel-Referenzen der eingehenden
+    /// Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitTaskNodeSymbol(ITaskNodeSymbol taskNodeSymbol) {
             
         if(taskNodeSymbol.Alias != null) {
@@ -98,6 +127,7 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>Hebt einen Exit-Knoten als Definition hervor, dazu die Ziel-Referenzen seiner eingehenden Transitionen.</summary>
     public override IEnumerable<ISymbol> VisitExitNodeSymbol(IExitNodeSymbol exitNodeSymbol) {
 
         yield return exitNodeSymbol;
@@ -107,6 +137,7 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>Hebt einen End-Knoten als Definition hervor, dazu die Ziel-Referenzen seiner eingehenden Transitionen.</summary>
     public override IEnumerable<ISymbol> VisitEndNodeSymbol(IEndNodeSymbol endNodeSymbol) {
 
         yield return endNodeSymbol;
@@ -116,6 +147,10 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt einen Dialog-Knoten als Definition hervor, dazu die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitDialogNodeSymbol(IDialogNodeSymbol dialogNodeSymbol) {
 
         yield return dialogNodeSymbol;
@@ -129,6 +164,10 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt einen View-Knoten als Definition hervor, dazu die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitViewNodeSymbol(IViewNodeSymbol viewNodeSymbol) {
 
         yield return viewNodeSymbol;
@@ -142,6 +181,10 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt einen Choice-Knoten als Definition hervor, dazu die Quell-Referenzen der ausgehenden und die
+    /// Ziel-Referenzen der eingehenden Transitionen.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitChoiceNodeSymbol(IChoiceNodeSymbol choiceNodeSymbol) {
 
         yield return choiceNodeSymbol;
@@ -155,6 +198,11 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt eine Task-Deklaration als Definition hervor. Für jeden referenzierenden Task-Knoten gilt:
+    /// hat er keinen Alias, steigt die Suche bis auf Knoten-Referenz-Ebene ab (via
+    /// <see cref="VisitTaskNodeSymbol"/>); andernfalls wird der Task-Knoten selbst als Fundstelle geliefert.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitTaskDeclarationSymbol(ITaskDeclarationSymbol taskDeclarationSymbol) {
 
         yield return taskDeclarationSymbol;
@@ -171,6 +219,12 @@ sealed class ReferenceFinder : SymbolVisitor<IEnumerable<ISymbol>> {
         }
     }
 
+    /// <summary>
+    /// Hebt eine <c>include</c>-Direktive als Definition hervor, dazu alle Task-Knoten, die eine der über
+    /// diesen Include eingebundenen Task-Deklarationen referenzieren. Ist die Option
+    /// <see cref="IAdvancedOptions.HighlightReferencesUnderInclude"/> abgeschaltet, unterbleibt die
+    /// Hervorhebung.
+    /// </summary>
     public override IEnumerable<ISymbol> VisitIncludeSymbol(IIncludeSymbol includeSymbol) {
 
         if (!_advancedOptions.HighlightReferencesUnderInclude) {

@@ -9,6 +9,11 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 
 
+/// <summary>
+/// MEF-Provider, der die <see cref="DiagnosticStripeMargin"/> im Overview-Bereich des vertikalen
+/// Scrollbalkens für <c>.nav</c>-Ansichten bereitstellt. Nur für „Editable"-Ansichten (nicht read-only),
+/// konsistent zum <see cref="DiagnosticErrorTaggerProvider"/>.
+/// </summary>
 [Export(typeof(IWpfTextViewMarginProvider))]
 [Name(DiagnosticStripeMargin.MarginName)]
 
@@ -28,6 +33,7 @@ sealed class DiagnosticStripeMarginProvider : IWpfTextViewMarginProvider {
 
     readonly IEditorFormatMapService _editorFormatMapService;
 
+    /// <summary>Initialisiert den Provider mit dem per MEF importierten <paramref name="editorFormatMapService"/> (Markenfarben).</summary>
     [ImportingConstructor]
     public DiagnosticStripeMarginProvider(IEditorFormatMapService editorFormatMapService) {
         _editorFormatMapService = editorFormatMapService;

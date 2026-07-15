@@ -21,6 +21,13 @@ using Pharmatechnik.Nav.Language.Extension.CodeFixes;
 
 namespace Pharmatechnik.Nav.Language.Extension.Commands; 
 
+/// <summary>
+/// Command-Handler für „Rename" (F2) in Nav-Dateien. Ermittelt das Symbol unter dem Cursor, holt über den
+/// Engine-Kern <see cref="RenameCodeFixProvider"/> den passenden Umbenennungs-CodeFix, erfragt per
+/// <see cref="IDialogService"/> den neuen Namen (inkl. Validierung und Warnhinweis bei riskanten
+/// Umbenennungen) und wendet die resultierenden Textänderungen undo-fähig über den
+/// <see cref="ITextChangeService"/> an.
+/// </summary>
 [Export(typeof(ICommandHandler))]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 [Name(CommandHandlerNames.RenameCommandHandler)]
@@ -35,8 +42,14 @@ class RenameCommandHandler: ICommandHandler<RenameCommandArgs> {
         _textChangeService = textChangeService;
     }
 
+    /// <summary>Im Command-System angezeigter Name des Befehls.</summary>
     public string DisplayName => "Rename Symbol";
 
+    /// <summary>
+    /// Meldet den Befehl grundsätzlich als verfügbar. Bewusst ohne Symbol-Prüfung: eine reine
+    /// Cursor-Bewegung fragt den Command-State nicht erneut ab, sodass eine hier zurückgegebene
+    /// „Unavailable" den Befehl bis zum nächsten Kontextmenü blockieren würde.
+    /// </summary>
     public CommandState GetCommandState(RenameCommandArgs args) {
         // Das Ändern der Caret-Position veranlasst kein erneutes Abfragen des Commandstates.
         // Das hat zur Folge, dass z.B. beim Drücken der Taste F2 auf einem Keyword der Rename
@@ -48,6 +61,11 @@ class RenameCommandHandler: ICommandHandler<RenameCommandArgs> {
         return CommandState.Available;
     }
 
+    /// <summary>
+    /// Führt die Umbenennung durch: prüft Aktualität des Semantikmodells, findet das Symbol unter dem Cursor,
+    /// holt den Umbenennungs-CodeFix, erfragt den neuen Namen im Dialog und wendet — bei bestätigtem,
+    /// nicht-leerem Namen — die Textänderungen an. Danach wird das Semantikmodell neu berechnet.
+    /// </summary>
     public bool ExecuteCommand(RenameCommandArgs args, CommandExecutionContext executionContext) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -114,6 +132,7 @@ class RenameCommandHandler: ICommandHandler<RenameCommandArgs> {
         return true;
     }
 
+    /// <summary>Liefert das zuletzt berechnete Semantikmodell des Puffers, oder <see langword="null"/>, wenn kein <see cref="SemanticModelService"/> existiert.</summary>
     CodeGenerationUnitAndSnapshot TryGetCodeGenerationUnitAndSnapshot(ITextBuffer textBuffer) {
         return SemanticModelService.TryGet(textBuffer)?.CodeGenerationUnitAndSnapshot;
     }

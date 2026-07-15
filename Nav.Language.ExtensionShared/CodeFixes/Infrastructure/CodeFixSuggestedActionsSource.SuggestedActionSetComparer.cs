@@ -11,17 +11,32 @@ namespace Pharmatechnik.Nav.Language.Extension.CodeFixes;
 
 partial class CodeFixSuggestedActionsSource {
 
+    /// <summary>
+    /// Ordnet <see cref="SuggestedActionSet"/>s nach ihrer Nähe zum Auslösepunkt (dem Caret), damit der
+    /// Editor die dem Cursor nächsten Vorschläge zuerst zeigt. Sets, deren Anker-Bereich den Auslösepunkt
+    /// enthält, gelten als am nächsten; bei Gleichstand entscheidet zuerst der Abstand zum Bereichs-Anfang,
+    /// dann zum Bereichs-Ende. Ohne Auslösepunkt ist keine Ordnung möglich (alle gleich).
+    /// </summary>
     sealed class SuggestedActionSetComparer : IComparer<SuggestedActionSet> {
 
         readonly SnapshotPoint? _triggerPoint;
         readonly SnapshotSpan   _defaultSpan;
 
+        /// <summary>Erzeugt den Vergleicher für einen Auslösepunkt und einen Ersatz-Bereich.</summary>
+        /// <param name="triggerPoint">Der Auslösepunkt (Caret), oder <c>null</c>, wenn keiner vorliegt.</param>
+        /// <param name="defaultSpan">Der Ersatz-Bereich für Sets ohne eigenen Anker-Bereich.</param>
         public SuggestedActionSetComparer(SnapshotPoint? triggerPoint, SnapshotSpan defaultSpan) {
                 
             _triggerPoint = triggerPoint;
             _defaultSpan  = defaultSpan;
         }
 
+        /// <summary>
+        /// Berechnet den Abstand des Auslösepunkts zum Bereich: 0, wenn er darin liegt, sonst die Distanz zur
+        /// nächsten Kante. Ohne Auslösepunkt <see cref="int.MaxValue"/>.
+        /// </summary>
+        /// <param name="span">Der Bereich, dessen Abstand ermittelt wird.</param>
+        /// <returns>Der Abstand in Zeichen (0 = enthält den Punkt).</returns>
         int Distance(Span span) {
             // If we don't have a text span or target point we cannot calculate the distance between them
             if(_triggerPoint == null) {
@@ -39,6 +54,14 @@ partial class CodeFixSuggestedActionsSource {
             }
         }
 
+        /// <summary>
+        /// Vergleicht zwei Sets nach Caret-Nähe: zuerst nach <see cref="Distance"/>; enthalten beide den
+        /// Auslösepunkt, nach Abstand zum Bereichs-Anfang, bei Gleichstand nach Abstand zum Bereichs-Ende.
+        /// Ohne Auslösepunkt gelten alle als gleich.
+        /// </summary>
+        /// <param name="x">Das erste Set (Ersatz-Bereich, wenn ohne Anker).</param>
+        /// <param name="y">Das zweite Set (Ersatz-Bereich, wenn ohne Anker).</param>
+        /// <returns>Negativ/0/positiv nach der üblichen <see cref="IComparer{T}.Compare"/>-Konvention.</returns>
         public int Compare(SuggestedActionSet x, SuggestedActionSet y) {
             var triggerPoint = _triggerPoint;
             if (triggerPoint == null) {

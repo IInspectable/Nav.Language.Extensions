@@ -13,6 +13,11 @@ using Pharmatechnik.Nav.Language.Extension.CodeFixes;
 
 namespace Pharmatechnik.Language.Nav.Extension.Margin;
 
+/// <summary>
+/// MEF-Provider, der die <see cref="NavMargin"/>-Randleiste für <c>.nav</c>-Ansichten bereitstellt und
+/// über die Ordnungs-Attribute im unteren Randbereich (zwischen Zoom-Steuerung und Datei-Health-Indikator)
+/// platziert.
+/// </summary>
 [Export(typeof(IWpfTextViewMarginProvider))]
 [Name(NavMargin.MarginName)]
 [Order(After = PredefinedMarginNames.ZoomControl)]
@@ -27,6 +32,7 @@ sealed class NavMarginProvider: IWpfTextViewMarginProvider {
 
     readonly ITextChangeService _textChangeService;
 
+    /// <summary>Initialisiert den Provider mit dem per MEF importierten <paramref name="textChangeService"/>.</summary>
     [ImportingConstructor]
     public NavMarginProvider(ITextChangeService textChangeService) {
         _textChangeService = textChangeService;

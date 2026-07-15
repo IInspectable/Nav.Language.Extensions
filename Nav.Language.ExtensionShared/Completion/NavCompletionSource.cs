@@ -20,12 +20,23 @@ using Task = System.Threading.Tasks.Task;
 namespace Pharmatechnik.Nav.Language.Extension.Completion; 
 
 // ReSharper disable once InconsistentNaming
+/// <summary>
+/// Die konkrete Nav-Completion-Quelle (siehe <see cref="AsyncCompletionSource"/>). Entscheidet über den
+/// Syntaxbaum, ob und wo Vorschläge sinnvoll sind (nicht in Kommentaren; innerhalb <c>taskref "…"</c> die
+/// Pfad-Vervollständigung), und speist die neutralen Vorschläge des Engine-Kerns
+/// <see cref="NavCompletionService"/> in reiche VS-Items ein.
+/// </summary>
 class NavCompletionSource: AsyncCompletionSource {
 
     public NavCompletionSource(QuickinfoBuilderService quickinfoBuilderService): base(quickinfoBuilderService) {
 
     }
 
+    /// <summary>
+    /// VS-SDK-Vertrag: prüft, ob der Trigger eine Session eröffnet und diese Quelle Vorschläge liefert.
+    /// Nimmt teil, sobald <see cref="ShouldProvideCompletions"/> für die Position einen Ersetzungsbereich
+    /// bestimmt; sonst <see cref="CompletionStartData.DoesNotParticipateInCompletion"/>. Nur auf dem UI-Thread.
+    /// </summary>
     public override CompletionStartData InitializeCompletion(CompletionTrigger trigger, SnapshotPoint triggerLocation, CancellationToken token) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -43,6 +54,11 @@ class NavCompletionSource: AsyncCompletionSource {
         return CompletionStartData.DoesNotParticipateInCompletion;
     }
 
+    /// <summary>
+    /// VS-SDK-Vertrag: liefert die Vorschlagsliste. Holt kontextsensitiv die neutralen Vorschläge von
+    /// <see cref="NavCompletionService.GetCompletions"/> (im String-Kontext zusätzlich mit der Solution für
+    /// die Pfad-Vervollständigung) und bildet jeden auf ein VS-Item ab (<see cref="AsyncCompletionSource.ToCompletionItem"/>).
+    /// </summary>
     public override async Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token) {
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -76,6 +92,12 @@ class NavCompletionSource: AsyncCompletionSource {
         return CreateCompletionContext(completionItems);
     }
 
+    /// <summary>
+    /// Entscheidet, ob an <paramref name="triggerLocation"/> Vorschläge angeboten werden, und liefert dazu
+    /// den Ersetzungsbereich (<paramref name="applicableToSpan"/>): in Kommentaren nie; innerhalb <c>"…"</c>
+    /// über den getippten Dateinamen-Teil (für die Pfad-Vervollständigung); sonst über den gesamten
+    /// Bezeichner unter dem Cursor.
+    /// </summary>
     bool ShouldProvideCompletions(SnapshotPoint triggerLocation, CodeGenerationUnit codeGenerationUnit, out SnapshotSpan applicableToSpan) {
 
         applicableToSpan = default;

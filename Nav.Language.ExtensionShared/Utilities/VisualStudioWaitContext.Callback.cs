@@ -13,10 +13,18 @@ partial class VisualStudioWaitContext {
 
         readonly VisualStudioWaitContext _waitContext;
 
+        /// <summary>
+        /// Erzeugt den Callback für den übergebenen <paramref name="waitContext"/>.
+        /// </summary>
+        /// <param name="waitContext">Der Warte-Kontext, an den das Abbrechen weitergereicht wird.</param>
         public Callback(VisualStudioWaitContext waitContext) {
             _waitContext = waitContext;
         }
 
+        /// <summary>
+        /// Wird vom Wait-Dialog (ggf. auf einem Hintergrund-Thread) aufgerufen, wenn der Benutzer
+        /// abbricht, und leitet dies an den <see cref="VisualStudioWaitContext"/> weiter.
+        /// </summary>
         public void OnCanceled() {
             _waitContext.OnCanceled();
         }

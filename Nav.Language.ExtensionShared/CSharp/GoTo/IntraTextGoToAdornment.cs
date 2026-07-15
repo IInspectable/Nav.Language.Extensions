@@ -17,6 +17,11 @@ using Pharmatechnik.Nav.Language.Extension.GoToLocation;
 
 namespace Pharmatechnik.Nav.Language.Extension.CSharp.GoTo; 
 
+/// <summary>
+/// Das sichtbare, klickbare GoTo-Symbol im C#-Editor — ein WPF-<see cref="ButtonBase"/> mit dem Icon des
+/// <see cref="IntraTextGoToTag"/>. Ein Klick setzt den Caret ans Bezeichner-Ende und öffnet über den
+/// <see cref="GoToLocationService"/> das Nav-Sprungziel im Vorschautab (bei mehreren Zielen mit Auswahl).
+/// </summary>
 sealed class IntraTextGoToAdornment: ButtonBase {
 
     readonly         IWpfTextView        _textView;
@@ -46,6 +51,7 @@ sealed class IntraTextGoToAdornment: ButtonBase {
         Update(goToTag);
     }
 
+    /// <summary>Der aktuell dargestellte Datentag — liefert Icon, Tooltip und den Sprungziel-Provider.</summary>
     public IntraTextGoToTag GoToTag { get; private set; }
 
     protected override void OnVisualParentChanged(DependencyObject oldParent) {
@@ -77,6 +83,7 @@ sealed class IntraTextGoToAdornment: ButtonBase {
         }).FileAndForget("nav/intratextgoto/gotolocation");
     }
 
+    /// <summary>Übernimmt einen neuen Datentag (Icon, Tooltip, Farbe) — für die Wiederverwendung des Buttons.</summary>
     internal void Update(IntraTextGoToTag goToTag) {
         GoToTag             = goToTag;
         ToolTip             = GoToTag.ToolTip;

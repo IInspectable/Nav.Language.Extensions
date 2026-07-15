@@ -16,10 +16,16 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider;
 
+/// <summary>
+/// Springt von einem Nav-Choice zur generierten <c>{Choice}Logic</c>-Entscheidungsmethode der WFS-Klasse im
+/// C#-Code (Richtung Nav→C#). Aus dem <see cref="ChoiceCodeInfo"/> löst die Roslyn-Brücke die
+/// Methoden-Deklaration auf; angezeigt wird <c>{WfsTypeName}.{ChoiceLogicMethodName}</c>.
+/// </summary>
 class ChoiceLogicDeclarationLocationInfoProvider : CodeAnalysisLocationInfoProvider {
 
     readonly ChoiceCodeInfo _choiceCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="choiceCodeInfo"/> des Choice.</summary>
     public ChoiceLogicDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, ChoiceCodeInfo choiceCodeInfo): base(sourceBuffer) {
         _choiceCodeInfo = choiceCodeInfo;
     }

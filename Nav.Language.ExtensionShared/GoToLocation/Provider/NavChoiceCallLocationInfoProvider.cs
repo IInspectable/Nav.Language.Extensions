@@ -13,8 +13,14 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider;
 
+/// <summary>
+/// Springt von einer Choice-Aufrufstelle (<c>next.{Choice}(…)</c>, <c>NavChoiceCall</c>) im generierten
+/// C#-Code zum zugehörigen Choice-Knoten in der <c>.nav</c>-Quelle. Angezeigt wird der Choice-Name mit dem
+/// ChoiceNode-Icon.
+/// </summary>
 class NavChoiceCallLocationInfoProvider : NavAnnotationLocationInfoProvider<NavChoiceCallAnnotation> {
 
+    /// <summary>Bindet den Provider an die <paramref name="annotation"/> der Choice-Aufrufstelle.</summary>
     public NavChoiceCallLocationInfoProvider(NavChoiceCallAnnotation annotation) : base(annotation) {
     }
 

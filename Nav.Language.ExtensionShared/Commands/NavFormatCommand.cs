@@ -23,6 +23,10 @@ namespace Pharmatechnik.Nav.Language.Extension.Commands;
 /// </summary>
 static class NavFormatCommand {
 
+    /// <summary>
+    /// Formatiert das gesamte Dokument: holt den aktuellen SyntaxTree, lässt <c>NavFormattingService</c> die
+    /// nötigen <see cref="TextChange"/>s berechnen und wendet sie undo-fähig an.
+    /// </summary>
     public static void FormatDocument(ITextView textView, ITextChangeService textChangeService) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -40,6 +44,11 @@ static class NavFormatCommand {
         Apply(textView, textChangeService, changes, syntaxTreeAndSnapshot.Snapshot, undoDescription: "Format Document");
     }
 
+    /// <summary>
+    /// Formatiert nur den selektierten Bereich: begrenzt die Engine-Formatierung
+    /// (<c>NavFormattingService.FormatRange</c>) auf den <see cref="TextExtent"/> der Selektion und wendet die
+    /// Änderungen undo-fähig an.
+    /// </summary>
     public static void FormatSelection(ITextView textView, ITextChangeService textChangeService) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -61,6 +70,10 @@ static class NavFormatCommand {
         Apply(textView, textChangeService, changes, syntaxTreeAndSnapshot.Snapshot, undoDescription: "Format Selection");
     }
 
+    /// <summary>
+    /// Liefert den zum aktuellen Snapshot passenden SyntaxTree über den <see cref="ParserService"/> (rein
+    /// syntaktisch, kein Semantik-Build), oder <see langword="null"/>, wenn er nicht aktuell ist.
+    /// </summary>
     static SyntaxTreeAndSnapshot TryGetCurrentSyntaxTree(ITextView textView) {
 
         // Der Formatter ist rein syntaktisch – der ParserService (SyntaxTree) genügt, ein Semantik-Build
@@ -74,6 +87,10 @@ static class NavFormatCommand {
         return syntaxTreeAndSnapshot;
     }
 
+    /// <summary>
+    /// Wendet die berechneten <paramref name="changes"/> über den <see cref="ITextChangeService"/> undo-fähig
+    /// an (mit <paramref name="undoDescription"/> als Rückgängig-Bezeichnung); bei leerer Liste passiert nichts.
+    /// </summary>
     static void Apply(ITextView textView, ITextChangeService textChangeService,
                       IReadOnlyList<TextChange> changes, ITextSnapshot snapshot, string undoDescription) {
 

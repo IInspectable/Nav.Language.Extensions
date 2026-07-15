@@ -23,6 +23,13 @@ using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
 
 namespace Pharmatechnik.Nav.Language.Extension.Completion; 
 
+/// <summary>
+/// Basisklasse der VS-Host-Completion-Quelle. Erfüllt den VS-SDK-Vertrag <see cref="IAsyncCompletionSource"/>
+/// und bildet die neutralen Vorschläge des geteilten Engine-Kerns (<see cref="NavCompletionService"/>,
+/// <see cref="NavCompletionItem"/>) auf reiche VS-Completion-Items (Icon, Filter, QuickInfo-Tooltip,
+/// per-Item-Ersetzungsbereich) ab. Die Tooltips baut der <see cref="QuickinfoBuilderService"/>; die
+/// konkrete Ableitung ist <see cref="NavCompletionSource"/>.
+/// </summary>
 abstract class AsyncCompletionSource: IAsyncCompletionSource {
 
     protected AsyncCompletionSource(QuickinfoBuilderService quickinfoBuilderService) {
@@ -30,8 +37,14 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
 
     }
 
+    /// <summary>Der Dienst, der die QuickInfo-Tooltips der Completion-Items (Symbol, Keyword, Datei) rendert.</summary>
     public QuickinfoBuilderService QuickinfoBuilderService { get; }
 
+    /// <summary>
+    /// Entscheidet, ob der gegebene <paramref name="trigger"/> überhaupt eine Completion-Session eröffnen
+    /// soll: explizites Aufrufen (<see cref="CompletionTriggerReason.Invoke"/>) löst immer aus, ein
+    /// gedrücktes Enter nie; alles Übrige entscheidet <see cref="ShouldTriggerCompletionOverride"/>.
+    /// </summary>
     protected bool ShouldTriggerCompletion(CompletionTrigger trigger) {
         // The trigger reason guarantees that user wants a completion.
         if (trigger.Reason == CompletionTriggerReason.Invoke ||
@@ -58,10 +71,23 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
     }
 
 
+    /// <summary>
+    /// VS-SDK-Vertrag: legt fest, ob diese Quelle an der Session teilnimmt, und liefert dann den
+    /// Ersetzungsbereich (<c>applicableToSpan</c>). Von der Ableitung implementiert.
+    /// </summary>
     public abstract CompletionStartData InitializeCompletion(CompletionTrigger trigger, SnapshotPoint triggerLocation, CancellationToken token);
 
+    /// <summary>
+    /// VS-SDK-Vertrag: liefert die Vorschlagsliste (<see cref="CompletionContext"/>) für die Session.
+    /// Von der Ableitung implementiert.
+    /// </summary>
     public abstract Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan, CancellationToken token);
 
+    /// <summary>
+    /// VS-SDK-Vertrag: baut den QuickInfo-Tooltip für ein hervorgehobenes Completion-Item. Je nach
+    /// mitgeführter Eigenschaft (Symbol, Keyword, <see cref="FileInfo"/>) über den
+    /// <see cref="QuickinfoBuilderService"/> gerendert; sonst der reine Anzeigetext.
+    /// </summary>
     public virtual async Task<object> GetDescriptionAsync(IAsyncCompletionSession session, CompletionItem item, CancellationToken token) {
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -82,24 +108,33 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
         return item.DisplayText;
     }
 
+    /// <summary>Verpackt <see cref="CreateCompletionContext"/> in einen bereits abgeschlossenen Task.</summary>
     protected static Task<CompletionContext> CreateCompletionContextTaskAsync(ImmutableArray<CompletionItem>.Builder itemsBuilder,
                                                                               InitialSelectionHint initialSelectionHint = InitialSelectionHint.SoftSelection) {
         return Task.FromResult(CreateCompletionContext(itemsBuilder, initialSelectionHint));
     }
 
+    /// <summary>Baut aus den gesammelten Items einen <see cref="CompletionContext"/> mit gegebener Vorauswahl.</summary>
     protected static CompletionContext CreateCompletionContext(ImmutableArray<CompletionItem>.Builder itemsBuilder,
                                                                InitialSelectionHint initialSelectionHint = InitialSelectionHint.SoftSelection) {
         return new CompletionContext(itemsBuilder.ToImmutable(), null, initialSelectionHint);
     }
 
+    /// <summary>Verpackt <see cref="CreateEmptyCompletionContext"/> in einen bereits abgeschlossenen Task.</summary>
     protected static Task<CompletionContext> CreateEmptyCompletionContextTaskAsync() {
         return Task.FromResult(CreateEmptyCompletionContext());
     }
 
+    /// <summary>Ein leerer <see cref="CompletionContext"/> (keine Vorschläge).</summary>
     protected static CompletionContext CreateEmptyCompletionContext() {
         return new CompletionContext(ImmutableArray<CompletionItem>.Empty);
     }
 
+    /// <summary>
+    /// Baut ein VS-Completion-Item aus einem Nav-<paramref name="symbol"/>: Anzeigetext = Symbolname,
+    /// Icon und Filter aus der Symbolart (<see cref="CompletionImages.FromSymbol"/>,
+    /// <see cref="CompletionFilters.TryGetFromSymbol"/>). Das Symbol wird für den Tooltip am Item mitgeführt.
+    /// </summary>
     protected CompletionItem CreateSymbolCompletion(ISymbol symbol, string description) {
 
         var filter = CompletionFilters.TryGetFromSymbol(symbol);
@@ -202,14 +237,26 @@ abstract class AsyncCompletionSource: IAsyncCompletionSource {
     }
 
     // ReSharper disable InconsistentNaming
+    /// <summary>Schlüssel, unter dem am Completion-Item das zugehörige Nav-<see cref="ISymbol"/> für den Tooltip abgelegt wird.</summary>
     public static string SymbolPropertyName            => nameof(SymbolPropertyName);
+    /// <summary>Schlüssel, unter dem am Completion-Item das Keyword-Literal abgelegt wird.</summary>
     public static string KeywordPropertyName           => nameof(KeywordPropertyName);
+    /// <summary>Schlüssel, unter dem am Completion-Item die (kontextabhängig aufgelöste) Keyword-Beschreibung abgelegt wird.</summary>
     public static string KeywordDescriptionPropertyName => nameof(KeywordDescriptionPropertyName);
+    /// <summary>Schlüssel, unter dem am Completion-Item die <see cref="FileInfo"/> eines Pfad-Vorschlags abgelegt wird.</summary>
     public static string NavFileInfoPropertyName       => nameof(NavFileInfoPropertyName);
 
+    /// <summary>
+    /// Schlüssel, unter dem am Completion-Item der per-Item-Ersetzungsbereich (<see cref="ITrackingSpan"/>)
+    /// abgelegt wird; der <see cref="CompletionCommitManager"/> ersetzt beim Commit genau diesen Bereich.
+    /// </summary>
     public static string ReplacementTrackingSpanProperty => nameof(ReplacementTrackingSpanProperty);
     // ReSharper restore InconsistentNaming
 
+    /// <summary>
+    /// Ermittelt das aktuelle <see cref="CodeGenerationUnit"/> (Semantikmodell) für die Trigger-Position —
+    /// synchron über den <see cref="SemanticModelService"/> des zugehörigen TextBuffers. Nur auf dem UI-Thread.
+    /// </summary>
     protected static CodeGenerationUnit GetCodeGenerationUnit(SnapshotPoint triggerLocation) {
 
         ThreadHelper.ThrowIfNotOnUIThread();

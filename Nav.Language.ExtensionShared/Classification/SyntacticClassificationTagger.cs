@@ -14,21 +14,39 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Extension.Classification; 
 
+/// <summary>
+/// Syntaktischer (lexikalischer) Klassifizierungs-Tagger: färbt jedes Token des Nav-Syntaxbaums gemäß
+/// seiner <see cref="TextClassification"/> ein — ohne Semantikmodell. Neben den signifikanten Token des
+/// flachen Stroms werden Kommentare, Präprozessor-Direktiven (strukturierte Trivia) und vom Parser
+/// übersprungene Läufe (als Syntaxfehler) berücksichtigt. Als <see cref="ParserServiceDependent"/> reagiert
+/// er auf Parse-Ergebnis-Änderungen. Die semantische Einfärbung ergänzt der
+/// <see cref="SemanticClassificationTagger"/>; instanziiert wird er über
+/// <see cref="SyntacticClassificationTaggerProvider"/>.
+/// </summary>
 sealed class SyntacticClassificationTagger: ParserServiceDependent, ITagger<IClassificationTag> {
 
     readonly ImmutableDictionary<TextClassification, IClassificationType> _classificationMap;
     readonly IClassificationType                                          _commentClassification;
 
+    /// <summary>
+    /// Baut die Zuordnung der lexikalischen Kategorien auf Klassifizierungstypen
+    /// (<see cref="ClassificationTypeDefinitions.GetSyntaxTokenClassificationMap"/>) auf und merkt sich den
+    /// Kommentar-Typ gesondert (Kommentare stammen aus der angehängten Trivia).
+    /// </summary>
     public SyntacticClassificationTagger(IClassificationTypeRegistryService registry, ITextBuffer textBuffer): base(textBuffer) {
 
         _classificationMap = ClassificationTypeDefinitions.GetSyntaxTokenClassificationMap(registry);
         _classificationMap.TryGetValue(TextClassification.Comment, out _commentClassification);
     }
 
+    /// <summary>Meldet nach einer Parse-Ergebnis-Änderung den betroffenen Bereich zur Neu-Einfärbung.</summary>
     protected override void OnParseResultChanged(object sender, SnapshotSpanEventArgs e) {
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(e.Span));
     }
 
+    /// <summary>Liefert die Klassifizierungs-Tags für die angefragten Bereiche aus dem aktuellen Syntaxbaum.</summary>
+    /// <param name="spans">Die vom Editor angefragten Bereiche des aktuellen Snapshots.</param>
+    /// <returns>Die Klassifizierungs-Tags der überlappenden Token.</returns>
     public IEnumerable<ITagSpan<IClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         var syntaxTreeAndSnapshot = ParserService.SyntaxTreeAndSnapshot;
@@ -111,12 +129,14 @@ sealed class SyntacticClassificationTagger: ParserServiceDependent, ITagger<ICla
         }
     }
 
+    /// <summary>Bildet ein Klassifizierungs-Tag für <paramref name="start"/>/<paramref name="length"/>, übersetzt auf den angefragten Snapshot.</summary>
     static ITagSpan<IClassificationTag> CreateTagSpan(ITextSnapshot snapshot, SnapshotSpan span, int start, int length, IClassificationType classificationType) {
         var tokenSpan = new SnapshotSpan(snapshot, new Span(start, length));
         var tagSpan   = tokenSpan.TranslateTo(span.Snapshot, SpanTrackingMode.EdgeExclusive);
         return new TagSpan<IClassificationTag>(tagSpan, new ClassificationTag(classificationType));
     }
 
+    /// <summary>Wird ausgelöst, wenn sich die Klassifizierung für einen Bereich geändert hat (VS fordert dann neue Tags an).</summary>
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
 }

@@ -90,6 +90,7 @@
     <File Path="doc/nav-diagnostic-xmldoc-status.md" />
     <File Path="doc/nav-diagram-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
+    <File Path="doc/nav-extension-xmldoc-status.md" />
     <File Path="doc/nav-feature-usage-census.md" />
     <File Path="doc/nav-features-xmldoc-status.md" />
     <File Path="doc/nav-formatter-review-todo.md" />

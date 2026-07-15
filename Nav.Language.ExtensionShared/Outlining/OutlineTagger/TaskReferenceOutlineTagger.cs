@@ -5,8 +5,21 @@ using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der zum einen jede Task-Deklaration (<see cref="TaskDeclarationSyntax"/>)
+/// einzeln einklappbar macht und zum anderen zusammenhängende Folgen von <c>taskref</c>-Einbindungen
+/// (<see cref="IncludeDirectiveSyntax"/>) zu je einer Region bündelt. Aufgerufen vom
+/// <see cref="OutliningTagger"/>.
+/// </summary>
 class TaskReferenceOutlineTagger {
 
+    /// <summary>
+    /// Liefert die Outlining-Regionen für Task-Deklarationen (Region beginnt hinter dem Namen, damit dieser
+    /// als Kopf sichtbar bleibt) sowie für benachbarte Blöcke von <c>taskref</c>-Einbindungen. Ein
+    /// Include-Block wird erst ab zwei aufeinanderfolgenden Einbindungen zu einer Region zusammengefasst.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable<ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         // Task Declarations

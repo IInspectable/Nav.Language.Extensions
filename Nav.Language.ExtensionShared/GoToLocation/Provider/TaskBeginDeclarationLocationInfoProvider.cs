@@ -16,10 +16,16 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einem Nav-Init zur generierten <c>BeginLogic</c>-Methode der WFS-Klasse im C#-Code (Richtung
+/// Nav→C#). Aus dem <see cref="TaskInitCodeInfo"/> löst die Roslyn-Brücke die Methoden-Deklaration auf;
+/// angezeigt wird <c>{WfsTypeName}.{BeginLogicMethodName}</c>.
+/// </summary>
 class TaskBeginDeclarationLocationInfoProvider : CodeAnalysisLocationInfoProvider {
 
     readonly TaskInitCodeInfo _taskInitCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="taskInitCodeInfo"/> des Init.</summary>
     public TaskBeginDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, TaskInitCodeInfo taskInitCodeInfo): base(sourceBuffer) {
         _taskInitCodeInfo = taskInitCodeInfo;
     }

@@ -25,6 +25,7 @@ class NavChoiceCallLogicLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
     readonly NavChoiceCallAnnotation _callAnnotation;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Choice-Aufrufstellen-Annotation <paramref name="callAnnotation"/>.</summary>
     public NavChoiceCallLogicLocationInfoProvider(ITextBuffer sourceBuffer,
                                                   NavChoiceCallAnnotation callAnnotation): base(sourceBuffer) {
         _callAnnotation = callAnnotation;

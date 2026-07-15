@@ -15,6 +15,16 @@ using Pharmatechnik.Nav.Language.Extension.Common;
 
 namespace Pharmatechnik.Nav.Language.Extension.HighlightReferences; 
 
+/// <summary>
+/// Hebt beim Positionieren des Cursors das Symbol darunter samt allen seinen Referenzen im Editor hervor
+/// (analog zum C#-Editor). Als <see cref="ITagger{T}"/> von <see cref="ReferenceHighlightTag"/> liefert
+/// er je Fundstelle einen Textmarker-Tag; die erste Fundstelle gilt als Definition
+/// (<see cref="DefinitionHighlightTag"/>). Die Fundstellen stammen vom <see cref="ReferenceFinder"/>,
+/// gefüttert mit dem Symbol unter dem Cursor und dem aktuellen Semantikmodell (geerbt von
+/// <see cref="SemanticModelServiceDependent"/>). Die Neuberechnung wird gedrosselt
+/// (<see cref="ServiceProperties.ReferenceHighlighting"/>), um die GUI nicht durch ständiges Umfärben zu
+/// beunruhigen.
+/// </summary>
 sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<ReferenceHighlightTag> {
 
     [NotNull]
@@ -22,6 +32,10 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
     [NotNull]
     readonly List<SnapshotSpan> _referenceSpans;
 
+    /// <summary>
+    /// Verdrahtet den Tagger: abonniert Cursor- und Layout-Änderungen der <paramref name="view"/> sowie
+    /// (gedrosselt) das eigene <c>Invalidated</c>-Ereignis, und berechnet die Fundstellen initial.
+    /// </summary>
     public ReferenceHighlightTagger(ITextView view, ITextBuffer textBuffer) : base(textBuffer) {
         View = view;
             
@@ -42,6 +56,7 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         RebuildReferences();
     }
         
+    /// <summary>Meldet alle Ereignis-Abonnements ab und beendet die gedrosselte Neuberechnung.</summary>
     public override void Dispose() {
         base.Dispose();
 
@@ -51,8 +66,10 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         View.LayoutChanged         -= OnViewLayoutChanged;
     }
 
+    /// <summary>Die Editor-Sicht, an deren Cursor sich das Highlighting orientiert.</summary>
     public ITextView View { get; }
 
+    /// <summary>Stößt bei einem echten Snapshot-Wechsel im Layout eine (verzögerte) Neuberechnung an.</summary>
     void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs e) {
         // If a new snapshot wasn't generated, then skip this layout 
         if(e.NewSnapshot != e.OldSnapshot) {
@@ -60,18 +77,26 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         }
     }
 
+    /// <summary>Beim Beginn eines Semantikmodell-Wechsels wird die Hervorhebung sofort geleert (sie könnte veraltet sein).</summary>
     protected override void OnSemanticModelChanging(object sender, EventArgs e) {
         Invalidate(clearImmediately: true);
     }
 
+    /// <summary>Nach einem Semantikmodell-Wechsel wird die Hervorhebung (verzögert) neu berechnet.</summary>
     protected override void OnSemanticModelChanged(object sender, SnapshotSpanEventArgs e) {
         Invalidate();
     }
         
+    /// <summary>Reagiert auf Cursorbewegungen und stößt bei Bedarf eine Neuberechnung an.</summary>
     void OnCaretPositionChanged(object sender, CaretPositionChangedEventArgs e) {
         Invalidate();
     }
 
+    /// <summary>
+    /// Prüft, ob eine Neuberechnung nötig ist: Bleibt der Cursor innerhalb der bereits hervorgehobenen
+    /// Referenzen, geschieht nichts. Verlässt er sie (oder ist <paramref name="clearImmediately"/> gesetzt),
+    /// wird die Hervorhebung sofort geleert; anschließend wird die gedrosselte Neuberechnung angestoßen.
+    /// </summary>
     void Invalidate(bool clearImmediately=false) {
 
         var point = View.GetCaretPoint();
@@ -92,20 +117,29 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         OnInvalidated();
     }
 
+    /// <summary>Löst <c>Invalidated</c> aus — Eingang der gedrosselten Neuberechnungs-Pipeline.</summary>
     void OnInvalidated() {                    
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Internes Signal „Neuberechnung fällig"; im Konstruktor gedrosselt an <see cref="RebuildReferences"/> gekoppelt.</summary>
     event EventHandler<EventArgs> Invalidated;
 
+    /// <summary>Meldet dem Editor über <see cref="TagsChanged"/>, dass die Tags des gesamten Puffers neu abzufragen sind.</summary>
     void OnTagsChanged() {
 
         var snapshotSpan = TextBuffer.CurrentSnapshot.GetFullSpan();
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(snapshotSpan));
     }
 
+    /// <summary><see cref="ITagger{T}"/>-Ereignis: signalisiert dem Editor, dass Tags neu abzufragen sind.</summary>
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
         
+    /// <summary>
+    /// Liefert für die angefragten <paramref name="spans"/> die Highlight-Tags: die erste Fundstelle als
+    /// <see cref="DefinitionHighlightTag"/>, die übrigen als <see cref="ReferenceHighlightTag"/>. Liegen
+    /// die aktuellen Fundstellen auf einem älteren Snapshot, werden sie auf den angefragten übersetzt.
+    /// </summary>
     public IEnumerable<ITagSpan<ReferenceHighlightTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         if(spans.Count == 0 || _referenceSpans.Count == 0) {
@@ -135,6 +169,11 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         }           
     }
 
+    /// <summary>
+    /// Berechnet die Fundstellen neu (aus dem aktuellen Semantikmodell) und übernimmt sie nur, wenn mehr
+    /// als eine gefunden wurde — eine einzelne Fundstelle (nur die Definition, ohne Referenz) wird nicht
+    /// hervorgehoben.
+    /// </summary>
     List<SnapshotSpan> RebuildReferences() {
 
         _referenceSpans.Clear();
@@ -147,6 +186,11 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         return _referenceSpans;
     }
 
+    /// <summary>
+    /// Bestimmt das Symbol unter dem Cursor und lässt vom <see cref="ReferenceFinder"/> dessen Definition
+    /// und Referenzen ermitteln; jede Fundstelle wird in einen <see cref="SnapshotSpan"/> auf dem aktuellen
+    /// Snapshot übersetzt.
+    /// </summary>
     IEnumerable<SnapshotSpan> BuildReferences(CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot) {
 
         var symbol = View.TryFindSymbolUnderCaret(codeGenerationUnitAndSnapshot);
@@ -164,6 +208,11 @@ sealed class ReferenceHighlightTagger : SemanticModelServiceDependent, ITagger<R
         }
     }
 
+    /// <summary>
+    /// Prüft, ob <paramref name="point"/> innerhalb einer der aktuell hervorgehobenen Fundstellen liegt
+    /// (bei Bedarf auf den Snapshot des Punktes übersetzt). Grundlage der Optimierung in
+    /// <see cref="Invalidate"/>, die reine Cursorbewegungen innerhalb der Referenzen ignoriert.
+    /// </summary>
     bool IsPointOverReference(SnapshotPoint? point) {
 
         if (_referenceSpans.Count == 0 || point == null) {

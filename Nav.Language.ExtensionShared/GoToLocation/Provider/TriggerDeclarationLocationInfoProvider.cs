@@ -16,10 +16,15 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einem Nav-Trigger zur generierten Trigger-Methode im C#-Code (Richtung Nav→C#). Aus dem
+/// <see cref="SignalTriggerCodeInfo"/> löst die Roslyn-Brücke die Deklaration auf.
+/// </summary>
 class TriggerDeclarationLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
     readonly SignalTriggerCodeInfo _signalTriggerCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="signalTriggerCodeInfo"/> des Triggers.</summary>
     public TriggerDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, SignalTriggerCodeInfo signalTriggerCodeInfo): base(sourceBuffer) {
         _signalTriggerCodeInfo = signalTriggerCodeInfo;
     }

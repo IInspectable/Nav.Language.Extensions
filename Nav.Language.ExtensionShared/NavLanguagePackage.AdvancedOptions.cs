@@ -15,6 +15,10 @@ namespace Pharmatechnik.Nav.Language.Extension;
     pageNameResourceId: "#120")]
 public sealed partial class NavLanguagePackage {
 
+    /// <summary>
+    /// Die erweiterten Editor-Optionen der Nav Language (<see cref="IAdvancedOptions"/>), bezogen über
+    /// die registrierte <see cref="AdvancedOptionsDialogPage"/>.
+    /// </summary>
     internal static IAdvancedOptions AdvancedOptions {
         get {
 

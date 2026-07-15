@@ -16,11 +16,23 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider;
 
+/// <summary>
+/// Liefert für eine Init-Aufrufstelle (<c>next.Begin{Node}(…)</c>, <c>NavInitCall</c>) im generierten
+/// C#-Code zwei Sprungziele: die aufgerufene <c>BeginLogic</c>-Deklaration des Ziel-Tasks und — sofern
+/// zuordenbar — die zugehörige <c>After{Node}</c>-Rücksprungmethode an der Aufrufstelle. Die Zuordnung
+/// (Begin-Präfix abstreifen, passende <c>NavExit</c>-Annotation finden) erledigt die VS-freie
+/// Roslyn-Brücke.
+/// </summary>
 class NavInitCallLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
     readonly NavInitCallAnnotation          _callAnnotation;
     readonly IEnumerable<NavExitAnnotation> _exitAnnotations;
 
+    /// <summary>
+    /// Bindet den Provider an <paramref name="sourceBuffer"/>, die Init-Aufrufstellen-Annotation
+    /// <paramref name="callAnnotation"/> und die <paramref name="exitAnnotations"/> derselben Datei, aus
+    /// denen die passende After-Methode ermittelt wird.
+    /// </summary>
     public NavInitCallLocationInfoProvider(ITextBuffer sourceBuffer,
                                            NavInitCallAnnotation callAnnotation,
                                            IEnumerable<NavExitAnnotation> exitAnnotations): base(sourceBuffer) {

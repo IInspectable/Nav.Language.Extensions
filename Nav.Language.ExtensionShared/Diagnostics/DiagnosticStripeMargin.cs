@@ -16,11 +16,19 @@ using Pharmatechnik.Nav.Language.Extension.Common;
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 
 
+/// <summary>
+/// Editor-Randleiste im vertikalen Scrollbalken (Overview), die die Diagnosen des Dokuments als kleine
+/// farbige Marken über die gesamte Dokumenthöhe darstellt (Fehler rot, Warnung orange, Vorschlag blau). Ein
+/// Klick auf eine Marke springt zur betreffenden Diagnose. Bezieht ihre Daten aus dem gemeinsamen
+/// <see cref="DiagnosticService"/> der Ansicht und zeichnet die Marken selbst (erbt von
+/// <see cref="Border"/>). Erzeugt vom <see cref="DiagnosticStripeMarginProvider"/>.
+/// </summary>
 sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
 
     readonly IWpfTextView _textView;
     bool                  _isDisposed;
 
+    /// <summary>Eindeutiger Name dieser Randleiste, unter dem VS sie identifiziert.</summary>
     public const string MarginName = nameof(DiagnosticStripeMargin);
 
     readonly DiagnosticService _diagnosticService;
@@ -30,6 +38,12 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
 
     Dictionary<DiagnosticSeverity, GeometryGroup> _markerGeometryGroups;
 
+    /// <summary>
+    /// Initialisiert die Streifen-Randleiste für den <paramref name="textView"/>, holt den geteilten
+    /// <see cref="DiagnosticService"/> und abonniert Diagnose-, Scroll-, Layout- und Format-Ereignisse, um
+    /// die Marken aktuell zu halten. Der <paramref name="scrollBar"/> liefert die Y-Koordinaten der
+    /// Dokumentpositionen, der <paramref name="editorFormatMapService"/> die themengerechten Markenfarben.
+    /// </summary>
     public DiagnosticStripeMargin(IWpfTextView textView, IVerticalScrollBar scrollBar,
                                   IEditorFormatMapService editorFormatMapService) {
 
@@ -62,6 +76,10 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
     // betreffenden Diagnose gesprungen wird. Hält ein Klick ins Leere folgenlos.
     const double ClickToleranceInPixel = 6.0;
 
+    /// <summary>
+    /// Springt bei einem Klick zur Diagnose, deren Marke dem Klick vertikal am nächsten liegt — sofern der
+    /// Abstand die <see cref="ClickToleranceInPixel"/> nicht überschreitet.
+    /// </summary>
     void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) {
 
         var clickY = e.GetPosition(this).Y;
@@ -123,10 +141,16 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         InvalidateVisual();
     }
 
+    /// <summary>Verwirft die zwischengespeicherten Marken-Geometrien, sodass sie beim nächsten Rendern neu gebildet werden.</summary>
     void InvalidateGeometry() {
         _markerGeometryGroups = null;
     }
 
+    /// <summary>
+    /// Baut die Marken-Geometrien je Schweregrad aus den aktuellen Diagnosen auf (sofern noch nicht
+    /// vorhanden), indem jede Diagnoseposition über den <see cref="IVerticalScrollBar"/> auf eine
+    /// Y-Koordinate abgebildet wird.
+    /// </summary>
     void EnsureGeometry() {
 
         if(_markerGeometryGroups != null) {
@@ -157,6 +181,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }                       
     }
         
+    /// <summary>Bildet die Rechteck-Geometrie einer einzelnen Marke an der Y-Position der übergebenen Dokumentposition.</summary>
     Geometry GetMarkerGeometry(SnapshotPoint snapshotPoint) {
 
         double markerHeight = 2.0;
@@ -168,11 +193,13 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         return rectangleGeometry;
     }
 
+    /// <summary>Verwirft die Marken-Geometrien bei Größenänderung, da sich die Y-Koordinaten verschieben.</summary>
     protected override Size ArrangeOverride(Size finalSize) {
         InvalidateGeometry();
         return base.ArrangeOverride(finalSize);
     }
 
+    /// <summary>Zeichnet die Marken je Schweregrad mit der zugehörigen Farbe.</summary>
     protected override void OnRender(DrawingContext dc) {
         base.OnRender(dc);
         EnsureGeometry();
@@ -184,6 +211,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }            
     }
 
+    /// <summary>Liefert die Markenfarbe für den angegebenen <paramref name="severity"/> (aus der Format-Map, mit Fallback).</summary>
     Brush GetMarkerBrush(DiagnosticSeverity severity) {
         // TODO Farben
         switch (severity) {                
@@ -198,6 +226,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Liest die Vordergrundfarbe des VS-Fehlertyps <paramref name="type"/> aus der Editor-Format-Map, sonst <paramref name="fallbackBrush"/>.</summary>
     Brush GetForeGroundColor(string type, Brush fallbackBrush) {
         ResourceDictionary resourceDictionary = _editorFormatMap.GetProperties(type);
 
@@ -209,6 +238,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Das dargestellte WPF-Element — diese Instanz selbst (erbt von <see cref="Border"/>).</summary>
     public FrameworkElement VisualElement {
         get {
             ThrowIfDisposed();
@@ -216,6 +246,7 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Breite der Randleiste (Streifenbreite).</summary>
     public double MarginSize {
         get {
             ThrowIfDisposed();
@@ -224,14 +255,17 @@ sealed class DiagnosticStripeMargin : Border, IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Aktiv, solange der vertikale Scrollbalken der Ansicht angezeigt wird.</summary>
     bool ITextViewMargin.Enabled {
         get { return _textView.Options.GetOptionValue(DefaultTextViewHostOptions.VerticalScrollBarId); }
     }
         
+    /// <summary>Liefert diese Instanz, wenn <paramref name="marginName"/> dem <see cref="MarginName"/> entspricht, sonst <see langword="null"/>.</summary>
     public ITextViewMargin GetTextViewMargin(string marginName) {
         return string.Equals(marginName, MarginName, StringComparison.OrdinalIgnoreCase) ? this : null;
     }
 
+    /// <summary>Meldet die Randleiste von allen Ereignissen ab (idempotent).</summary>
     public void Dispose() {
         if(!_isDisposed) {
             _isDisposed = true;

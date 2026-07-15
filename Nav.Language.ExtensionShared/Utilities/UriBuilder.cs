@@ -9,8 +9,19 @@ using JetBrains.Annotations;
 
 namespace Pharmatechnik.Nav.Language.Extension.Utilities; 
 
+/// <summary>
+/// Hilfsfunktionen, die aus einem Pfad einen Verzeichnis-<see cref="Uri"/> bilden. Kernpunkt ist, dass
+/// der Pfad zuverlässig als Verzeichnis (nicht als Datei) erkannt wird — dafür wird ein abschließender
+/// Verzeichnistrenner sichergestellt. Die so gebildeten Verzeichnis-Uris nutzt der <see cref="ProjectMapper"/>
+/// über <see cref="Uri.IsBaseOf"/>, um eine Datei ihrem Projektverzeichnis zuzuordnen.
+/// </summary>
 static class UriBuilder {
 
+    /// <summary>
+    /// Bildet aus einem Verzeichnispfad einen Verzeichnis-<see cref="Uri"/> und ergänzt bei Bedarf den
+    /// abschließenden Trenner. Liefert <c>null</c> bei leerer Eingabe.
+    /// </summary>
+    /// <param name="directory">Der Verzeichnispfad.</param>
     [CanBeNull]
     public static Uri BuildDirectoryUriFromDirectory(string directory) {
 
@@ -31,6 +42,11 @@ static class UriBuilder {
 
     }
 
+    /// <summary>
+    /// Bildet den Verzeichnis-<see cref="Uri"/> des Ordners, der die Datei <paramref name="fileName"/>
+    /// enthält. Liefert <c>null</c> bei leerer Eingabe.
+    /// </summary>
+    /// <param name="fileName">Der Dateipfad, dessen Verzeichnis abgeleitet wird.</param>
     [CanBeNull]
     public static Uri BuildDirectoryUriFromFile(string fileName) {
         if (String.IsNullOrEmpty(fileName)) {

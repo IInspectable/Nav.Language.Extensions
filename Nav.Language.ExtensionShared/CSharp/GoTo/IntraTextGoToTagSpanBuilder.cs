@@ -14,6 +14,15 @@ using System.Linq;
 
 namespace Pharmatechnik.Nav.Language.Extension.CSharp.GoTo; 
 
+/// <summary>
+/// Übersetzt die Nav-Annotationen einer generierten C#-Datei in <see cref="IntraTextGoToTag"/>-
+/// Tag-Spans: Je Annotation (Task, Init, Exit, Trigger, Choice sowie deren Aufrufstellen) bestimmt der
+/// Visitor die zu markierende Bezeichner-Position im <see cref="ITextSnapshot"/> und den zugehörigen
+/// <see cref="Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider.ILocationInfoProvider"/>, der
+/// beim Klick das/die Nav-Sprungziel(e) auflöst. Als
+/// <see cref="NavTaskAnnotationVisitor{TResult}"/> liefert jede <c>Visit…</c>-Methode das Tag-Span oder
+/// <c>null</c>, wenn keine Markierung entsteht.
+/// </summary>
 class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGoToTag>> {
 
     const string ToolTipGoToTaskDefinition    = "Go To Task Definition";
@@ -32,6 +41,7 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         _textSnapshot   = textSnapshot;
     }
 
+    /// <summary>Symbol am WFS-Klassennamen → springt zur Task-Definition im <c>.nav</c>.</summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavTaskAnnotation(NavTaskAnnotation navTaskAnnotation) {
 
         var start  = navTaskAnnotation.ClassDeclarationSyntax.Identifier.Span.Start;
@@ -47,6 +57,7 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>Symbol an der Init-Methode → springt zum <c>init</c>-Verbindungspunkt im <c>.nav</c>.</summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavInitAnnotation(NavInitAnnotation navInitAnnotation) {
 
         int start  = navInitAnnotation.MethodDeclarationSyntax.Identifier.Span.Start;
@@ -62,6 +73,11 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>
+    /// Symbol an der Exit-Methode → springt zum <c>exit</c>-Verbindungspunkt im <c>.nav</c> und bietet
+    /// zusätzlich die C#-Aufrufstellen der zugehörigen <c>Begin…</c>-Methode an (klassenweit, inkl.
+    /// Teildeklarationen anderer Dateien).
+    /// </summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavExitAnnotation(NavExitAnnotation navExitAnnotation) {
 
         int start  = navExitAnnotation.MethodDeclarationSyntax.Identifier.Span.Start;
@@ -83,6 +99,7 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>Symbol an der Trigger-Methode → springt zur Trigger-Definition im <c>.nav</c>.</summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavTriggerAnnotation(NavTriggerAnnotation navTriggerAnnotation) {
 
         int start  = navTriggerAnnotation.MethodDeclarationSyntax.Identifier.Span.Start;
@@ -98,6 +115,11 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>
+    /// Symbol an der <c>{Choice}Logic</c>-Methode → springt zum Choice-Knoten im <c>.nav</c> und bietet
+    /// zusätzlich die C#-Aufrufstellen der zugehörigen <c>{Choice}(…)</c>-Forwards (<c>next.{Choice}(…)</c>)
+    /// an — klassenweit, inkl. Teildeklarationen anderer Dateien.
+    /// </summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavChoiceAnnotation(NavChoiceAnnotation navChoiceAnnotation) {
 
         int start  = navChoiceAnnotation.MethodDeclarationSyntax.Identifier.Span.Start;
@@ -119,6 +141,11 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>
+    /// Symbol an der Choice-Aufrufstelle (<c>next.{Choice}(…)</c>) → springt zum Choice-Knoten im
+    /// <c>.nav</c> und bietet zusätzlich die C#-Implementierung der geteilten <c>{Choice}Logic</c> an
+    /// (Abstieg von der <c>{Task}WFSBase</c> auf die abgeleitete Nutzer-Klasse).
+    /// </summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavChoiceCallAnnotation(NavChoiceCallAnnotation navChoiceCallAnnotation) {
 
         var start  = navChoiceCallAnnotation.Identifier.Span.Start;
@@ -140,6 +167,12 @@ class IntraTextGoToTagSpanBuilder: NavTaskAnnotationVisitor<ITagSpan<IntraTextGo
         return new TagSpan<IntraTextGoToTag>(snapshotSpan, tag);
     }
 
+    /// <summary>
+    /// Symbol an der Init-Aufrufstelle (<c>next.Begin…(…)</c>) → bietet neben der <c>BeginLogic</c>-
+    /// Implementierung auch die zugehörige <c>After{Node}</c>-Rücksprungmethode an; die konkrete
+    /// Zuordnung übernimmt der LocationFinder, hier werden nur die Exit-Kandidaten des aktuellen
+    /// Dokuments durchgereicht.
+    /// </summary>
     public override ITagSpan<IntraTextGoToTag> VisitNavInitCallAnnotation(NavInitCallAnnotation navInitCallAnnotation) {
 
         var start  = navInitCallAnnotation.Identifier.Span.Start;

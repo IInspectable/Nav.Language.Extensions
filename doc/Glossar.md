@@ -613,6 +613,137 @@ wird) und **Teildeklaration** (eine `partial`-Klassenhälfte).
 
 ---
 
+## §8 VS-Extension / Editor-Integration
+
+*Erweitert das Inventar um das geteilte Extension-Projekt **`Nav.Language.ExtensionShared`** — die
+Editor-Integration der Nav Language in Visual Studio. Die Prosa bleibt deutsch, die VS-SDK-Typen
+(`ITagger<T>`, `IOleCommandTarget`, `ITextBuffer`, …) bleiben englische Symbole. Grundsatz: der Host
+fügt nur Protokoll/UI hinzu, die Sprachlogik liegt in der Engine — die Extension-
+Klassen sind Host-Adapter über den geteilten Feature-Kernen der Engine `Nav.Language`.*
+
+### MEF-Provider
+Die schmale `[Export]`-Fassade, über die ein Editor-Feature ins VS-**MEF**-Kompositionsmodell
+(Managed Extensibility Framework) eingehängt wird — sie erzeugt je Puffer/Sicht den eigentlichen
+Feature-Kern (Tagger, Source, Command-Handler). Ein **Provider** trägt Sprachlogik nie selbst.
+**Kanon:** MEF-Provider · **Symbol:** `[Export]`, `[ImportingConstructor]`, `ITaggerProvider`, `IViewTaggerProvider`
+
+### Tagger / Tag
+Ein **Tagger** (`ITagger<T>`) weist Textbereichen typisierte **Tags** zu; der Editor rendert daraus
+Einfärbung, Marker, Adornments, Fehler- oder Outlining-Darstellung. Über MEF-Provider je Puffer/Sicht
+instanziiert; ein **Tag-Aggregator** (`ITagAggregator<T>`) sammelt Tags eines Typs über den
+[Puffer-Graph](#property-bag--puffer-graph).
+**Kanon:** Tagger, Tag, Tag-Aggregator · **Symbol:** `ITagger<T>`, `ITag`, `ITagAggregator<T>`
+
+### Klassifizierung / Klassifizierungstyp
+Die **Klassifizierung** ordnet einem Token einen benannten **Klassifizierungstyp** (`IClassificationType`)
+zu, dessen Optik eine `ClassificationFormatDefinition` bestimmt — die Grundlage der Syntax-/
+Semantik-Einfärbung im Nav-Editor.
+**Kanon:** Klassifizierung, Klassifizierungstyp · **Symbol:** `IClassifier`, `ClassificationTypeDefinition`, `ClassificationFormatDefinition`
+
+### Adornment
+Ein in den Fließtext eingestreutes, klickbares UI-Element (hier das GoTo-Symbol im generierten C#-Code)
+— ein **IntraText-Adornment**, getragen von einem `IntraTextAdornmentTag`. Zweiteilung: Datenschicht-Tag
+→ sichtbares Adornment.
+**Kanon:** Adornment, IntraText-Adornment · **Symbol:** `IntraTextAdornmentTag`
+
+### VS-Text-Grundtypen
+Die Grundabstraktionen des VS-Editors: **TextBuffer** (der Textinhalt), **TextSnapshot** (unveränderliche
+Momentaufnahme), **TextView** (die Ansicht) sowie **SnapshotPoint/SnapshotSpan** (zeichenbasierte
+Position/Bereich in einem Snapshot). Bleiben englische Symbole; deutsche Kurzglossen „Textpuffer",
+„Snapshot", „Text-Ansicht" nur erläuternd. Ergänzt den [Extent](#extent--span)-Begriff um die VS-Text-Seite.
+**Kanon:** TextBuffer, TextSnapshot, TextView, SnapshotSpan · **Symbol:** `Microsoft.VisualStudio.Text.*`
+
+### Property-Bag / Puffer-Graph
+Der **Property-Bag** ist die puffer-/ansichtsgebundene Schlüssel-Wert-Ablage (`…​.Properties`), Träger
+der puffer-gebundenen, mitverworfenen Werte (`TextBufferScoped*`). Der **Puffer-Graph** ist die
+Projektions-Hierarchie mehrerer Puffer (`MapUp`/`MapDown`).
+**Kanon:** Property-Bag, Puffer-Graph · **Symbol:** `PropertyCollection`, `IBufferGraph`
+
+### Command-Handler / Command-Target
+Das **Command-Target** (`IOleCommandTarget`) ist der Command-Filter einer Editor-Sicht; es verteilt
+`Exec`/`QueryStatus` an die passenden **Command-Handler** (`INavCommandHandler<T>`) — eine über
+`CommandHandlerService` komponierte, gereihte Kette mit Rückfall an das nächste Target.
+**Kanon:** Command-Target, Command-Handler · **Symbol:** `IOleCommandTarget`, `INavCommandHandler<T>`, `CommandHandlerService`
+
+### Suggested Action / Lightbulb
+Eine als **Lightbulb** (Glühbirne) angebotene Schnellaktion im Editor; Host-Adapter über einem
+Engine-CodeFix. Die `…SuggestedAction` verpackt die VS-freie Fix-Logik, der
+`…SuggestedActionProvider` bietet sie an passenden Fundstellen an.
+**Kanon:** Suggested Action, Lightbulb · **Symbol:** `ISuggestedAction`, `ISuggestedActionsSource`
+
+### Completion / QuickInfo
+**Completion** ist die IntelliSense-Vervollständigung (`IAsyncCompletionSource`), **QuickInfo** die
+Hover-Info (`IAsyncQuickInfoSource`) — beides Host-Schichten über den geteilten Engine-Kernen
+`Completion/` bzw. `QuickInfo/`. QuickInfo (VS-Host) = **Hover** (LSP-Host).
+**Kanon:** Completion, QuickInfo (= Hover) · **Symbol:** `IAsyncCompletionSource`, `IAsyncQuickInfoSource`
+
+### Randleiste (Margin) / Schlangenlinie (Squiggle)
+Eine **Randleiste** (`IWpfTextViewMargin`) ist ein Editor-Randbereich, der WPF-Inhalt hostet — hier der
+Diagnose-Overview-Streifen und die Summary-Anzeige. Eine **Schlangenlinie** (`IErrorTag`) ist die
+wellenförmige Fehlermarkierung im Text.
+**Kanon:** Randleiste (Margin), Schlangenlinie (Squiggle) · **Symbol:** `IWpfTextViewMargin`, `IErrorTag`
+
+### Outlining-Region
+Ein einklappbarer Codebereich mit eingeklappter Ersatzdarstellung und Hover-Vorschau
+(`IOutliningRegionTag`).
+**Kanon:** Outlining-Region · **Symbol:** `IOutliningRegionTag`
+
+### Navigationsleiste (Dropdown-Bar)
+Die Typ-/Member-Dropdowns oberhalb des Editors (`IVsDropdownBarClient`), gefüllt aus den Nav-Task-/
+Projekt-Items; ihre Sichtbarkeit steuert eine Preference.
+**Kanon:** Navigationsleiste (Dropdown-Bar) · **Symbol:** `IVsDropdownBarClient`
+
+### Find-References-Presenter
+Der **Presenter** speist die Fundstellen der „Find All References"-Suche in das VS-Ergebnisfenster; die
+versionierte Ergebnis-**Tabellendatenquelle** (`ITableDataSource`, `ITableEntriesSnapshot`) gruppiert sie
+unter Definitionsknoten (Buckets).
+**Kanon:** Presenter, Tabellendatenquelle · **Symbol:** `FindReferencesPresenter`, `ITableEntriesSnapshot`
+
+### Vorschau-Tab
+Das provisorische Editor-Tab, in das ein [Sprungziel](#sprungziel) geöffnet wird
+(`GoToLocationInPreviewTabAsync`).
+**Kanon:** Vorschau-Tab · **Symbol:** `GoToLocationInPreviewTab`
+
+### Legacy-Language-Service / Code-Window-Manager
+Der **(Legacy-)Language-Service** ist die klassische `IVsLanguageInfo`-Registrierung (Sprachname,
+Dateiendung, Preferences), abgegrenzt vom modernen MEF-Editor-Stack; der **Code-Window-Manager**
+(`IVsCodeWindowManager`) verwaltet je Code-Fenster Adornments und die Navigationsleiste.
+**Kanon:** Legacy-Language-Service, Code-Window-Manager · **Symbol:** `NavLanguageService`, `IVsCodeWindowManager`
+
+### Warte-Kontext / Task-Status-Center
+Die Fortschritts-/Abbruch-UI: der **Warte-Kontext** (`IWaitIndicator`/`IWaitContext`, VS „Threaded Wait
+Dialog") für kurze blockierende Operationen, das **Task-Status-Center** (`TaskStatusProvider`) für die
+Fortschrittsleiste länger laufender Aufgaben.
+**Kanon:** Warte-Kontext, Task-Status-Center · **Symbol:** `IWaitIndicator`, `TaskStatusProvider`
+
+### Icon-Moniker
+Eine semantische Referenz auf ein VS-Icon (`ImageMoniker` aus `…Imaging.Interop`, meist über
+`KnownMonikers`); `ImageMonikers` bildet Nav-Namen darauf ab, ein **Custom-Moniker** trägt projekteigene
+Icons.
+**Kanon:** Icon-Moniker (ImageMoniker) · **Symbol:** `Microsoft.VisualStudio.Imaging.Interop.ImageMoniker`
+
+### Service-Locator / Jtf
+Der **Service-Locator** ist die statische Dienst-Auflösungs-Fassade des Package (`GetGlobalService<…>`);
+**Jtf** ist dessen `JoinableTaskFactory` für sauber abgewartete UI-Thread-Wechsel und
+Fire-and-forget-Tasks.
+**Kanon:** Service-Locator, Jtf (JoinableTaskFactory) · **Symbol:** `NavLanguagePackage.Jtf`
+
+### COM-Verbindungspunkt
+Der OLE-**Verbindungspunkt** (`IConnectionPoint`, `ComEventSink`) zum An-/Abmelden von COM-Ereignissen.
+**⚠ Nicht** mit dem Nav-[ConnectionPoint](#connectionpoint--verbindungspunkt) (Init-/Exit-Knoten)
+verwechseln — in der Extension-Prosa daher stets „COM-Verbindungspunkt" schreiben und **nicht** auf das
+Nav-Symbol creffen.
+**Kanon:** COM-Verbindungspunkt · **Symbol:** `System.Runtime.InteropServices.ComTypes.IConnectionPoint`
+
+### Drop-Handler / Solution-Snapshot
+Der **Drop-Handler** (`IDropHandler`) behandelt Drag&Drop von `.nav`-Dateien in den Editor (Einfügen als
+`taskref`). Der **Solution-Snapshot** (`NavSolutionSnapshot`) ist die unveränderliche Momentaufnahme der
+VS-Solution↔Nav-Workspace-Brücke mit Gültigkeitsprüfung (`IsCurrent`), gespeist aus der
+**Solution-Hierarchie** (`IVsHierarchy`).
+**Kanon:** Drop-Handler, Solution-Snapshot, Solution-Hierarchie · **Symbol:** `IDropHandler`, `NavSolutionSnapshot`, `IVsHierarchy`
+
+---
+
 ## Anhang A — Abweichungs-Fundstellen
 
 Arbeitsliste für den späteren Rewrite: Stellen, an denen der Ist-Zustand noch eine **verworfene**

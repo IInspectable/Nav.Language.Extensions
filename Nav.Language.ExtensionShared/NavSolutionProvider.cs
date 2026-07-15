@@ -21,9 +21,18 @@ using Pharmatechnik.Nav.Language.Extension.Utilities;
 
 namespace Pharmatechnik.Nav.Language.Extension; 
 
+/// <summary>
+/// MEF-exportierte Brücke zwischen der Visual-Studio-Solution und dem Nav-Workspace. Der Provider
+/// überwacht das Solution-Verzeichnis (<see cref="FileSystemWatcher"/>) sowie Solution- und
+/// Hierarchie-Events, hält einen aktuellen <see cref="NavSolutionSnapshot"/> vor und baut ihn bei
+/// Änderungen — entprellt (Throttle) — neu auf. Konsumenten beziehen die aktuelle
+/// <see cref="NavSolution"/> über <see cref="GetSolutionAsync"/>. Die Hierarchie-Event-Anbindung liegt
+/// in der partiellen Datei <c>NavSolutionProvider.HierarchyEvents.cs</c>.
+/// </summary>
 [Export]
 partial class NavSolutionProvider {
 
+    /// <summary>Der VS-<see cref="SVsServiceProvider"/> zur Auflösung von Shell-Diensten.</summary>
     public SVsServiceProvider ServiceProvider { get; }
 
     private readonly TaskStatusProvider _taskStatusProvider;
@@ -36,6 +45,12 @@ partial class NavSolutionProvider {
 
     readonly FileSystemWatcher _fileSystemWatcher;
 
+    /// <summary>
+    /// Erzeugt den Provider, abonniert die Solution- und Dateisystem-Events, verdrahtet die entprellte
+    /// Snapshot-Neuberechnung und bindet die Hierarchie-Events an.
+    /// </summary>
+    /// <param name="taskStatusProvider">Provider für die Fortschrittsanzeige langlaufender Aufgaben.</param>
+    /// <param name="serviceProvider">Der VS-Service-Provider.</param>
     [ImportingConstructor]
     public NavSolutionProvider(TaskStatusProvider taskStatusProvider, SVsServiceProvider serviceProvider) {
             
@@ -75,6 +90,10 @@ partial class NavSolutionProvider {
         ConnectHierarchyEvents();
     }
 
+    /// <summary>
+    /// Wird ausgelöst, sobald der gehaltene Snapshot ungültig wurde und (entprellt) neu berechnet werden
+    /// soll.
+    /// </summary>
     private event EventHandler<EventArgs> Invalidated;
 
     void OnAfterOpenSolution(object sender, OpenSolutionEventArgs e) {
@@ -92,6 +111,11 @@ partial class NavSolutionProvider {
         UpdateSearchDirectory();
     }
 
+    /// <summary>
+    /// Übernimmt das aktuelle <see cref="SolutionDirectory"/> als Suchverzeichnis, richtet den
+    /// <see cref="FileSystemWatcher"/> entsprechend ein (oder deaktiviert ihn) und invalidiert den
+    /// Snapshot.
+    /// </summary>
     void UpdateSearchDirectory() {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -126,6 +150,10 @@ partial class NavSolutionProvider {
         Invalidate();
     }
 
+    /// <summary>
+    /// Verwirft den gehaltenen Snapshot (setzt ihn auf <see cref="NavSolutionSnapshot.Empty"/>), merkt
+    /// den Änderungszeitpunkt und löst <see cref="Invalidated"/> aus.
+    /// </summary>
     void Invalidate() {
 
         lock (_gate) {
@@ -136,10 +164,18 @@ partial class NavSolutionProvider {
         OnInvalidated();
     }
 
+    /// <summary>Löst das <see cref="Invalidated"/>-Ereignis aus.</summary>
     void OnInvalidated() {
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Liefert die aktuelle <see cref="NavSolution"/>. Ist der gehaltene Snapshot noch gültig, wird er
+    /// direkt zurückgegeben; andernfalls wird synchron ein neuer berechnet und (sofern weiterhin aktuell)
+    /// übernommen.
+    /// </summary>
+    /// <param name="cancellationToken">Token zum Abbrechen der Berechnung.</param>
+    /// <returns>Die aktuelle <see cref="NavSolution"/>.</returns>
     public async Task<NavSolution> GetSolutionAsync(CancellationToken cancellationToken) {
 
         NavSolutionSnapshot snapshot;
@@ -160,6 +196,15 @@ partial class NavSolutionProvider {
         return solutionSnapshot.Solution;
     }
 
+    /// <summary>
+    /// Baut auf einem Hintergrund-Thread einen neuen <see cref="NavSolutionSnapshot"/> für
+    /// <paramref name="directory"/> auf (via <see cref="NavSolution.FromDirectoryAsync"/>); für ein leeres
+    /// Verzeichnis <see cref="NavSolutionSnapshot.Empty"/>.
+    /// </summary>
+    /// <param name="taskStatusProvider">Provider für die Fortschrittsanzeige.</param>
+    /// <param name="directory">Das zu durchsuchende Solution-Verzeichnis.</param>
+    /// <param name="cancellationToken">Token zum Abbrechen.</param>
+    /// <returns>Der neu berechnete Snapshot.</returns>
     static async Task<NavSolutionSnapshot> CreateSolutionSnapshotAsync(TaskStatusProvider taskStatusProvider, DirectoryInfo directory, CancellationToken cancellationToken) {
 
         await TaskScheduler.Default;
@@ -182,6 +227,12 @@ partial class NavSolutionProvider {
 
     private readonly object _gate = new();
 
+    /// <summary>
+    /// Übernimmt <paramref name="navSolutionSnapshot"/> als aktuellen Snapshot — aber nur, wenn er zum
+    /// aktuellen Verzeichnis und Änderungszeitpunkt noch passt (verwirft veraltete Ergebnisse
+    /// nebenläufiger Berechnungen).
+    /// </summary>
+    /// <param name="navSolutionSnapshot">Der zu übernehmende Snapshot.</param>
     void TrySetSolutionSnapshot(NavSolutionSnapshot navSolutionSnapshot) {
 
         lock (_gate) {
@@ -195,6 +246,7 @@ partial class NavSolutionProvider {
 
     }
 
+    /// <summary>Gibt an, ob in Visual Studio aktuell eine Solution geöffnet ist.</summary>
     static bool IsSolutionOpen {
         get {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -206,6 +258,10 @@ partial class NavSolutionProvider {
         }
     }
 
+    /// <summary>
+    /// Das Wurzelverzeichnis der aktuell geöffneten Solution oder <c>null</c>, wenn keine Solution offen
+    /// ist bzw. kein Verzeichnis ermittelt werden kann.
+    /// </summary>
     [CanBeNull]
     static DirectoryInfo SolutionDirectory {
         get {

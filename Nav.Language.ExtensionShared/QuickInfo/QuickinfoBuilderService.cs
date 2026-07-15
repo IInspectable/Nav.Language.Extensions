@@ -22,6 +22,13 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Extension.QuickInfo; 
 
+/// <summary>
+/// Der geteilte Dienst, der die QuickInfo-Inhalte (WPF-<see cref="UIElement"/>) für Hover und
+/// Completion-Tooltips aufbaut — für Symbole, Schlüsselwörter, Datei- und Verzeichnis-Infos. Als MEF-Dienst
+/// (<c>[Export]</c>) exportiert und von <see cref="SymbolQuickInfoSource"/> und den Completion-Quellen
+/// genutzt. Die Textformatierung folgt der Editor-Klassifikation (<c>tooltip</c>-Format-Map); die
+/// symbolspezifische Aufbereitung übernimmt der <see cref="SymbolQuickInfoVisitor"/> (Partial-Datei).
+/// </summary>
 [Export]
 sealed partial class QuickinfoBuilderService {
 
@@ -37,13 +44,22 @@ sealed partial class QuickinfoBuilderService {
 
     }
 
+    /// <summary>Die für QuickInfo-Tooltips maßgebliche Klassifikations-Format-Map (Schriftbild je Klassifikation).</summary>
     public IClassificationFormatMap ClassificationFormatMap => _classificationFormatMapService.GetClassificationFormatMap("tooltip");
 
+    /// <summary>
+    /// Baut den QuickInfo-Inhalt zu einem Nav-<paramref name="source"/>-Symbol (Signatur, ggf. Fan-out der
+    /// erreichbaren Ziele bei Choices, plus Doku-Zeile). Delegiert an den <see cref="SymbolQuickInfoVisitor"/>.
+    /// </summary>
     [CanBeNull]
     public UIElement BuildSymbolQuickInfoContent(ISymbol source) {
         return SymbolQuickInfoVisitor.Build(source, this);
     }
 
+    /// <summary>
+    /// Baut den QuickInfo-Inhalt zu einem Schlüsselwort: Kopf mit Keyword-Icon plus — falls vorhanden — die
+    /// (bereits kontextabhängig aufgelöste) <paramref name="description"/> als Doku-Zeile.
+    /// </summary>
     public UIElement BuildKeywordQuickInfoContent(string keyword, string description) {
         var control = new SymbolQuickInfoControl {
             CrispImage  = {Moniker = ImageMonikers.Keyword},
@@ -65,6 +81,7 @@ sealed partial class QuickinfoBuilderService {
         return panel;
     }
 
+    /// <summary>Baut den QuickInfo-Inhalt zu einer <c>.nav</c>-Datei: Nav-Datei-Icon plus vollständiger Pfad.</summary>
     public UIElement BuildNavFileInfoQuickInfoContent(FileInfo fileInfo) {
         var control = new SymbolQuickInfoControl {
             CrispImage  = {Moniker = ImageMonikers.NavFile},
@@ -73,6 +90,7 @@ sealed partial class QuickinfoBuilderService {
         return control;
     }
 
+    /// <summary>Baut den QuickInfo-Inhalt zu einem Verzeichnis: Ordner-Icon plus vollständiger Pfad.</summary>
     public UIElement BuildDirectoryInfoQuickInfoContent(DirectoryInfo dirInfo) {
         var control = new SymbolQuickInfoControl {
             CrispImage  = {Moniker = ImageMonikers.FolderClosed},
@@ -107,6 +125,10 @@ sealed partial class QuickinfoBuilderService {
         return panel;
     }
 
+    /// <summary>
+    /// Erzeugt den Doku-<see cref="TextBlock"/> aus einem (ggf. mehrzeiligen) Kommentar — mit echten
+    /// Zeilenumbrüchen (WPF würde <c>\n</c> sonst zu Leerraum normalisieren) und dem Tooltip-Schriftbild.
+    /// </summary>
     TextBlock CreateDocumentationTextBlock(string documentation) {
 
         var textBlock = new TextBlock {TextWrapping = TextWrapping.Wrap};
@@ -126,6 +148,10 @@ sealed partial class QuickinfoBuilderService {
         return textBlock;
     }
 
+    /// <summary>
+    /// Baut den Standard-QuickInfo-Kopf eines Symbols: Icon aus der Symbolart plus die klassifizierte
+    /// Signatur (<see cref="ISymbol"/>-DisplayParts). Liefert <c>null</c>, wenn keine Signatur vorliegt.
+    /// </summary>
     [CanBeNull]
     SymbolQuickInfoControl CreateDefaultSymbolQuickInfoControl(ISymbol symbol) {
 
@@ -155,6 +181,10 @@ sealed partial class QuickinfoBuilderService {
     //    return ToTextBlock(parts.ToImmutableArray());
     //}
 
+    /// <summary>
+    /// Setzt eine Folge klassifizierter Textteile (<see cref="ClassifiedText"/>) zu einem <see cref="TextBlock"/>
+    /// zusammen — jeder Teil mit seinem Schriftbild. Liefert <c>null</c> bei leerer Eingabe.
+    /// </summary>
     [CanBeNull]
     TextBlock ToTextBlock(IReadOnlyCollection<ClassifiedText> parts) {
 
@@ -174,6 +204,10 @@ sealed partial class QuickinfoBuilderService {
         return textBlock;
     }
 
+    /// <summary>
+    /// Erzeugt ein <see cref="Run"/>-Inline aus <paramref name="text"/> und wendet das zur
+    /// <paramref name="classification"/> gehörende Schriftbild der <paramref name="formatMap"/> an.
+    /// </summary>
     Run ToInline(string text, TextClassification classification, IClassificationFormatMap formatMap) {
 
         var inline = new Run(text);

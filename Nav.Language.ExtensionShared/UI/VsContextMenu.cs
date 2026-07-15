@@ -7,8 +7,13 @@ using System.Windows.Controls;
 
 namespace Pharmatechnik.Nav.Language.Extension.UI; 
 
+/// <summary>
+/// WPF-<see cref="ContextMenu"/> im Visual-Studio-Look, das über einen eigenen Standard-Stil (Theme) an das
+/// VS-Erscheinungsbild angepasst ist und eine zusätzliche <see cref="Header"/>-Eigenschaft mitbringt.
+/// </summary>
 class VsContextMenu : ContextMenu {
 
+    /// <summary>Verknüpft den Typ mit seinem im Theme hinterlegten Standard-Stil.</summary>
     static VsContextMenu() {
         DefaultStyleKeyProperty.OverrideMetadata(typeof(VsContextMenu), new FrameworkPropertyMetadata(typeof(VsContextMenu)));
 
@@ -17,7 +22,7 @@ class VsContextMenu : ContextMenu {
     #region DependencyProperty Header
 
     /// <summary>
-    /// Registers a dependency property as backing store for the Header property
+    /// Die Abhängigkeitseigenschaft, die als Hintergrundspeicher der <see cref="Header"/>-Eigenschaft dient.
     /// </summary>
     public static readonly DependencyProperty HeaderProperty =
         DependencyProperty.Register(nameof(Header), typeof(object), typeof(VsContextMenu),
@@ -26,9 +31,8 @@ class VsContextMenu : ContextMenu {
                                                                   FrameworkPropertyMetadataOptions.AffectsParentMeasure));
 
     /// <summary>
-    /// Gets or sets the Header.
+    /// Der Inhalt der Menü-Kopfzeile (Header) des Kontextmenüs.
     /// </summary>
-    /// <value>The Header.</value>
     public object Header {
         get { return GetValue(HeaderProperty); }
         set { SetValue(HeaderProperty, value); }

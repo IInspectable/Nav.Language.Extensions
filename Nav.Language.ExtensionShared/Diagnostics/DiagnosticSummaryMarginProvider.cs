@@ -8,6 +8,10 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 
 
+/// <summary>
+/// MEF-Provider, der die <see cref="DiagnosticSummaryMargin"/> für <c>.nav</c>-Ansichten bereitstellt und
+/// sie rechts vor dem vertikalen Scrollbalken platziert.
+/// </summary>
 [Export(typeof(IWpfTextViewMarginProvider))]
 [Order(After  = "SplitterControl")]
 [Order(Before = PredefinedMarginNames.VerticalScrollBarContainer)]

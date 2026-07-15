@@ -43,12 +43,20 @@ class ViewCallHierarchyCommandHandler: ICommandHandler<ViewCallHierarchyCommandA
         _serviceProvider = serviceProvider;
     }
 
+    /// <summary>Im Command-System angezeigter Name des Befehls.</summary>
     public string DisplayName => "View Call Hierarchy";
 
+    /// <summary>Verfügbar nur für einen <see cref="IWpfTextView"/>, sonst <see cref="CommandState.Unavailable"/>.</summary>
     public CommandState GetCommandState(ViewCallHierarchyCommandArgs args) {
         return args.TextView is IWpfTextView ? CommandState.Available : CommandState.Unavailable;
     }
 
+    /// <summary>
+    /// Bereitet über den Engine-Kern <see cref="NavCallHierarchyService"/> die Aufrufhierarchie für die Task
+    /// unter dem Cursor auf, erzeugt daraus ein Wurzel-Element (<see cref="NavCallHierarchyItemFactory"/>) und
+    /// zeigt es im VS-Aufrufhierarchie-Fenster. Ohne Task unter dem Cursor bzw. bei fehlendem Dienst wird eine
+    /// Hinweismeldung ausgegeben.
+    /// </summary>
     public bool ExecuteCommand(ViewCallHierarchyCommandArgs args, CommandExecutionContext executionContext) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -82,6 +90,7 @@ class ViewCallHierarchyCommandHandler: ICommandHandler<ViewCallHierarchyCommandA
         return true;
     }
 
+    /// <summary>Liefert das aktuelle, mit dem Snapshot synchronisierte Semantikmodell des Puffers über den <see cref="SemanticModelService"/>.</summary>
     static CodeGenerationUnitAndSnapshot GetCodeGenerationUnit(ITextBuffer textBuffer) {
 
         ThreadHelper.ThrowIfNotOnUIThread();

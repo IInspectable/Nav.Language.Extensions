@@ -15,6 +15,13 @@ using Pharmatechnik.Nav.Language.Extension.GoToLocation;
 
 namespace Pharmatechnik.Nav.Language.Extension.CSharp.GoTo; 
 
+/// <summary>
+/// Der view-gebundene Adornment-Tagger der Nav-GoTo-Symbole in C#-Editoren: Er bezieht die
+/// <see cref="IntraTextGoToTag"/>-Datentags des <see cref="IntraTextGoToTagger"/> über einen
+/// <see cref="ITagAggregator{T}"/> und macht daraus per <see cref="IntraTextAdornmentTagger{TData,TAdornment}"/>
+/// die klickbaren <see cref="IntraTextGoToAdornment"/>-Buttons. Ein Tagger je <see cref="IWpfTextView"/>
+/// (siehe <see cref="GetTagger"/>).
+/// </summary>
 sealed class IntraTextGoToAdornmentTagger : IntraTextAdornmentTagger<IntraTextGoToTag, IntraTextGoToAdornment>, IDisposable {
 
     static readonly Logger Logger = Logger.Create<IntraTextGoToAdornmentTagger>();
@@ -44,6 +51,10 @@ sealed class IntraTextGoToAdornmentTagger : IntraTextAdornmentTagger<IntraTextGo
         Logger.Info($"{nameof(IntraTextGoToAdornmentTagger)}.{nameof(Dispose)}");
     }
 
+    /// <summary>
+    /// Liefert den (pro <paramref name="view"/> als schließbare View-Property gehaltenen) Tagger; der
+    /// <paramref name="intraTextGoToTagger"/> wird erst bei Bedarf materialisiert.
+    /// </summary>
     internal static ITagger<IntraTextAdornmentTag> GetTagger(IWpfTextView view, Lazy<ITagAggregator<IntraTextGoToTag>> intraTextGoToTagger, GoToLocationService goToLocationService) {
         return view.GetOrCreateAutoClosingProperty( _ => new IntraTextGoToAdornmentTagger(
                                                         textView           : view, 
@@ -58,6 +69,11 @@ sealed class IntraTextGoToAdornmentTagger : IntraTextAdornmentTagger<IntraTextGo
         });
     }
         
+    /// <summary>
+    /// Liefert je Datentag die Adornment-Daten: Das Symbol wird an das <em>Ende</em> des markierten Spans
+    /// (nach dem Bezeichner) mit <see cref="PositionAffinity.Successor"/> gesetzt. Durch Projektion
+    /// gespaltene Datentags werden übersprungen.
+    /// </summary>
     protected override IEnumerable<Tuple<SnapshotSpan, PositionAffinity?, IntraTextGoToTag>> GetAdornmentData(NormalizedSnapshotSpanCollection spans) {
 
         if (spans.Count == 0) {
@@ -84,10 +100,12 @@ sealed class IntraTextGoToAdornmentTagger : IntraTextAdornmentTagger<IntraTextGo
         }
     }
 
+    /// <summary>Erzeugt für einen Datentag den zugehörigen <see cref="IntraTextGoToAdornment"/>-Button.</summary>
     protected override IntraTextGoToAdornment CreateAdornment(IntraTextGoToTag dataTag, SnapshotSpan span) {
         return new IntraTextGoToAdornment(dataTag, TextView, span, _goToLocationService);
     }
 
+    /// <summary>Aktualisiert einen wiederverwendeten Adornment-Button mit dem neuen Datentag (bleibt stets erhalten).</summary>
     protected override bool UpdateAdornment(IntraTextGoToAdornment adornment, IntraTextGoToTag dataTag) {
         adornment.Update(dataTag);
         return true;

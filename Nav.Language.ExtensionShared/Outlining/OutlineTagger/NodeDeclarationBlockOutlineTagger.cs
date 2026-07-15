@@ -9,8 +9,18 @@ using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der jeden Knoten-Deklarationsblock (<see cref="NodeDeclarationBlockSyntax"/>)
+/// zu einer aufklappbaren Region macht (eingeklappte Darstellung „Declarations"). Aufgerufen vom
+/// <see cref="OutliningTagger"/>.
+/// </summary>
 class NodeDeclarationBlockOutlineTagger {
 
+    /// <summary>
+    /// Liefert je mehrzeiligem Knoten-Deklarationsblock eine Region. Einzeilige Blöcke werden übersprungen.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable<ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         var nodeDeclarationBlocks = syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<NodeDeclarationBlockSyntax>();

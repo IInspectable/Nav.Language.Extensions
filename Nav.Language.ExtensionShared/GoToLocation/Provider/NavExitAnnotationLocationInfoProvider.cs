@@ -14,8 +14,13 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einer <c>NavExit</c>-Annotation im generierten C#-Code zum zugehörigen Exit-ConnectionPoint
+/// in der <c>.nav</c>-Quelle. Angezeigt wird „Exit {Name}" mit dem Exit-ConnectionPoint-Icon.
+/// </summary>
 class NavExitAnnotationLocationInfoProvider : NavAnnotationLocationInfoProvider<NavExitAnnotation> {
 
+    /// <summary>Bindet den Provider an die <paramref name="annotation"/> des Exit-ConnectionPoints.</summary>
     public NavExitAnnotationLocationInfoProvider(NavExitAnnotation annotation) : base(annotation) {
     }
 

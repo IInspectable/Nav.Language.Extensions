@@ -15,6 +15,13 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 
 
+/// <summary>
+/// Editor-Randleiste (rechts, über dem vertikalen Scrollbalken), die eine Zusammenfassung der Diagnosen
+/// des Dokuments als Status-Icon anzeigt (<see cref="DiagnosticSummaryControl"/>). Ein Klick springt zur
+/// nächsten Diagnose; der Tooltip nennt die Zahl der Fehler und Warnungen. Bezieht ihre Daten aus dem
+/// gemeinsamen <see cref="DiagnosticService"/> der Ansicht. Erzeugt vom
+/// <see cref="DiagnosticSummaryMarginProvider"/>.
+/// </summary>
 sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
 
     #region Ctor / Fields
@@ -30,6 +37,11 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
     bool _isDisposed;
 
 
+    /// <summary>
+    /// Initialisiert die Randleiste für den <paramref name="textView"/>, holt den geteilten
+    /// <see cref="DiagnosticService"/> und abonniert dessen Diagnose- sowie die View-Ereignisse, um Icon,
+    /// Tooltip und Sichtbarkeit aktuell zu halten.
+    /// </summary>
     public DiagnosticSummaryMargin(IWpfTextView textView) {
 
         _textView          = textView;
@@ -54,8 +66,10 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
 
     #endregion
 
+    /// <summary>Eindeutiger Name dieser Randleiste, unter dem VS sie identifiziert.</summary>
     public const string MarginName = nameof(DiagnosticSummaryMargin);
 
+    /// <summary>Das gehostete WPF-Steuerelement (<see cref="DiagnosticSummaryControl"/>).</summary>
     public FrameworkElement VisualElement {
         get {
             ThrowIfDisposed();
@@ -63,6 +77,7 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Breite der Randleiste, entspricht der tatsächlichen Breite des Steuerelements.</summary>
     public double MarginSize {
         get {
             ThrowIfDisposed();
@@ -70,6 +85,7 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Aktiv, solange der vertikale Scrollbalken der Ansicht angezeigt wird.</summary>
     public bool Enabled {
         get {
             ThrowIfDisposed();
@@ -77,10 +93,12 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         }
     }
 
+    /// <summary>Liefert diese Instanz, wenn <paramref name="marginName"/> dem <see cref="MarginName"/> entspricht, sonst <see langword="null"/>.</summary>
     public ITextViewMargin GetTextViewMargin(string marginName) {
         return string.Equals(marginName, MarginName, StringComparison.OrdinalIgnoreCase) ? this : null;
     }
 
+    /// <summary>Meldet die Randleiste von allen Diagnose- und View-Ereignissen ab (idempotent).</summary>
     public void Dispose() {
         if (!_isDisposed) {
             _isDisposed = true;
@@ -100,6 +118,11 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         }
     }
 
+    /// <summary>
+    /// Behandelt Klicks auf das Status-Icon: einfacher Klick springt zur nächsten Diagnose; Strg+Umschalt+
+    /// Doppelklick kopiert alle Diagnosen (Fehler, Warnungen, Vorschläge) formatiert in die Zwischenablage
+    /// — ein Hilfsmittel für Unittests — und stößt eine Neuberechnung an.
+    /// </summary>
     void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) {
 
         var shiftCtrlModifier = ModifierKeys.Control | ModifierKeys.Shift;
@@ -146,10 +169,12 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         UpdateVisibility();
     }
 
+    /// <summary>Blendet das Icon je nach <see cref="Enabled"/> ein oder aus.</summary>
     void UpdateVisibility() {
         _summaryControl.Visibility = Enabled ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Aktualisiert Tooltip, Icon-Moniker und Mauszeiger des Status-Icons.</summary>
     void UpdateSummary() {
 
         _summaryControl.ToolTip            = GetToolTipText();
@@ -157,10 +182,15 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         _summaryControl.Cursor             = GetCursor();
     }
 
+    /// <summary>Hand-Cursor, solange zu einer Diagnose gesprungen werden kann, sonst der Standard-Cursor.</summary>
     Cursor GetCursor() {
         return _diagnosticService.CanGoToNextDiagnostic ? Cursors.Hand : null;
     }
 
+    /// <summary>
+    /// Bildet den Tooltip-Text: Wartemeldung während der Analyse, „No errors or warnings" bei sauberem
+    /// Dokument oder die Zahl der Fehler und Warnungen samt Hinweis auf den Sprung zur nächsten Diagnose.
+    /// </summary>
     string GetToolTipText() {
             
         if (_diagnosticService.WaitingForAnalysis) {
@@ -192,11 +222,13 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         return tipText.ToString();
     }
 
+    /// <summary>Liefert den Anzeigenamen eines <paramref name="severity"/> in korrektem Numerus (Singular/Plural).</summary>
     string GetDisplayName(DiagnosticSeverity severity, int count) {
         var numerus = count > 1 ? "s" : "";
         return severity.ToString().ToLower() + numerus;
     }
 
+    /// <summary>Wählt den Icon-Moniker: Analyse-läuft-Symbol während der Analyse, sonst passend zum schlimmsten Schweregrad.</summary>
     ImageMoniker GetImageMoniker() {
 
         if(_diagnosticService.WaitingForAnalysis) {
@@ -207,6 +239,7 @@ sealed class DiagnosticSummaryMargin : IWpfTextViewMargin {
         return GetImageMoniker(severity);
     }
 
+    /// <summary>Bildet einen <see cref="DiagnosticSeverity"/> auf den zugehörigen Status-Icon-Moniker ab.</summary>
     static ImageMoniker GetImageMoniker(DiagnosticSeverity? severity) {
         switch (severity) {
             default:

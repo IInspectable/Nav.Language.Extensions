@@ -25,6 +25,14 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Extension.FindReferences; 
 
+/// <summary>
+/// Der Presenter der Nav-„Find All References"-Integration: Er öffnet über den VS-Dienst
+/// <see cref="IFindAllReferencesService"/> das Ergebnisfenster und erzeugt je Suche einen
+/// <see cref="FindReferencesContext"/>, in den die Engine (<see cref="Pharmatechnik.Nav.Language.FindReferences"/>)
+/// Definitionen und Fundstellen einspeist. Zusätzlich stellt er die WPF-Darstellungshilfen bereit, die
+/// die klassifizierten Textteile der Engine in eingefärbte <see cref="TextBlock"/>s/Tooltips für die
+/// Ergebnis- und Vorschauspalten umsetzen.
+/// </summary>
 [Export(typeof(FindReferencesPresenter))]
 class FindReferencesPresenter {
 
@@ -64,6 +72,10 @@ class FindReferencesPresenter {
 
     Brush ToolWindowBackgroundBrush => (Brush) Application.Current.Resources[EnvironmentColors.ToolWindowBackgroundBrushKey];
 
+    /// <summary>
+    /// Öffnet das „Find All References"-Fenster und liefert den <see cref="FindReferencesContext"/>, an den
+    /// die Engine ihre Treffer meldet. Nur auf dem UI-Thread aufrufbar.
+    /// </summary>
     public FindReferencesContext StartSearch() {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -75,6 +87,7 @@ class FindReferencesPresenter {
         return context;
     }
 
+    /// <summary>Hinterlegt den Text-<see cref="Run"/> mit der Referenz-Highlight-Farbe (Trefferhervorhebung).</summary>
     public void HighlightBackground(Run run) {
 
         var highlightBrush = HighlightBackgroundBrush;
@@ -89,11 +102,13 @@ class FindReferencesPresenter {
 
     }
 
+    /// <summary>Setzt den Text-<see cref="Run"/> auf Fettschrift (z.B. für den Definitionsnamen).</summary>
     public void SetBold(Run run) {
         run.SetValue(TextElement.FontWeightProperty, FontWeights.Bold);
 
     }
 
+    /// <summary>Erzeugt einen Tooltip mit Toolfenster-Hintergrund für den gegebenen Inhalt.</summary>
     public ToolTip CreateToolTip(object content) {
 
         return new ToolTip {
@@ -102,6 +117,11 @@ class FindReferencesPresenter {
         };
     }
 
+    /// <summary>
+    /// Baut aus den klassifizierten Textteilen der Engine einen einzeiligen, eingefärbten
+    /// <see cref="TextBlock"/> (mit Ellipsis). <paramref name="runAction"/> erlaubt pro Teil eine
+    /// Nachbearbeitung (etwa Trefferhervorhebung).
+    /// </summary>
     public TextBlock ToTextBlock(IEnumerable<ClassifiedText> parts, Action<Run, ClassifiedText, int> runAction = null, bool consolidateWhitespace = true) {
 
         var textBlock = new TextBlock {
@@ -117,6 +137,10 @@ class FindReferencesPresenter {
         return textBlock;
     }
 
+    /// <summary>
+    /// Wandelt die klassifizierten Textteile in eingefärbte WPF-<see cref="Inline"/>s; die Position (in
+    /// Zeichen ab Zeilenanfang) wird an <paramref name="runAction"/> durchgereicht.
+    /// </summary>
     public IEnumerable<Inline> ToInlines(IEnumerable<ClassifiedText> parts, Action<Run, ClassifiedText, int> runAction = null, bool consolidateWhitespace = true) {
 
         var position = 0;

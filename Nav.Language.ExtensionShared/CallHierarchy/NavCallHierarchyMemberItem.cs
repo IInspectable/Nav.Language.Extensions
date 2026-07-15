@@ -95,6 +95,7 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
     public bool SupportsFindReferences => false;
     public bool Valid                  => true;
 
+    /// <summary>Springt (im Vorschautab) zur Task-Definition dieses Knotens.</summary>
     public void NavigateTo() {
         NavLanguagePackage.Jtf.RunAsync(async () => {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -205,6 +206,7 @@ sealed class NavCallHierarchyMemberItem: ICallHierarchyMemberItem {
         return new NavCallHierarchyDetail(callSite, text);
     }
 
+    /// <summary>Bricht eine laufende Suche der angegebenen Kategorie ab.</summary>
     public void CancelSearch(string categoryName) {
         lock (_gate) {
             CancelSearch_NoLock(categoryName);

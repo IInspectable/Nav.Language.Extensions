@@ -16,10 +16,16 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einem Nav-Exit zur generierten <c>AfterLogic</c>-Rücksprungmethode der WFS-Klasse im C#-Code
+/// (Richtung Nav→C#). Aus dem <see cref="TaskExitCodeInfo"/> löst die Roslyn-Brücke die Methoden-Deklaration
+/// auf; angezeigt wird <c>{WfsTypeName}.{AfterLogicMethodName}</c>.
+/// </summary>
 class TaskExitDeclarationLocationInfoProvider : CodeAnalysisLocationInfoProvider {
 
     readonly TaskExitCodeInfo _taskExitCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="taskExitCodeInfo"/> des Exit.</summary>
     public TaskExitDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, TaskExitCodeInfo taskExitCodeInfo): base(sourceBuffer) {
         _taskExitCodeInfo = taskExitCodeInfo;
     }

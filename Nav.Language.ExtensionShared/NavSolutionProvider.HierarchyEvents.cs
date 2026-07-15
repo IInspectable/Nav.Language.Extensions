@@ -14,8 +14,12 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
 
     private uint _hierarchyEventsCookie;
 
+    /// <summary>Gibt an, ob die Hierarchie-Events aktuell abonniert sind.</summary>
     bool AreHierarchyEventsConnected => _hierarchyEventsCookie != 0;
 
+    /// <summary>
+    /// Abonniert die <see cref="IVsHierarchyEvents"/> der Solution-Hierarchie (idempotent).
+    /// </summary>
     void ConnectHierarchyEvents() {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -27,6 +31,7 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
 
     }
 
+    /// <summary>Liefert die <see cref="IVsHierarchy"/> der aktuellen Solution.</summary>
     IVsHierarchy GetSolutionHierarchy() {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -36,6 +41,9 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
         return vsSolution as IVsHierarchy;
     }
 
+    /// <summary>
+    /// Beendet das Abonnement der Hierarchie-Events (Gegenstück zu <see cref="ConnectHierarchyEvents"/>).
+    /// </summary>
     // TODO DisconnectHierarchyEvents beim Beenden von Studio
     // ReSharper disable once UnusedMember.Local
     void DisconnectHierarchyEvents() {
@@ -59,6 +67,10 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
         return VSConstants.S_OK;
     }
 
+    /// <summary>
+    /// Invalidiert den Snapshot, wenn sich der Projektname der Solution-Wurzel ändert (etwa beim Umbenennen
+    /// der Solution); andere Property-Änderungen werden ignoriert.
+    /// </summary>
     int IVsHierarchyEvents.OnPropertyChanged(uint itemid, int propid, uint flags) {
 
         if (propid == (int) __VSHPROPID.VSHPROPID_ProjectName &&

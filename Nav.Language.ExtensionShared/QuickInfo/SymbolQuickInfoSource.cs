@@ -13,6 +13,13 @@ using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
 
 namespace Pharmatechnik.Nav.Language.Extension.QuickInfo; 
 
+/// <summary>
+/// Die eigentliche Nav-Hover-Quelle: zeigt zum Symbol unter dem Cursor dessen Signatur und Beschreibung an,
+/// bzw. — steht dort ein Schlüsselwort — dessen Bedeutung (Spiegel des LSP-Hover-Verhaltens). Erfüllt den
+/// VS-SDK-Vertrag <see cref="IAsyncQuickInfoSource"/>, bezieht das Semantikmodell über den
+/// <see cref="SemanticModelServiceDependent"/>-Basispfad und rendert den Inhalt mit dem
+/// <see cref="QuickinfoBuilderService"/>.
+/// </summary>
 sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickInfoSource {
 
     public SymbolQuickInfoSource(ITextBuffer textBuffer,
@@ -21,8 +28,14 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
         QuickinfoBuilderService = quickinfoBuilderService;
     }
 
+    /// <summary>Der Dienst, der den QuickInfo-Inhalt (Symbol/Keyword) als WPF-Element aufbaut.</summary>
     public QuickinfoBuilderService QuickinfoBuilderService { get; }
 
+    /// <summary>
+    /// VS-SDK-Vertrag: baut den Hover-Inhalt zum <see cref="ISymbol"/> unter dem Trigger-Punkt. Findet dort
+    /// kein Symbol, greift der Keyword-Fallback (<see cref="BuildKeywordQuickInfoAsync"/>). Liefert
+    /// <c>null</c>, wenn weder Symbol noch dokumentiertes Keyword vorliegt.
+    /// </summary>
     public async Task<QuickInfoItem> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken) {
 
         await Task.Yield().ConfigureAwait(false);
@@ -67,6 +80,11 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
                                  item: qiContent);
     }
 
+    /// <summary>
+    /// Keyword-Fallback des Hovers: steht an <paramref name="position"/> ein Schlüsselwort-Token mit
+    /// hinterlegter Beschreibung (<see cref="SyntaxFacts.GetKeywordDescription(SyntaxToken)"/>), wird dessen Bedeutung
+    /// als QuickInfo gezeigt; sonst <c>null</c>.
+    /// </summary>
     async Task<QuickInfoItem> BuildKeywordQuickInfoAsync(CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot, int position) {
 
         var token = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Syntax.SyntaxTree.Tokens.FindAtPosition(position);

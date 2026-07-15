@@ -9,8 +9,18 @@ using Microsoft.VisualStudio.Text.Formatting;
 
 namespace Pharmatechnik.Nav.Language.Extension.Common; 
 
+/// <summary>
+/// Erweiterungsmethoden, die die Text-Formatierung des VS-Editors
+/// (<see cref="TextFormattingRunProperties"/>) auf WPF-<see cref="DependencyObject"/>e übertragen.
+/// </summary>
 static class DependencyObjectExtensions {
 
+    /// <summary>
+    /// Überträgt Schriftart, -größe, -stil und -stärke sowie Vorder- und Hintergrund der
+    /// Editor-Textformatierung auf die WPF-Text-Eigenschaften des Objekts.
+    /// </summary>
+    /// <param name="dependencyObject">Das WPF-Objekt, dessen Text-Eigenschaften gesetzt werden.</param>
+    /// <param name="textProperties">Die zu übernehmende Editor-Textformatierung.</param>
     public static void SetTextProperties(this DependencyObject dependencyObject, TextFormattingRunProperties textProperties) {
         dependencyObject.SetValue(TextElement.FontFamilyProperty, textProperties.Typeface.FontFamily);
         dependencyObject.SetValue(TextElement.FontSizeProperty  , textProperties.FontRenderingEmSize);
@@ -20,6 +30,12 @@ static class DependencyObjectExtensions {
         dependencyObject.SetValue(TextElement.ForegroundProperty, textProperties.ForegroundBrush);
     }
 
+    /// <summary>
+    /// Überträgt die Standard-Textformatierung der übergebenen Classification-Format-Map auf die
+    /// WPF-Text-Eigenschaften des Objekts.
+    /// </summary>
+    /// <param name="dependencyObject">Das WPF-Objekt, dessen Text-Eigenschaften gesetzt werden.</param>
+    /// <param name="formatMap">Die Format-Map, deren <see cref="IClassificationFormatMap.DefaultTextProperties"/> übernommen werden.</param>
     public static void SetDefaultTextProperties(this DependencyObject dependencyObject, IClassificationFormatMap formatMap) {
         dependencyObject.SetTextProperties(formatMap.DefaultTextProperties);
     }
