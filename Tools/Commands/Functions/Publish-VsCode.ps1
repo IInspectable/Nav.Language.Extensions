@@ -11,7 +11,8 @@
          publizieren (kein Umweg über deploy\lsp). Flags: PublishSingleFile +
          IncludeNativeLibrariesForSelfExtract → alles in eine exe; EnableCompressionInSingleFile →
          kleinere exe; SatelliteResourceLanguages=en → keine lokalisierten Satellites;
-         DebugType=embedded → keine separate .pdb.
+         DebugType=embedded → keine separate .pdb. Das Trimming (~37 → ~15 MB) steckt in der
+         Nav.Language.Lsp.csproj (PublishTrimmed/TrimMode=partial) und greift hier automatisch.
       3. Laufzeit-Abhängigkeiten der Extension sicherstellen (npm install).
       4. VSIX paketieren (plattform-spezifisch win32-x64, passend zum win-x64-Server) nach
          deploy\vscode.
