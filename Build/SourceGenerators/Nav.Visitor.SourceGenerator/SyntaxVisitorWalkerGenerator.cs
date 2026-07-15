@@ -56,7 +56,7 @@ public sealed class SyntaxVisitorWalkerGenerator: IIncrementalGenerator {
             return null;
         }
 
-        return DerivesFromSyntaxNode(symbol) ? new SyntaxNodeInfo(symbol.Name) : null;
+        return DerivesFromSyntaxNode(symbol) ? new SyntaxNodeInfo { TypeName = symbol.Name } : null;
     }
 
     static bool DerivesFromSyntaxNode(INamedTypeSymbol symbol) {
@@ -75,6 +75,12 @@ public sealed class SyntaxVisitorWalkerGenerator: IIncrementalGenerator {
                          .Distinct(StringComparer.Ordinal)
                          .OrderBy(n => n, StringComparer.Ordinal)
                          .ToImmutableArray();
+
+        // Auf Projekten ohne SyntaxNode-Klassen (leeres Set) nichts erzeugen — so darf die Generator-
+        // Assembly gefahrlos auch aus Projekten referenziert werden, die keine SyntaxNode-Typen deklarieren.
+        if (names.IsEmpty) {
+            return;
+        }
 
         spc.AddSource("SyntaxNodeVisitor.g.cs", SourceText.From(EmitVisitor(names), Encoding.UTF8));
         spc.AddSource("SyntaxNodeWalker.g.cs",  SourceText.From(EmitWalker(names),  Encoding.UTF8));

@@ -22,16 +22,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Annotation\generated\NavTaskAnnotationVisitor.Generated.tt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="CustomBuild.targets" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
+
+    <!-- Quellgenerator: erzeugt das NavTaskAnnotationVisitor-Besucherpaar aus den konkreten
+         NavTaskAnnotation-Ableitungen (löst das VS-only EnvDTE-T4-Template ab). Nur als Analyzer
+         eingebunden, nicht als referenzierte Assembly. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

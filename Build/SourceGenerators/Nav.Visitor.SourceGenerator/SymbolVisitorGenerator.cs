@@ -65,7 +65,11 @@ public sealed class SymbolVisitorGenerator: IIncrementalGenerator {
                                 .Select(i => i.Name)
                                 .OrderBy(n => n, StringComparer.Ordinal);
 
-        return new SymbolMapping(symbol.Name, itf.Name, string.Join(",", baseInterfaces));
+        return new SymbolMapping {
+            ClassName         = symbol.Name,
+            InterfaceName     = itf.Name,
+            BaseInterfacesCsv = string.Join(",", baseInterfaces)
+        };
     }
 
     static bool IsSymbolInterface(INamedTypeSymbol itf) {
@@ -98,6 +102,12 @@ public sealed class SymbolVisitorGenerator: IIncrementalGenerator {
         var ordered = mappings.Distinct()
                               .OrderBy(m => m.ClassName, StringComparer.Ordinal)
                               .ToImmutableArray();
+
+        // Auf Projekten ohne Symbol-Klassen (leeres Set) nichts erzeugen — so darf die Generator-Assembly
+        // gefahrlos auch aus Projekten referenziert werden, die keine ISymbol-Typen deklarieren.
+        if (ordered.IsEmpty) {
+            return;
+        }
 
         // Die tatsächlich besuchten Interfaces (jene mit einer Visit-Methode) und ihre ISymbol-Basen.
         var visited = new HashSet<string>(ordered.Select(m => m.InterfaceName), StringComparer.Ordinal);

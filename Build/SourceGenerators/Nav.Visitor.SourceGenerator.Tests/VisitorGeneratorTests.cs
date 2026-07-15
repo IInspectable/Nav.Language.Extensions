@@ -62,4 +62,25 @@ public class VisitorGeneratorTests: GeneratorTestBase {
         SnapshotAssert.AssertSnapshot(generated, nameof(Generates_SymbolVisitor));
     }
 
+    // Minimale Annotation-Hierarchie: die konkrete Wurzel NavTaskAnnotation, eine abstrakte Zwischenbasis
+    // (ausgeschlossen), eine zweistufige Ableitung (NavInitAnnotation über NavMethodAnnotation, prüft den
+    // transitiven Basistyp-Lauf) und eine direkte Ableitung (NavExitAnnotation).
+    const string AnnotationModel = """
+        namespace Pharmatechnik.Nav.Language.CodeAnalysis.Annotation {
+            public partial class NavTaskAnnotation { }
+            public abstract class NavMethodAnnotation: NavTaskAnnotation { }
+            public partial class NavInitAnnotation: NavMethodAnnotation { }
+            public partial class NavExitAnnotation: NavTaskAnnotation { }
+        }
+        """;
+
+    [Test]
+    public void Generates_NavTaskAnnotationVisitor() {
+
+        var driver    = RunGenerator(new AnnotationVisitorGenerator(), CreateCompilation(AnnotationModel));
+        var generated = GetGeneratedFile(driver, "NavTaskAnnotationVisitor.g.cs");
+
+        SnapshotAssert.AssertSnapshot(generated, nameof(Generates_NavTaskAnnotationVisitor));
+    }
+
 }
