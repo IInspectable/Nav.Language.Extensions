@@ -19,6 +19,14 @@ namespace Pharmatechnik.Nav.Language.CodeFixes.ErrorFix;
 /// </summary>
 public class MoveVersionDirectiveToTopCodeFixProvider {
 
+    /// <summary>
+    /// Liefert für jede deplatzierte <c>#version</c>-Direktive, die den betroffenen Bereich schneidet und
+    /// tatsächlich eine <c>Nav3003</c>-Diagnose trägt, einen anwendbaren
+    /// <see cref="MoveVersionDirectiveToTopCodeFix"/>.
+    /// </summary>
+    /// <param name="context">Der Fix-Kontext (Bereich, Semantik-Modell, Editor-Einstellungen).</param>
+    /// <param name="cancellationToken">Token zum Abbruch der Suche.</param>
+    /// <returns>Die anwendbaren Fixes; leer, wenn keine deplatzierte Direktive im Bereich liegt.</returns>
     public static IEnumerable<MoveVersionDirectiveToTopCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken) {
 
         var unit      = context.CodeGenerationUnit;

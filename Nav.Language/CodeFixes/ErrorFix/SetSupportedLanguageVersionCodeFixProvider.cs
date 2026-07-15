@@ -16,6 +16,14 @@ namespace Pharmatechnik.Nav.Language.CodeFixes.ErrorFix;
 /// </summary>
 public class SetSupportedLanguageVersionCodeFixProvider {
 
+    /// <summary>
+    /// Liefert einen <see cref="SetSupportedLanguageVersionCodeFix"/>, wenn der Bereich die wirksame
+    /// <c>#version</c>-Direktive schneidet und deren Version wohlgeformt, aber nicht unterstützt ist
+    /// (<c>Nav5001</c>).
+    /// </summary>
+    /// <param name="context">Der Fix-Kontext (Bereich, Semantik-Modell, Editor-Einstellungen).</param>
+    /// <param name="cancellationToken">Token zum Abbruch der Suche.</param>
+    /// <returns>Der anwendbare Fix; leer, wenn keine nicht-unterstützte wirksame Direktive im Bereich liegt.</returns>
     public static IEnumerable<SetSupportedLanguageVersionCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken) {
 
         var directive = context.CodeGenerationUnit.Syntax.LanguageVersionDirective;

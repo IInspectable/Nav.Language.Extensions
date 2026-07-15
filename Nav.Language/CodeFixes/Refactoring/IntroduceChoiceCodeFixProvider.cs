@@ -8,8 +8,18 @@ using System.Threading;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring; 
 
+/// <summary>
+/// Ermittelt die an einer Position/Auswahl anwendbaren <see cref="IntroduceChoiceCodeFix"/>-Fixes
+/// (Roslyn-Analogon: <c>CodeFixProvider</c>). Prüft die im <see cref="CodeFixContext"/> gefundenen
+/// Symbole und bietet für jede Knotenreferenz, an der sich eine Choice einführen lässt, einen Fix an.
+/// </summary>
 public static class IntroduceChoiceCodeFixProvider {
 
+    /// <summary>
+    /// Liefert alle anwendbaren <see cref="IntroduceChoiceCodeFix"/>-Fixes zu den Symbolen des
+    /// <paramref name="context"/> — je Knotenreferenz einen, gefiltert auf jene, die
+    /// <see cref="IntroduceChoiceCodeFix.CanApplyFix"/> erfüllen.
+    /// </summary>
     public static IEnumerable<IntroduceChoiceCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken) {
         var visitor = new Visitor(context);
 

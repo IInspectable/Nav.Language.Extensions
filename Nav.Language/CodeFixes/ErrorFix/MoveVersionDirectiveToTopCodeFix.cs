@@ -37,26 +37,45 @@ public sealed class MoveVersionDirectiveToTopCodeFix: ErrorCodeFix {
         EffectiveDirective = effectiveDirective;
     }
 
+    /// <summary>Die deplatzierte (nicht am Dateikopf stehende, daher wirkungslose) <c>#version</c>-Direktive,
+    /// die verschoben bzw. entfernt wird.</summary>
     public VersionDirectiveSyntax  MisplacedDirective { get; }
+    /// <summary>Die bereits wirksame <c>#version</c>-Direktive am Kopf, oder <c>null</c>, wenn es keine gibt —
+    /// entscheidet zwischen Verschieben und Entfernen.</summary>
     public VersionDirectiveSyntax? EffectiveDirective { get; }
 
     // Steht bereits eine wirksame #version am Kopf, würde ein Verschieben ein Duplikat (Nav3004) erzeugen —
     // dann ist Entfernen der deplatzierten Direktive die richtige Aktion; sonst wird sie an den Kopf verschoben.
     bool RemovesDuplicate => EffectiveDirective != null;
 
+    /// <inheritdoc/>
     public override string Name => RemovesDuplicate
         ? "Remove misplaced '#version' directive"
         : "Move '#version' to top of file";
 
+    /// <inheritdoc/>
     public override CodeFixImpact Impact       => CodeFixImpact.None;
+    /// <inheritdoc/>
     public override TextExtent?   ApplicableTo => MisplacedDirective.Extent;
+    /// <inheritdoc/>
     public override CodeFixPrio   Prio         => CodeFixPrio.High;
 
+    /// <summary>
+    /// Ob der Fix anwendbar ist: nur, wenn <see cref="MisplacedDirective"/> nicht dieselbe Instanz wie
+    /// <see cref="EffectiveDirective"/> ist — die wirksame Direktive selbst wird nie verschoben oder entfernt.
+    /// </summary>
     internal bool CanApplyFix() {
         // Die wirksame Direktive selbst wird nie verschoben oder entfernt — nur eine echte deplatzierte.
         return !ReferenceEquals(MisplacedDirective, EffectiveDirective);
     }
 
+    /// <summary>
+    /// Erzeugt das Edit-Set: stets das Entfernen der Zeile der deplatzierten Direktive; zusätzlich — sofern
+    /// noch keine wirksame Direktive existiert (kein Duplikat entstünde) — das Wieder-Einfügen des
+    /// unveränderten Direktiv-Textes an Position 0 (Dateianfang), womit die Direktive wirksam wird.
+    /// </summary>
+    /// <returns>Die anzuwendenden <see cref="Pharmatechnik.Nav.Language.Text.TextChange"/>s.</returns>
+    /// <exception cref="InvalidOperationException">Der Fix ist nicht anwendbar (<see cref="CanApplyFix"/>).</exception>
     public IList<TextChange> GetTextChanges() {
 
         if (!CanApplyFix()) {

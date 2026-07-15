@@ -29,13 +29,23 @@ public sealed class SetValidLanguageVersionCodeFix: ErrorCodeFix {
         Directive = directive ?? throw new ArgumentNullException(nameof(directive));
     }
 
+    /// <summary>Die wirksame <c>#version</c>-Direktive, deren fehlender/ungültiger Wert korrigiert wird.</summary>
     public VersionDirectiveSyntax Directive { get; }
 
+    /// <inheritdoc/>
     public override string        Name         => $"Change language version to {NavLanguageVersion.Latest}";
+    /// <inheritdoc/>
     public override CodeFixImpact Impact       => CodeFixImpact.None;
+    /// <inheritdoc/>
     public override TextExtent?   ApplicableTo => ValueExtent();
+    /// <inheritdoc/>
     public override CodeFixPrio   Prio         => CodeFixPrio.High;
 
+    /// <summary>
+    /// Ob der Fix anwendbar ist: nur, wenn kein brauchbarer Versionswert vorliegt (Wert fehlt oder ist nicht
+    /// parsebar). Der Überschuss-Fall (gültige Zahl mit überzähligem Rest) hat einen wirksamen Wert und wird
+    /// ausgeschlossen.
+    /// </summary>
     internal bool CanApplyFix() {
         // Nur wenn kein brauchbarer Versionswert vorliegt: der Rückfall auf Default rührt dann von Nav3002
         // her, nicht von einem geschriebenen '#version 1'. Der Überschuss-Fall (gültige Zahl + Rest) hat
@@ -71,6 +81,13 @@ public sealed class SetValidLanguageVersionCodeFix: ErrorCodeFix {
         return TextExtent.FromBounds(tokens[0].Extent.Start, tokens[tokens.Count - 1].Extent.End);
     }
 
+    /// <summary>
+    /// Erzeugt das Edit-Set: eine einzelne Ersetzung, die die ungültige Wert-Spanne durch
+    /// <see cref="NavLanguageVersion.Latest"/> ersetzt — bzw. den Wert (mit führendem Leerzeichen) hinter dem
+    /// <c>version</c>-Schlüsselwort einfügt, wenn er ganz fehlt.
+    /// </summary>
+    /// <returns>Die anzuwendenden <see cref="Pharmatechnik.Nav.Language.Text.TextChange"/>s.</returns>
+    /// <exception cref="InvalidOperationException">Der Fix ist nicht anwendbar (<see cref="CanApplyFix"/>).</exception>
     public IList<TextChange> GetTextChanges() {
 
         if (!CanApplyFix()) {

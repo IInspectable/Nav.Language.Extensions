@@ -8,8 +8,22 @@ using System.Threading;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.ErrorFix; 
 
+/// <summary>
+/// Findet die anwendbaren <see cref="AddMissingExitTransitionCodeFix"/> zum betroffenen Bereich. Besucht die
+/// dort liegenden Symbole (<see cref="CodeFixContext.FindSymbols(bool)"/>); für jede Knoten-Referenz auf einen
+/// eingebetteten Task-Knoten wird je offenem Exit-Verbindungspunkt (<c>Nav0025</c>,
+/// <see cref="TaskNodeSymbolExtensions.GetUnconnectedExits"/>) ein Fix erzeugt und über
+/// <see cref="AddMissingExitTransitionCodeFix.CanApplyFix"/> gefiltert.
+/// </summary>
 public static class AddMissingExitTransitionCodeFixProvider {
 
+    /// <summary>
+    /// Liefert für den betroffenen Bereich alle anwendbaren <see cref="AddMissingExitTransitionCodeFix"/> —
+    /// je unverbundenem Exit-Verbindungspunkt eines dort referenzierten Task-Knotens einen.
+    /// </summary>
+    /// <param name="context">Der Fix-Kontext (Bereich, Semantik-Modell, Editor-Einstellungen).</param>
+    /// <param name="cancellationToken">Token zum Abbruch der Suche.</param>
+    /// <returns>Die anwendbaren Fixes; leer, wenn keine offene Exit-Transition im Bereich liegt.</returns>
     public static IEnumerable<AddMissingExitTransitionCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken) {
 
         var visitor = new Visitor(context);

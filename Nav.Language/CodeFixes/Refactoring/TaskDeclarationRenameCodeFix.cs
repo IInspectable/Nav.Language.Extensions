@@ -10,17 +10,33 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring; 
 
+/// <summary>
+/// Benennt eine Task-Deklaration samt aller ihrer Verwendungen um: die Deklaration selbst, jeden
+/// referenzierenden Task-Knoten und — sofern dieser keinen eigenen Alias trägt — dessen ein- und
+/// ausgehende Transitions-Referenzen.
+/// </summary>
 sealed class TaskDeclarationRenameCodeFix: RenameCodeFix<ITaskDeclarationSymbol> {
 
     internal TaskDeclarationRenameCodeFix(ITaskDeclarationSymbol taskDeclarationSymbol, ISymbol originatingSymbol, CodeFixContext context)
         : base(taskDeclarationSymbol, originatingSymbol, context) {
     }
 
+    /// <summary>Die umzubenennende Task-Deklaration (das <see cref="RenameCodeFix{T}.Symbol"/>).</summary>
     public ITaskDeclarationSymbol TaskDeclaration => Symbol;
 
+    /// <summary>Der Anzeigename des Fixes: „Rename Task".</summary>
     public override string        Name   => "Rename Task";
+    /// <summary>
+    /// <see cref="CodeFixImpact.High"/> — der Task-Name prägt den generierten C#-Code, das Umbenennen
+    /// wirkt sich daher über die Nav-Datei hinaus aus.
+    /// </summary>
     public override CodeFixImpact Impact => CodeFixImpact.High;
 
+    /// <summary>
+    /// Prüft <paramref name="symbolName"/> als neuen Task-Namen: er muss ein gültiger Bezeichner
+    /// (sonst <see cref="DiagnosticDescriptors.Semantic"/> <c>Nav2000</c>) und im Dokument noch nicht
+    /// vergeben sein (sonst <c>Nav0020</c>). Der unveränderte Name gilt als zulässig (<c>null</c>).
+    /// </summary>
     public override string? ValidateSymbolName(string? symbolName) {
         // De facto kein Rename, aber OK
         if (symbolName == TaskDeclaration.Name) {
@@ -41,6 +57,12 @@ sealed class TaskDeclarationRenameCodeFix: RenameCodeFix<ITaskDeclarationSymbol>
         return null;
     }
 
+    /// <summary>
+    /// Liefert die Änderungen für die Deklaration sowie für jeden referenzierenden Task-Knoten
+    /// (<see cref="ITaskDeclarationSymbol.References"/>); trägt ein Knoten keinen eigenen Alias, werden
+    /// zusätzlich die Quell-Referenzen seiner ausgehenden (<see cref="ISourceNodeSymbol.Outgoings"/>) und die
+    /// Ziel-Referenzen seiner eingehenden (<see cref="ITargetNodeSymbol.Incomings"/>) Transitions angepasst.
+    /// </summary>
     public override IEnumerable<TextChange> GetTextChanges(string? newName) {
 
         newName = newName?.Trim() ?? String.Empty;
