@@ -8,6 +8,9 @@ Dieses Dokument legt nur die **Soll-Begriffe** fest — es schreibt selbst keine
 Ist-Zustand noch abweicht, verweist der [Abweichungs-Anhang](#anhang-a--abweichungs-fundstellen) auf
 die konkreten Fundstellen als Arbeitsliste für einen späteren Rewrite.
 
+**§7** erweitert das Inventar über die Engine hinaus um die Begriffe der **Roslyn-Brücke**
+`Nav.Language.CodeAnalysis` (Nav ↔ generierter C#-Code).
+
 ## Leitregel
 
 1. **Fachbegriff zuerst.** Kanon ist der im Deutschen geläufigste Fachbegriff des Konzepts — mal
@@ -35,11 +38,16 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 
 [Abhängigkeit](#abhängigkeit) ·
 [Alignment / Ausrichtung](#alignment--ausrichtung) ·
+[Annotation / Tag](#annotation--tag) ·
+[AnnotationReader](#annotationreader) ·
 [Anweisung → Statement](#statement--anweisung) ·
 [Aufrufhierarchie](#aufrufhierarchie) ·
 [Aufruffläche](#aufruffläche) ·
+[Aufrufstelle / Teildeklaration](#aufrufstelle--teildeklaration) ·
 [Bedingung / Guard](#bedingung--guard) ·
+[Begin-Interface / Begin-Aufruf](#begin-interface--begin-aufruf) ·
 [CallContext](#callcontext) ·
+[CallerLocation / AmbiguousLocation](#locationfinder) ·
 [CodeBuilder](#codebuilder) ·
 [CodeInfo](#codeinfo) ·
 [CodeModel](#codemodel) ·
@@ -63,8 +71,10 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Kantenmodus](#kantenmodus) ·
 [Knoten](#knoten) ·
 [Location](#location) ·
+[LocationFinder](#locationfinder) ·
 [Maschinerie](#maschinerie) ·
 [manuell umbrochen](#manuell-umbrochen) ·
+[nav-lose Klasse](#nav-lose-klasse) ·
 [Obergrenze](#obergrenze) ·
 [Overlay](#overlay) ·
 [OverwritePolicy](#overwritepolicy) ·
@@ -73,6 +83,7 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Pfeil / Arrow](#pfeil--arrow) ·
 [Referenz](#referenz) ·
 [Regel / Rule](#regel--rule) ·
+[Roslyn-Brücke](#roslyn-brücke) ·
 [Rücksprung](#rücksprung) ·
 [Schlüsselwort](#schlüsselwort) ·
 [Schweregrad](#schweregrad) ·
@@ -94,7 +105,9 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Trivia](#trivia) ·
 [Durchlauf (Pass)](#durchlauf--pass) ·
 [Weiche / Versions-Dispatch](#weiche--versions-dispatch) ·
-[Wert-Slot](#wert-slot)
+[Wert-Slot](#wert-slot) ·
+[WFS-/WFL-Klasse](#wfs-wfl-klasse) ·
+[WfsReferenceFinder](#wfsreferencefinder)
 
 ---
 
@@ -537,6 +550,66 @@ Datenfluss-Metaphern (CS „sink"); bleiben.
 **Kanon:** Senke · **Symbol:** `IFindReferencesContext` (FindReferences), `ILogger` (Ausgabe) 🔸
 🔸 *Empfehlung behalten. Roslyn nennt den FindReferences-Sink „Context"; wer Roslyn-Nähe will,
 schriebe „Context" — die Metapher „Senke" ist aber verständlich und konsistent.*
+
+---
+
+## §7 CodeAnalysis / Roslyn-Brücke
+
+*Erweitert das Inventar um die Assembly **`Nav.Language.CodeAnalysis`** — die bewusst Roslyn-gekoppelte
+Brücke zwischen Nav-Symbolen und dem daraus generierten C#-Code. Die Prosa bleibt deutsch, die
+Roslyn-Typen bleiben englische Symbole.*
+
+### Roslyn-Brücke
+Die Assembly **`Nav.Language.CodeAnalysis`** koppelt Nav-Symbole an den generierten C#-Code über
+Roslyn. Die Roslyn-Eingabetypen (`Document`, `SemanticModel`, `Solution`, `Project`, `Compilation`,
+`SymbolFinder`) bleiben englische Symbole in der Prosa; die annotationsgetriebenen Pfade laufen auf der
+versionslosen Default-Generation (vgl. [Weiche](#weiche--versions-dispatch)).
+**Kanon:** Roslyn-Brücke · **Symbol:** `Pharmatechnik.Nav.Language.CodeAnalysis`
+
+### Annotation / Tag
+Der Roslyn-seitige **Rückverweis** aus generiertem C# auf die Nav-Herkunft. **Tag** = das rohe
+XML-Doku-Element im generierten Code (`<NavFile>`, `<NavTask>`, `<NavInit>`, … — die Serialisierung,
+`AnnotationTag*`-Konstanten in `CodeGenFacts`/`CodeGenInvariants`); **Annotation** = das daraus von
+[AnnotationReader](#annotationreader) gelesene C#-Objekt.
+**Kanon:** Annotation (C#-Objekt), Tag (XML-Element) · **Symbol:** `NavTaskAnnotation`, `NavInitAnnotation`, `NavExitAnnotation`, …
+*Bewusste Trennung: „aus dem `<NavInit>`-Tag entsteht die `NavInitAnnotation`" — nicht synonym mischen.*
+
+### AnnotationReader
+Liest die [Annotationen](#annotation--tag) aus dem `SemanticModel` eines `Document`; der
+**Annotation-Visitor** besucht den `NavTaskAnnotation`-Baum.
+**Kanon:** AnnotationReader, Annotation-Visitor · **Symbol:** `AnnotationReader`, `INavTaskAnnotationVisitor`
+
+### LocationFinder
+Löst ein Nav-Symbol (Task, Trigger, Choice, Init, Exit) in die zugehörige Roslyn-[Location](#location)
+im generierten C#-Code auf — und umgekehrt eine [Annotation](#annotation--tag) zurück ins `.nav`.
+**Kanon:** LocationFinder · **Symbol:** `LocationFinder`; Trägertypen `CallerLocation` (benannte
+Aufrufer-Location), `AmbiguousLocation` (mehrdeutiger Treffer), `LocationNotFoundException`.
+
+### WfsReferenceFinder
+Findet die [Referenzen](#referenz) eines Nav-Symbols (Task, ConnectionPoints) im generierten C#-Code —
+die C#-seitige Ergänzung zur nav-internen Referenzsuche; nutzt die **Roslyn-Referenzsuche**
+(`SymbolFinder.FindReferencesAsync`).
+**Kanon:** WfsReferenceFinder; Roslyn-Referenzsuche · **Symbol:** `WfsReferenceFinder`
+
+### WFS-/WFL-Klasse
+Die generierte **Workflow-Service-Klasse** (`{Task}WFS`, `{Task}WFSBase`, `IBegin{Task}WFS`) — das
+C#-Gegenstück zur Nav-[Task](#task); **WFL** ist der Workflow-Layer-Namespace.
+**Kanon:** WFS-Klasse / WFL-Klasse (Eigenname) · **Symbol:** `…WFL.…WFS`
+
+### nav-lose Klasse
+Eine handgeschriebene [WFS-Klasse](#wfs-wfl-klasse) **ohne** eigene `.nav`-Quelle, in der Referenzsuche
+fest verdrahtet adressiert (Sonderfall).
+**Kanon:** nav-lose Klasse (navless) · **Symbol:** `NavlessClasses`, `ClassInfo`
+
+### Begin-Interface / Begin-Aufruf
+Das `IBegin{Task}WFS`-**Interface** und der `_field.Begin(…)`-**Aufruf**, über die Task/Init/Exit im
+generierten Code aufgelöst werden.
+**Kanon:** Begin-Interface, Begin-Aufruf · **Symbol:** `FullyQualifiedBeginInterfaceName`
+
+### Aufrufstelle / Teildeklaration
+Kleinbegriffe der C#-Analyse: **Aufrufstelle** (invocation site — wo eine generierte Methode aufgerufen
+wird) und **Teildeklaration** (eine `partial`-Klassenhälfte).
+**Kanon:** Aufrufstelle, Teildeklaration · **Symbol:** `InvocationExpressionSyntax`, `partial`
 
 ---
 
