@@ -71,12 +71,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Generated Tests\TokenPropertyNameTests.tt" />
-    <None Include="Generated Tests\ParseEmptyStringTests.tt" />
-    <None Include="Generated Tests\SyntaxTest.tt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Syntax-Golden-Korpus: kuratierte .nav plus erzeugte .tokens-, .tree-, .diag- und .trivia-Golden.
          Werden nicht ins Output kopiert; die Tests lösen sie via TestDataDirectory.Resolve aus dem
          Projektverzeichnis auf (wie Diagnostics\Tests / Regression\Tests). -->
