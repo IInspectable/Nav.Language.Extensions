@@ -97,18 +97,39 @@ public readonly struct NavLanguageVersion: IEquatable<NavLanguageVersion>, IComp
         return true;
     }
 
+    /// <summary>Vergleicht zwei Versionen nach ihrem numerischen <see cref="Value"/>.</summary>
+    /// <param name="other">Die zu vergleichende Version.</param>
     public int CompareTo(NavLanguageVersion other) => Value.CompareTo(other.Value);
+
+    /// <summary>Zwei Versionen sind gleich, wenn ihr numerischer <see cref="Value"/> übereinstimmt.</summary>
+    /// <param name="other">Die zu vergleichende Version.</param>
     public bool Equals(NavLanguageVersion other) => Value == other.Value;
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is NavLanguageVersion other && Equals(other);
+
+    /// <summary>Liefert einen zur Gleichheit passenden Hashcode — den <see cref="Value"/>.</summary>
     public override int GetHashCode() => Value;
+
+    /// <summary>Liefert den numerischen <see cref="Value"/> als Zeichenkette (invariant).</summary>
     public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 
+    /// <summary>Prüft zwei Versionen auf Gleichheit (siehe <see cref="Equals(NavLanguageVersion)"/>).</summary>
     public static bool operator ==(NavLanguageVersion left, NavLanguageVersion right) => left.Equals(right);
+
+    /// <summary>Prüft zwei Versionen auf Ungleichheit (siehe <see cref="Equals(NavLanguageVersion)"/>).</summary>
     public static bool operator !=(NavLanguageVersion left, NavLanguageVersion right) => !left.Equals(right);
-    public static bool operator <(NavLanguageVersion left, NavLanguageVersion right) => left.Value  < right.Value;
-    public static bool operator >(NavLanguageVersion left, NavLanguageVersion right) => left.Value  > right.Value;
+
+    /// <summary>Gibt an, ob <paramref name="left"/> eine kleinere Version als <paramref name="right"/> ist.</summary>
+    public static bool operator <(NavLanguageVersion left, NavLanguageVersion right) => left.Value < right.Value;
+
+    /// <summary>Gibt an, ob <paramref name="left"/> eine größere Version als <paramref name="right"/> ist.</summary>
+    public static bool operator >(NavLanguageVersion left, NavLanguageVersion right) => left.Value > right.Value;
+
+    /// <summary>Gibt an, ob <paramref name="left"/> kleiner als oder gleich <paramref name="right"/> ist.</summary>
     public static bool operator <=(NavLanguageVersion left, NavLanguageVersion right) => left.Value <= right.Value;
+
+    /// <summary>Gibt an, ob <paramref name="left"/> größer als oder gleich <paramref name="right"/> ist.</summary>
     public static bool operator >=(NavLanguageVersion left, NavLanguageVersion right) => left.Value >= right.Value;
 
 }
