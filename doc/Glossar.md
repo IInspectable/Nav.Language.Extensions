@@ -77,6 +77,7 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [LocationFinder](#locationfinder) ·
 [Manifest / Abhängigkeits-Manifest](#manifest--abhängigkeits-manifest) ·
 [Maschinerie](#maschinerie) ·
+[MSBuild-Task / Build-Task](#msbuild-task--build-task) ·
 [manuell umbrochen](#manuell-umbrochen) ·
 [nav-lose Klasse](#nav-lose-klasse) ·
 [NavCodeGenerator / Generier-Pfad](#navcodegenerator--generier-pfad) ·
@@ -822,6 +823,25 @@ Die **Host-seitige Verdrahtung** eines Engine-Kerns über eine Dateimenge: `NavC
 (Engine, Codegen), `SyntaxAnalyzerPipeline` und `CodeFixPipeline` (im CLI-Host). Sie halten keine
 Sprachlogik, sondern fahren je [FileSpec](#filespec) den jeweiligen Kern.
 **Kanon:** Pipeline · **Symbol:** `NavCodeGeneratorPipeline`, `SyntaxAnalyzerPipeline`, `CodeFixPipeline`
+
+---
+
+## §10 MSBuild-Task / Build-Integration
+
+*Erweitert das Inventar um das Projekt **`Nav.Language.BuildTasks`** (Assembly
+**`Pharmatechnik.Nav.Language.BuildTasks`**, net472) — den Host, der die `.nav`→C#-Übersetzung in den
+MSBuild-Build einklinkt. Grundsatz wie bei allen Hosts: keine eigene Sprachlogik, hier sogar keine
+eigene Engine-Referenz — der Task ruft die [`nav.exe`](#cli-host--navexe) als externen Prozess auf.*
+
+### MSBuild-Task / Build-Task
+Der **`Nav`-Task** (eine `Microsoft.Build.Utilities.ToolTask`), der beim Build die
+[`nav.exe`](#cli-host--navexe) als externes Werkzeug startet: er übersetzt seine Task-Parameter in die
+Kommandozeile (Response-File), lokalisiert das Werkzeug neben der Task-Assembly und übersetzt dessen
+Konsolen-Ausgabe zurück in MSBuild-Meldungen. Deklariert per `<UsingTask>` in
+`Pharmatechnik.Nav.Language.targets`, instanziiert im `GenerateNavCode`-Target. Bewusst **ohne**
+Assembly-Referenz auf Engine/CLI (net472-Task darf die net10-`nav.exe` nicht laden) — der `/g:`-Kontrakt
+liegt deshalb als lokale Kopie ([CodeGenerationOptions](#codegenerationoptions)) vor.
+**Kanon:** MSBuild-Task, Build-Task · **Symbol:** `Nav` (`ToolTask`), `Pharmatechnik.Nav.Language.targets`, `GenerateNavCode`
 
 ---
 
