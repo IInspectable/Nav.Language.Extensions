@@ -48,7 +48,6 @@
     <File Path="Tools/Commands/Functions/Show-SelectionMenu.ps1" />
   </Folder>
   <Folder Name="/Build/">
-    <File Path="Build/CodeGen/GenerateCodeGenFacts.cs" />
     <File Path="Build/GobalAssemblyInfo.cs" />
     <File Path="Build/Version.targets" />
     <File Path="Directory.Build.targets" />

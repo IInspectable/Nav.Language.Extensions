@@ -11,7 +11,6 @@
     <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): die
          Fixtures nutzen Raw String Literals für gut lesbare, mehrzeilige .nav-Quellen. -->
     <LangVersion>latest</LangVersion>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.CodeAnalysis.Tests</RootNamespace>
     <AssemblyName>Nav.Language.CodeAnalysis.Tests</AssemblyName>
     <!-- Flach in bin\Debug\ (kein TFM-Unterordner), damit der NUnit-Console-Runner die DLL unter
