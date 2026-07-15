@@ -14,8 +14,25 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.Generator;
 
+/// <summary>
+/// Der Standardpfad des CLI-Hosts (<c>nav.exe</c>): der Codegenerator. Sammelt die <c>.nav</c>-Eingaben
+/// ein, verdrahtet daraus die Engine-<see cref="NavCodeGeneratorPipeline"/> und lässt sie laufen; bei
+/// Erfolg schreibt er zusätzlich die Manifeste für inkrementelle MSBuild-Builds. Die eigentliche
+/// Codeerzeugung liegt vollständig in der Engine — diese Klasse steuert nur Datei-Discovery,
+/// Options-Übersetzung und Manifest-Ausgabe bei.
+/// </summary>
 class NavCodeGenerator {
 
+    /// <summary>
+    /// Führt den Codegenerator-Lauf für die übergebene Kommandozeile aus: Eingaben einsammeln
+    /// (<see cref="CollectFiles"/>), Pipeline bauen (<see cref="CreatePipeline"/>), laufen lassen und —
+    /// nur bei Erfolg — die Outputs- und Abhängigkeits-Manifeste schreiben (<see cref="WriteManifest"/>).
+    /// </summary>
+    /// <param name="cl">Das geparste Options-Modell; steuert Eingaben, Erzeugungsumfang, Logging und die
+    /// Manifest-Pfade (<see cref="CommandLine.ManifestFile"/>, <see cref="CommandLine.DependencyManifestFile"/>).</param>
+    /// <returns><c>0</c> bei Erfolg, <c>1</c> bei einem regulären Fehlschlag der Pipeline
+    /// (<see cref="NavCodeGeneratorPipeline.RunResult.Succeeded"/> ist <c>false</c>), <c>-1</c> bei einer
+    /// unbehandelten <see cref="Exception"/> — diese Codes werden zum Prozess-Exit-Code des Hosts.</returns>
     public int Run(CommandLine cl) {
 
         var logger = new ConsoleLogger(
@@ -57,6 +74,15 @@ class NavCodeGenerator {
         }
     }
 
+    /// <summary>
+    /// Schreibt eine Dateiliste als Manifest: die Pfade werden zu absoluten Pfaden aufgelöst, leere
+    /// verworfen, dann case-insensitiv dedupliziert und sortiert. Ein fehlendes Zielverzeichnis wird
+    /// angelegt. Dient dem inkrementellen MSBuild-Build als Inputs-/Outputs-Nachweis.
+    /// </summary>
+    /// <param name="manifestFile">Der Zielpfad des Manifests (vgl. <see cref="CommandLine.ManifestFile"/>
+    /// bzw. <see cref="CommandLine.DependencyManifestFile"/>).</param>
+    /// <param name="generatedFiles">Die zu protokollierenden Datei-Pfade (erzeugte Ausgaben bzw. per
+    /// <c>taskref</c> eingelesene Abhängigkeiten).</param>
     static void WriteManifest(string manifestFile, IEnumerable<string> generatedFiles) {
 
         var lines = generatedFiles
@@ -74,6 +100,18 @@ class NavCodeGenerator {
         File.WriteAllLines(manifestFile, lines);
     }
 
+    /// <summary>
+    /// Baut die Engine-<see cref="NavCodeGeneratorPipeline"/> aus der Kommandozeile: übersetzt das
+    /// Host-Options-Modell in die Engine-<see cref="GenerationOptions"/> (inkl. der Aufspaltung von
+    /// <see cref="CommandLine.GenerationOptions"/> in die einzelnen <c>Generate*</c>-Flags), wählt je
+    /// nach <see cref="CommandLine.UseSyntaxCache"/> die passende <see cref="ISyntaxProviderFactory"/>
+    /// und validiert die Wurzelverzeichnis-Optionen, bevor die Pipeline erzeugt wird.
+    /// </summary>
+    /// <param name="cl">Das geparste Options-Modell.</param>
+    /// <param name="logger">Der an die Pipeline weitergereichte <see cref="ConsoleLogger"/>.</param>
+    /// <returns>Die fertig konfigurierte Pipeline.</returns>
+    /// <exception cref="ArgumentException">Eine der Wurzelverzeichnis-Optionen ist ungültig
+    /// (siehe <c>ValidateOptions</c>).</exception>
     static NavCodeGeneratorPipeline CreatePipeline(CommandLine cl, ConsoleLogger logger) {
 
         var syntaxProviderFactory = cl.UseSyntaxCache ? SyntaxProviderFactory.Cached : SyntaxProviderFactory.Default;
@@ -118,6 +156,18 @@ class NavCodeGenerator {
         }
     }
 
+    /// <summary>
+    /// Ermittelt die <c>.nav</c>-Eingaben als <see cref="FileSpec"/>-Menge aus den beiden sich ergänzenden
+    /// Quellen: dem <c>/d</c>-Verzeichnismodus (rekursiver Scan von <see cref="CommandLine.Directory"/>,
+    /// dessen Verzeichnis zugleich die <c>.navignore</c>-Scangrenze ist) und dem <c>/s</c>-Einzeldateimodus
+    /// (<see cref="CommandLine.Sources"/>, für den je Datei die <c>.navignore</c>-Vorfahren ausgewertet
+    /// werden). In beiden Fällen wird per <see cref="NavSolution.HasNavExtension"/> exakt auf die
+    /// <c>.nav</c>-Endung gefiltert, weil <c>*.nav</c> unter Windows auch <c>.navignore</c> &amp; Co.
+    /// matcht; per <see cref="NavIgnore"/> ausgeschlossene Dateien werden übersprungen und protokolliert.
+    /// </summary>
+    /// <param name="cl">Das geparste Options-Modell (liefert Verzeichnis bzw. Einzeldateien).</param>
+    /// <param name="logger">Zum Protokollieren übersprungener Dateien.</param>
+    /// <returns>Die einzulesenden Eingabedateien.</returns>
     static IEnumerable<FileSpec> CollectFiles(CommandLine cl, ConsoleLogger logger) {
 
         var result = new List<FileSpec>();

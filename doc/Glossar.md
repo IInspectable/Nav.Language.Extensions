@@ -38,6 +38,7 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 
 [Abhängigkeit](#abhängigkeit) ·
 [Alignment / Ausrichtung](#alignment--ausrichtung) ·
+[Analyse-Pfad / CodeFix-Pfad](#analyse-pfad--codefix-pfad) ·
 [Annotation / Tag](#annotation--tag) ·
 [AnnotationReader](#annotationreader) ·
 [Anweisung → Statement](#statement--anweisung) ·
@@ -48,7 +49,9 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Begin-Interface / Begin-Aufruf](#begin-interface--begin-aufruf) ·
 [CallContext](#callcontext) ·
 [CallerLocation / AmbiguousLocation](#locationfinder) ·
+[CLI-Host / nav.exe](#cli-host--navexe) ·
 [CodeBuilder](#codebuilder) ·
+[CodeGenerationOptions](#codegenerationoptions) ·
 [CodeInfo](#codeinfo) ·
 [CodeModel](#codemodel) ·
 [ConnectionPoint / Verbindungspunkt](#connectionpoint--verbindungspunkt) ·
@@ -72,17 +75,23 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Knoten](#knoten) ·
 [Location](#location) ·
 [LocationFinder](#locationfinder) ·
+[Manifest / Abhängigkeits-Manifest](#manifest--abhängigkeits-manifest) ·
 [Maschinerie](#maschinerie) ·
 [manuell umbrochen](#manuell-umbrochen) ·
 [nav-lose Klasse](#nav-lose-klasse) ·
+[NavCodeGenerator / Generier-Pfad](#navcodegenerator--generier-pfad) ·
+[.navignore](#navignore) ·
 [Obergrenze](#obergrenze) ·
+[Options-Modell](#options-modell) ·
 [Overlay](#overlay) ·
 [OverwritePolicy](#overwritepolicy) ·
 [PathProvider](#pathprovider) ·
 [Pipeline](#pipeline) ·
+[Pipeline (Host)](#pipeline-host) ·
 [Pfeil / Arrow](#pfeil--arrow) ·
 [Referenz](#referenz) ·
 [Regel / Rule](#regel--rule) ·
+[Response-File](#response-file) ·
 [Roslyn-Brücke](#roslyn-brücke) ·
 [Rücksprung](#rücksprung) ·
 [Schlüsselwort](#schlüsselwort) ·
@@ -95,6 +104,7 @@ entscheidet nur dort, wo die Prosa selbst uneins ist.
 [Sprungziel](#sprungziel) ·
 [Stempel / Stamp](#stempel--stamp) ·
 [String / Zeichenkette](#string--zeichenkette) ·
+[Subcommand](#subcommand) ·
 [Suppression / Unterdrückung](#suppression--unterdrückung) ·
 [Symbol](#symbol) ·
 [Tail](#tail) ·
@@ -741,6 +751,77 @@ Der **Drop-Handler** (`IDropHandler`) behandelt Drag&Drop von `.nav`-Dateien in 
 VS-Solution↔Nav-Workspace-Brücke mit Gültigkeitsprüfung (`IsCurrent`), gespeist aus der
 **Solution-Hierarchie** (`IVsHierarchy`).
 **Kanon:** Drop-Handler, Solution-Snapshot, Solution-Hierarchie · **Symbol:** `IDropHandler`, `NavSolutionSnapshot`, `IVsHierarchy`
+
+---
+
+## §9 CLI / Host `nav.exe`
+
+*Erweitert das Inventar um das Projekt **`Nav.Cli`** (Assembly **`nav`** → `nav.exe`) — den schlanken
+Kommandozeilen-Host der Engine. Die Prosa bleibt deutsch. Grundsatz wie bei allen Hosts: der CLI-Host
+fügt nur Kommandozeilen-Parsing, Datei-Discovery, Konsolen-Logging und Manifest-Ausgabe hinzu; die
+Sprachlogik liegt vollständig in der Engine `Nav.Language`.*
+
+### CLI-Host / `nav.exe`
+Der **Kommandozeilen-Host** der Nav Language: löst `.nav`-Eingaben ein und **generiert C#-Code**
+(Standardpfad, [NavCodeGenerator](#navcodegenerator--generier-pfad)) bzw. **analysiert**/**fixt** sie
+(Nebenpfade). Ausgeliefert als self-contained Single-File-`nav.exe`. Wird u.a. vom MSBuild-Task
+(`Pharmatechnik.Nav.Language.targets`) beim Build aufgerufen.
+**Kanon:** CLI-Host, `nav.exe` · **Symbol:** `Program`, `Nav.Cli`
+
+### Response-File
+Ein **`@datei`**-Argument: statt einzelner Argumente liest der Host die Kommandozeile aus der genannten
+Datei (zeilenweise, mit Quote-Behandlung). Auflösung in `Program.LoadArgs`.
+**Kanon:** Response-File · **Symbol:** `@datei`, `Program.LoadArgs`
+
+### Subcommand
+Ein **Unterbefehl** vor den Optionen — aktuell `nav grammar` (Ausgabe der EBNF-[Grammatik](#grammatik--produktion),
+ganz oder pro Regel). Wird in `Program.Main` **vor** dem regulären Options-Parsing abgefangen.
+**Kanon:** Subcommand · **Symbol:** `GrammarCommand`
+
+### Options-Modell
+Das per **NDesk.Options** (`OptionSet`) geparste Kommandozeilen-Modell: eine Property je Option
+(`-d`/`-s`/`-g`/`-m`/`-dm`/…). `Program` liest daraus die Weiche Generieren-vs-Analysieren und reicht
+das Modell an die Pfade weiter.
+**Kanon:** Options-Modell, `OptionSet` · **Symbol:** `CommandLine`, `NDesk.Options.OptionSet`
+
+### CodeGenerationOptions
+Die `[Flags]`-**Bitmaske der erzeugbaren Artefakt-Klassen** (`WflClasses`, `IwflClasses`, `ToClasses`;
+`All` = WFL+IWFL, **ohne** die opt-in-TO-Klassen). Die Host-seitige Entsprechung der Engine-
+`GenerationOptions`; gesetzt über `-g|genopts`.
+**Kanon:** CodeGenerationOptions · **Symbol:** `CodeGenerationOptions`, `Pharmatechnik.Nav.Language.CodeGen.GenerationOptions`
+
+### Manifest / Abhängigkeits-Manifest
+Zwei Dateilisten für den **inkrementellen MSBuild-Build**: das **Manifest** (`-m`) führt alle erzeugten
+Ausgabedateien, das **Abhängigkeits-Manifest** (`-dm`) die per [taskref](#taskref) eingelesenen
+Abhängigkeiten (die selbst keine Eingaben sind). Beide werden **nur bei Erfolg** geschrieben, sonst
+bliebe das Manifest älter als die Inputs.
+**Kanon:** Manifest, Abhängigkeits-Manifest · **Symbol:** `NavCodeGenerator.WriteManifest`, `CommandLine.ManifestFile`, `CommandLine.DependencyManifestFile`
+
+### `.navignore`
+Der Ausschluss-Mechanismus der **Datei-Discovery**: `.navignore`-Dateien grenzen ein, welche `.nav`
+eingesammelt werden (im `/d`-Modus verzeichnisweit, im `/s`-Modus je Datei über die Vorfahren). Die
+`.nav`-Endung wird dabei **exakt** geprüft ([NavSolution](#navsolution--hasnavextension)`.HasNavExtension`),
+weil `*.nav` unter Windows auch `.navignore` &amp; Co. matcht.
+**Kanon:** `.navignore` · **Symbol:** `NavIgnore`, `NavSolution.HasNavExtension`
+
+### NavCodeGenerator / Generier-Pfad
+Der **Standardpfad** des Hosts: Eingaben einsammeln, die Engine-[Pipeline](#pipeline-host) verdrahten,
+laufen lassen, bei Erfolg die [Manifeste](#manifest--abhängigkeits-manifest) schreiben. Steuert nur
+Datei-Discovery, Options-Übersetzung und Manifest-Ausgabe bei — die Codeerzeugung liegt in der Engine.
+**Kanon:** Generier-Pfad · **Symbol:** `NavCodeGenerator`, `NavCodeGeneratorPipeline`
+
+### Analyse-Pfad / CodeFix-Pfad
+Die zwei **Nebenpfade**: der **Analyse-Pfad** (`SyntaxAnalyzerProgram` → `SyntaxAnalyzerPipeline` mit
+einem `SyntaxNodeAnalyzer`, z.B. dem knotenzählenden `CodeNotImplementedAnalyzer`) und der
+**CodeFix-Pfad** (`CodeFixProgram` → `CodeFixPipeline`, wendet Style-[CodeFixes](#codefix--codeaction)
+an und gibt Dateien vor dem Schreiben per TFS-`checkout` frei).
+**Kanon:** Analyse-Pfad, CodeFix-Pfad · **Symbol:** `SyntaxAnalyzerProgram`, `CodeFixProgram`
+
+### Pipeline (Host)
+Die **Host-seitige Verdrahtung** eines Engine-Kerns über eine Dateimenge: `NavCodeGeneratorPipeline`
+(Engine, Codegen), `SyntaxAnalyzerPipeline` und `CodeFixPipeline` (im CLI-Host). Sie halten keine
+Sprachlogik, sondern fahren je [FileSpec](#filespec) den jeweiligen Kern.
+**Kanon:** Pipeline · **Symbol:** `NavCodeGeneratorPipeline`, `SyntaxAnalyzerPipeline`, `CodeFixPipeline`
 
 ---
 

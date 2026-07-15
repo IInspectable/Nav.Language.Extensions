@@ -17,6 +17,15 @@ namespace Pharmatechnik.Nav.Language;
 /// </summary>
 static class GrammarCommand {
 
+    /// <summary>
+    /// Führt das Subcommand aus: parst die Optionen (<c>--rule</c>, <c>--help</c>) und gibt entweder die
+    /// gesamte Grammatik (<see cref="NavGrammar.Ebnf"/>) oder die einzelne Produktion aus
+    /// <see cref="NavGrammar.Rules"/> nach der Standardausgabe aus. Eine unbekannte Regel führt zu einer
+    /// Fehlermeldung samt Liste der bekannten Nichtterminale.
+    /// </summary>
+    /// <param name="args">Die Argumente hinter <c>grammar</c> (ohne das Subcommand-Wort selbst).</param>
+    /// <returns><c>0</c> bei Erfolg oder angeforderter Hilfe, <c>-1</c> bei einer
+    /// <see cref="OptionException"/> oder unbekannter Regel.</returns>
     public static int Run(string[] args) {
 
         string rule     = null;
@@ -62,6 +71,8 @@ static class GrammarCommand {
         return -1;
     }
 
+    /// <summary>Gibt den Verwendungshinweis und die Optionsbeschreibungen des Subcommands aus.</summary>
+    /// <param name="p">Das <see cref="OptionSet"/>, dessen Optionen beschrieben werden.</param>
     static void ShowHelp(OptionSet p) {
         Console.WriteLine($"{MyAssembly.ProductName} v{MyAssembly.ProductVersion}");
         Console.WriteLine();
