@@ -12,7 +12,6 @@
          net472. `init`/`record` werden für net472 über den lokalen IsExternalInit-Polyfill abgedeckt;
          runtime-abhängige Features (z.B. `required`) werden bewusst gemieden. -->
     <LangVersion>latest</LangVersion>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.Tests</RootNamespace>
     <AssemblyName>Nav.Language.Tests</AssemblyName>
     <!-- net472 bleibt flach in bin\Debug\ (bestehender NUnit-Console-Runner-Flow via `n test`
