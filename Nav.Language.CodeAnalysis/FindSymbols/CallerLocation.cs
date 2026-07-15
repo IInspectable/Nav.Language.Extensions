@@ -19,10 +19,21 @@ namespace Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 /// </summary>
 public class CallerLocation: Location {
 
+    /// <summary>
+    /// Erzeugt eine benannte Aufrufer-Location aus der zugrunde liegenden <see cref="Location"/> und dem
+    /// Anzeigenamen. Ein <c>null</c>-<paramref name="callerName"/> wird zu <see cref="string.Empty"/>
+    /// normalisiert.
+    /// </summary>
+    /// <param name="location">Die eigentliche Location im generierten Code.</param>
+    /// <param name="callerName">Der Text des Bezeichners, der als Anzeigename dient.</param>
     public CallerLocation(Location location, string callerName): base(location) {
         CallerName = callerName ?? string.Empty;
     }
 
+    /// <summary>
+    /// Der Anzeigename dieser Aufrufstelle — der Bezeichnertext (z.B. <c>Choice_Retry</c> oder
+    /// <c>BeginChild</c>); nie <c>null</c>.
+    /// </summary>
     [NotNull]
     public string CallerName { get; }
 }
