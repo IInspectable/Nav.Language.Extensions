@@ -9,11 +9,32 @@ using System.Collections.Immutable;
 
 namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Eine einzelne, an einer <see cref="Location"/> verortete Diagnose-Instanz — die konkrete Meldung,
+/// die aus einer <see cref="DiagnosticDescriptor"/>-Vorlage und den Meldungs-Argumenten entsteht.
+/// Roslyn-Analogon <c>Microsoft.CodeAnalysis.Diagnostic</c>. Der <see cref="Descriptor"/> liefert
+/// stabile Identität (<see cref="DiagnosticDescriptor.Id"/>), <see cref="Category"/> und
+/// <see cref="Severity"/>; die <see cref="Message"/> ergibt sich, indem die Meldungs-Argumente in
+/// <see cref="DiagnosticDescriptor.MessageFormat"/> eingesetzt werden. Eine Diagnose ist
+/// unveränderlich; <see cref="WithLocation"/> liefert eine Kopie an anderer Position.
+/// </summary>
 [Serializable]
 public sealed class Diagnostic: IEquatable<Diagnostic> {
 
     readonly object[] _messageArgs;
 
+    /// <summary>
+    /// Erzeugt eine Diagnose an <paramref name="location"/> ohne Zusatz-Positionen.
+    /// </summary>
+    /// <param name="location">Die Hauptposition der Diagnose (Datei und Textausschnitt).</param>
+    /// <param name="descriptor">Die Diagnose-Vorlage (Id, Meldungsformat, Kategorie, Schweregrad).</param>
+    /// <param name="messageArgs">
+    /// Die Argumente, die die Platzhalter in <see cref="DiagnosticDescriptor.MessageFormat"/> füllen;
+    /// darf <c>null</c> sein (wird wie eine leere Argumentliste behandelt).
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="location"/> oder <paramref name="descriptor"/> ist <c>null</c>.
+    /// </exception>
     public Diagnostic(Location location, DiagnosticDescriptor descriptor, params object[]? messageArgs) {
         Location            = location   ?? throw new ArgumentNullException(nameof(location));
         Descriptor          = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
