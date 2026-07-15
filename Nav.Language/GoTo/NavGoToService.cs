@@ -11,7 +11,7 @@ namespace Pharmatechnik.Nav.Language.GoTo;
 /// <summary>
 /// VS-freier "Go To Definition"-Service auf Engine-Ebene. Ermittelt zu einer Caret-Position die
 /// Nav→Nav-Sprungziele und ist damit gemeinsam von VS-Extension und LSP-Server nutzbar
-/// ("eine Engine"). Sprünge in den generierten C#-Code bleiben bewusst aussen vor — siehe
+/// ("eine Engine"). Sprünge in den generierten C#-Code bleiben bewusst außen vor — siehe
 /// <see cref="GoToTargetResolver"/>.
 /// </summary>
 public static class NavGoToService {
@@ -41,7 +41,7 @@ public static class NavGoToService {
     /// <summary>
     /// Liefert die Nav→Nav-Sprungziele für ein einzelnes <paramref name="symbol"/> — ohne Positions-
     /// oder Dedup-Logik. Dies ist die geteilte Autorität für die Frage "wohin springt dieses Symbol",
-    /// die von VS-Extension und LSP-Server gleichermassen genutzt wird ("eine Engine"). Symbole ohne
+    /// die von VS-Extension und LSP-Server gleichermaßen genutzt wird ("eine Engine"). Symbole ohne
     /// Nav→Nav-Ziel liefern eine leere Liste; Sprünge in den generierten C#-Code sind bewusst nicht
     /// enthalten — siehe <see cref="GoToTargetResolver"/>.
     /// </summary>
