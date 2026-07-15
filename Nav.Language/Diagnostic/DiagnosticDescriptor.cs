@@ -68,6 +68,10 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
     /// </summary>
     public DiagnosticSeverity DefaultSeverity { get; }
 
+    /// <summary>
+    /// Zwei Deskriptoren gelten als gleich, wenn <see cref="Id"/>, <see cref="MessageFormat"/>,
+    /// <see cref="Category"/> und <see cref="DefaultSeverity"/> übereinstimmen.
+    /// </summary>
     public bool Equals(DiagnosticDescriptor? other) {
 
         if (ReferenceEquals(null, other)) {
@@ -84,6 +88,7 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
                DefaultSeverity == other.DefaultSeverity;
     }
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) {
         if (ReferenceEquals(null, obj)) {
             return false;
@@ -94,6 +99,10 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         return obj is DiagnosticDescriptor descriptor && Equals(descriptor);
     }
 
+    /// <summary>
+    /// Liefert einen zur Gleichheit passenden Hashcode aus <see cref="Id"/>,
+    /// <see cref="MessageFormat"/>, <see cref="Category"/> und <see cref="DefaultSeverity"/>.
+    /// </summary>
     public override int GetHashCode() {
         unchecked {
             var hashCode = Id.GetHashCode();
@@ -104,14 +113,21 @@ public sealed class DiagnosticDescriptor : IEquatable<DiagnosticDescriptor> {
         }
     }
 
+    /// <summary>Prüft zwei Deskriptoren auf Gleichheit (siehe <see cref="Equals(DiagnosticDescriptor)"/>).</summary>
     public static bool operator ==(DiagnosticDescriptor? left, DiagnosticDescriptor? right) {
         return Equals(left, right);
     }
 
+    /// <summary>Prüft zwei Deskriptoren auf Ungleichheit (siehe <see cref="Equals(DiagnosticDescriptor)"/>).</summary>
     public static bool operator !=(DiagnosticDescriptor? left, DiagnosticDescriptor? right) {
         return !Equals(left, right);
     }
 
+    /// <summary>
+    /// Liefert eine kompakte Textdarstellung im Format
+    /// <c>&lt;Category&gt; &lt;DefaultSeverity&gt; &lt;Id&gt; : &lt;MessageFormat&gt;</c> (v.a. für
+    /// Diagnose-/Debug-Zwecke).
+    /// </summary>
     public override string ToString() {
         return $"{Category} {DefaultSeverity} {Id} : {MessageFormat}";
     }

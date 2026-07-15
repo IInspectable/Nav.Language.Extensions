@@ -2,9 +2,16 @@
 
 public static partial class DiagnosticDescriptors {
        
+    /// <summary>
+    /// Die Syntax-Diagnosen des Katalogs — Meldungen von Lexer und Parser (<c>Syntax\</c>),
+    /// einschließlich der Präprozessor-/<c>#version</c>-Direktiven. Alle tragen die Kategorie
+    /// <see cref="DiagnosticCategory.Syntax"/>.
+    /// </summary>
     public static class Syntax {
 
+        /// <summary>Die gemeinsame Kategorie aller hier definierten Deskriptoren (<see cref="DiagnosticCategory.Syntax"/>).</summary>
         public const DiagnosticCategory Category = DiagnosticCategory.Syntax;
+        /// <summary>Der voreingestellte Schweregrad der einfachen Syntaxfehler (<see cref="DiagnosticSeverity.Error"/>).</summary>
         public const DiagnosticSeverity Severity = DiagnosticSeverity.Error;
            
         /// <summary>

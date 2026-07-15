@@ -1,6 +1,8 @@
 ﻿# Nav.Language/Diagnostic — XML-Doku-Kampagne (Status & Umsetzungsplan)
 
-> **Status: IN ARBEIT (gestartet 2026-07-15).** Ziel: alle Dateien unter `Nav.Language\Diagnostic\`
+> **Status: FERTIG (2026-07-15).** Alle 3 Batches dokumentiert, Gates G1–G3 zentral grün
+> (CS1591 unter `Diagnostic\` von 70 → **0**, CS157x **0**, Doku-only-Diff verifiziert). Noch
+> uncommittet. Ziel: alle Dateien unter `Nav.Language\Diagnostic\`
 > durchgängig mit akkurater C#-XML-Dokumentation versehen — **ohne jede Code-Änderung**.
 > Vorgehen ist die Blaupause der vorangegangenen Kampagnen (`doc/nav-text-xmldoc-status.md`,
 > `doc/nav-codefixes-xmldoc-status.md`).
@@ -100,9 +102,9 @@ git ls-files --eol 'Nav.Language/Diagnostic/*.cs' | grep -v 'w/crlf'   # erwarte
 
 | Batch | Inhalt | CS1591 | Status |
 |---|---|---:|---|
-| **B1 — Kern-Modell** (3) | `Diagnostic`, `DiagnosticDescriptor`, `DiagnosticDescriptors` (Katalog; `DiagnosticId` + `.Syntax`/`.Semantic`/`.DeadCode` als Kontext) | 29 | offen |
-| **B2 — Kategorie, Schweregrad & Extensions** (4) | `DiagnosticCategory`, `DiagnosticSeverity`, `DiagnosticSeverityExtension`, `DiagnosticExtensions` | 18 | offen |
-| **B3 — Formatter** (2) | `DiagnosticFormatter`, `UnitTestDiagnosticFormatter` | 15 | offen |
+| **B1 — Kern-Modell** (3) | `Diagnostic`, `DiagnosticDescriptor`, `DiagnosticDescriptors` (Katalog; `DiagnosticId` + `.Syntax`/`.Semantic`/`.DeadCode` als Kontext) | 29 | **fertig** |
+| **B2 — Kategorie, Schweregrad & Extensions** (4) | `DiagnosticCategory`, `DiagnosticSeverity`, `DiagnosticSeverityExtension`, `DiagnosticExtensions` | 18 | **fertig** |
+| **B3 — Formatter** (2) | `DiagnosticFormatter`, `UnitTestDiagnosticFormatter` | 15 | **fertig** |
 
 `Diagnostic`/`DiagnosticDescriptor` (B1) sind die Doku-Autorität für die Typen, auf die B2/B3
 per `cref` verweisen. `DiagnosticFormatter` ist die Basis; `UnitTestDiagnosticFormatter` nutzt
@@ -144,3 +146,4 @@ Nav-Engine: XML-Doku für Diagnostic/<Bereich> (Batch <n>/3) — nur ///-Zeilen,
 | Datum | Batch | Ergebnis |
 |---|---|---|
 | 2026-07-15 | — | Plan erstellt, Audit durchgeführt (5 von 13 Dateien bereits sauber); Gate G2 verifiziert (Baseline **70× CS1591 unique**, 0× CS157x unter `Diagnostic\`); Kodierung geprüft (überall BOM, kein `U+FFFD`, alle `w/crlf`) |
+| 2026-07-15 | B1–B3 | Kampagne **abgeschlossen**: 4 angefangene Dateien (`Diagnostic`, `DiagnosticFormatter`; `DiagnosticCategory`/`DiagnosticSeverity` waren schon fertig) und alle unberührten (`DiagnosticDescriptor`, `DiagnosticDescriptors` + `.Syntax`/`.Semantic`/`.DeadCode`, `DiagnosticExtensions`, `DiagnosticSeverityExtension`, `UnitTestDiagnosticFormatter`) dokumentiert. Zentrale Gates: G1 doku-only ✔, G3 BOM/EOL ✔, G2 Build grün mit **CS1591 unter `Diagnostic\` = 0**, CS157x = 0. Falle wiedergesehen: Edit-Tool verschluckte eine Blindzeile mit 12 Trailing-Spaces in `DiagnosticFormatter.FormatSpan` → per `perl` byte-genau restauriert (G1 fing es). |

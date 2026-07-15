@@ -5,9 +5,17 @@ public static partial class DiagnosticDescriptors {
     // Unbenutzer Code wird etwas gesondert behandelt, da weder Error noch Warning.
     // Im Editor wird der Code z.B. etwas abgeduckellt dargestellt. Deshalb bekommt
     // diese Art von Diagnostic eine eigene Kategorie.
+    /// <summary>
+    /// Die Tote-Code-Diagnosen des Katalogs (<c>Nav1xxx</c>) — Hinweise auf Deklarationen oder
+    /// Direktiven, die der generierte Code nicht benötigt und die gefahrlos entfernt werden können.
+    /// Sie bilden eine eigene Kategorie (<see cref="DiagnosticCategory.DeadCode"/>), weil sie weder
+    /// Fehler noch Warnung im engeren Sinn sind und im Editor eigens (abgedunkelt) dargestellt werden.
+    /// </summary>
     public static class DeadCode {
 
+        /// <summary>Die gemeinsame Kategorie aller hier definierten Deskriptoren (<see cref="DiagnosticCategory.DeadCode"/>).</summary>
         public const DiagnosticCategory Category = DiagnosticCategory.DeadCode;
+        /// <summary>Der gemeinsame Schweregrad der Tote-Code-Hinweise (<see cref="DiagnosticSeverity.Warning"/>).</summary>
         public const DiagnosticSeverity Severity = DiagnosticSeverity.Warning;
 
         /// <summary>

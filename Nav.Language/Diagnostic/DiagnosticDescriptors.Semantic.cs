@@ -2,8 +2,15 @@
 
 public partial class DiagnosticDescriptors {
 
+    /// <summary>
+    /// Die semantischen Diagnosen des Katalogs — vom <c>SemanticAnalyzer\</c> auf dem geparsten Baum
+    /// festgestellte Regelverstöße (Namensauflösung, Kanten-/Knoten-Regeln, Sprachversion u.a.). Alle
+    /// tragen die Kategorie <see cref="DiagnosticCategory.Semantic"/>; der Schweregrad ist je Deskriptor
+    /// individuell (<see cref="DiagnosticSeverity.Error"/> oder <see cref="DiagnosticSeverity.Warning"/>).
+    /// </summary>
     public static class Semantic {
 
+        /// <summary>Die gemeinsame Kategorie aller hier definierten Deskriptoren (<see cref="DiagnosticCategory.Semantic"/>).</summary>
         public const DiagnosticCategory Category = DiagnosticCategory.Semantic;
 
         /// <summary>
