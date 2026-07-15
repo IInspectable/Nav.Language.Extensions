@@ -7,8 +7,8 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language.Formatting;
 
 /// <summary>
-/// Der Ausrichtungs-Vorpass des Formatters — die einzige nicht-lokale Zutat: eine Spalte hängt von
-/// Nachbarzeilen ab. Der Vorpass partitioniert die Anweisungen block-weit in Gruppen, misst je Zeile die
+/// Der Ausrichtungs-Vor-Durchlauf des Formatters — die einzige nicht-lokale Zutat: eine Spalte hängt von
+/// Nachbarzeilen ab. Der Vor-Durchlauf partitioniert die Anweisungen block-weit in Gruppen, misst je Zeile die
 /// <b>kanonische</b> Vor-Spalten-Breite (nie den Ist-Text — der wird vom Formatter selbst normalisiert),
 /// löst die Zielspalte über die <see cref="NavFormattingOptions.AlignmentColumnPolicy"/> auf und legt in
 /// der <see cref="AlignmentMap"/> nur das Ergebnis ab (Lücke → aufgelöste Space-Zahl). Die
@@ -19,7 +19,7 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// aufeinanderfolgenden Anweisungen (<c>interruptLines</c> = Newline-Trivia der Lücke − 1; Newlines im
 /// Inneren mehrzeiliger Kommentare zählen nicht). Neue Gruppe ⟺ <c>interruptLines ≥ 2</c> — eine
 /// Leerzeile oder eine eigene Kommentarzeile bricht die Gruppe also <b>nicht</b>. Zusätzlich bricht eine
-/// hand-gelegte (mehrzeilige) oder defekte Anweisung die Gruppe; eine Anweisung mit Inline-Block-Kommentar
+/// manuell umbrochene (mehrzeilige) oder defekte Anweisung die Gruppe; eine Anweisung mit Inline-Block-Kommentar
 /// in einer Raster-Lücke wird nur aus der Spalte ausgeschlossen (die Spaltenbreite hinge sonst an der
 /// Kommentar-Textlänge), bricht die Gruppe aber nicht. Gruppen mit weniger als zwei Teilnehmern werden
 /// nie ausgerichtet (Ausrichtung ist ein Gruppen-Phänomen) — ohne Tabellen-Eintrag rendert die Lücke als
@@ -29,13 +29,13 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// <c>interruptLines</c> formatierungs-invariant. Die Task-Kopf-Spalten sind lokale, kanonische
 /// Funktionen des Identifier-Textes. Einzige Ausnahme ist
 /// <see cref="AlignmentColumnPolicy.PreserveDominant"/>, das bewusst den Ist-Whitespace liest (nach dem
-/// ersten Lauf sitzt die Mehrheit exakt auf der Zielspalte → derselbe dominante Wert).</para>
+/// ersten Durchlauf sitzt die Mehrheit exakt auf der Zielspalte → derselbe dominante Wert).</para>
 /// </remarks>
 static class AlignmentMapBuilder {
 
     /// <summary>
     /// Rechnet die <see cref="AlignmentMap"/> für den ganzen Baum aus — der Einstieg des
-    /// Ausrichtungs-Vorpasses, aufgerufen aus <see cref="NavFormattingService.FormatDocument"/>. Läuft je
+    /// Ausrichtungs-Vor-Durchlaufs, aufgerufen aus <see cref="NavFormattingService.FormatDocument"/>. Läuft je
     /// Task-Definition und <c>taskref</c>-Deklaration die aktivierten Spalten in fester Abhängigkeitsreihenfolge
     /// durch (Kopf-Blöcke; Node-Raster; Pfeil-, dann Continuation-, dann Trigger-, dann Condition-Spalte, die
     /// aufeinander aufbauen; zuletzt die Trailing-Kommentar-Spalte). Sind alle Ausrichtungs-Schalter aus,
@@ -270,7 +270,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Der Kandidat der Pfeil-Spalte: eine (Exit-)Transition mit ihrer kanonischen Vor-Pfeil-Breite und der
     /// Startposition der zu paddenden Lücke (Quell-Teil → Edge-Keyword). <see cref="BreaksGroup"/> = defekt/
-    /// hand-gelegt (bricht die Gruppe), <see cref="IsAligned"/> = trägt die Spalte tatsächlich (ein Ausschluss
+    /// manuell umbrochen (bricht die Gruppe), <see cref="IsAligned"/> = trägt die Spalte tatsächlich (ein Ausschluss
     /// per Inline-Kommentar läuft als Gruppen-erhaltender Mitläufer mit). <see cref="AuthoredColumn"/> ist die
     /// Ist-Spalte, die nur die <see cref="AlignmentColumnPolicy.PreserveDominant"/> auswertet.
     /// </summary>
@@ -329,7 +329,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Vermisst eine (Exit-)Transition für die Pfeil-Spalte: kanonische Vor-Pfeil-Breite (Token-Texte +
     /// Regel-entschiedene Lücken — nie <c>ToString()</c>, der Ist-Whitespace wird ja gerade normalisiert).
-    /// Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die Gruppe; ein
+    /// Defekt (fehlende Kante / fehlendes <c>;</c>) oder manuell umbrochen ⇒ bricht die Gruppe; ein
     /// Inline-Block-Kommentar im Vor-Pfeil-Bereich ⇒ nur aus der Spalte ausgeschlossen.
     /// </summary>
     static ArrowCandidate CreateArrowCandidate(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts,
@@ -384,7 +384,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Der gemeinsame Kandidat der drei <b>tight</b> ausgerichteten Spalten (Trigger, Condition,
     /// Trailing-Kommentar): eine auszurichtende Anweisung mit ihrer kanonischen Vor-Spalten-Breite und der
-    /// Startposition der zu paddenden Lücke. <see cref="BreaksGroup"/> = defekt/hand-gelegt (bricht die
+    /// Startposition der zu paddenden Lücke. <see cref="BreaksGroup"/> = defekt/manuell umbrochen (bricht die
     /// Ausrichtungsgruppe), <see cref="IsAligned"/> = trägt die Spalte tatsächlich (Nicht-Teilnehmer laufen
     /// als Gruppen-erhaltende Mitläufer mit).
     /// </summary>
@@ -438,7 +438,7 @@ static class AlignmentMapBuilder {
     /// Condition, gewählt über <paramref name="clauseOf"/>): kanonische Breite ab Zeilenanfang bis zur
     /// führenden Klausel — die inneren Lücken kommen aus der Regelentscheidung, eine bereits aufgelöste
     /// Pfeil-/Continuation-/Trigger-Spalte aus <paramref name="spaces"/> (damit die Ausrichtungen nicht
-    /// auseinanderlaufen). Defekt (fehlende Kante / fehlendes <c>;</c>) oder hand-gelegt ⇒ bricht die
+    /// auseinanderlaufen). Defekt (fehlende Kante / fehlendes <c>;</c>) oder manuell umbrochen ⇒ bricht die
     /// Gruppe; fehlt die Klausel (Transition ohne Continuation, triggerlose bzw. bedingungslose Transition,
     /// jede Exit-Transition beim Trigger) ⇒ kein Teilnehmer, bricht die Gruppe aber nicht; ein Kommentar/
     /// eine Direktive im Vor-Klausel-Bereich ⇒ nur aus der Spalte ausgeschlossen.
@@ -543,7 +543,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Vermisst eine Anweisung für die Trailing-<c>//</c>-Kommentar-Spalte (tight über
     /// <see cref="AddTightClauseColumns"/> aufgelöst): kanonische Zeilenbreite bis zum letzten Token (die
-    /// inneren Lücken kommen aus den bereits aufgelösten Spalten bzw. der Regelentscheidung). Hand-gelegt/
+    /// inneren Lücken kommen aus den bereits aufgelösten Spalten bzw. der Regelentscheidung). Manuell umbrochen/
     /// leer ⇒ bricht die Gruppe; kein sauberer Trailing-<c>//</c> (nur Whitespace davor) ⇒ kein Teilnehmer
     /// (bricht nicht); eine nicht einzeilig-kanonische innere Lücke (z.B. Inline-Block-Kommentar) ⇒ aus der
     /// Spalte ausgeschlossen (die Spaltenbreite darf nie an einer Kommentar-Textlänge hängen).
@@ -603,7 +603,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Der Kandidat des 3-Spalten-Node-Rasters: eine Node-Deklaration mit den drei Raster-Token
     /// <see cref="Keyword"/> | <see cref="Node"/> | <see cref="Rest"/> (fehlende bleiben
-    /// <see cref="SyntaxToken.Missing"/>). <see cref="BreaksGroup"/> = hand-gelegt/defekt (bricht die Gruppe),
+    /// <see cref="SyntaxToken.Missing"/>). <see cref="BreaksGroup"/> = manuell umbrochen/defekt (bricht die Gruppe),
     /// <see cref="IsAligned"/> = trägt einen node-Identifier (nur <c>end;</c> nicht). <see cref="RestIsParams"/>
     /// unterscheidet den <c>[params]</c>-Block (eigene tight <see cref="ColumnId.NodeParams"/>-Spalte) vom
     /// übrigen Alias-Rest (<see cref="ColumnId.DeclRest"/>); die <c>Authored…</c>-Spalten wertet nur die
@@ -687,7 +687,7 @@ static class AlignmentMapBuilder {
     /// <summary>
     /// Vermisst eine Node-Deklaration für das 3-Spalten-Raster: Spalte 2 ist das erste Identifier nach
     /// dem Keyword, Spalte 3 das erste Token danach (sofern vorhanden und nicht das <c>;</c>).
-    /// Hand-gelegt/defekt ⇒ bricht die Gruppe (fällt wie eine hand-gelegte Anweisung aus dem Raster);
+    /// Manuell umbrochen/defekt ⇒ bricht die Gruppe (fällt wie eine manuell umbrochene Anweisung aus dem Raster);
     /// ein Inline-Block-Kommentar in einer Raster-Lücke ⇒ nur aus der jeweiligen Spalte ausgeschlossen.
     /// </summary>
     static NodeGridCandidate CreateNodeGridCandidate(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map facts, NodeDeclarationSyntax declaration) {
@@ -813,7 +813,7 @@ static class AlignmentMapBuilder {
 
     /// <summary>
     /// Ist-Spalte des auszurichtenden Tokens ab Inhaltsbeginn der Zeile (= erstes Token der Anweisung;
-    /// der Einzug geht nie in die Breite ein), Tabs bei <see cref="NavFormattingOptions.IndentSize"/>
+    /// die Einrückung geht nie in die Breite ein), Tabs bei <see cref="NavFormattingOptions.IndentSize"/>
     /// aufgelöst. Wird nur von <see cref="AlignmentColumnPolicy.PreserveDominant"/> ausgewertet.
     /// </summary>
     static int AuthoredColumn(SyntaxTree syntaxTree, SyntaxToken firstToken, SyntaxToken alignedToken, NavFormattingOptions options) {

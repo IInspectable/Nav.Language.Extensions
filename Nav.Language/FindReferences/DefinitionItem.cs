@@ -12,7 +12,7 @@ namespace Pharmatechnik.Nav.Language.FindReferences;
 /// Eine Definition im Ergebnis einer Referenzsuche — der gesuchte Gegenstand, unter dem die
 /// gefundenen <see cref="ReferenceItem"/>s gruppiert werden (z.B. eine Task-Definition oder ein
 /// Verbindungspunkt). Sie trägt das zugrunde liegende <see cref="Symbol"/>, den klassifizierten
-/// Anzeigetext (<see cref="TextParts"/>) und Sortier-/Darstellungshinweise. Die Fabrikmethoden
+/// Anzeigetext (<see cref="TextParts"/>) und Sortier-/Darstellungshinweise. Die Factory-Methoden
 /// stehen im Gegenstück <c>DefinitionItem.Factory.cs</c>. Roslyn-Analogon
 /// <c>Microsoft.CodeAnalysis.FindUsages.DefinitionItem</c>.
 /// </summary>
@@ -32,7 +32,7 @@ public partial class DefinitionItem {
     /// <summary>Das zugrunde liegende Symbol dieser Definition; <c>null</c> bei einer reinen Text-Definition (z.B. einer Meldung).</summary>
     public ISymbol? Symbol { get; }
 
-    /// <summary>Die Verortung der Definition — die <see cref="ISymbol.Location"/> des <see cref="Symbol"/>, oder <c>null</c>.</summary>
+    /// <summary>Die Location der Definition — die <see cref="ISymbol.Location"/> des <see cref="Symbol"/>, oder <c>null</c>.</summary>
     public Location? Location => Symbol?.Location;
 
     /// <summary>Der klassifizierte Anzeigetext der Definition.</summary>

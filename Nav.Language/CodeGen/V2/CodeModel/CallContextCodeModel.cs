@@ -76,7 +76,7 @@ sealed class CallContextCodeModel {
     /// sind die (noch nicht entdoppelten) <see cref="Call"/>s der Quelle — <b>ohne</b> plattgefaltete
     /// Choices (<see cref="EdgeExtensions.GetDirectCalls"/>): ein Choice-Ziel ist ein eigener
     /// <see cref="Call"/> und wird zu einem <c>{Choice}(…)</c>-Forward (§3.5). <paramref name="ownerTaskResult"/>
-    /// ist das Ergebnis des <b>umgebenden</b> Tasks (für die fixe <c>Exit</c>-Fabrik, §3.4).
+    /// ist das Ergebnis des <b>umgebenden</b> Tasks (für die fixe <c>Exit</c>-Factory, §3.4).
     /// </summary>
     public static CallContextCodeModel Build(string contextTypeName,
                                              string commandType,
@@ -85,7 +85,7 @@ sealed class CallContextCodeModel {
                                              ParameterCodeModel ownerTaskResult) {
 
         // Wie V1: Exits werden im Codegen nicht unterschieden (FoldExits) — mehrere exit-Ziele
-        // kollabieren auf eine einzige Exit()-Fabrik.
+        // kollabieren auf eine einzige Exit()-Factory.
         var distinct = directCalls.Distinct(CallComparer.FoldExits).ToList();
 
         var entries = new List<Entry>();
@@ -132,12 +132,12 @@ sealed class CallContextCodeModel {
         return new CallContextCodeModel(contextTypeName, commandType, logicMethodName, methods);
     }
 
-    // -- Callable-Fabriken je Kanten-Art --------------------------------------------------------------
+    // -- Callable-Factorys je Kanten-Art --------------------------------------------------------------
 
     /// <summary>
     /// Baut die <c>Show{Node}</c>-Aufruffläche für alle Kanten einer Quelle zur selben GUI-View
     /// (<paramref name="calls"/>). Trägt keine Kante eine Continuation, ist es die schlichte
-    /// <c>Show{Node}(ViewTO) =&gt; Result</c>-Fabrik (Grundform); trägt mindestens eine Kante eine
+    /// <c>Show{Node}(ViewTO) =&gt; Result</c>-Factory (Grundform); trägt mindestens eine Kante eine
     /// Continuation, entsteht der <c>Show{Node}Continuation</c>-Typ (§3.4/§3.6).
     /// </summary>
     static Entry BuildShowGui(IReadOnlyList<Call> calls) {
@@ -151,7 +151,7 @@ sealed class CallContextCodeModel {
         var continuationCalls = calls.Where(call => call.ContinuationCall != null).ToList();
 
         if (continuationCalls.Count == 0) {
-            // Grundform: mode-freie Show-Fabrik. Der Anzeige-Modus steckt in der Engine-Methode.
+            // Grundform: mode-freie Show-Factory. Der Anzeige-Modus steckt in der Engine-Methode.
             var engine = GuiEngineMethod(plainCalls[0].EdgeMode.EdgeMode);
             return new Entry(
                 SortOrderGui,

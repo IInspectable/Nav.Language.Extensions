@@ -13,7 +13,7 @@
 /// </remarks>
 public record NavFormattingOptions {
 
-    /// <summary>Die kanonischen Formatter-Defaults (Korpus-Mehrheit: Tabs, Breite 4, alle Ausrichtungen an, Leerzeilen-Deckel 3).</summary>
+    /// <summary>Die kanonischen Formatter-Defaults (Korpus-Mehrheit: Tabs, Breite 4, alle Ausrichtungen an, Leerzeilen-Limit 3).</summary>
     public static readonly NavFormattingOptions Default = new();
 
     /// <summary>Der Einzugsstil (Tabs oder Spaces). Default: <see cref="Formatting.IndentStyle.Tabs"/> (Korpus-Mehrheit).</summary>
@@ -26,7 +26,7 @@ public record NavFormattingOptions {
     public bool AlignArrows { get; init; } = true;
 
     /// <summary>
-    /// Aufeinanderfolgende Fortsetzungs-Kanten (<c>--^</c>/<c>o-^</c>) einer Transitions-Gruppe
+    /// Aufeinanderfolgende Continuation-Kanten (<c>--^</c>/<c>o-^</c>) einer Transitions-Gruppe
     /// spaltenweise ausrichten (tight unter dem längsten Ziel-Teil, in Quellreihenfolge zwischen Ziel-Teil
     /// und Trigger). Wie bei den Trailing-Kommentaren bricht bereits <b>eine einzelne</b> Leerzeile (bzw.
     /// eine eigene Kommentarzeile) den Block. Default: <c>true</c>.
@@ -87,28 +87,28 @@ public record NavFormattingOptions {
     public bool InsertFinalNewline { get; init; } = true;
 
     /// <summary>
-    /// Deckel für aufeinanderfolgende Leerzeilen: Läufe von mehr als so vielen Leerzeilen werden beim
+    /// Obergrenze für aufeinanderfolgende Leerzeilen: Läufe von mehr als so vielen Leerzeilen werden beim
     /// Formatieren darauf gekappt (Kommentar-/Direktivzeilen zählen nicht als Leerzeile und setzen den
     /// Lauf zurück). <c>3</c> (Default) = bis zu drei Leerzeilen am Stück bleiben stehen, alles darüber
-    /// wird auf drei gekappt; <c>null</c> = <b>kein</b> Deckel — die vom Autor gesetzte vertikale Trennung
+    /// wird auf drei gekappt; <c>null</c> = <b>keine</b> Obergrenze — die vom Autor gesetzte vertikale Trennung
     /// bleibt vollständig erhalten. Gilt gleichermaßen mitten im Code, am Dateianfang und am Dateiende.
     /// </summary>
     /// <remarks>
-    /// <b>Nur ≥ 2 ist zulässig</b> (2, 3, 4, … — nicht 0/1). Der Deckel darf einen Leerzeilen-Lauf nie
+    /// <b>Nur ≥ 2 ist zulässig</b> (2, 3, 4, … — nicht 0/1). Die Obergrenze darf einen Leerzeilen-Lauf nie
     /// <b>unter</b> die Gruppenbruch-Schwelle der Spaltenausrichtung drücken: eine Ausrichtungsgruppe
-    /// (Pfeile/Node-Raster) bricht bei <b>zwei</b> Leerzeilen (<c>interruptLines ≥ 2</c>). Ein Deckel bei 1
+    /// (Pfeile/Node-Raster) bricht bei <b>zwei</b> Leerzeilen (<c>interruptLines ≥ 2</c>). Eine Obergrenze bei 1
     /// kappte einen 2-Leerzeilen-Lauf (= bewusster Gruppenbruch) auf eine Leerzeile (= kein Bruch) — vorher
     /// getrennte Transitionen würden dann <b>zusammengruppiert</b> und ausgerichtet, und das erst im
-    /// <b>zweiten</b> Lauf (die Gruppen werden aus dem geparsten Baum gelesen, vor dem Kappen) → nicht mehr
+    /// <b>zweiten</b> Durchlauf (die Gruppen werden aus dem geparsten Baum gelesen, vor dem Kappen) → nicht mehr
     /// idempotent. <b>Deshalb</b> ist 1 verboten.
-    /// <para>Jeder Deckel <b>≥ 2</b> ist dagegen unkritisch: er lässt jeden ≥ 2-Lauf ≥ 2 (Bruch bleibt Bruch)
+    /// <para>Jede Obergrenze <b>≥ 2</b> ist dagegen unkritisch: sie lässt jeden ≥ 2-Lauf ≥ 2 (Bruch bleibt Bruch)
     /// und jeden 1-Lauf unberührt — die Gruppierung ändert sich nie, egal ob 2, 3 oder mehr. <b>2 ist also
     /// nur der Boden</b> (die Bruch-Schwelle selbst); höhere Werte lassen bloß mehr vertikale Luft stehen.
-    /// Werte &lt; 2 werden still auf 2 geklemmt; <c>null</c> schaltet den Deckel ganz ab. Idempotent, weil
-    /// kein Lauf die Schwelle überquert → ein zweiter Lauf klassifiziert identisch.</para>
+    /// Werte &lt; 2 werden still auf 2 geklemmt; <c>null</c> schaltet die Obergrenze ganz ab. Idempotent, weil
+    /// kein Lauf die Schwelle überquert → ein zweiter Durchlauf klassifiziert identisch.</para>
     /// <para><b>Warum 3 als Default:</b> im realen <c>.nav</c>-Bestand (Korpus, 1913 Dateien, 35 530
     /// Leerzeilen-Läufe) ist 1 Leerzeile die Norm (87 %), 2 der Abschnitts-Trenner (11 %), 3 der starke
-    /// Trenner (1,4 %); ab 4 wird es Rauschen. Ein Deckel 3 lässt damit 99,6 % aller Läufe unberührt und
+    /// Trenner (1,4 %); ab 4 wird es Rauschen. Eine Obergrenze 3 lässt damit 99,6 % aller Läufe unberührt und
     /// kappt nur die ~0,4 % offensichtlich versehentlich zu großen Lücken (4 … 8 Leerzeilen) — er respektiert
     /// das Trenner-Vokabular des Bestands und entfernt bloß die Ausreißer.</para>
     /// </remarks>

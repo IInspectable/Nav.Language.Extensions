@@ -5,7 +5,7 @@
 /// hervorgehobene Anzeige (QuickInfo/Hover, Completion-Beschreibungen). Entspricht Roslyns
 /// <c>TaggedText</c>/<c>SymbolDisplayPart</c>: reiner Text plus eine <see cref="TextClassification"/>,
 /// die der Host in eine Farbe übersetzt. Eine Folge solcher Stücke bildet die Anzeige eines
-/// Symbols (siehe <see cref="SymbolExtensions.ToDisplayParts"/>); die Fabrikmethoden in
+/// Symbols (siehe <see cref="SymbolExtensions.ToDisplayParts"/>); die Factory-Methoden in
 /// <see cref="ClassifiedTexts"/> erzeugen die einzelnen Teile.
 /// </summary>
 public sealed class ClassifiedText {

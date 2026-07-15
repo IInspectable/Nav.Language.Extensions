@@ -5,7 +5,7 @@ using System.Linq;
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
-/// Zentrale Fabrik, die aus dem Semantikmodell eines Tasks (<see cref="ITaskDefinitionSymbol"/>) die
+/// Zentrale Factory, die aus dem Semantikmodell eines Tasks (<see cref="ITaskDefinitionSymbol"/>) die
 /// wiederkehrenden Teil-CodeModels der V1-Generation zusammensetzt. Die dateibezogenen CodeModels
 /// (<see cref="WfsBaseCodeModel"/>, <see cref="WfsCodeModel"/>, <see cref="IWfsCodeModel"/>,
 /// <see cref="IBeginWfsCodeModel"/>) rufen diese Methoden auf, um ihre Transitions-, Begin-Wrapper-

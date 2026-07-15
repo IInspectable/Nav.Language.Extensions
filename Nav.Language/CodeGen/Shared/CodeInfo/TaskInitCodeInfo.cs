@@ -34,7 +34,7 @@ public sealed class TaskInitCodeInfo {
     public string       InitName             { get; }
 
     /// <summary>
-    /// Fabrik: baut die <see cref="TaskInitCodeInfo"/> zu einem Init-Knoten-Symbol; leitet den
+    /// Factory: baut die <see cref="TaskInitCodeInfo"/> zu einem Init-Knoten-Symbol; leitet den
     /// enthaltenden Task über <see cref="TaskCodeInfo.FromTaskDefinition"/> ab.
     /// </summary>
     public static TaskInitCodeInfo FromInitNode(IInitNodeSymbol initNodeSymbol) {
@@ -49,7 +49,7 @@ public sealed class TaskInitCodeInfo {
     }
 
     /// <summary>
-    /// Fabrik-Überladung, die den bereits gebauten <see cref="TaskCodeInfo"/> des enthaltenden Tasks
+    /// Factory-Überladung, die den bereits gebauten <see cref="TaskCodeInfo"/> des enthaltenden Tasks
     /// wiederverwendet (<paramref name="taskCodeInfo"/>) statt ihn erneut abzuleiten.
     /// </summary>
     internal static TaskInitCodeInfo FromInitNode(TaskCodeInfo taskCodeInfo, IInitNodeSymbol initNodeSymbol) {

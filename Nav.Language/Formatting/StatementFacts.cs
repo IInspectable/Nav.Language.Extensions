@@ -5,19 +5,19 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 
 /// <summary>
 /// Die pro Anweisung <b>einmal</b> erhobenen, formatierungs-invarianten Fakten, die sich der
-/// Fehler-Toleranz-Vorpass (<see cref="FormatterSuppression"/>) und alle Ausrichtungs-Vorpässe
+/// Fehler-Toleranz-Vor-Durchlauf (<see cref="FormatterSuppression"/>) und alle Ausrichtungs-Vor-Durchläufe
 /// (<see cref="AlignmentMapBuilder"/>) teilen: die signifikante Token-Liste der Anweisung
 /// (<c>syntaxTree.Tokens[statement.Extent]</c>) und die Klassifikation ihrer inneren Lücken-Trivia. Zuvor
-/// las jeder Vorpass die Token-Liste und scannte die Lücken selbst — pro Transition bis zu fünfmal (Pfeil,
-/// Trigger, Condition, Trailing-Kommentar im Ausrichtungs-Vorpass sowie strukturgleich in der
-/// Suppression). Beide Erhebungen fallen hier zu einer zusammen.
+/// las jeder Vor-Durchlauf die Token-Liste und scannte die Lücken selbst — pro Transition bis zu fünfmal (Pfeil,
+/// Trigger, Condition, Trailing-Kommentar im Ausrichtungs-Vor-Durchlauf sowie strukturgleich in der
+/// Unterdrückung). Beide Erhebungen fallen hier zu einer zusammen.
 /// </summary>
 /// <remarks>
 /// Alle drei Fakten sind reine Funktionen der Token-Texte und der Trivia-Klassen — formatierungs-invariant,
-/// also über die Läufe stabil (Grundlage der Idempotenz). <see cref="HasStructuralBreakTrivia"/> und
+/// also über die Durchläufe stabil (Grundlage der Idempotenz). <see cref="HasStructuralBreakTrivia"/> und
 /// <see cref="SpansMultipleLines"/> werden getrennt gehalten, weil die beiden Konsumenten sie verschieden
-/// kombinieren: die Suppression trennt „Strukturbruch → verbatim" (Skiped/Direktive) von „mehrzeilig, aber
-/// gültig → hand-gelegt", der Ausrichtungs-Vorpass fasst beide zu <see cref="BreaksSingleLineForm"/>
+/// kombinieren: die Unterdrückung trennt „Strukturbruch → verbatim" (Skiped/Direktive) von „mehrzeilig, aber
+/// gültig → manuell umbrochen", der Ausrichtungs-Vor-Durchlauf fasst beide zu <see cref="BreaksSingleLineForm"/>
 /// zusammen (jede nicht mehr einzeilig-kanonische Anweisung fällt aus der Spalte).
 /// </remarks>
 sealed class StatementFacts {
@@ -49,13 +49,13 @@ sealed class StatementFacts {
 
     /// <summary>
     /// Ob eine <b>innere</b> Lücke einen Newline oder einen zeilen-erzwingenden Kommentar trägt — die
-    /// Anweisung ist dann nicht einzeilig (hand-gelegt).
+    /// Anweisung ist dann nicht einzeilig (manuell umbrochen).
     /// </summary>
     public bool SpansMultipleLines { get; }
 
     /// <summary>
     /// Ob die Anweisung nicht mehr einzeilig-kanonisch ist (mehrzeilig <b>oder</b> Skiped/Direktive im
-    /// Inneren) — die Bedingung, unter der ein Ausrichtungs-Vorpass sie aus der Spalte nimmt und die Gruppe
+    /// Inneren) — die Bedingung, unter der ein Ausrichtungs-Vor-Durchlauf sie aus der Spalte nimmt und die Gruppe
     /// bricht. Deckt exakt die frühere <c>AlignmentMapBuilder.IsHandLaid</c>-Erkennung ab.
     /// </summary>
     public bool BreaksSingleLineForm => HasStructuralBreakTrivia || SpansMultipleLines;
@@ -110,7 +110,7 @@ sealed class StatementFacts {
     }
 
     /// <summary>
-    /// Das flache Anweisungs-Set, auf dem sowohl die Suppression als auch der Ausrichtungs-Vorpass
+    /// Das flache Anweisungs-Set, auf dem sowohl die Unterdrückung als auch der Ausrichtungs-Vor-Durchlauf
     /// operieren: Transitionen, Exit-Transitionen, Node-Deklarationen (Letztere schließen die
     /// <c>taskref</c>-Verbindungspunkte mit ein, da <c>ConnectionPointNodeSyntax</c> von
     /// <see cref="NodeDeclarationSyntax"/> erbt). Der einzige gemeinsame Aufzähler dieser Knoten.
@@ -133,10 +133,10 @@ sealed class StatementFacts {
     }
 
     /// <summary>
-    /// Die vermessenen Anweisungen: als Liste (für die Suppression, die jede klassifiziert) und über den
-    /// Anweisungsknoten adressierbar (für den Ausrichtungs-Vorpass, der die Anweisungen block-weit
+    /// Die vermessenen Anweisungen: als Liste (für die Unterdrückung, die jede klassifiziert) und über den
+    /// Anweisungsknoten adressierbar (für den Ausrichtungs-Vor-Durchlauf, der die Anweisungen block-weit
     /// aufsucht). Da beide Sichten aus derselben <see cref="EnumerateStatements"/>-Aufzählung stammen, ist
-    /// jeder vom Ausrichtungs-Vorpass adressierte Knoten in der Map enthalten.
+    /// jeder vom Ausrichtungs-Vor-Durchlauf adressierte Knoten in der Map enthalten.
     /// </summary>
     public sealed class Map {
 

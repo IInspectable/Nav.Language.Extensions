@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// Nav0200 (<c>Signal trigger not allowed after init</c>, Fehler): Eine Init-Transition
 /// (<see cref="IInitTransition"/> — der Einstieg in den Task) darf keinen Signal-Trigger
 /// (<c>on Signal</c>, <see cref="SignalTriggerSyntax"/>) tragen: Signal-Trigger lösen
-/// Trigger-Transitionen aus GUI-Knoten aus (<see cref="ITriggerTransition"/>), der Übergang aus
+/// Trigger-Transitionen aus GUI-Knoten aus (<see cref="ITriggerTransition"/>), die Transition aus
 /// einem Init-Knoten wird dagegen nicht durch ein Signal ausgelöst. z.B. meldet
 /// <c>I1 --&gt; e1 on Foo;</c> hinter <c>init I1;</c> ein <c>Signal trigger not allowed after
 /// init</c>. Geprüft wird die Syntax der Transition

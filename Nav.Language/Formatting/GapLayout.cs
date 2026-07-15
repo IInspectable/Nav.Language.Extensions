@@ -40,7 +40,7 @@ abstract record GapLayout {
     /// <param name="Column">
     /// Benennt <b>welche</b> Spalte gemeint ist — reine Selbstdokumentation im Regel-Code. Der
     /// <see cref="GapRenderer"/> wertet den Wert nicht aus, sondern schlägt die aufgelöste Space-Zahl
-    /// allein über <c>Extent.Start</c> in der <see cref="AlignmentMap"/> nach (der Vorpass hat die
+    /// allein über <c>Extent.Start</c> in der <see cref="AlignmentMap"/> nach (der Vor-Durchlauf hat die
     /// spaltenspezifische Logik bereits erledigt).
     /// </param>
     public sealed record AlignedColumn(ColumnId Column): GapLayout;
@@ -53,13 +53,13 @@ abstract record GapLayout {
     public sealed record NewLine(int BlankLinesBefore, int IndentDepth): GapLayout;
 
     /// <summary>
-    /// Zeilenumbruch, dann Spaces bis zur Gruppenspalte statt Tiefen-Einzug — für den
+    /// Zeilenumbruch, dann Spaces bis zur Gruppenspalte statt Tiefen-Einrückung — für den
     /// Task-Kopf-Block-Stapel und mehrzeiliges <c>[params]</c>.
     /// </summary>
     /// <param name="BlankLinesBefore">
     /// Die Autorenzahl der Leerzeilen vor dem Umbruch als Minimum — wie bei <see cref="NewLine"/>. Der
     /// kanonische Kopf-Stapel reicht hier stets <c>0</c> herein und kollabiert die authored Leerzeilen
-    /// zwischen den gestapelten Blöcken (Deckel <c>0</c> im <see cref="GapRenderer"/>).
+    /// zwischen den gestapelten Blöcken (Obergrenze <c>0</c> im <see cref="GapRenderer"/>).
     /// </param>
     /// <param name="Column">
     /// Benennt <b>welche</b> Spalte gemeint ist — reine Selbstdokumentation im Regel-Code; der

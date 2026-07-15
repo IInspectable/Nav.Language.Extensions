@@ -45,13 +45,13 @@ public sealed class SignalTriggerCodeInfo {
     /// </summary>
     public string       TOClassName            => $"{ViewNodeName.ToPascalcase()}{CodeGenInvariants.ToClassNameSuffix}";
 
-    /// <summary>Fabrik: baut die <see cref="SignalTriggerCodeInfo"/> zu einem Signal-Trigger-Symbol.</summary>
+    /// <summary>Factory: baut die <see cref="SignalTriggerCodeInfo"/> zu einem Signal-Trigger-Symbol.</summary>
     public static SignalTriggerCodeInfo FromSignalTrigger(ISignalTriggerSymbol signalTriggerSymbol) {
         return FromSignalTrigger(signalTriggerSymbol, null);
     }
 
     /// <summary>
-    /// Fabrik-Überladung, die den bereits gebauten <see cref="TaskCodeInfo"/> des enthaltenden Tasks
+    /// Factory-Überladung, die den bereits gebauten <see cref="TaskCodeInfo"/> des enthaltenden Tasks
     /// wiederverwendet (<paramref name="taskCodeInfo"/>); ist er <c>null</c>, wird er über
     /// <see cref="TaskCodeInfo.FromTaskDefinition"/> aus dem Transitions-Task abgeleitet. Der View-Name
     /// stammt aus der GUI-Knoten-Quelle der Transition (leer, wenn keine vorhanden).

@@ -116,7 +116,7 @@ public sealed class CodeGenerationUnit {
 
     /// <summary>
     /// Die Diagnostics der semantischen Ebene: die Ergebnisse der semantischen Analyzer plus die
-    /// beim Modellbau angefallenen Meldungen (Include-Auflösung, Namensduplikate, Bindung der
+    /// beim Modellbau angefallenen Diagnosen (Include-Auflösung, Namensduplikate, Bindung der
     /// Knoten und Transitionen). Die reinen Syntax-Fehler der Datei stehen nicht hier, sondern an
     /// <see cref="SyntaxTree.Diagnostics"/>.
     /// </summary>

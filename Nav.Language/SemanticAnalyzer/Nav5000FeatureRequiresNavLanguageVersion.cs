@@ -9,7 +9,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// Choice-Parameter (<c>choice X [params …]</c>) sind erst ab <see cref="NavLanguageVersion.Version2"/>
 /// zulässig. Der Parser bleibt bewusst permissiv (er kennt stets die volle Syntax); die
 /// Versions-Abhängigkeit ist eine rein semantische Prüfung — so entsteht statt eines kryptischen
-/// Parse-Fehlers eine treffende <c>Nav5000</c>-Meldung samt Handlungsanweisung (<c>#version 2</c>
+/// Parse-Fehlers eine treffende <c>Nav5000</c>-Diagnose samt Handlungsanweisung (<c>#version 2</c>
 /// ergänzen). Einzige Autorität für „welches Feature ab welcher Version" ist
 /// <see cref="NavLanguageFeatures"/>; ist ein Feature unter der effektiven Version nicht verfügbar,
 /// ist diese Meldung die <b>eine treffende</b> Diagnose — die Continuation-Struktur-Analyzer
@@ -26,7 +26,7 @@ public class Nav5000FeatureRequiresNavLanguageVersion: NavAnalyzer {
 
         var version = taskDefinition.CodeGenerationUnit?.LanguageVersion ?? NavLanguageVersion.Default;
 
-        // Continuation-Kanten (o-^/--^): eine Meldung je Kante, verankert am Fortsetzungs-Kantenmodus (dem
+        // Continuation-Kanten (o-^/--^): eine Diagnose je Kante, verankert am Fortsetzungs-Kantenmodus (dem
         // Keyword selbst); fehlt dieser, am gesamten Continuation-Syntaxknoten.
         foreach (var continuation in taskDefinition.Edges()
                                                    .OfType<IContinuableEdge>()
@@ -38,7 +38,7 @@ public class Nav5000FeatureRequiresNavLanguageVersion: NavAnalyzer {
             }
         }
 
-        // Choice-Parameter (choice X [params …]): eine Meldung je Klausel, verankert an der [params …]-Klausel.
+        // Choice-Parameter (choice X [params …]): eine Diagnose je Klausel, verankert an der [params …]-Klausel.
         foreach (var choice in taskDefinition.NodeDeclarations.OfType<IChoiceNodeSymbol>()) {
             if (choice.Syntax.CodeParamsDeclaration is {} codeParams &&
                 Gate(NavLanguageFeature.ChoiceParameters, version, codeParams.GetLocation()) is {} diagnostic) {

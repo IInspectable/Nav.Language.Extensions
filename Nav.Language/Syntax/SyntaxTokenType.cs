@@ -133,7 +133,7 @@ public enum SyntaxTokenType {
     /// bei der Fehler-Recovery bzw. für <see cref="Unknown"/>-Token erzeugt.
     /// </summary>
     SkippedTokensTrivia    = 55,
-    // Continuation-Kanten (`--^`/`o-^`, ab Sprachversion 2): der GUI-Knoten setzt den Übergang in einen
+    // Continuation-Kanten (`--^`/`o-^`, ab Sprachversion 2): der GUI-Knoten setzt die Transition in einen
     // Folge-Task fort (§Continuation des V2-Codegen-Designs). Getrennt von den regulären Transitions-Kanten,
     // weil sie keine neue Transition einleiten.
     /// <summary>Der Continuation-Kanten-Operator <c>--^</c> (Goto, ab Sprachversion 2).</summary>

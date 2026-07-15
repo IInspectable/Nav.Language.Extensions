@@ -45,7 +45,7 @@ sealed class IBeginWfsCodeModel : FileGenerationCodeModel {
     public ImmutableList<string>                  CodeDeclarations { get; }
         
     /// <summary>
-    /// Fabrik: baut das <see cref="IBeginWfsCodeModel"/> aus dem Task-Symbol (Namespaces,
+    /// Factory: baut das <see cref="IBeginWfsCodeModel"/> aus dem Task-Symbol (Namespaces,
     /// <c>code</c>-Deklarationen, Init-Transitionen, Datei-/Syntaxpfad über den
     /// <paramref name="pathProvider"/>).
     /// </summary>

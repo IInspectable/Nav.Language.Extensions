@@ -35,7 +35,7 @@ public class CodeGeneratorV2: Generator, ICodeGenerator {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
     }
 
-    /// <summary>Die Fabrik, die je <see cref="ITaskDefinitionSymbol"/> die Ausgabepfade der vier Artefakte liefert.</summary>
+    /// <summary>Die Factory, die je <see cref="ITaskDefinitionSymbol"/> die Ausgabepfade der vier Artefakte liefert.</summary>
     public IPathProviderFactory PathProviderFactory { get; }
 
     /// <summary>

@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// <summary>
 /// Nav1017 (<c>The view node '{0}' is not required by the code and can be safely removed</c>,
 /// Dead-Code-Hinweis der Kategorie <see cref="DiagnosticCategory.DeadCode"/>): Ein
-/// <c>view</c>-Knoten (<see cref="IViewNodeSymbol"/>), auf den kein Verweis aus dem
+/// <c>view</c>-Knoten (<see cref="IViewNodeSymbol"/>), auf den keine Referenz aus dem
 /// Transitionsblock existiert (<see cref="INodeSymbol.References"/>), ist überflüssig — die View
 /// kommt im Workflow nicht vor, z.B. <c>view v;</c> ohne jede Kante von oder auf <c>v</c>.
 /// Gemeldet wird über die gesamte Knoten-Deklaration. Deckt damit den Fall „ganz ohne Kanten" ab,

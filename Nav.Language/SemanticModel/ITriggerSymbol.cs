@@ -1,9 +1,9 @@
 ﻿namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Symbol des Auslösers einer Trigger-Transition — in <c>View --&gt; Ziel on Speichern;</c> das
+/// Symbol des Triggers einer Trigger-Transition — in <c>View --&gt; Ziel on Speichern;</c> das
 /// Signal <c>Speichern</c>. Zwei Arten: ein Signal-Trigger <c>on Signal</c>
-/// (<see cref="ISignalTriggerSymbol"/>) oder ein spontaner Übergang <c>spontaneous</c>/<c>spont</c>
+/// (<see cref="ISignalTriggerSymbol"/>) oder eine spontane Transition <c>spontaneous</c>/<c>spont</c>
 /// (<see cref="ISpontaneousTriggerSymbol"/>). Innerhalb einer Transition muss der Trigger-Name
 /// eindeutig sein (Nav0026); je Quellknoten darf jeder Trigger nur eine ausgehende Kante
 /// auslösen (Nav0023).
@@ -15,7 +15,7 @@ public interface ITriggerSymbol: ISymbol {
 
     /// <summary>Ob dies ein Signal-Trigger (<c>on Signal</c>) ist — das Symbol ist dann ein <see cref="ISignalTriggerSymbol"/>.</summary>
     bool IsSignalTrigger      { get; }
-    /// <summary>Ob dies ein spontaner Übergang (<c>spontaneous</c>/<c>spont</c>) ist — das Symbol ist dann ein <see cref="ISpontaneousTriggerSymbol"/>.</summary>
+    /// <summary>Ob dies eine spontane Transition (<c>spontaneous</c>/<c>spont</c>) ist — das Symbol ist dann ein <see cref="ISpontaneousTriggerSymbol"/>.</summary>
     bool IsSpontaneousTrigger { get; }
 
 }
@@ -37,7 +37,7 @@ public interface ISignalTriggerSymbol: ITriggerSymbol {
 }
 
 /// <summary>
-/// Ein spontaner Übergang ohne explizites Signal, geschrieben als <c>spontaneous</c> oder in der
+/// Eine spontane Transition ohne explizites Signal, geschrieben als <c>spontaneous</c> oder in der
 /// Kurzform <c>spont</c> — der <see cref="ISymbol.Name"/> ist stets das kanonische Literal
 /// <see cref="SpontaneousTriggerSyntax.Keyword"/> (<c>"spontaneous"</c>), auch bei der Kurzform.
 /// </summary>

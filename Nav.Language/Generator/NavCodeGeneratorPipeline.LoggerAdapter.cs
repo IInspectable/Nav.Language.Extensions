@@ -17,7 +17,7 @@ public sealed partial class NavCodeGeneratorPipeline {
 
     /// <summary>
     /// Umhüllt den optionalen <see cref="ILogger"/> des Hosts für die Dauer eines
-    /// <see cref="Run"/>-Laufs und bündelt die Protokoll-Logik der Pipeline: Zeitmessung (Gesamt- und
+    /// <see cref="Run"/>-Durchlaufs und bündelt die Protokoll-Logik der Pipeline: Zeitmessung (Gesamt- und
     /// je Datei), Unterdrückung doppelt gemeldeter Diagnosen sowie das Merken, ob überhaupt schon ein
     /// Fehler auftrat (<see cref="HasLoggedErrors"/>, steuert den <see cref="RunResult"/>). Ist kein
     /// Logger gesetzt, entfallen die eigentlichen Ausgaben, die Buchführung (Fehler-/Zeit-Status) läuft
@@ -42,7 +42,7 @@ public sealed partial class NavCodeGeneratorPipeline {
             _processFileStopwatch = new Stopwatch();
         }
 
-        /// <summary><see langword="true"/>, sobald während des Laufs mindestens ein Fehler gemeldet
+        /// <summary><see langword="true"/>, sobald während des Durchlaufs mindestens ein Fehler gemeldet
         /// wurde. Bestimmt am Ende, ob <see cref="Run"/> ein <see cref="RunResult.Failed"/>
         /// zurückgibt.</summary>
         public bool HasLoggedErrors { get; private set; }
@@ -55,7 +55,7 @@ public sealed partial class NavCodeGeneratorPipeline {
         }
 
         /// <summary>
-        /// Meldet die Fehler-Diagnosen aus <paramref name="diagnostics"/> (jede nur einmal je Lauf) und
+        /// Meldet die Fehler-Diagnosen aus <paramref name="diagnostics"/> (jede nur einmal je Durchlauf) und
         /// setzt bei mindestens einem Fehler <see cref="HasLoggedErrors"/>.
         /// </summary>
         /// <param name="diagnostics">Die zu prüfenden Diagnosen; nur die mit Fehler-Schweregrad werden
@@ -79,7 +79,7 @@ public sealed partial class NavCodeGeneratorPipeline {
         }
 
         /// <summary>Meldet die Warn-Diagnosen aus <paramref name="diagnostics"/> (jede nur einmal je
-        /// Lauf).</summary>
+        /// Durchlauf).</summary>
         /// <param name="diagnostics">Die zu prüfenden Diagnosen; nur die mit Warn-Schweregrad werden
         /// gemeldet.</param>
         public void LogWarnings(IEnumerable<Diagnostic> diagnostics) {
@@ -90,7 +90,7 @@ public sealed partial class NavCodeGeneratorPipeline {
             }
         }
 
-        /// <summary>Markiert den Beginn des Gesamtlaufs und startet die Gesamt-Zeitmessung.</summary>
+        /// <summary>Markiert den Beginn des Gesamtdurchlaufs und startet die Gesamt-Zeitmessung.</summary>
         public void LogProcessBegin() {
 
             _processStopwatch.Restart();
@@ -143,12 +143,12 @@ public sealed partial class NavCodeGeneratorPipeline {
         }
 
         /// <summary>
-        /// Markiert das Ende des Gesamtlaufs, stoppt die Gesamt-Zeitmessung und gibt eine
+        /// Markiert das Ende des Gesamtdurchlaufs, stoppt die Gesamt-Zeitmessung und gibt eine
         /// zusammenfassende Info-Ausgabe aus (Produktname/-version, die aus
         /// <paramref name="statistic"/> gezogenen Zähler sowie die Gesamtdauer), umrahmt von je einer
         /// horizontalen Linie.
         /// </summary>
-        /// <param name="statistic">Die während des Laufs geführte Statistik.</param>
+        /// <param name="statistic">Die während des Durchlaufs geführte Statistik.</param>
         public void LogProcessEnd(Statistic statistic) {
             _processStopwatch.Stop();
 

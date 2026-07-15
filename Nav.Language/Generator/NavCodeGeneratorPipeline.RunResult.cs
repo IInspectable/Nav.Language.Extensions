@@ -11,7 +11,7 @@ namespace Pharmatechnik.Nav.Language.Generator;
 public sealed partial class NavCodeGeneratorPipeline {
 
     /// <summary>
-    /// Ergebnis eines <see cref="Run"/>-Laufs. Mangels echter Discriminated Unions als
+    /// Ergebnis eines <see cref="Run"/>-Durchlaufs. Mangels echter Discriminated Unions als
     /// "geschlossenes" Result modelliert: <see cref="Success"/> trägt die Liste der erzeugten
     /// (bzw. inhaltsgleich übersprungenen) Dateien sowie die Menge der per <c>taskref</c>
     /// eingelesenen Abhängigkeitsdateien, <see cref="Failed"/> ist leer. Beide Listen sind
@@ -39,7 +39,7 @@ public sealed partial class NavCodeGeneratorPipeline {
             IncludedFiles  = includedFiles;
         }
 
-        /// <summary><see langword="true"/>, wenn der Lauf ohne Fehler durchlief.</summary>
+        /// <summary><see langword="true"/>, wenn der Durchlauf ohne Fehler durchlief.</summary>
         public bool                                Succeeded      { get; }
         /// <summary>Die erzeugten Ausgabedateien — inkl. der inhaltsgleich übersprungenen, deren
         /// <see cref="FileGeneratorResult.Action"/> das kennzeichnet. Nur im Erfolgsfall
@@ -48,7 +48,7 @@ public sealed partial class NavCodeGeneratorPipeline {
 
         /// <summary>
         /// Die per <c>taskref</c> eingelesenen Abhängigkeitsdateien (absolute Pfade) aller verarbeiteten
-        /// Quelldateien. Sie sind selbst keine Eingabedateien des Laufs, beeinflussen aber den erzeugten
+        /// Quelldateien. Sie sind selbst keine Eingabedateien des Durchlaufs, beeinflussen aber den erzeugten
         /// Code — der inkrementelle Build muss sie als zusätzliche Inputs tracken, um sie bei Änderung
         /// nicht fälschlich zu überspringen.
         /// </summary>

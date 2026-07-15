@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// <summary>
 /// Nav1014 (<c>The dialog node '{0}' is not required by the code and can be safely removed</c>,
 /// Dead-Code-Hinweis der Kategorie <see cref="DiagnosticCategory.DeadCode"/>): Ein
-/// <c>dialog</c>-Knoten (<see cref="IDialogNodeSymbol"/>), auf den kein Verweis aus dem
+/// <c>dialog</c>-Knoten (<see cref="IDialogNodeSymbol"/>), auf den keine Referenz aus dem
 /// Transitionsblock existiert (<see cref="INodeSymbol.References"/>), ist überflüssig — der
 /// Dialog kommt im Workflow nicht vor, z.B. <c>dialog d;</c> ohne jede Kante von oder auf
 /// <c>d</c>. Gemeldet wird über die gesamte Knoten-Deklaration. Deckt damit den Fall „ganz ohne

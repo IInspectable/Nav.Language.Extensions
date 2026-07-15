@@ -11,7 +11,7 @@ namespace Pharmatechnik.Nav.Language.Generator;
 public sealed partial class NavCodeGeneratorPipeline {
 
     /// <summary>
-    /// Zählwerk eines <see cref="Run"/>-Laufs: verarbeitete <c>.nav</c>-Dateien und Task-Definitionen
+    /// Zählwerk eines <see cref="Run"/>-Durchlaufs: verarbeitete <c>.nav</c>-Dateien und Task-Definitionen
     /// sowie geschriebene bzw. übersprungene Ausgabedateien. Die Werte fließen am Laufende in die
     /// Abschluss-Statistik (siehe <c>LoggerAdapter.LogProcessEnd</c>).
     /// </summary>

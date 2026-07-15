@@ -37,7 +37,7 @@ public interface IIncludeSymbol: ISymbol {
     IncludeDirectiveSyntax Syntax { get; }
 
     /// <summary>
-    /// Die Diagnostics der eingebundenen Datei: ihre Syntax-Fehler vereinigt mit den Meldungen
+    /// Die Diagnostics der eingebundenen Datei: ihre Syntax-Fehler vereinigt mit den Diagnosen
     /// der Deklarations-Extraktion. Enthält die Liste Fehler, wird das an der Direktive
     /// zusammengefasst als Nav0005 gemeldet.
     /// </summary>

@@ -12,7 +12,7 @@ namespace Pharmatechnik.Nav.Language;
 /// als <c>abstract</c>, die Implementierung obliegt der abgeleiteten WFS-Klasse. Ausgewertet über
 /// <see cref="TaskNodeSymbolExtensions.CodeGenerateAbstractMethod(IInitNodeSymbol)"/> bzw.
 /// <see cref="TaskNodeSymbolExtensions.CodeGenerateAbstractMethod(ITaskNodeSymbol)"/>; die
-/// zulässigen Wirte bestimmt <see cref="CodeBlockFacts"/>.
+/// zulässigen Hosts bestimmt <see cref="CodeBlockFacts"/>.
 /// </summary>
 [Serializable]
 [SampleSyntax("[abstractmethod]")]

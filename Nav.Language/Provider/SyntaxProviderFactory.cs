@@ -5,9 +5,9 @@
 /// Provider-Strategien.
 /// </summary>
 public class SyntaxProviderFactory  {
-    /// <summary>Fabrik für den nicht-cachenden <see cref="SyntaxProvider"/>.</summary>
+    /// <summary>Factory für den nicht-cachenden <see cref="SyntaxProvider"/>.</summary>
     public static readonly ISyntaxProviderFactory Default = new SyntaxProviderFactory<SyntaxProvider>();
-    /// <summary>Fabrik für den cachenden <see cref="CachedSyntaxProvider"/>.</summary>
+    /// <summary>Factory für den cachenden <see cref="CachedSyntaxProvider"/>.</summary>
     public static readonly ISyntaxProviderFactory Cached  = new SyntaxProviderFactory<CachedSyntaxProvider>();      
 }
 

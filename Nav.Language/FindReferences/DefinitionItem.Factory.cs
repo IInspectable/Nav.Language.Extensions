@@ -41,7 +41,7 @@ public partial class DefinitionItem {
 
     /// <summary>
     /// Erzeugt eine Definition zu <paramref name="symbol"/> mit vorgegebenem Anzeigetext — die
-    /// allgemeine Fabrik, auf die die spezialisierten <c>Create…</c>-Methoden zurückgreifen.
+    /// allgemeine Factory, auf die die spezialisierten <c>Create…</c>-Methoden zurückgreifen.
     /// </summary>
     /// <param name="symbol">Das zugrunde liegende Symbol.</param>
     /// <param name="textParts">Der klassifizierte Anzeigetext.</param>

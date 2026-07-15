@@ -85,7 +85,7 @@ sealed class TransitionCallContextCodeModel {
     /// <summary>
     /// Baut die Init-Transition aus einem <see cref="IInitNodeSymbol"/>: die <c>public IINIT_TASK Begin(…)</c>-Methode
     /// mit den Init-Parametern. Ist der Init <c>[abstract]</c>, entfällt der Context (die <c>Begin</c>-Methode wird
-    /// abstrakt); <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Fabrik des Contexts).
+    /// abstrakt); <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Factory des Contexts).
     /// </summary>
     public static TransitionCallContextCodeModel FromInit(IInitNodeSymbol initNode, ParameterCodeModel taskResult) {
 
@@ -123,7 +123,7 @@ sealed class TransitionCallContextCodeModel {
     /// <summary>
     /// Baut die Exit-Transition aus einem <see cref="ITaskNodeSymbol"/> (Rücksprung eines Sub-Tasks): die
     /// <c>protected INavCommand After{Node}({SubTaskResult})</c>-Methode. Ist der Task-Knoten <c>[abstract]</c>,
-    /// entfällt der Context; <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Fabrik).
+    /// entfällt der Context; <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Factory).
     /// </summary>
     public static TransitionCallContextCodeModel FromExit(ITaskNodeSymbol taskNode, ParameterCodeModel taskResult) {
 
@@ -161,7 +161,7 @@ sealed class TransitionCallContextCodeModel {
     /// Baut je Signal-Trigger einer <see cref="ITriggerTransition"/> eine Trigger-Transition: die
     /// <c>public INavCommand {Trigger}({View}TO)</c>-Methode. Ein Trigger ist nie <c>[abstract]</c> und
     /// bekommt immer einen Context; <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks
-    /// (für die <c>Exit</c>-Fabrik des Contexts).
+    /// (für die <c>Exit</c>-Factory des Contexts).
     /// </summary>
     public static IEnumerable<TransitionCallContextCodeModel> FromTrigger(ITriggerTransition triggerTransition, ParameterCodeModel taskResult) {
 

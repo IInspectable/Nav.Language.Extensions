@@ -50,7 +50,7 @@ sealed partial class SignalTriggerSymbol: TriggerSymbol, ISignalTriggerSymbol {
 
 }
 
-/// <summary>Implementierung von <see cref="ISpontaneousTriggerSymbol"/> — ein spontaner Übergang (<c>spontaneous</c>/<c>spont</c>).</summary>
+/// <summary>Implementierung von <see cref="ISpontaneousTriggerSymbol"/> — eine spontane Transition (<c>spontaneous</c>/<c>spont</c>).</summary>
 sealed partial class SpontaneousTriggerSymbol: TriggerSymbol, ISpontaneousTriggerSymbol {
 
     /// <summary>

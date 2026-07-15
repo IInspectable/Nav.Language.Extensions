@@ -3,7 +3,7 @@
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Eine Kante im Übergangsgraphen einer Task-Definition: Quellknoten-Referenz, Kantenmodus
+/// Eine Kante im Transitionsgraphen einer Task-Definition: Quellknoten-Referenz, Kantenmodus
 /// (Operator) und Zielknoten-Referenz — in <c>Start --&gt; Auswahl;</c> die gesamte Zeile.
 /// Gemeinsame Basis aller Kanten-Arten: der regulären Transitionen (<see cref="ITransition"/>),
 /// der Exit-Transitionen (<see cref="IExitTransition"/>) und der Continuations

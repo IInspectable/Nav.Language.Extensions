@@ -51,7 +51,7 @@ sealed class WfsCodeModel : FileGenerationCodeModel {
     public ImmutableList<TriggerTransitionCodeModel> TriggerTransitions { get; }
 
     /// <summary>
-    /// Fabrik: baut das <see cref="WfsCodeModel"/> aus dem Task-Symbol (Namespaces, Transitions-Listen,
+    /// Factory: baut das <see cref="WfsCodeModel"/> aus dem Task-Symbol (Namespaces, Transitions-Listen,
     /// Datei-/Syntaxpfad über den <paramref name="pathProvider"/>).
     /// </summary>
     public static WfsCodeModel FromTaskDefinition(ITaskDefinitionSymbol taskDefinition, IPathProvider pathProvider, GenerationOptions options) {

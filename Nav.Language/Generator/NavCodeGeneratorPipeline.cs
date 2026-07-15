@@ -16,7 +16,7 @@ namespace Pharmatechnik.Nav.Language.Generator;
 /// (Syntax → Semantikmodell → Codegenerierung → Dateiausgabe) zu einem wiederverwendbaren Objekt
 /// zusammen und wendet sie in <see cref="Run"/> auf eine Menge von <see cref="FileSpec"/>-Eingaben
 /// an. Genutzt von den Batch-Hosts <c>Nav.Cli</c> (Kommandozeilen-Generator/MSBuild-Task); die
-/// austauschbaren Fabrik-/Provider-Bausteine (Syntax, Semantikmodell, Pfade, Code- und
+/// austauschbaren Factory-/Provider-Bausteine (Syntax, Semantikmodell, Pfade, Code- und
 /// Dateigenerator) werden im Konstruktor injiziert und fallen andernfalls auf ihre
 /// <c>Default</c>-Instanzen zurück. Instanzen entstehen über <see cref="Create"/> bzw.
 /// <see cref="CreateDefault"/>.
@@ -26,16 +26,16 @@ public sealed partial class NavCodeGeneratorPipeline {
     /// <summary>
     /// Verdrahtet die Pipeline mit ihren Bausteinen. Jeder <see langword="null"/>-Parameter wird durch
     /// die zugehörige <c>Default</c>-Instanz ersetzt (<see cref="GenerationOptions.Default"/> sowie die
-    /// Standard-Fabriken/-Provider). Privat — Instanzen entstehen über <see cref="Create"/>.
+    /// Standard-Factorys/-Provider). Privat — Instanzen entstehen über <see cref="Create"/>.
     /// </summary>
     /// <param name="options">Die Codegenerierungs-Optionen; <see langword="null"/> ⇒
     /// <see cref="GenerationOptions.Default"/>.</param>
     /// <param name="logger">Die optionale Ausgabesenke (<see cref="ILogger"/>); darf
     /// <see langword="null"/> bleiben.</param>
-    /// <param name="pathProviderFactory">Fabrik für die Ziel-Pfadauflösung des erzeugten Codes.</param>
-    /// <param name="syntaxProviderFactory">Fabrik für den Syntax-Provider (Lexer/Parser der
+    /// <param name="pathProviderFactory">Factory für die Ziel-Pfadauflösung des erzeugten Codes.</param>
+    /// <param name="syntaxProviderFactory">Factory für den Syntax-Provider (Lexer/Parser der
     /// <c>.nav</c>-Dateien).</param>
-    /// <param name="semanticModelProviderFactory">Fabrik für den Semantikmodell-Provider.</param>
+    /// <param name="semanticModelProviderFactory">Factory für den Semantikmodell-Provider.</param>
     /// <param name="codeGeneratorProvider">Provider für den eigentlichen C#-Codegenerator.</param>
     /// <param name="fileGeneratorProvider">Provider für das Schreiben des erzeugten Codes in
     /// Dateien.</param>
@@ -72,9 +72,9 @@ public sealed partial class NavCodeGeneratorPipeline {
     /// <param name="options">Die Codegenerierungs-Optionen; <see langword="null"/> ⇒
     /// <see cref="GenerationOptions.Default"/>.</param>
     /// <param name="logger">Die optionale Ausgabesenke (<see cref="ILogger"/>).</param>
-    /// <param name="pathProviderFactory">Fabrik für die Ziel-Pfadauflösung.</param>
-    /// <param name="syntaxProviderFactory">Fabrik für den Syntax-Provider.</param>
-    /// <param name="semanticModelProviderFactory">Fabrik für den Semantikmodell-Provider.</param>
+    /// <param name="pathProviderFactory">Factory für die Ziel-Pfadauflösung.</param>
+    /// <param name="syntaxProviderFactory">Factory für den Syntax-Provider.</param>
+    /// <param name="semanticModelProviderFactory">Factory für den Semantikmodell-Provider.</param>
     /// <param name="codeGeneratorProvider">Provider für den C#-Codegenerator.</param>
     /// <param name="fileGeneratorProvider">Provider für die Dateiausgabe.</param>
     /// <returns>Die verdrahtete Pipeline.</returns>
@@ -93,14 +93,14 @@ public sealed partial class NavCodeGeneratorPipeline {
                codeGeneratorProvider       : codeGeneratorProvider,
                fileGeneratorProvider       : fileGeneratorProvider);
 
-    /// <summary>Die für den Lauf wirksamen Codegenerierungs-Optionen.</summary>
+    /// <summary>Die für den Durchlauf wirksamen Codegenerierungs-Optionen.</summary>
     public GenerationOptions Options { get; }
 
-    /// <summary>Die Fabrik, die je Lauf den Syntax-Provider (Lexer/Parser der <c>.nav</c>-Dateien)
+    /// <summary>Die Factory, die je Durchlauf den Syntax-Provider (Lexer/Parser der <c>.nav</c>-Dateien)
     /// erzeugt.</summary>
     public ISyntaxProviderFactory SyntaxProviderFactory { get; }
 
-    /// <summary>Die Fabrik für die Ziel-Pfadauflösung des erzeugten Codes.</summary>
+    /// <summary>Die Factory für die Ziel-Pfadauflösung des erzeugten Codes.</summary>
     public IPathProviderFactory PathProviderFactory { get; }
 
     /// <summary>Der Provider, der den eigentlichen C#-Codegenerator liefert.</summary>
@@ -113,12 +113,12 @@ public sealed partial class NavCodeGeneratorPipeline {
     /// wurde.</summary>
     public ILogger? Logger { get; }
 
-    /// <summary>Die Fabrik, die je Lauf den Semantikmodell-Provider erzeugt.</summary>
+    /// <summary>Die Factory, die je Durchlauf den Semantikmodell-Provider erzeugt.</summary>
     public ISemanticModelProviderFactory SemanticModelProviderFactory { get; }
 
     /// <summary>
     /// Führt die vollständige Pipeline über alle <paramref name="fileSpecs"/> aus. Je Datei durchläuft
-    /// der Lauf vier Stufen: <c>.nav</c> parsen (Syntaxbaum), das Semantikmodell
+    /// der Durchlauf vier Stufen: <c>.nav</c> parsen (Syntaxbaum), das Semantikmodell
     /// (<c>CodeGenerationUnit</c>) bilden, den C#-Code erzeugen und schließlich in die Zieldateien
     /// schreiben. Fehler-Diagnosen (aus Syntax, Semantikmodell oder Includes) überspringen die
     /// betroffene Datei; Warnungen werden gemeldet, brechen aber nicht ab. Per <c>taskref</c>
@@ -170,7 +170,7 @@ public sealed partial class NavCodeGeneratorPipeline {
             logger.LogWarnings(codeGenerationUnit.Diagnostics);
 
             // Per taskref eingelesene Abhängigkeitsdateien festhalten. Sie sind selbst keine Eingabe-
-            // dateien des Laufs, fließen aber in den erzeugten Code ein (aufgelöste Task-Deklarationen)
+            // dateien des Durchlaufs, fließen aber in den erzeugten Code ein (aufgelöste Task-Deklarationen)
             // ⇒ der inkrementelle Build muss sie als zusätzliche Inputs tracken. Nav-Includes sind genau
             // eine Ebene tief (inkludierte Dateien verarbeiten ihre eigenen taskrefs nicht), daher genügt
             // die direkte Include-Menge — keine transitive Hülle nötig.

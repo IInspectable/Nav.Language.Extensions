@@ -9,7 +9,7 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
 /// Baut die V2-Transitionsmodelle (<see cref="TransitionCallContextCodeModel"/>) aus dem Semantic
-/// Model — das V2-Pendant zu den <c>Get*Transitions</c>-Fabriken des V1-<c>CodeModelBuilder</c>.
+/// Model — das V2-Pendant zu den <c>Get*Transitions</c>-Factorys des V1-<c>CodeModelBuilder</c>.
 /// Reachability, Init-/Exit-/Trigger-Auswahl und deren Reihenfolge sind bewusst deckungsgleich mit
 /// V1; nur die Gestalt der erzeugten Modelle (CallContext statt <c>switch</c>) unterscheidet sich.
 /// </summary>

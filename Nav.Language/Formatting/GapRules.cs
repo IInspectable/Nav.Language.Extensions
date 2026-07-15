@@ -199,7 +199,7 @@ sealed class MemberBreakRule: IGapRule {
 /// Leerzeilen-Minimum anhebt — vorhandene Autoren-Leerzeilen werden nie gekappt). Die Grenze ist rein
 /// strukturell: <c>Prev</c> gehört zum <see cref="NodeDeclarationBlockSyntax"/>, <c>Next</c> zum
 /// <see cref="TransitionDefinitionBlockSyntax"/> — da die Token im Strom benachbart sind, ist das genau
-/// der eine Übergang je Task.
+/// die eine Transition je Task.
 /// </summary>
 sealed class BlankLineBeforeTransitionsRule: IGapRule {
 
@@ -231,8 +231,8 @@ sealed class BlankLineBeforeTransitionsRule: IGapRule {
 /// </list>
 /// Flache Member (<c>[using …]</c>, <c>taskref "…";</c>-Includes) behalten unter sich ihr Autoren-Layout —
 /// dort setzen <see cref="MemberBreakRule"/>/<see cref="StatementBreakRule"/> nur den Umbruch, kein
-/// Leerzeilen-Minimum. Der <c>MaxBlankLines</c>-Deckel wirkt orthogonal: das erzwungene Minimum 1 liegt stets
-/// unter dem Deckel-Boden 2, beide Schranken komponieren kollisionsfrei.
+/// Leerzeilen-Minimum. Die <c>MaxBlankLines</c>-Obergrenze wirkt orthogonal: das erzwungene Minimum 1 liegt stets
+/// unter der kleinstmöglichen Obergrenze 2, beide Schranken komponieren kollisionsfrei.
 /// </summary>
 sealed class BlankLineAroundBlockMembersRule: IGapRule {
 
@@ -403,7 +403,7 @@ sealed class PunctuationRule: IGapRule {
 /// authored Umbrüche via Pull-up), jeder weitere Block auf eigener Zeile linksbündig unter dem <c>[</c>
 /// des ersten (<see cref="ColumnId.TaskHeadBlock"/>). Ein vom Autor <b>mehrzeilig</b> gelegtes
 /// <c>[params …]</c> (nur am Task-Kopf) richtet die Folgeparameter unter dem ersten aus
-/// (<see cref="ColumnId.ParamsList"/> — ob die Liste mehrzeilig ist, hat der Vorpass entschieden: nur
+/// (<see cref="ColumnId.ParamsList"/> — ob die Liste mehrzeilig ist, hat der Vor-Durchlauf entschieden: nur
 /// dann existiert der Spalten-Eintrag). Erzwingt ein Kommentar den Umbruch von Block 1, fällt er wie
 /// ein Folgeblock auf die kanonische Kopf-Spalte.
 /// </summary>
@@ -413,7 +413,7 @@ sealed class PunctuationRule: IGapRule {
 /// ist Sache der <see cref="PunctuationRule"/> (per Eltern-Knoten disjunkt, beide TokenPair). Die
 /// Klammer vor dem <c>{</c> gehört weiter der <see cref="BraceOnOwnLineRule"/> (Structure, preemptiert).
 /// Node-Deklarationen im Body (<c>[donotinject]</c>/<c>[abstractmethod]</c>/<c>[params]</c> an
-/// <c>init</c>/<c>choice</c>/<c>task</c>-Knoten) bleiben unberührt (Wirt ist kein Task-/taskref-Kopf).
+/// <c>init</c>/<c>choice</c>/<c>task</c>-Knoten) bleiben unberührt (Host ist kein Task-/taskref-Kopf).
 /// </remarks>
 sealed class TaskHeadLayoutRule: IGapRule {
 
@@ -486,10 +486,10 @@ sealed class TaskHeadLayoutRule: IGapRule {
 
 /// <summary>
 /// Alignment: die Lücke zwischen Quell-Teil und Edge-Keyword einer (Exit-)Transition nimmt an der
-/// Pfeil-Spalte ihrer Gruppe teil. Ob und wie weit, hat der Vorpass entschieden
+/// Pfeil-Spalte ihrer Gruppe teil. Ob und wie weit, hat der Vor-Durchlauf entschieden
 /// (<see cref="AlignmentMap"/>); ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
 /// Lücke als Single-Space. Alle Edge-Keywords sind 3 Zeichen breit — die Spalte hinter dem Pfeil
-/// fluchtet automatisch mit. Fortsetzungs-Kanten (<c>--^</c>/<c>o-^</c>) sind kein
+/// fluchtet automatisch mit. Continuation-Kanten (<c>--^</c>/<c>o-^</c>) sind kein
 /// <see cref="EdgeSyntax"/> — sie haben ihre eigene Spalte (<see cref="ContinuationAlignmentRule"/>).
 /// </summary>
 sealed class ArrowAlignmentRule: IGapRule {
@@ -505,10 +505,10 @@ sealed class ArrowAlignmentRule: IGapRule {
 }
 
 /// <summary>
-/// Alignment: die Lücke vor der führenden Fortsetzungs-Kante (<c>--^</c>/<c>o-^</c> einer
+/// Alignment: die Lücke vor der führenden Continuation-Kante (<c>--^</c>/<c>o-^</c> einer
 /// <see cref="ContinuationTransitionSyntax"/>) nimmt an der Continuation-Spalte ihrer Transitions-Gruppe
 /// teil (sowohl <see cref="TransitionDefinitionSyntax"/> als auch <see cref="ExitTransitionDefinitionSyntax"/>
-/// können eine Continuation tragen). Ob und wie weit, hat der Vorpass entschieden
+/// können eine Continuation tragen). Ob und wie weit, hat der Vor-Durchlauf entschieden
 /// (<see cref="AlignmentMap"/>) — ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
 /// Lücke als Single-Space. Die interne Lücke der Continuation (<c>--^</c>/<c>o-^</c> → Ziel-Task) bleibt
 /// beim Single-Space-Idiom des Catch-all.
@@ -524,7 +524,7 @@ sealed class ContinuationAlignmentRule: IGapRule {
 
     /// <summary>
     /// Ob <c>ctx.Next</c> das <b>erste</b> Token der <see cref="ContinuationTransitionSyntax"/> einer
-    /// (Exit-)Transition ist (das führende <c>--^</c> bzw. <c>o-^</c> der Fortsetzungs-Kante).
+    /// (Exit-)Transition ist (das führende <c>--^</c> bzw. <c>o-^</c> der Continuation-Kante).
     /// </summary>
     static bool StartsContinuation(in GapContext ctx) {
 
@@ -546,7 +546,7 @@ sealed class ContinuationAlignmentRule: IGapRule {
 /// <summary>
 /// Alignment: die Lücke vor dem führenden <c>on</c>/<c>spontaneous</c> einer <see cref="TriggerSyntax"/>
 /// nimmt an der Trigger-Spalte ihrer Transitions-Gruppe teil (nur <see cref="TransitionDefinitionSyntax"/>
-/// trägt einen Trigger — Exit-Transitionen nicht). Ob und wie weit, hat der Vorpass entschieden
+/// trägt einen Trigger — Exit-Transitionen nicht). Ob und wie weit, hat der Vor-Durchlauf entschieden
 /// (<see cref="AlignmentMap"/>) — ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die
 /// Lücke als Single-Space.
 /// </summary>
@@ -584,7 +584,7 @@ sealed class TriggerAlignmentRule: IGapRule {
 /// Alignment: die Lücke vor dem führenden <c>if</c>/<c>else</c>/<c>else if</c> einer
 /// <see cref="ConditionClauseSyntax"/> nimmt an der Condition-Spalte ihrer Transitions-Gruppe teil.
 /// Ausgerichtet wird nur das <b>führende</b> Klausel-Keyword (bei <c>else if</c> also das <c>else</c>,
-/// nicht das innere <c>if</c>); ob und wie weit, hat der Vorpass entschieden (<see cref="AlignmentMap"/>) —
+/// nicht das innere <c>if</c>); ob und wie weit, hat der Vor-Durchlauf entschieden (<see cref="AlignmentMap"/>) —
 /// ohne Eintrag (Gruppe der Größe 1, Ausschluss, Option aus) rendert die Lücke als Single-Space.
 /// </summary>
 sealed class ConditionAlignmentRule: IGapRule {
@@ -621,7 +621,7 @@ sealed class ConditionAlignmentRule: IGapRule {
 /// <summary>
 /// Alignment: das 3-Spalten-Raster der Node-Deklarationen (<c>keyword | node | rest</c>) — Spalte 2 über
 /// die Lücke Keyword → node-Identifier, Spalte 3 über die Lücke node-Identifier → erstes Token des
-/// Rests (nur der Start, nie der Inhalt). Teilnahme und Spaltenwerte kommen aus dem Vorpass; ohne
+/// Rests (nur der Start, nie der Inhalt). Teilnahme und Spaltenwerte kommen aus dem Vor-Durchlauf; ohne
 /// Eintrag rendert die Lücke als Single-Space. <c>end;</c> hat keinen Identifier und die Lücke vor dem
 /// <c>;</c> gehört der <see cref="PunctuationRule"/> — kein Phantom-Padding.
 /// </summary>

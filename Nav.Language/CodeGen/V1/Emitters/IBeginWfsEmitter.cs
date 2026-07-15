@@ -10,7 +10,7 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// CodeBuilder-Emitter der <c>IBegin{Task}WFS</c>-Interface-Familie — der technische Ersatz für
 /// <c>IBeginWFS.stg</c>. Das Begin-Interface ist die versions-<b>invariante</b> Schnittstelle zum
 /// Workflow-Code (<see cref="CodeGenInvariants"/>): Präfix, Suffix und WFL-Ablage stammen deshalb aus
-/// den Invarianten. Der Name der Begin-Methode ist ein versionierbares Fakt und kommt aus den
+/// den Invarianten. Der Name der Begin-Methode ist ein versionierbarer Fact und kommt aus den
 /// <see cref="ICodeGenFacts"/> der Generation des Tasks.
 /// </summary>
 // ReSharper disable once InconsistentNaming
@@ -64,7 +64,7 @@ static class IBeginWfsEmitter {
     /// <summary>
     /// Schreibt die <c>Begin</c>-Methoden-Deklarationen des Interface-Rumpfs — je eine pro
     /// Init-Transition, durch je eine Leerzeile getrennt. Der Methodenname stammt aus
-    /// <see cref="ICodeGenFacts.BeginMethodPrefix"/> (versionierbares Fakt).
+    /// <see cref="ICodeGenFacts.BeginMethodPrefix"/> (versionierbarer Fact).
     /// </summary>
     static void WriteBeginMethodDeclarations(CodeBuilder cb, IReadOnlyList<InitTransitionCodeModel> initTransitions, ICodeGenFacts facts) {
 

@@ -10,7 +10,7 @@ namespace Pharmatechnik.Nav.Language;
 /// <c>[keyword …]</c>-Annotationen der Nav-Sprache (z.B. <c>[params string msg]</c>,
 /// <c>[base StandardWFS]</c>, <c>[abstractmethod]</c>), die den generierten C#-Code steuern.
 /// Der Aufbau ist stets <see cref="OpenBracket"/>, <see cref="Keyword"/>, deklarationsspezifischer
-/// Inhalt, <see cref="CloseBracket"/>. Welche Deklaration in welchem Wirt zulässig ist,
+/// Inhalt, <see cref="CloseBracket"/>. Welche Deklaration in welchem Host zulässig ist,
 /// bestimmt allein <see cref="CodeBlockFacts"/>.
 /// </summary>
 [Serializable]

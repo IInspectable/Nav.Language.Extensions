@@ -5,12 +5,12 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// <summary>
 /// Die vorberechnete Ausrichtungs-Tabelle: je Lücke (identifiziert über ihre Startposition = Ende des
 /// vorangehenden Tokens) die aufgelöste horizontale Space-Zahl. Die Ausrichtung ist die einzige
-/// nicht-lokale Zutat des Formatters — der Vorpass rechnet Gruppen, kanonische Breiten und Zielspalte
+/// nicht-lokale Zutat des Formatters — der Vor-Durchlauf rechnet Gruppen, kanonische Breiten und Zielspalte
 /// block-weit aus und legt hier nur das Ergebnis ab; die Ausrichtungs-Regeln und der Renderer schlagen
 /// ausschließlich nach und bleiben dadurch pur.
 /// </summary>
 /// <remarks>
-/// Abgelegt wird die bereits aufgelöste Space-Zahl statt der Zielspalte, weil nur der Vorpass die
+/// Abgelegt wird die bereits aufgelöste Space-Zahl statt der Zielspalte, weil nur der Vor-Durchlauf die
 /// kanonischen Vor-Spalten-Breiten kennt: für <see cref="GapLayout.AlignedColumn"/> ist das
 /// <c>targetCol − kanonische Breite</c> (Padding, ≥ 1), für <see cref="GapLayout.NewLineAlignedColumn"/>
 /// die absolute Spalte nach dem Umbruch. Ausrichtungs-Padding ist immer Leerzeichen, nie Tabs.
@@ -23,7 +23,7 @@ sealed class AlignmentMap {
     readonly Dictionary<int, int> _spacesByGapStart;
     readonly Dictionary<int, int> _trailingCommentSpacesByGapStart;
 
-    /// <summary>Die vom Vorpass (<see cref="AlignmentMapBuilder"/>) berechnete Tabelle.</summary>
+    /// <summary>Die vom Vor-Durchlauf (<see cref="AlignmentMapBuilder"/>) berechnete Tabelle.</summary>
     /// <param name="spacesByGapStart">Token-Ausrichtung: Lücke → aufgelöste Space-Zahl.</param>
     /// <param name="trailingCommentSpacesByGapStart">Trailing-<c>//</c>-Kommentar-Ausrichtung: Lücke hinter
     /// dem letzten Token einer Anweisung → Space-Zahl bis zur gemeinsamen Kommentar-Spalte.</param>

@@ -32,7 +32,7 @@ public class Nav0122DifferentViewsInContinuationNotSupported: NavAnalyzer {
         // Aus einer Quelle heraus wird EINE mode-freie Show{View}-Methode generiert; sie kann die
         // Continuation nur auf GENAU EINEN tragenden GUI-Knoten legen. Erreichen die Continuations einer
         // Quelle (auch über Choices hinweg) verschiedene Views, ist das nicht abbildbar. Die „Quelle" ist
-        // je nach Übergangsart unterschiedlich gepoolt:
+        // je nach Kantenmodus unterschiedlich gepoolt:
         //
         // Ist die Continuation unter der effektiven #version gar nicht verfügbar, ist das Nav5000-Versions-Gate
         // die eine treffende Diagnose — die Struktur-Prüfung schweigt dann (Folgefehler unterdrücken).

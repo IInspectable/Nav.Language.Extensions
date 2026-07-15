@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// Nav0104 (<c>Choice node '{0}' can only be reached by a goto edge (--&gt;)</c>, Fehler): Ein
 /// <c>choice</c>-Knoten (<see cref="IChoiceNodeSymbol"/>) darf nur über eine Goto-Kante
 /// (<see cref="EdgeMode.Goto"/>, <c>--&gt;</c>) erreicht werden — die Choice trifft nur die
-/// Verzweigungs-Entscheidung, die Aufruf-Art des tatsächlichen Ziels bestimmen erst die Kanten
+/// Verzweigungs-Entscheidung, den Kantenmodus des tatsächlichen Ziels bestimmen erst die Kanten
 /// hinter ihr (siehe <see cref="EdgeExtensions.GetReachableCalls(IEdge)"/>). Modale
 /// (<c>o-&gt;</c>) und nicht-modale (<c>==&gt;</c>) Kanten auf eine Choice sind Fehler, z.B.
 /// <c>I1 o-&gt; Choice_e1;</c>. Die Diagnose sitzt am Kanten-Operator

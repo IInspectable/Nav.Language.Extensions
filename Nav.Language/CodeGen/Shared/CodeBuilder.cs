@@ -9,7 +9,7 @@ using System.Text;
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
-/// Ein einrückungs- und spaltenbewusster Textbauer für die C#-Codegenerierung — der technische
+/// Ein einrückungs- und spaltenbewusster Builder für die C#-Codegenerierung — der technische
 /// Ersatz für die StringTemplate-Gruppen. Der Builder kennt nur strukturelle C#-Belange
 /// (Einrückung, Spaltenausrichtung, Zeilen, Blöcke, Trennlisten); nav-spezifisches Wissen
 /// (Annotations-Tags, Namensbildung) gehört bewusst in eine Emitter-Schicht darüber.

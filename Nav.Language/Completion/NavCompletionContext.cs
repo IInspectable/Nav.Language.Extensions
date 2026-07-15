@@ -25,7 +25,7 @@ enum NavCompletionContextKind {
 
     /// <summary>
     /// Im Schlüsselwort-Slot einer Code-Deklaration direkt hinter <c>[</c> (z.B. <c>[using …]</c>,
-    /// <c>[result …]</c>): die Code-Block-Schlüsselwörter. <em>Welche</em> zulässig sind, hängt vom Wirt des
+    /// <c>[result …]</c>): die Code-Block-Schlüsselwörter. <em>Welche</em> zulässig sind, hängt vom Host des
     /// Blocks ab (<see cref="NavCompletionContext.Host"/>).
     /// </summary>
     CodeBlock,
@@ -37,7 +37,7 @@ enum NavCompletionContextKind {
     DirectiveKeyword,
 
     /// <summary>
-    /// Hinter <c>#version </c> im Werte-Slot: die gültigen Sprach-Versionsnummern
+    /// Hinter <c>#version </c> im Wert-Slot: die gültigen Sprach-Versionsnummern
     /// (<see cref="NavLanguageVersion.SupportedVersions"/>).
     /// </summary>
     DirectiveVersionValue,
@@ -47,7 +47,7 @@ enum NavCompletionContextKind {
 
     /// <summary>
     /// Satzanfang im Body einer <c>taskref</c>-Deklaration (<c>taskref Sub { … }</c>): die einzigen dort
-    /// grammatisch zulässigen Bewohner sind Connection-Point-Deklarationen — <c>init</c> / <c>exit</c> /
+    /// grammatisch zulässigen Deklarationen sind Connection-Point-Deklarationen — <c>init</c> / <c>exit</c> /
     /// <c>end</c>. KEINE Member-Keywords (<c>task</c>/<c>taskref</c>) und keine Knoten-/Transitions-Konstrukte.
     /// </summary>
     ConnectionPointDeclaration,
@@ -102,7 +102,7 @@ enum NavCompletionContextKind {
     AfterCondition,
 
     /// <summary>
-    /// Im „Schwanz" einer <c>init</c>-Knoten-Deklaration (hinter Schlüsselwort/Name bzw. den Code-Blöcken, vor
+    /// Im Tail einer <c>init</c>-Knoten-Deklaration (hinter Schlüsselwort/Name bzw. den Code-Blöcken, vor
     /// dem <c>;</c>): das einzige dort grammatisch noch mögliche Schlüsselwort <c>do</c> (die optionale
     /// <c>do</c>-Klausel). Bei allen übrigen schlüsselwort-eingeleiteten Knoten-Deklarationen folgt an dieser
     /// Stelle nur noch das <c>;</c> → dort <see cref="Suppress"/>.
@@ -171,11 +171,11 @@ sealed class NavCompletionContext {
 
     public string? ExitNodeName { get; }
 
-    /// <summary>Der Wirt eines Code-Blocks — nur für <see cref="NavCompletionContextKind.CodeBlock"/> aussagekräftig.</summary>
+    /// <summary>Der Host eines Code-Blocks — nur für <see cref="NavCompletionContextKind.CodeBlock"/> aussagekräftig.</summary>
     public CodeBlockHost Host { get; }
 
     /// <summary>
-    /// Die am Wirt bereits vorhandenen Code-Deklarations-Schlüsselwörter (den gerade bearbeiteten Block
+    /// Die am Host bereits vorhandenen Code-Deklarations-Schlüsselwörter (den gerade bearbeiteten Block
     /// ausgenommen) — nur für <see cref="NavCompletionContextKind.CodeBlock"/> gefüllt. Damit filtert die
     /// Completion bereits deklarierte Singletons heraus (siehe <see cref="CodeBlockFacts.AvailableDeclarationKeywords"/>).
     /// </summary>
@@ -243,7 +243,7 @@ sealed class NavCompletionContext {
         // Im C#-Inhalt eines Code-Blocks nichts. Zwei einander ergänzende Erkennungen, weil ein Code-Block je
         // nach Wohlgeformtheit UNTERSCHIEDLICH im Baum liegt:
         //   • baumbasiert (InCodeBlock): der Kontext-Anker steckt in einem tatsächlich geparsten
-        //     CodeSyntax-Knoten (wohlgeformter, an einem Wirt hängender Block wie `init i [params …]`). Das
+        //     CodeSyntax-Knoten (wohlgeformter, an einem Host hängender Block wie `init i [params …]`). Das
         //     trägt auch über MEHRERE ZEILEN — der zeilenbegrenzte Scan sähe das öffnende `[` einer Vorzeile
         //     nicht und streute dort fälschlich Knoten/Keywords ein.
         //   • zeilenbasiert (IsInTextBlock): fängt zusätzlich die NICHT als CodeSyntax geparsten Blöcke ab —
@@ -276,7 +276,7 @@ sealed class NavCompletionContext {
                 : Of(NavCompletionContextKind.Suppress);
         }
 
-        // taskref-Body: dessen einzige Bewohner sind Connection-Point-Deklarationen (init/exit/end). Ein
+        // taskref-Body: er enthält ausschließlich Connection-Point-Deklarationen (init/exit/end). Ein
         // taskref ist eine TaskDeclaration (kein ITaskDefinitionSymbol) und fiele daher unten auf die
         // Member-Ebene zurück — dort böte die Completion fälschlich task/taskref an. Stattdessen: am
         // Satzanfang im Body (direkt hinter `{` oder dem `;` eines Connection-Points) die Connection-Point-
@@ -366,7 +366,7 @@ sealed class NavCompletionContext {
                 return Of(NavCompletionContextKind.Suppress);
         }
 
-        // „Schwanz" einer schlüsselwort-eingeleiteten Knoten-Deklaration (hinter Schlüsselwort und/oder Name,
+        // Tail einer schlüsselwort-eingeleiteten Knoten-Deklaration (hinter Schlüsselwort und/oder Name,
         // vor dem `;`): grammatisch folgt nur noch das `;` — einzig beim init-Knoten zusätzlich eine optionale
         // `do`-Klausel (die Code-Blöcke über `[` sind bereits weiter oben gesondert behandelt). Statt über den
         // Fallback pauschal Knoten/Keywords/Edges einzustreuen: nichts (bzw. beim init-Knoten ohne bereits
@@ -479,7 +479,7 @@ sealed class NavCompletionContext {
 
     /// <summary>
     /// Die umschließende Knoten-Deklaration (<see cref="NodeDeclarationSyntax"/>) zum gegebenen Token — oder
-    /// <c>null</c>, wenn das Token nicht innerhalb einer solchen liegt. Deckt den „Schwanz" hinter Schlüsselwort
+    /// <c>null</c>, wenn das Token nicht innerhalb einer solchen liegt. Deckt den Tail hinter Schlüsselwort
     /// und Name ab: dort folgt grammatisch nur noch das <c>;</c> (einzig beim <c>init</c>-Knoten zusätzlich die
     /// optionale <c>do</c>-Klausel). Ein gefüllter <c>do</c>-Wert-Slot wird vorher schon über die Ancestor-Kette
     /// (<see cref="DoClauseSyntax"/>) als <see cref="NavCompletionContextKind.Suppress"/> erkannt.
@@ -494,10 +494,10 @@ sealed class NavCompletionContext {
     /// <summary>
     /// Bestimmt den <see cref="CodeBlockHost"/> eines Code-Blocks anhand seines öffnenden <c>[</c>. Ein gerade
     /// getippter, leerer <c>[]</c> wird NICHT als Code-Deklaration geparst (kein Lookahead-Match auf <c>[</c> +
-    /// Schlüsselwort); sein <c>[</c> ist ein übersprungenes Token (Skip-Trivia) ohne Wirt-Knoten — der
+    /// Schlüsselwort); sein <c>[</c> ist ein übersprungenes Token (Skip-Trivia) ohne Host-Knoten — der
     /// verlässliche Anker ist stattdessen das <b>konsumierte</b> Token <b>links</b> des <c>[</c>: das
-    /// schließende <c>]</c> der vorigen Code-Deklaration bzw. der Name/das einleitende Schlüsselwort des Wirts.
-    /// Über dessen Ancestor-Kette wird der <em>innerste</em> Wirt-Knoten bestimmt (Knoten-Deklarationen liegen
+    /// schließende <c>]</c> der vorigen Code-Deklaration bzw. der Name/das einleitende Schlüsselwort des Hosts.
+    /// Über dessen Ancestor-Kette wird der <em>innerste</em> Host-Knoten bestimmt (Knoten-Deklarationen liegen
     /// in der Task-Definition geschachtelt); ohne tragenden Knoten (Datei-Kopf) ist es die Datei-Ebene.
     /// </summary>
     static (CodeBlockHost Host, SyntaxNode? HostNode) CodeBlockHostAt(SyntaxTree tree, SyntaxToken openBracket) {
@@ -508,7 +508,7 @@ sealed class NavCompletionContext {
 
         if (anchor != null) {
             foreach (var node in anchor.AncestorsAndSelf()) {
-                // Knotentyp → Wirt ist die Autorität von CodeBlockFacts (dieselbe, die die kontextabhängige
+                // Knotentyp → Host ist die Autorität von CodeBlockFacts (dieselbe, die die kontextabhängige
                 // Keyword-Bedeutung nutzt) — hier nur um den innersten tragenden Knoten angereichert.
                 if (CodeBlockFacts.HostKindOf(node) is { } host) {
                     return (host, node);
@@ -516,15 +516,15 @@ sealed class NavCompletionContext {
             }
         }
 
-        // Kein tragender Wirt-Knoten → Datei-Ebene; der Wirt ist dann die CodeGenerationUnit (Root), deren
+        // Kein tragender Host-Knoten → Datei-Ebene; der Host ist dann die CodeGenerationUnit (Root), deren
         // Aufrufer über den Fallback beisteuert.
         return (CodeBlockHost.CompilationUnit, null);
     }
 
     /// <summary>
-    /// Die am Wirt bereits vorhandenen Code-Deklarations-Schlüsselwörter — die <c>Keyword</c>-Token seiner
+    /// Die am Host bereits vorhandenen Code-Deklarations-Schlüsselwörter — die <c>Keyword</c>-Token seiner
     /// <em>direkten</em> <see cref="CodeSyntax"/>-Kinder. Bewusst nur direkte Kinder: verschachtelte Knoten
-    /// (etwa die <c>[params]</c> eines <c>init</c>-Knotens innerhalb einer Task-Definition) sind eigene Wirte
+    /// (etwa die <c>[params]</c> eines <c>init</c>-Knotens innerhalb einer Task-Definition) sind eigene Hosts
     /// und dürfen die äußere Ebene nicht verunreinigen. Der gerade bearbeitete Block selbst (<paramref
     /// name="currentOpenBracket"/> als sein öffnendes <c>[</c>) zählt NICHT als „schon vorhanden" — sonst
     /// filterte man das Schlüsselwort weg, das der Nutzer an genau dieser Stelle tippt.
@@ -552,7 +552,7 @@ sealed class NavCompletionContext {
     /// liegt — der Kontext-Anker steckt (über seine Ancestor-Kette) in einem <see cref="CodeSyntax"/>-Knoten und
     /// die Position liegt vor dessen schließender <c>]</c> (bzw. diese fehlt noch, weil der Block unvollständig
     /// ist). Baumbasiert und dadurch über mehrere Zeilen tragfähig — anders als der zeilenbegrenzte Klammer-Scan,
-    /// der das öffnende <c>[</c> einer Vorzeile nicht sieht. Fängt aber NUR wohlgeformte, an einem Wirt hängende
+    /// der das öffnende <c>[</c> einer Vorzeile nicht sieht. Fängt aber NUR wohlgeformte, an einem Host hängende
     /// Blöcke: ein malformter Block, dessen Klammern in der SkippedTokensTrivia liegen, bildet keinen
     /// CodeSyntax-Knoten und wird weiterhin über den (dort einzeiligen) Zeilen-Scan gedeckt. Der Schlüsselwort-
     /// Slot direkt hinter <c>[</c> wird VORHER gesondert behandelt (dort ist der Kontext-Anker das <c>[</c>
@@ -580,7 +580,7 @@ sealed class NavCompletionContext {
     /// Teil des flachen <see cref="SyntaxTree.Tokens"/>-Stroms; ihre lokalen Token liefert
     /// <see cref="StructuredTriviaSyntax.ChildTokens()"/>. Der Cursor sitzt entweder im Schlüsselwort-Slot direkt
     /// hinter dem <c>#</c> (<see cref="NavCompletionContextKind.DirectiveKeyword"/>) oder — bei einer erkannten
-    /// <c>#version</c>-Direktive — im Werte-Slot dahinter (<see cref="NavCompletionContextKind.DirectiveVersionValue"/>).
+    /// <c>#version</c>-Direktive — im Wert-Slot dahinter (<see cref="NavCompletionContextKind.DirectiveVersionValue"/>).
     /// </summary>
     static NavCompletionContextKind? DirectiveContext(SyntaxTree tree, int position) {
 
@@ -597,7 +597,7 @@ sealed class NavCompletionContext {
         }
 
         // Erkannte Versions-Direktive: bis einschließlich des Endes von `version` wird noch das Schlüsselwort
-        // getippt (das Wort ist das Filter-Präfix); erst dahinter beginnt der Werte-Slot.
+        // getippt (das Wort ist das Filter-Präfix); erst dahinter beginnt der Wert-Slot.
         if (directive is VersionDirectiveSyntax version && !version.VersionKeyword.IsMissing) {
             return position <= version.VersionKeyword.End
                        ? NavCompletionContextKind.DirectiveKeyword

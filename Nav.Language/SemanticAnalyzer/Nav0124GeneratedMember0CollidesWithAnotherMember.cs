@@ -27,7 +27,7 @@ public class Nav0124GeneratedMember0CollidesWithAnotherMember: NavAnalyzer {
     /// <inheritdoc/>
     public override DiagnosticDescriptor Descriptor => DiagnosticDescriptors.Semantic.Nav0124GeneratedMember0CollidesWithAnotherMember;
 
-    // Namenspräfixe der V2-Callables (mode-freies Show-Verb bzw. Begin-Fabrik) — siehe CallContextCodeModel.
+    // Namenspräfixe der V2-Callables (mode-freies Show-Verb bzw. Begin-Factory) — siehe CallContextCodeModel.
     const string ShowPrefix  = "Show";
     const string BeginPrefix = "Begin";
 

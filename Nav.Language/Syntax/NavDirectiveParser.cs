@@ -107,7 +107,7 @@ sealed class NavDirectiveParser {
         SkipPreprocessorText();
 
         // Ein Subjekt hinter "pragma" ist ein (derzeit stets unbekanntes) Pragma; sein Text speist die
-        // Nav3001-Meldung. Ohne Subjekt ist der '#pragma'-Lauf selbst die unbekannte Direktive.
+        // Nav3001-Diagnose. Ohne Subjekt ist der '#pragma'-Lauf selbst die unbekannte Direktive.
         if (!AtRunEnd && !At(SyntaxTokenType.PreprocessorNewLine)) {
             return UnknownPragma(hashIndex, end, _sourceText.Substring(Current.Extent));
         }

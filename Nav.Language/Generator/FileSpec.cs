@@ -10,12 +10,12 @@ using Pharmatechnik.Nav.Utilities.IO;
 namespace Pharmatechnik.Nav.Language.Generator;
 
 /// <summary>
-/// Beschreibt eine einzelne <c>.nav</c>-Eingabedatei für einen Codegenerator-Lauf
+/// Beschreibt eine einzelne <c>.nav</c>-Eingabedatei für einen Codegenerator-Durchlauf
 /// (<see cref="NavCodeGeneratorPipeline.Run"/>). Trennt den zur Anzeige/Protokollierung genutzten
 /// <see cref="Identity"/>-Namen (i.d.R. ein relativer Pfad) vom tatsächlich zum Öffnen verwendeten
 /// <see cref="FilePath"/> (i.d.R. absolut). Erzeugt wird eine Instanz entweder direkt vom Aufrufer
 /// (z.B. <c>Nav.Cli</c>, das die relative Identität selbst aus einem Wurzelverzeichnis ableitet) oder
-/// über die Fabrik <see cref="FromFile"/>.
+/// über die Factory <see cref="FromFile"/>.
 /// </summary>
 public class FileSpec {
         

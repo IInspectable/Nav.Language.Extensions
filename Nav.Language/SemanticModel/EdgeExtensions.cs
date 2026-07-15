@@ -11,7 +11,7 @@ namespace Pharmatechnik.Nav.Language;
 /// Graph-Traversierung über <see cref="IEdge"/>-Kanten: löst auf, welche <see cref="Call"/>s eine
 /// Kante (transitiv über Choice-Knoten) auslöst und ob eine Kante vom Graph-Anfang aus überhaupt
 /// erreichbar ist. Gemeinsame Grundlage für Erreichbarkeits-Analyzer (z.B. Nav0110, Nav0222) und
-/// die Codegenerierung (Aufruf-Listen der Transitions-Codemodelle).
+/// die Codegenerierung (Aufruf-Listen der Transitions-CodeModels).
 /// </summary>
 public static class EdgeExtensions {
 

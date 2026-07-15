@@ -1,7 +1,7 @@
 ﻿namespace Pharmatechnik.Nav.Language.Generator;
 
 /// <summary>
-/// Senke für die Fortschritts- und Diagnose-Ausgabe eines Codegenerator-Laufs
+/// Senke für die Fortschritts- und Diagnose-Ausgabe eines Codegenerator-Durchlaufs
 /// (<see cref="NavCodeGeneratorPipeline.Run"/>). Der Host stellt die Implementierung bereit und
 /// entscheidet über Ziel und Formatierung — <c>Nav.Cli</c> etwa mit einem farbigen
 /// Konsolen-Logger. Die Pipeline ruft die Methoden nicht direkt, sondern über ihren internen
@@ -13,7 +13,7 @@ public interface ILogger {
     /// <param name="message">Der Meldungstext.</param>
     void LogVerbose(string message);
     /// <summary>Protokolliert eine Informationsmeldung, etwa die Abschluss-Statistik eines
-    /// Laufs.</summary>
+    /// Durchlaufs.</summary>
     /// <param name="message">Der Meldungstext.</param>
     void LogInfo(string message);
     /// <summary>Protokolliert eine Warnung aus einem <see cref="Diagnostic"/> (Warn-Schweregrad).</summary>

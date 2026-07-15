@@ -8,9 +8,9 @@ using System.Collections.Generic;
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Semantic-Model-Umsetzung von <see cref="IContinuationTransition"/>: der Fortsetzungs-Anhang
+/// Semantic-Model-Umsetzung von <see cref="IContinuationTransition"/>: der Continuation-Anhang
 /// <c>… o-^ Task</c> / <c>… --^ Task</c> (ab Sprachversion 2). Quelle ist der tragende GUI-Knoten der
-/// umgebenden Transition, Ziel der Folge-Task; <see cref="EdgeMode"/> kodiert die Fortsetzungs-Art
+/// umgebenden Transition, Ziel der Folge-Task; <see cref="EdgeMode"/> kodiert den Fortsetzungs-Kantenmodus
 /// (<c>o-^</c> → Modal, <c>--^</c> → Goto).
 /// </summary>
 sealed class ContinuationTransition: IContinuationTransition {

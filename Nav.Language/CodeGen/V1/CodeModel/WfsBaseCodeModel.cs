@@ -81,7 +81,7 @@ sealed class WfsBaseCodeModel : FileGenerationCodeModel {
     public ImmutableList<ParameterCodeModel> ViewParameters { get; }
 
     /// <summary>
-    /// Fabrik: baut das vollständige <see cref="WfsBaseCodeModel"/> aus dem Task-Symbol. Löst
+    /// Factory: baut das vollständige <see cref="WfsBaseCodeModel"/> aus dem Task-Symbol. Löst
     /// <see cref="TaskCodeInfo"/> und die Transitions-/Wrapper-/Parameterlisten über den
     /// <see cref="CodeModelBuilder"/> auf und bestimmt Datei- und relativen Syntaxpfad über den
     /// <paramref name="pathProvider"/>.

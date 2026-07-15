@@ -43,7 +43,7 @@ public sealed class TaskDeclarationCodeInfo {
     /// </summary>
     public string FullyQualifiedBeginInterfaceName => BuildQualifiedName(WflNamespace,    $"{CodeGenInvariants.BeginInterfacePrefix}{Taskname.ToPascalcase()}{CodeGenInvariants.InterfaceSuffix}");
 
-    /// <summary>Fabrik: baut die <see cref="TaskDeclarationCodeInfo"/> zu einem Task-Deklarations-Symbol.</summary>
+    /// <summary>Factory: baut die <see cref="TaskDeclarationCodeInfo"/> zu einem Task-Deklarations-Symbol.</summary>
     public static TaskDeclarationCodeInfo FromTaskDeclaration(ITaskDeclarationSymbol taskDeclarationSymbol) {
         return new TaskDeclarationCodeInfo(taskDeclarationSymbol);
     }

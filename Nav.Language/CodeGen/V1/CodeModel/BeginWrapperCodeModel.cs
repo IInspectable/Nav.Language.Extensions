@@ -36,7 +36,7 @@ class BeginWrapperCodeModel: CodeModel {
     public ImmutableList<TaskBeginCodeModel> TaskBegins { get;}
 
     /// <summary>
-    /// Fabrik: baut aus einem Task-Knoten die Begin-Wrapper. Für <c>[notimplemented]</c>-Tasks entsteht
+    /// Factory: baut aus einem Task-Knoten die Begin-Wrapper. Für <c>[notimplemented]</c>-Tasks entsteht
     /// je Init ein Wrapper mit dem Default-Begin-Parameter (<see cref="CodeGenFacts.DefaultIwfsBaseType"/>)
     /// und leerem <c>TaskCall</c>; sonst mit dem konkreten <c>IBegin{Sub}WFS</c>-Parameter und den
     /// Init-Parametern. Wirft, wenn der Knoten keine Deklaration hat.

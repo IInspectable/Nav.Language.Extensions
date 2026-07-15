@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace Pharmatechnik.Nav.Language.CallHierarchy;
 
 /// <summary>
-/// VS-freier Engine-Kern für die "Call Hierarchy" (Aufrufliste) auf Task-Ebene — gemeinsam nutzbar von
+/// VS-freier Engine-Kern für die "Call Hierarchy" (Aufrufhierarchie) auf Task-Ebene — gemeinsam nutzbar von
 /// LSP-Server (und perspektivisch VS-Extension), also "eine Engine". Der Aufrufgraph der Nav-Sprache läuft
 /// über <see cref="ITaskNodeSymbol"/>: ein TaskNode in einer Task-Definition referenziert (auch cross-file
 /// via <c>taskref</c>) die Deklaration einer aufgerufenen Task.

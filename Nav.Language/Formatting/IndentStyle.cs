@@ -2,8 +2,8 @@
 
 /// <summary>
 /// Der Einzugsstil des Formatters: ein Tab pro Einzugsstufe oder <see cref="NavFormattingOptions.IndentSize"/>
-/// Spaces. Betrifft nur den <b>Einzug</b> am Zeilenanfang — Ausrichtungs-Padding innerhalb einer Zeile ist
-/// immer Leerzeichen („Tabs für Einzug, Spaces für Ausrichtung").
+/// Spaces. Betrifft nur die <b>Einrückung</b> am Zeilenanfang — Ausrichtungs-Padding innerhalb einer Zeile ist
+/// immer Leerzeichen („Tabs für Einrückung, Spaces für Ausrichtung").
 /// </summary>
 public enum IndentStyle {
 

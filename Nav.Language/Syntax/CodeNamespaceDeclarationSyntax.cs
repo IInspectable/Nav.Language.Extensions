@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Code-Deklaration <c>[namespaceprefix …]</c>, z.B. <c>[namespaceprefix Pharmatechnik.Apotheke]</c> —
-/// das Namespace-Präfix für den generierten C#-Code. Zwei Wirte (<see cref="CodeBlockFacts"/>): im
+/// das Namespace-Präfix für den generierten C#-Code. Zwei Hosts (<see cref="CodeBlockFacts"/>): im
 /// Datei-Kopf (<see cref="CodeGenerationUnitSyntax.CodeNamespace"/>) gilt sie für die aus der Datei
 /// generierten Klassen; an einer <c>taskref</c>-Deklaration
 /// (<see cref="TaskDeclarationSyntax.CodeNamespaceDeclaration"/>) benennt sie den Namespace des

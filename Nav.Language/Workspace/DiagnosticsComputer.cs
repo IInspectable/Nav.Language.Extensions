@@ -13,7 +13,7 @@ namespace Pharmatechnik.Nav.Language;
 /// <summary>
 /// Liefert die relevanten Nav-Diagnostics eines Dokuments aus einem bereits gebauten semantischen Modell:
 /// Syntaxfehler (Lexer/Parser) plus die semantischen Analyzer-Diagnostics, gefiltert auf das betreffende
-/// Dokument und stabil sortiert. VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Schale.
+/// Dokument und stabil sortiert. VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Host.
 /// </summary>
 public static class DiagnosticsComputer {
 

@@ -282,7 +282,7 @@ sealed partial class NavParser {
         // Kopf der CodeGenerationUnit: [namespaceprefix …] gefolgt von [using …]*. Der Using-Kopf
         // existiert nur, wenn ein namespaceprefix ihn eröffnet — usings ohne vorangehendes namespaceprefix
         // gehören grammatisch nicht in den Kopf (und werden in der Member-Schleife als Fehlerproduktion
-        // behandelt). Ist der Kopf eröffnet, werden die usings — wie die Code-Deklarationen der Wirte
+        // behandelt). Ist der Kopf eröffnet, werden die usings — wie die Code-Deklarationen der Hosts
         // (siehe ParseCodeDeclarations) — verschränkt mit der Klammer-Recovery geparst: eine hier nicht
         // zuzuordnende Klammer (malforme/unfertige using-Klammer wie `[usin …]`, ein zweites
         // namespaceprefix, ein leeres [ … ]) wird als eigene Fehlerproduktion isoliert übersprungen, ohne
@@ -309,7 +309,7 @@ sealed partial class NavParser {
             }
 
             // Ein '[' auf Top-Level, das keiner Kopf-Deklaration (namespaceprefix/using) mehr entspricht,
-            // läuft durch dieselbe Klammer-Recovery wie in den übrigen Wirten — ein leeres '[]' meldet
+            // läuft durch dieselbe Klammer-Recovery wie in den übrigen Hosts — ein leeres '[]' meldet
             // „expected 'namespaceprefix' or 'using'" statt des nackten „unexpected input '['".
             if (At(SyntaxTokenType.OpenBracket)) {
                 SkipMalformedBrackets(CodeBlockHost.CompilationUnit);
@@ -373,7 +373,7 @@ sealed partial class NavParser {
     /// ausschließlich Trivia vorausgehen — kein Code und keine andere Direktive), und nur die erste am Kopf zählt.
     /// <list type="bullet">
     ///   <item><description>hinter echtem Code ⇒ <c>Nav3003</c> (die Deplatzierung sticht eine etwaige
-    ///   Duplikat-Meldung);</description></item>
+    ///   Duplikat-Diagnose);</description></item>
     ///   <item><description>am Kopf, aber eine wirksame ging schon voraus ⇒ <c>Nav3004</c> (Duplikat, die
     ///   erste gewinnt);</description></item>
     ///   <item><description>am Kopf, aber eine andere Direktive ging voraus ⇒ <c>Nav3003</c> (nicht ganz
@@ -1688,11 +1688,11 @@ sealed partial class NavParser {
     /// <summary>
     /// Überspringt eine Folge von <c>[</c>-Klammern an einer Code-Deklarations-Position, die keiner
     /// bekannten <c>[keyword …]</c>-Deklaration entsprechen — jede als eigene Fehlerproduktion mit einer
-    /// Diagnose. Anders als beim <see cref="ParseCodeDeclarations"/>-Wirt gibt es hier (Top-Level) kein
+    /// Diagnose. Anders als beim <see cref="ParseCodeDeclarations"/>-Host gibt es hier (Top-Level) kein
     /// mechanisch fehlendes <c>;</c> zu unterdrücken, weshalb kein „übersprungen"-Ergebnis zurückfließt.
     /// </summary>
     /// <param name="host">
-    /// Der Wirt der Klammer — er bestimmt über <see cref="CodeBlockFacts.VisibleDeclarationKeywords"/> die
+    /// Der Host der Klammer — er bestimmt über <see cref="CodeBlockFacts.VisibleDeclarationKeywords"/> die
     /// an dieser Stelle gültigen <c>[keyword …]</c>-Schlüsselwörter. Für ein <b>leeres</b> <c>[]</c> — bei
     /// dem die Klammer hierher gehört und nur ihr Inhalt fehlt — werden sie zur Diagnose
     /// <c>expected 'a', 'b' or 'c'</c> statt des irreführenden <c>unexpected input '[]'</c>.
@@ -1706,7 +1706,7 @@ sealed partial class NavParser {
 
     /// <summary>
     /// Treibt die (in fester Grammatik-Reihenfolge notierten) <c>[keyword …]</c>-Code-Deklarationen eines
-    /// Wirts an und verschränkt sie mit der Klammer-Recovery. Anders als ein <em>einmaliger</em> Durchlauf
+    /// Hosts an und verschränkt sie mit der Klammer-Recovery. Anders als ein <em>einmaliger</em> Durchlauf
     /// mit anschließendem <see cref="SkipMalformedBrackets"/> wird hier jede Klammer <em>einzeln</em>
     /// betrachtet: nach dem Überspringen einer fehlerhaften Klammer werden die noch offenen Deklarationen
     /// erneut angeboten. So „verschluckt" ein vorangestelltes malformes <c>[]</c> keine nachfolgende, gültige
@@ -2339,7 +2339,7 @@ sealed partial class NavParser {
     /// Knoten. Gibt es kein vorheriges signifikantes Token (Fehlstelle am Dateianfang), wird nullbreit
     /// an der aktuellen Cursor-Position gemeldet.
     /// <para/>
-    /// Am Dateiende wird die <b>Kaskade</b> nach der ersten Meldung abgebrochen: bricht die Eingabe
+    /// Am Dateiende wird die <b>Kaskade</b> nach der ersten Diagnose abgebrochen: bricht die Eingabe
     /// vorzeitig ab, synthetisiert der Parser beim Aufrollen der Regeln eine Reihe fehlender Pflicht-Token
     /// (z.B. Zielknoten → <c>;</c> → <c>}</c>), die alle nullbreit an derselben EOF-Position landen würden.
     /// Gemeldet wird nur die <b>erste</b> (die den unvollständigen Bau benennt); die mechanischen

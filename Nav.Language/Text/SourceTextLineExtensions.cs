@@ -10,11 +10,11 @@ namespace Pharmatechnik.Nav.Language.Text;
 public static class SourceTextLineExtensions {
 
     /// <summary>
-    /// Liefert den Einzug der Zeile als reine Leerzeichen-Kette — die Tabulatoren des tatsächlichen Einzugs
+    /// Liefert die Einrückung der Zeile als reine Leerzeichen-Kette — die Tabulatoren der tatsächlichen Einrückung
     /// werden gemäß <paramref name="tabSize"/> in Spalten umgerechnet
     /// (<see cref="GetSignificantColumn"/>) und durch ebenso viele Leerzeichen ersetzt.
     /// </summary>
-    /// <param name="sourceText">Die Zeile, deren Einzug ermittelt wird.</param>
+    /// <param name="sourceText">Die Zeile, deren Einrückung ermittelt wird.</param>
     /// <param name="tabSize">Die Tabulatorweite in Spalten.</param>
     public static string GetIndentAsSpaces(this SourceTextLine sourceText, int tabSize) {
 

@@ -15,7 +15,7 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
     /// <param name="syntaxTree">Der Syntaxbaum, aus dem das Symbol stammt.</param>
     /// <param name="name">Das Operator-Literal, wie es im Quelltext steht (z.B. <c>--&gt;</c>).</param>
     /// <param name="location">Die Fundstelle des Operators.</param>
-    /// <param name="edgeMode">Die vom Operator kodierte Aufruf-Art.</param>
+    /// <param name="edgeMode">Der vom Operator kodierte Kantenmodus.</param>
     public EdgeModeSymbol(SyntaxTree syntaxTree, string name, Location location, EdgeMode edgeMode)
         : base(name, location) {
 

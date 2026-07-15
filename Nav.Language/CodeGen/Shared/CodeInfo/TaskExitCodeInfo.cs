@@ -35,7 +35,7 @@ public sealed class TaskExitCodeInfo {
     public string       AfterLogicMethodName { get; }
 
     /// <summary>
-    /// Fabrik: baut die <see cref="TaskExitCodeInfo"/> aus einer Exit-Connection-Point-Referenz; der
+    /// Factory: baut die <see cref="TaskExitCodeInfo"/> aus einer Exit-Connection-Point-Referenz; der
     /// Knoten-Name stammt aus der Quell-Referenz der Exit-Transition.
     /// </summary>
     public static TaskExitCodeInfo FromConnectionPointReference(IExitConnectionPointReferenceSymbol exitConnectionPointReferenceSymbol) {
@@ -52,7 +52,7 @@ public sealed class TaskExitCodeInfo {
     }
 
     /// <summary>
-    /// Fabrik-Überladung für den Exit an einem Task-Knoten; verwendet den bereits gebauten
+    /// Factory-Überladung für den Exit an einem Task-Knoten; verwendet den bereits gebauten
     /// <paramref name="containingTaskCodeInfo"/> wieder oder leitet ihn — wenn <c>null</c> — über
     /// <see cref="TaskCodeInfo.FromTaskDefinition"/> aus dem enthaltenden Task ab.
     /// </summary>

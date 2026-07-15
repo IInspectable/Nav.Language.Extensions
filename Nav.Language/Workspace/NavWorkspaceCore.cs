@@ -17,8 +17,8 @@ namespace Pharmatechnik.Nav.Language;
 /// <summary>
 /// VS-/LSP-freier Kern der Workspace-Verwaltung: hält die geladene <see cref="NavSolution"/> (alle <c>*.nav</c>
 /// unterhalb der Wurzel) samt overlay-fähigem Syntax-Provider und liefert Syntaxbaum, semantisches Modell und
-/// Diagnostics overlay-bewusst. Gemeinsame „eine Engine"-Host-Schicht: die LSP-Server-Schale (Push-Modell,
-/// Overlays für ungespeicherte Editor-Puffer, Abhängigkeits-Re-Diagnose, <c>.navignore</c>) und die MCP-Schale
+/// Diagnostics overlay-bewusst. Gemeinsame „eine Engine"-Host-Schicht: der LSP-Server-Host (Push-Modell,
+/// Overlays für ungespeicherte Editor-Puffer, Abhängigkeits-Re-Diagnose, <c>.navignore</c>) und der MCP-Host
 /// (request/response gegen den Stand auf Platte) bauen beide darauf auf.
 /// </summary>
 public sealed class NavWorkspaceCore {
@@ -104,7 +104,7 @@ public sealed class NavWorkspaceCore {
     public IEnumerable<string> OpenDocuments => _syntaxProvider.OpenDocuments;
 
     /// <summary>
-    /// Invalidiert den Platten-Syntax-Cache einer Datei (das Overlay bleibt unberührt) — der nächste Zugriff
+    /// Invalidiert den Disk-Syntax-Cache einer Datei (das Overlay bleibt unberührt) — der nächste Zugriff
     /// liest sie frisch von Platte.
     /// </summary>
     public void InvalidateCache(string normalizedPath) => _syntaxProvider.InvalidateCache(normalizedPath);
@@ -134,7 +134,7 @@ public sealed class NavWorkspaceCore {
         _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
     }
 
-    /// <summary>Entfernt eine gelöschte Datei aus der Solution (Graph-Kanten verwaltet die aufrufende Schale).</summary>
+    /// <summary>Entfernt eine gelöschte Datei aus der Solution (Graph-Kanten verwaltet der aufrufende Host).</summary>
     public void RemoveSolutionFile(string normalizedPath) {
 
         if (_solution.SolutionDirectory == null) {

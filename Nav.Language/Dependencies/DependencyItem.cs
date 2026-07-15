@@ -21,7 +21,7 @@ public abstract class DependencyItem: IEquatable<DependencyItem> {
 
     /// <summary>Der Name des Elements — zusammen mit <see cref="Location"/> seine Identität.</summary>
     public abstract string   Name     { get; }
-    /// <summary>Die Quelltextposition des Elements — zusammen mit <see cref="Name"/> seine Identität.</summary>
+    /// <summary>Die Location des Elements — zusammen mit <see cref="Name"/> seine Identität.</summary>
     public abstract Location Location { get; }
 
     #region Equality members

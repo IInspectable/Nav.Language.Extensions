@@ -9,7 +9,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// <see cref="IEdge.TargetReference"/> der <see cref="IContinuationTransition"/>) muss ein
 /// Task-Knoten (<see cref="ITaskNodeSymbol"/>) sein — die Continuation setzt den Aufruf des
 /// Folge-Tasks per <c>.Concat(…)</c> auf das GUI-Kommando des tragenden Knotens; ein
-/// View-/Choice-/Exit-Ziel hätte weder eine Begin-Fabrik noch ein Task-Boundary-Kommando.
+/// View-/Choice-/Exit-Ziel hätte weder eine Begin-Factory noch ein Task-Boundary-Kommando.
 /// Gemeldet wird nur der <b>aufgelöste</b> Falschtyp (die Diagnose sitzt an der Zielreferenz der
 /// Continuation); unauflösbare Knoten meldet bereits <see cref="Nav0011CannotResolveNode0"/>.
 /// Ist die Continuation unter der wirksamen Sprachversion
@@ -31,7 +31,7 @@ public class Nav0121TargetNode0OfContinuationMustBeTask: NavAnalyzer {
         //==============================
         // Das Ziel einer Continuation (rechts von o-^/--^) muss ein Task-Knoten sein: .Begin{Task}(…) baut
         // .Concat(OpenModalTask/GotoTask(…)), was eine ITASK_BOUNDARY verlangt. Ein View-/Choice-/Exit-Ziel
-        // hätte weder eine Begin-Fabrik noch ein Task-Boundary-Kommando. Unaufgelöste Knoten meldet bereits
+        // hätte weder eine Begin-Factory noch ein Task-Boundary-Kommando. Unaufgelöste Knoten meldet bereits
         // Nav0011 — hier wird nur der aufgelöste Falschtyp gemeldet.
         //
         // Ist die Continuation unter der effektiven #version gar nicht verfügbar, ist das Nav5000-Versions-Gate

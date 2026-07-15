@@ -8,7 +8,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Unveränderliche Beschreibung einer Diagnose-Art — die „Vorlage", aus der über
-/// <see cref="Diagnostic"/> die konkreten, an eine <see cref="Location"/> gebundenen Meldungen
+/// <see cref="Diagnostic"/> die konkreten, an eine <see cref="Location"/> gebundenen Diagnosen
 /// entstehen. Ein Deskriptor bündelt die stabile Diagnose-Identität (<see cref="Id"/>), die
 /// Meldungsvorlage (<see cref="MessageFormat"/>), die fachliche Einordnung (<see cref="Category"/>)
 /// und den Standard-Schweregrad (<see cref="DefaultSeverity"/>). Die vordefinierten Deskriptoren

@@ -1,12 +1,12 @@
 ﻿namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Erzeugt <see cref="SemanticModelProvider"/>-Instanzen — die Standard-Fabrik für das nicht-cachende
+/// Erzeugt <see cref="SemanticModelProvider"/>-Instanzen — die Standard-Factory für das nicht-cachende
 /// semantische Modell.
 /// </summary>
 public class SemanticModelProviderFactory: ISemanticModelProviderFactory {
 
-    /// <summary>Die gemeinsam nutzbare Standard-Fabrik.</summary>
+    /// <summary>Die gemeinsam nutzbare Standard-Factory.</summary>
     public static readonly ISemanticModelProviderFactory Default = new SemanticModelProviderFactory();
 
     /// <inheritdoc/>

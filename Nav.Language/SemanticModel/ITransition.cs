@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Eine Kante, die einen <see cref="ContinuationTransition"/>-Anhang tragen <b>kann</b> (ab Sprachversion 2):
-/// der tragende GUI-Knoten zeigt eine View <b>und</b> setzt den Übergang in einen Folge-Task fort
+/// der tragende GUI-Knoten zeigt eine View <b>und</b> setzt die Transition in einen Folge-Task fort
 /// (<c>… o-^ Task</c> bzw. <c>… --^ Task</c>). Ohne Continuation ist <see cref="ContinuationTransition"/> null.
 /// </summary>
 public interface IContinuableEdge: IEdge {
@@ -58,7 +58,7 @@ public interface ITriggerTransition: ITransition {
     IGuiNodeReferenceSymbol? GuiNodeSourceReference { get; }
 
     /// <summary>
-    /// Die Auslöser dieser Transition — Signal-Trigger (<c>on Signal</c>) oder spontane Übergänge
+    /// Die Trigger dieser Transition — Signal-Trigger (<c>on Signal</c>) oder spontane Transitionen
     /// (<c>spontaneous</c>/<c>spont</c>); leer, wenn der Quelltext keinen Trigger angibt.
     /// </summary>
     IReadOnlySymbolCollection<ITriggerSymbol> Triggers { get; }
@@ -109,10 +109,10 @@ public interface IExitTransition: IContinuableEdge {
 }
 
 /// <summary>
-/// Der Fortsetzungs-Anhang einer <see cref="IContinuableEdge"/> (ab Sprachversion 2): eine eigene Kante,
+/// Der Continuation-Anhang einer <see cref="IContinuableEdge"/> (ab Sprachversion 2): eine eigene Kante,
 /// die selbst keine weitere Continuation tragen kann (daher <see cref="IEdge"/>, nicht
 /// <see cref="IContinuableEdge"/>). Quelle ist der tragende GUI-Knoten der umgebenden Transition,
-/// Ziel der Folge-Task; <see cref="IEdge.EdgeMode"/> bestimmt die Fortsetzungs-Art (<c>o-^</c> → Modal,
+/// Ziel der Folge-Task; <see cref="IEdge.EdgeMode"/> bestimmt den Fortsetzungs-Kantenmodus (<c>o-^</c> → Modal,
 /// <c>--^</c> → Goto).
 /// </summary>
 public interface IContinuationTransition: IEdge {

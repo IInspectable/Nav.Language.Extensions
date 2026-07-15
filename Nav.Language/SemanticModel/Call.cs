@@ -8,8 +8,8 @@ using System.Collections.Generic;
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Ein aufgelöster Aufruf im Übergangsgraphen: welcher Knoten (<see cref="Node"/>) mit welcher
-/// Aufruf-Art (<see cref="EdgeMode"/>) erreicht wird. Anders als eine <see cref="IEdge"/> ist ein
+/// Ein aufgelöster Aufruf im Transitionsgraphen: welcher Knoten (<see cref="Node"/>) mit welchem
+/// Kantenmodus (<see cref="EdgeMode"/>) erreicht wird. Anders als eine <see cref="IEdge"/> ist ein
 /// Call bereits das <b>Ergebnis</b> der Graph-Auflösung (siehe
 /// <see cref="EdgeExtensions.GetReachableCalls(IEdge)"/> bzw.
 /// <see cref="EdgeExtensions.GetDirectCalls"/>) — die Grundlage der Erreichbarkeits-Analyzer und
@@ -59,7 +59,7 @@ public sealed class Call {
 /// <summary>
 /// Wertbasierte Gleichheit für <see cref="Call"/>s: gleich sind zwei Calls, wenn Knoten-Name,
 /// Kantenmodus-Name und — rekursiv — der <see cref="Call.ContinuationCall"/> übereinstimmen.
-/// Damit fallen mehrere Kanten auf dasselbe Ziel mit derselben Aufruf-Art zu <b>einem</b> Call
+/// Damit fallen mehrere Kanten auf dasselbe Ziel mit demselben Kantenmodus zu <b>einem</b> Call
 /// zusammen (Deduplizierung in <see cref="EdgeExtensions.GetReachableCalls(IEdge)"/> u.a.).
 /// </summary>
 public class CallComparer: IEqualityComparer<Call> {

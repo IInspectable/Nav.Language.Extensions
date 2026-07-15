@@ -5,9 +5,9 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language.Formatting;
 
 /// <summary>
-/// Der Fehler-Toleranz-Vorpass des Formatters: entscheidet je Anweisung/Member, ob ihre Lücken
+/// Der Fehler-Toleranz-Vor-Durchlauf des Formatters: entscheidet je Anweisung/Member, ob ihre Lücken
 /// <b>verbatim</b> bleiben (Strukturbruch — dem Baum wird nicht getraut) oder ob es sich um eine
-/// <b>hand-gelegte</b> (mehrzeilige, aber gültige) Anweisung handelt, deren äußerer Einzug per
+/// <b>manuell umbrochene</b> (mehrzeilige, aber gültige) Anweisung handelt, deren äußere Einrückung per
 /// Delta-Shift re-gesetzt und deren Inneres verbatim bleibt. Der Formatter fragt anschließend pro Lücke
 /// nur noch nach.
 /// </summary>
@@ -21,15 +21,15 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// alles außerhalb wird weiter formatiert. Eine <c>SkippedTokensTrivia</c> <b>zwischen</b> zwei Anweisungen
 /// (kein gemeinsamer Anweisungs-Elter) braucht keinen Eintrag — der Renderer lässt solche Lücken ohnehin
 /// byte-genau stehen.</para>
-/// <para><b>Hand-gelegt (Delta-Shift):</b> eine strukturell gültige Anweisung, deren innere Lücke einen
+/// <para><b>Manuell umbrochen (Delta-Shift):</b> eine strukturell gültige Anweisung, deren innere Lücke einen
 /// Newline oder zeilen-erzwingenden Kommentar trägt (nie <c>;</c>-los, ohne Skiped/Direktive/Diagnostik).
 /// Ihr Inneres bleibt verbatim; die Zeilen werden um dasselbe Einrück-Delta verschoben, das die erste
-/// Zeile beim Neu-Einrücken auf den Block-Einzug wandert. Ausgenommen sind der <c>task</c>-/<c>taskref</c>-Kopf
+/// Zeile beim Neu-Einrücken auf die Block-Einrückung wandert. Ausgenommen sind der <c>task</c>-/<c>taskref</c>-Kopf
 /// (Kanonisierung, s. <see cref="TaskHeadLayoutRule"/>) und das mehrzeilige <c>[params]</c> (kanonisch
 /// ausgerichtet) — beide sind keine Anweisungsknoten und werden hier nicht erfasst.</para>
 /// <para><b>Idempotenz:</b> die Klassifikation liest nur formatierungs-invariante Fakten (fehlende Token,
-/// Trivia-Klasse, Diagnostics); der Hand-gelegt-Delta ist im zweiten Lauf 0 (die erste Zeile sitzt dann
-/// bereits auf dem Block-Einzug).</para>
+/// Trivia-Klasse, Diagnostics); das Delta der manuell umbrochenen Anweisung ist im zweiten Durchlauf 0 (die erste Zeile sitzt dann
+/// bereits auf der Block-Einrückung).</para>
 /// </remarks>
 sealed class FormatterSuppression {
 
@@ -61,20 +61,20 @@ sealed class FormatterSuppression {
     }
 
     /// <summary>
-    /// Das Einrück-Delta für die innere Lücke einer hand-gelegten Anweisung (identifiziert über ihre
-    /// Startposition), oder <c>false</c>, wenn die Lücke nicht zu einer hand-gelegten Anweisung gehört.
+    /// Das Einrück-Delta für die innere Lücke einer manuell umbrochenen Anweisung (identifiziert über ihre
+    /// Startposition), oder <c>false</c>, wenn die Lücke nicht zu einer manuell umbrochenen Anweisung gehört.
     /// </summary>
     public bool TryGetHandLaidShift(int gapStart, out int delta) {
         return _handLaidShiftByGapStart.TryGetValue(gapStart, out delta);
     }
 
     /// <summary>
-    /// Der Einstieg des Fehler-Toleranz-Vorpasses (aus <see cref="NavFormattingService.FormatDocument"/>):
+    /// Der Einstieg des Fehler-Toleranz-Vor-Durchlaufs (aus <see cref="NavFormattingService.FormatDocument"/>):
     /// sammelt die Verbatim-Regionen aus (1) fehlenden Task-/<c>taskref</c>-Blockklammern, (2)
     /// Error-Severity-Syntax-Diagnostics (BOM-<see cref="DiagnosticId.Nav0000"/> bei Offset 0 ausgenommen) und
     /// (3) strukturell defekten Anweisungen (fehlendes <c>;</c>, Skiped/Direktive im Inneren), und errechnet
-    /// die Delta-Shifts der hand-gelegten (mehrzeilig, aber gültigen) Anweisungen. Die Shifts entstehen erst
-    /// <b>nach</b> dem Sammeln aller Verbatim-Regionen, damit eine hand-gelegte Anweisung in einem bereits
+    /// die Delta-Shifts der manuell umbrochenen (mehrzeilig, aber gültigen) Anweisungen. Die Shifts entstehen erst
+    /// <b>nach</b> dem Sammeln aller Verbatim-Regionen, damit eine manuell umbrochene Anweisung in einem bereits
     /// unterdrückten Task-Body keinen widersprüchlichen Shift bekommt.
     /// </summary>
     public static FormatterSuppression Compute(SyntaxTree syntaxTree, NavFormattingOptions options, StatementFacts.Map statementFacts) {
@@ -110,7 +110,7 @@ sealed class FormatterSuppression {
         }
 
         // (3) Anweisungen (Transitionen, Exit-Transitionen, Node-Deklarationen): fehlendes ';',
-        //     Skiped/Direktive in einer inneren Lücke -> verbatim; sonst mehrzeilig -> hand-gelegt. Die
+        //     Skiped/Direktive in einer inneren Lücke -> verbatim; sonst mehrzeilig -> manuell umbrochen. Die
         //     Token-Liste und der Trivia-Befund stammen aus der einmal erhobenen, geteilten Messung.
         var handLaid           = new Dictionary<int, int>();
         var handLaidCandidates = new List<StatementFacts>();
@@ -129,7 +129,7 @@ sealed class FormatterSuppression {
 
         var suppression = new FormatterSuppression(verbatim, handLaid, ComputeHasUsableMembers(syntaxTree));
 
-        // Hand-gelegt-Deltas erst nach dem Sammeln aller Verbatim-Regionen: eine hand-gelegte Anweisung in
+        // Deltas der manuell umbrochenen Anweisungen erst nach dem Sammeln aller Verbatim-Regionen: eine manuell umbrochene Anweisung in
         // einem defekten Task-Body ist bereits unterdrückt und bekommt keinen (widersprüchlichen) Shift.
         foreach (var facts in handLaidCandidates) {
 
@@ -162,7 +162,7 @@ sealed class FormatterSuppression {
         }
     }
 
-    /// <summary>Die Einstufung einer Anweisung durch <see cref="Classify"/>: normal formatierbar, verbatim unterdrückt oder hand-gelegt (Delta-Shift).</summary>
+    /// <summary>Die Einstufung einer Anweisung durch <see cref="Classify"/>: normal formatierbar, verbatim unterdrückt oder manuell umbrochen (Delta-Shift).</summary>
     enum StatementClass {
         Normal,
         Suppressed,
@@ -173,7 +173,7 @@ sealed class FormatterSuppression {
     /// Klassifiziert eine Anweisung aus ihren geteilten <see cref="StatementFacts"/> — rein
     /// formatierungs-invariant. Fehlendes <c>;</c> oder Skiped/Direktive im Inneren ⇒ Strukturbruch
     /// (verbatim; eine Direktive mitten in der Anweisung ließe sich nicht per Delta-Shift auf Spalte 0
-    /// halten); sonst mehrzeilig ⇒ hand-gelegt, andernfalls normal.
+    /// halten); sonst mehrzeilig ⇒ manuell umbrochen, andernfalls normal.
     /// </summary>
     static StatementClass Classify(StatementFacts facts) {
 
@@ -185,9 +185,9 @@ sealed class FormatterSuppression {
     }
 
     /// <summary>
-    /// Das Einrück-Delta einer hand-gelegten Anweisung: (Ziel-Einzug des Blocks) − (authored Einrückung
+    /// Das Einrück-Delta einer manuell umbrochenen Anweisung: (Ziel-Einrückung des Blocks) − (authored Einrückung
     /// des ersten Tokens), in Zeichen. Nur wenn das erste Token auf einer eigenen Zeile beginnt (davor nur
-    /// Whitespace); sonst 0 (kein sinnvoller äußerer Einzug).
+    /// Whitespace); sonst 0 (keine sinnvolle äußere Einrückung).
     /// </summary>
     static int HandLaidDelta(SyntaxTree syntaxTree, NavFormattingOptions options, SyntaxToken firstToken) {
 

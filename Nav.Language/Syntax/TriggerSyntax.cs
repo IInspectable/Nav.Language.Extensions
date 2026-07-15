@@ -5,8 +5,8 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language; 
 
 /// <summary>
-/// Der Auslöser einer Transition (<see cref="TransitionDefinitionSyntax.Trigger"/>). Zwei Arten:
-/// ein Signal-Trigger <c>on Signal</c> (<see cref="SignalTriggerSyntax"/>) oder ein spontaner Übergang
+/// Der Trigger einer Transition (<see cref="TransitionDefinitionSyntax.Trigger"/>). Zwei Arten:
+/// ein Signal-Trigger <c>on Signal</c> (<see cref="SignalTriggerSyntax"/>) oder eine spontane Transition
 /// <c>spontaneous</c>/<c>spont</c> ohne explizites Signal (<see cref="SpontaneousTriggerSyntax"/>).
 /// </summary>
 [Serializable]
@@ -19,7 +19,7 @@ public abstract class TriggerSyntax: SyntaxNode {
 }
 
 /// <summary>
-/// Ein spontaner Übergang ohne explizites Signal, z.B. <c>View --&gt; Ziel spontaneous;</c> —
+/// Eine spontane Transition ohne explizites Signal, z.B. <c>View --&gt; Ziel spontaneous;</c> —
 /// geschrieben als <c>spontaneous</c> oder in der Kurzform <c>spont</c>.
 /// </summary>
 [Serializable]
@@ -46,8 +46,8 @@ public partial class SpontaneousTriggerSyntax: TriggerSyntax {
 }
 
 /// <summary>
-/// Ein Signal-Trigger, z.B. <c>View --&gt; Ziel on Speichern;</c> — benennt das Signal, das den
-/// Übergang auslöst (→ <see cref="ISignalTriggerSymbol"/>).
+/// Ein Signal-Trigger, z.B. <c>View --&gt; Ziel on Speichern;</c> — benennt das Signal, das die
+/// Transition auslöst (→ <see cref="ISignalTriggerSymbol"/>).
 /// </summary>
 [Serializable]
 [SampleSyntax("on Trigger")]

@@ -10,7 +10,7 @@ using System.Linq;
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
-/// Codemodell der <c>{Task}WFSBase</c>-Familie der <b>Generation 2</b> (CallContext). Wie das
+/// CodeModel der <c>{Task}WFSBase</c>-Familie der <b>Generation 2</b> (CallContext). Wie das
 /// V1-Pendant beschreibt es die abstrakte Maschinerie-Basisklasse samt Begin-Wrapper-Feldern,
 /// Konstruktoren und der partiellen Implementierungsklasse <c>{Task}WFS</c> — aber die Transitionen
 /// tragen statt eines <c>switch(body)</c> je einen <see cref="CallContextCodeModel"/> und kollabieren
@@ -75,7 +75,7 @@ sealed class WfsBaseCodeModelV2: FileGenerationCodeModel {
     public ImmutableList<ParameterCodeModel>              ViewParameters     { get; }
 
     /// <summary>
-    /// Baut das <c>{Task}WFSBase</c>-Codemodell aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
+    /// Baut das <c>{Task}WFSBase</c>-CodeModel aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
     /// (via <paramref name="pathProvider"/>), Task-Result/-Begins/-Parameter sowie die Init-/Exit-/Trigger-
     /// Transitionen und Choices (über <see cref="CodeModelBuilderV2"/>).
     /// </summary>

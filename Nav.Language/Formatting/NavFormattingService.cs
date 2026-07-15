@@ -60,11 +60,11 @@ public static class NavFormattingService {
         var changes  = new List<TextChange>();
         var renderer = new GapRenderer(syntaxTree.SourceText, settings, options);
 
-        // Pro Anweisung einmal Token-Liste + Trivia-Befund erheben; beide Vorpässe teilen sich diese
-        // Messung (früher las jeder Vorpass sie selbst — pro Transition bis zu fünfmal).
+        // Pro Anweisung einmal Token-Liste + Trivia-Befund erheben; beide Vor-Durchläufe teilen sich diese
+        // Messung (früher las jeder Vor-Durchlauf sie selbst — pro Transition bis zu fünfmal).
         var statementFacts = StatementFacts.Compute(syntaxTree);
-        var alignment      = AlignmentMapBuilder.Build(syntaxTree, options, statementFacts);   // Ausrichtungs-Vorpass: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
-        var suppression    = FormatterSuppression.Compute(syntaxTree, options, statementFacts); // Fehler-Toleranz-Vorpass: verbatim vs. hand-gelegt.
+        var alignment      = AlignmentMapBuilder.Build(syntaxTree, options, statementFacts);   // Ausrichtungs-Vor-Durchlauf: Lücke -> aufgelöste Space-Zahl (block-weit, kanonische Breiten).
+        var suppression    = FormatterSuppression.Compute(syntaxTree, options, statementFacts); // Fehler-Toleranz-Vor-Durchlauf: verbatim vs. manuell umbrochen.
 
         // Datei-Anfang: die Leading-Trivia des ersten realen Tokens liegt vor der ersten Paar-Lücke und
         // wird gesondert normalisiert. Skiped-Läufe (insbesondere ein führendes BOM, das als Unknown ->
@@ -89,7 +89,7 @@ public static class NavFormattingService {
 
                 var extent = TextExtent.FromBounds(tokens[i].End, tokens[i + 1].Start);
 
-                // Hand-gelegte Anweisung: Inneres verbatim, aber äußerer Einzug per Delta-Shift re-gesetzt.
+                // Manuell umbrochene Anweisung: Inneres verbatim, aber äußere Einrückung per Delta-Shift re-gesetzt.
                 if (suppression.TryGetHandLaidShift(extent.Start, out var delta)) {
                     var ctx       = CreateContext(syntaxTree, tokens[i], tokens[i + 1], alignment, suppression, options);
                     var canonical = renderer.RenderRawShifted(in ctx, delta);
@@ -127,8 +127,8 @@ public static class NavFormattingService {
     /// <summary>
     /// Formatiert nur die <b>Auswahl</b> <paramref name="range"/> und liefert die Changes, die vollständig
     /// darin liegen. Tragendes Modell: <c>FormatRange</c> ist ein <b>gefiltertes</b> <see cref="FormatDocument"/> —
-    /// intern wird immer das ganze Dokument formatiert (alle nicht-lokalen Pässe — Suppression, Ausrichtungs-
-    /// Vorpass/<c>targetCol</c>, Einzug — laufen dabei über die <b>volle</b> Datei, nie range-beschränkt),
+    /// intern wird immer das ganze Dokument formatiert (alle nicht-lokalen Pässe — Unterdrückung, Ausrichtungs-
+    /// Vor-Durchlauf/<c>targetCol</c>, Einrückung — laufen dabei über die <b>volle</b> Datei, nie range-beschränkt),
     /// emittiert werden nur die Changes, deren Extent im (erweiterten) Range liegt:
     /// <c>FormatRange(x, r) ≡ { c ∈ FormatDocument(x) : c.Extent ⊆ ExpandRange(r) }</c>.
     /// </summary>
@@ -140,7 +140,7 @@ public static class NavFormattingService {
     /// <c>⊆</c>-Filter (kein Extra-Schritt — eine Auswahl ohne das Dateiende fügt dort keine Newline ein).</para>
     /// <para>Der Range wird zuvor erweitert (<see cref="ExpandRange"/>): erst auf ganze Zeilen einrasten,
     /// dann auf ganze Anweisungs-/Member-Knoten ausweiten, die er teilweise schneidet — inklusive der
-    /// vorangehenden Lücke, die den Einzug des Knotens setzt. Zerschneidet die Auswahl eine
+    /// vorangehenden Lücke, die die Einrückung des Knotens setzt. Zerschneidet die Auswahl eine
     /// Ausrichtungsgruppe, bleiben Out-of-Range-Nachbarn ggf. ragged (erwartete Editor-Konvention „nur die
     /// Auswahl anfassen", löst sich beim nächsten Voll-Format) — die <c>targetCol</c> ist dank kanonischer
     /// Breitenmessung dennoch identisch zum Voll-Modus.</para>
@@ -183,8 +183,8 @@ public static class NavFormattingService {
     /// (2) auf ganze Anweisungs-/Member-Knoten ausweiten, die der zeilen-eingerastete Range teilweise
     /// schneidet — bis zum Knoten-Ende und nach vorn bis zum Ende des vorangehenden signifikanten Tokens.
     /// Diese eine vordere Lücke (Extent <c>[prev.End, first.Start]</c>) ist der einzige Change, der den
-    /// Einzug des Knotens setzt (ein Change pro Lücke); ohne sie bliebe der Einzug der selektierten
-    /// Anweisung unkorrigiert und eine mehrzeilige Anweisung (hand-gelegt, mehrzeiliges <c>[params]</c>)
+    /// Einrückung des Knotens setzt (ein Change pro Lücke); ohne sie bliebe die Einrückung der selektierten
+    /// Anweisung unkorrigiert und eine mehrzeilige Anweisung (manuell umbrochen, mehrzeiliges <c>[params]</c>)
     /// würde nur halb formatiert.
     /// </summary>
     static TextExtent ExpandRange(SyntaxTree syntaxTree, TextExtent range) {
@@ -226,7 +226,7 @@ public static class NavFormattingService {
     /// <summary>
     /// Der Startpunkt der Lücke <b>vor</b> dem ersten Token eines Knotens — das Ende des unmittelbar
     /// vorangehenden signifikanten Tokens (oder 0 am Datei-Anfang). Genau diese Lücke trägt den Change, der
-    /// den Einzug des Knotens setzt; der Range muss bis hierher zurückreichen, damit dieser Change beim
+    /// die Einrückung des Knotens setzt; der Range muss bis hierher zurückreichen, damit dieser Change beim
     /// <c>⊆</c>-Filter erhalten bleibt.
     /// </summary>
     static int LeadingGapStart(SyntaxTree syntaxTree, SyntaxNode node) {
@@ -251,7 +251,7 @@ public static class NavFormattingService {
     /// </summary>
     static IEnumerable<SyntaxNode> FormattableNodes(SyntaxTree syntaxTree) {
 
-        // Die statement-/member-granulare Einheit — derselbe Aufzähler, den die Vorpässe (Suppression,
+        // Die statement-/member-granulare Einheit — derselbe Aufzähler, den die Vor-Durchläufe (Unterdrückung,
         // Ausrichtung über StatementFacts) nutzen — plus das Task-Kopf-[params] (steckt nicht in einer
         // Node-Deklaration). Reihenfolge ist für die Range-Ausweitung (Min/Max) belanglos.
         foreach (var node in StatementFacts.EnumerateStatements(syntaxTree)) {
@@ -302,7 +302,7 @@ public static class NavFormattingService {
 
     /// <summary>
     /// Baut den <see cref="GapContext"/> der Lücke <c>[prev.End, next.Start)</c> aus den bereits erhobenen
-    /// Vorpass-Ergebnissen: Einzugstiefe (<see cref="ComputeIndentDepth"/>), Trivia-Befund
+    /// Vor-Durchlauf-Ergebnissen: Einzugstiefe (<see cref="ComputeIndentDepth"/>), Trivia-Befund
     /// (<see cref="GapTrivia"/>), Unterdrückungs-Flag (<see cref="FormatterSuppression"/>) und
     /// Ausrichtungs-Tabelle. Damit entscheiden die <see cref="GapRules"/> allein über pure, vorberechnete Fakten.
     /// </summary>

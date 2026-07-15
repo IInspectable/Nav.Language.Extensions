@@ -11,7 +11,7 @@ namespace Pharmatechnik.Nav.Language;
 /// implementiert: der Codegenerator erzeugt für Aufrufe solcher Task-Knoten keinen Code
 /// (<see cref="ITaskDeclarationSymbol.CodeNotImplemented"/>). Das Schlüsselwort ist versteckt
 /// (<see cref="SyntaxFacts.IsHiddenKeyword"/>) — es erscheint weder in der Completion noch in den
-/// <c>expected …</c>-Diagnosen; die Zuordnung zum Wirt bestimmt <see cref="CodeBlockFacts"/>.
+/// <c>expected …</c>-Diagnosen; die Zuordnung zum Host bestimmt <see cref="CodeBlockFacts"/>.
 /// </summary>
 [Serializable]
 [SampleSyntax("[notimplemented]")]

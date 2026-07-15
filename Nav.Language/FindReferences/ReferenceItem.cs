@@ -22,7 +22,7 @@ public class ReferenceItem {
     /// Erzeugt eine Fundstelle.
     /// </summary>
     /// <param name="definition">Die Definition, zu der diese Fundstelle gehört.</param>
-    /// <param name="location">Die Verortung der Fundstelle; darf nicht <c>null</c> sein.</param>
+    /// <param name="location">Die Location der Fundstelle; darf nicht <c>null</c> sein.</param>
     /// <param name="textParts">Der klassifizierte Anzeigetext der Ergebniszeile.</param>
     /// <param name="textHighlightExtent">Der innerhalb des Anzeigetexts hervorzuhebende Bereich.</param>
     /// <param name="toolTipParts">Der klassifizierte Text des Tooltips.</param>
@@ -87,7 +87,7 @@ public class ReferenceItem {
     /// <c>null</c>) Bestandteile ersetzt sind; alle übrigen werden unverändert übernommen.
     /// </summary>
     /// <param name="definition">Neue Definition oder <c>null</c> für unverändert.</param>
-    /// <param name="location">Neue Verortung oder <c>null</c> für unverändert.</param>
+    /// <param name="location">Neue Location oder <c>null</c> für unverändert.</param>
     /// <param name="textParts">Neuer Anzeigetext oder <c>null</c> für unverändert.</param>
     /// <param name="textHighlightExtent">Neuer Hervorhebungsbereich der Zeile oder <c>null</c> für unverändert.</param>
     /// <param name="toolTipParts">Neuer Tooltip-Text oder <c>null</c> für unverändert.</param>
@@ -110,7 +110,7 @@ public class ReferenceItem {
 
     /// <summary>Die Definition, zu der diese Fundstelle gehört.</summary>
     public DefinitionItem                 Definition             { get; }
-    /// <summary>Die Verortung der Fundstelle (Datei und Textausschnitt).</summary>
+    /// <summary>Die Location der Fundstelle (Datei und Textausschnitt).</summary>
     public Location                       Location               { get; }
     /// <summary>Der klassifizierte Anzeigetext der Ergebniszeile.</summary>
     public ImmutableArray<ClassifiedText> TextParts              { get; }

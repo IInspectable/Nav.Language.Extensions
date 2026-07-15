@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 /// Der Katalog aller vordefinierten <see cref="DiagnosticDescriptor"/> der Engine. Die konkreten
 /// Deskriptoren sind auf partielle Klassen nach Kategorie verteilt — die geschachtelten Klassen
 /// <see cref="Syntax"/> (Lexer/Parser), <see cref="Semantic"/> (semantische Analyse) und
-/// <see cref="DeadCode"/> (toter Code). Hier liegen zusätzlich die Fabrikmethoden für Deskriptoren,
+/// <see cref="DeadCode"/> (toter Code). Hier liegen zusätzlich die Factory-Methoden für Deskriptoren,
 /// deren Meldungstext erst zur Laufzeit feststeht. Die Kennungen (<c>NavXXXX</c>) hält
 /// <see cref="DiagnosticId"/>; die Bedeutung jedes Codes ist in <c>doc/Errors.md</c> belegt.
 /// </summary>

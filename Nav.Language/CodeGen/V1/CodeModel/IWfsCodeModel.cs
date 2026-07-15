@@ -46,7 +46,7 @@ sealed class IWfsCodeModel : FileGenerationCodeModel {
     public ImmutableList<TriggerTransitionCodeModel> TriggerTransitions { get; }
 
     /// <summary>
-    /// Fabrik: baut das <see cref="IWfsCodeModel"/> aus dem Task-Symbol. Der Basis-Interface-Name kommt
+    /// Factory: baut das <see cref="IWfsCodeModel"/> aus dem Task-Symbol. Der Basis-Interface-Name kommt
     /// aus der <c>base</c>-Deklaration (<c>IwfsBaseType</c>) bzw. dem Default; die <c>using</c>-Liste
     /// hängt vom <see cref="GenerationOptions.Strict"/>-Modus ab.
     /// </summary>

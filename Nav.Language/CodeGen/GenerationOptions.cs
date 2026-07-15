@@ -37,7 +37,7 @@ public record GenerationOptions {
     public bool Strict { get; init; }
 
     /// <summary>
-    /// Erzeugt die TO-Klassen (Task-Objekte): je referenziertem View-Knoten einen einmaligen
+    /// Erzeugt die TO-Klassen (Transfer-Objekte): je referenziertem View-Knoten einen einmaligen
     /// <c>partial class {View}TO : TO</c>-Platzhalter, dessen Inhalt der externe GUI-Generator besitzt.
     /// Bewusst <b>opt-in</b>, Default <c>false</c> — nur die wenigen Projekte, die den Stub brauchen,
     /// schalten ihn ein (MSBuild: <c>&lt;NavGenerateToClasses&gt;true&lt;/…&gt;</c>). Nur in Sprach-Generation 1

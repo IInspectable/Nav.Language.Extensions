@@ -12,7 +12,7 @@ enum ColumnId {
     Arrow,
 
     /// <summary>
-    /// Continuation-Spalte einer Transitions-Gruppe: Lücke vor der führenden Fortsetzungs-Kante
+    /// Continuation-Spalte einer Transitions-Gruppe: Lücke vor der führenden Continuation-Kante
     /// (<c>--^</c>/<c>o-^</c> der <see cref="ContinuationTransitionSyntax"/>). Richtet aufeinanderfolgende
     /// Continuations unter dem längsten Ziel-Teil aus; steht in Quellreihenfolge zwischen Ziel-Teil und
     /// Trigger, misst kanonisch ab Zeilenanfang und baut dabei auf die bereits aufgelöste Pfeil-Spalte auf.

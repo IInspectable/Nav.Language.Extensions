@@ -6,7 +6,7 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Die Aufruf-Art einer Kante — bestimmt, wie das Ziel des Übergangs aufgerufen wird. Gilt für die
+/// Der Kantenmodus einer Kante — bestimmt, wie das Ziel der Transition aufgerufen wird. Gilt für die
 /// regulären Transitions-Kanten (<see cref="EdgeSyntax"/>) wie für die Continuation-Kanten
 /// (<see cref="ContinuationEdgeSyntax"/>); die menschenlesbare Bedeutung je Operator liefert
 /// <see cref="SyntaxFacts.GetKeywordDescription(string)"/>.
@@ -26,7 +26,7 @@ public enum EdgeMode {
 /// Die Kante einer Transition — einer der Operatoren <c>--&gt;</c> (<see cref="GoToEdgeSyntax"/>),
 /// <c>o-&gt;</c> (<see cref="ModalEdgeSyntax"/>) oder <c>==&gt;</c> (<see cref="NonModalEdgeSyntax"/>)
 /// zwischen Quell- und Zielknoten, z.B. <c>A --&gt; B on Trigger;</c>. Der Operator bestimmt den
-/// <see cref="EdgeMode"/> und damit die Aufruf-Art des Ziels. Die Continuation-Kanten
+/// <see cref="EdgeMode"/> und damit den Kantenmodus des Ziels. Die Continuation-Kanten
 /// (<c>--^</c>/<c>o-^</c>) sind bewusst ein eigener Kanten-Typ (<see cref="ContinuationEdgeSyntax"/>) —
 /// sie leiten keine neue Transition ein (siehe <see cref="SyntaxFacts.IsEdgeKeyword(SyntaxTokenType)"/>).
 /// </summary>
@@ -39,7 +39,7 @@ public abstract class EdgeSyntax: SyntaxNode {
 
     /// <summary>Das Operator-Token der Kante (<c>--&gt;</c>, <c>o-&gt;</c> oder <c>==&gt;</c>).</summary>
     public abstract SyntaxToken Keyword { get; }
-    /// <summary>Die Aufruf-Art, die der Operator kodiert.</summary>
+    /// <summary>Der Kantenmodus, den der Operator kodiert.</summary>
     public abstract EdgeMode    Mode    { get; }
 
 }

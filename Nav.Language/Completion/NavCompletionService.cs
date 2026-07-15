@@ -30,12 +30,12 @@ namespace Pharmatechnik.Nav.Language.Completion;
 public static class NavCompletionService {
 
     /// <summary>
-    /// Die kanonische Menge der Auslöser-Zeichen (Trigger-Chars) der Completion — die Vereinigung aller
+    /// Die kanonische Menge der Trigger-Zeichen (Trigger-Chars) der Completion — die Vereinigung aller
     /// Situationen, in denen ein einzelnes Sonderzeichen (also KEIN Bezeichner-Zeichen) automatisch eine
     /// Vervollständigung eröffnen soll. Einzige Autorität für beide Hosts: der LSP-Server speist damit
     /// <c>CompletionOptions.TriggerCharacters</c>, die VS-Quellen leiten daraus ihr Auslöse-Verhalten ab.
     /// Buchstaben lösen zusätzlich immer aus (Client- bzw. <c>char.IsLetter</c>-seitig) und sind hier daher
-    /// bewusst NICHT enthalten. Die Pfadtrenner <c>/</c> und <c>\</c> sind bewusst KEINE Auslöser: das
+    /// bewusst NICHT enthalten. Die Pfadtrenner <c>/</c> und <c>\</c> sind bewusst KEINE Trigger-Zeichen: das
     /// Öffnen der Pfad-Liste in <c>taskref "…"</c> tragen bereits <c>"</c> und die Buchstaben, während ein
     /// auslösendes <c>/</c> außerhalb einer Zeichenkette (etwa am Beginn eines <c>//</c>-Kommentars) eine
     /// unangebrachte Vorschlagsliste eröffnete.
@@ -48,7 +48,7 @@ public static class NavCompletionService {
         '"'                        // '"'  — Beginn einer Zeichenkette (Pfad in taskref "…")
     };
 
-    /// <summary>Ob <paramref name="c"/> ein kanonisches Auslöser-Zeichen der Completion ist (siehe <see cref="TriggerCharacters"/>).</summary>
+    /// <summary>Ob <paramref name="c"/> ein kanonisches Trigger-Zeichen der Completion ist (siehe <see cref="TriggerCharacters"/>).</summary>
     public static bool IsTriggerCharacter(char c) {
         // Kleine, feste Menge — lineare Suche ist billiger als ein Set-Aufbau.
         for (var i = 0; i < TriggerCharacters.Count; i++) {
@@ -130,7 +130,7 @@ public static class NavCompletionService {
             case NavCompletionContextKind.DirectiveVersionValue:
                 return VersionValueItems();
 
-            // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die im jeweiligen Wirt zulässigen Code-Keywords.
+            // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die im jeweiligen Host zulässigen Code-Keywords.
             case NavCompletionContextKind.CodeBlock:
                 return CodeBlockKeywordItems(context, unit.LanguageVersion);
 
@@ -176,7 +176,7 @@ public static class NavCompletionService {
             case NavCompletionContextKind.AfterCondition:
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
-            // Im „Schwanz" einer init-Knoten-Deklaration folgt grammatisch nur noch die optionale `do`-Klausel.
+            // Im Tail einer init-Knoten-Deklaration folgt grammatisch nur noch die optionale `do`-Klausel.
             case NavCompletionContextKind.InitNodeTail:
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
@@ -339,11 +339,11 @@ public static class NavCompletionService {
         return items;
     }
 
-    // Die im jeweiligen Wirt noch anbietbaren, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
-    // gemeinsame Autorität mit der Parser-Recovery, hier alphabetisch für die Anzeige sortiert. Der Wirt
+    // Die im jeweiligen Host noch anbietbaren, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
+    // gemeinsame Autorität mit der Parser-Recovery, hier alphabetisch für die Anzeige sortiert. Der Host
     // entscheidet, WELCHE Deklarationen die Grammatik dort erlaubt: Datei-Kopf nur `using`/`namespaceprefix`,
     // ein task-Kopf `code`/`base`/…, ein init-Knoten `abstractmethod`/`params` usw. — statt pauschal aller
-    // Code-Keywords. Am Wirt bereits vorhandene Singletons (alle Deklarationen außer dem wiederholbaren
+    // Code-Keywords. Am Host bereits vorhandene Singletons (alle Deklarationen außer dem wiederholbaren
     // `using`) werden zusätzlich herausgefiltert (context.PresentCodeKeywords).
     static List<NavCompletionItem> CodeBlockKeywordItems(NavCompletionContext context, NavLanguageVersion version) {
         var items = new List<NavCompletionItem>();
@@ -494,8 +494,8 @@ public static class NavCompletionService {
     }
 
     // Ein Keyword-Vorschlag samt seiner Bedeutung (die einzige Autorität ist SyntaxFacts; auch die
-    // Edge-Operatoren sind dort hinterlegt). Der Code-Block-Wirt — sofern bekannt — wählt die kontextgenaue
-    // Bedeutung wirt-abhängiger Keywords (`params`/`result`); ohne Wirt gilt die host-neutrale Fassung. Eine
+    // Edge-Operatoren sind dort hinterlegt). Der Code-Block-Host — sofern bekannt — wählt die kontextgenaue
+    // Bedeutung host-abhängiger Keywords (`params`/`result`); ohne Host gilt die host-neutrale Fassung. Eine
     // fehlende Beschreibung wird zu null normalisiert, damit der Host das Doku-Panel gar nicht erst befüllt.
     static NavCompletionItem KeywordItem(string keyword, CodeBlockHost? host = null) {
         var description = host is { } h

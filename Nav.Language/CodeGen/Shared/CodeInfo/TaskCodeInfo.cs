@@ -85,7 +85,7 @@ public sealed class TaskCodeInfo {
     public string FullyQualifiedWfsBaseName => BuildQualifiedName(WflNamespace, WfsBaseTypeName);
 
     /// <summary>
-    /// Fabrik: baut die <see cref="TaskCodeInfo"/> aus einer Task-Definition. Wählt die
+    /// Factory: baut die <see cref="TaskCodeInfo"/> aus einer Task-Definition. Wählt die
     /// <see cref="ICodeGenFacts"/> nach der Sprach-Version der Datei
     /// (<see cref="NavCodeGenFacts.For(NavLanguageVersion)"/>) und fällt bei (noch) nicht unterstützter
     /// Version bewusst auf die Default-Generation zurück — CodeInfos entstehen auch für Anzeige und

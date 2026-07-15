@@ -28,7 +28,7 @@ public class CodeGeneratorV1: Generator, ICodeGenerator {
         PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
     }
 
-    /// <summary>Die Fabrik, die je Task-Definition den <c>IPathProvider</c> für die Ziel-Dateipfade der Artefakte liefert.</summary>
+    /// <summary>Die Factory, die je Task-Definition den <c>IPathProvider</c> für die Ziel-Dateipfade der Artefakte liefert.</summary>
     public IPathProviderFactory PathProviderFactory { get; }
 
     /// <summary>

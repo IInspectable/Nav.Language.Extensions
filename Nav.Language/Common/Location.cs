@@ -10,11 +10,11 @@ using Pharmatechnik.Nav.Utilities.IO;
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
-/// Die Verortung eines Textausschnitts — vereint den zeichenbasierten <see cref="Extent"/> (Start und
+/// Die Location eines Textausschnitts — vereint den zeichenbasierten <see cref="Extent"/> (Start und
 /// Länge, siehe <see cref="TextExtent"/>) mit der zeilen-/spaltenbasierten Position
 /// (<see cref="StartLinePosition"/>/<see cref="EndLinePosition"/>) und optional dem
 /// <see cref="FilePath"/> der Quelldatei. Sie ist das gemeinsame „Wo" von Symbolen, Diagnosen und
-/// Navigationszielen. Zeilen und Spalten sind 0-basiert. Roslyn-Analogon
+/// Sprungzielen. Zeilen und Spalten sind 0-basiert. Roslyn-Analogon
 /// <c>Microsoft.CodeAnalysis.Location</c> bzw. <c>FileLinePositionSpan</c>.
 /// </summary>
 public class Location: IEquatable<Location> {
@@ -25,7 +25,7 @@ public class Location: IEquatable<Location> {
     /// Kopierkonstruktor — übernimmt Ausschnitt, Positionen, Dateipfad und den bereits berechneten
     /// normalisierten Pfad unverändert. Ableitungshook für spezialisierte <see cref="Location"/>-Arten.
     /// </summary>
-    /// <param name="location">Die zu kopierende Verortung.</param>
+    /// <param name="location">Die zu kopierende Location.</param>
     protected Location(Location location) {
         Extent              = location.Extent;
         StartLinePosition   = location.StartLinePosition;
@@ -35,7 +35,7 @@ public class Location: IEquatable<Location> {
     }
 
     /// <summary>
-    /// Erzeugt eine Verortung aus Textausschnitt und Zeilenbereich.
+    /// Erzeugt eine Location aus Textausschnitt und Zeilenbereich.
     /// </summary>
     /// <param name="extent">Der zeichenbasierte Ausschnitt (Start und Länge).</param>
     /// <param name="lineRange">Der zugehörige Zeilen-/Spaltenbereich.</param>
@@ -48,7 +48,7 @@ public class Location: IEquatable<Location> {
     }
 
     /// <summary>
-    /// Erzeugt eine Verortung, deren Start- und Endzeile auf derselben <paramref name="linePosition"/>
+    /// Erzeugt eine Location, deren Start- und Endzeile auf derselben <paramref name="linePosition"/>
     /// liegen.
     /// </summary>
     /// <param name="extent">Der zeichenbasierte Ausschnitt (Start und Länge).</param>
@@ -59,7 +59,7 @@ public class Location: IEquatable<Location> {
     }
 
     /// <summary>
-    /// Erzeugt eine leere Verortung, die nur eine Datei benennt — Ausschnitt und Positionen sind leer
+    /// Erzeugt eine leere Location, die nur eine Datei benennt — Ausschnitt und Positionen sind leer
     /// (<see cref="TextExtent.Empty"/>/<see cref="LinePosition.Empty"/>).
     /// </summary>
     /// <param name="filePath">Der Pfad der Quelldatei; darf <c>null</c> sein.</param>
@@ -72,13 +72,13 @@ public class Location: IEquatable<Location> {
 
     //TODO Missing/None
 
-    /// <summary>Der zeichenbasierte Textausschnitt (Start und Länge) der Verortung.</summary>
+    /// <summary>Der zeichenbasierte Textausschnitt (Start und Länge) der Location.</summary>
     public TextExtent   Extent            { get; }
     /// <summary>Die Zeilen-/Spaltenposition des Anfangs (0-basiert).</summary>
     public LinePosition StartLinePosition { get; }
     /// <summary>Die Zeilen-/Spaltenposition des Endes (0-basiert).</summary>
     public LinePosition EndLinePosition   { get; }
-    /// <summary>Der Zeilenbereich der Verortung — <see cref="StartLinePosition"/> bis <see cref="EndLinePosition"/>.</summary>
+    /// <summary>Der Zeilenbereich der Location — <see cref="StartLinePosition"/> bis <see cref="EndLinePosition"/>.</summary>
     public LineRange    LineRange         => new(StartLinePosition, EndLinePosition);
 
     /// <summary>
@@ -93,12 +93,12 @@ public class Location: IEquatable<Location> {
     public string? NormalizedFilePath => FilePath == null ? null : _normalizedFilePath ??= PathHelper.NormalizePath(FilePath);
 
     /// <summary>
-    /// Der Start-Zeichenindex der Verortung [0..n]; <c>-1</c>, wenn unbekannt/abwesend.
+    /// Der Start-Zeichenindex der Location [0..n]; <c>-1</c>, wenn unbekannt/abwesend.
     /// </summary>
     public int Start => Extent.Start;
 
     /// <summary>
-    /// Die Startzeile der Verortung. Die erste Zeile einer Datei ist Zeile 0 (0-basierte Zählung).
+    /// Die Startzeile der Location. Die erste Zeile einer Datei ist Zeile 0 (0-basierte Zählung).
     /// </summary>
     public int StartLine => StartLinePosition.Line;
 
@@ -108,18 +108,18 @@ public class Location: IEquatable<Location> {
     public int StartCharacter => StartLinePosition.Character;
 
     /// <summary>
-    /// Die Länge der Verortung; garantiert größer oder gleich 0.
+    /// Die Länge der Location; garantiert größer oder gleich 0.
     /// </summary>
     public int Length => Extent.Length;
 
     /// <summary>
-    /// Der End-Zeichenindex der Verortung (0-basiert); zeigt tatsächlich auf das Zeichen <i>hinter</i>
-    /// dem Ende der Verortung.
+    /// Der End-Zeichenindex der Location (0-basiert); zeigt tatsächlich auf das Zeichen <i>hinter</i>
+    /// dem Ende der Location.
     /// </summary>
     public int End => Extent.End;
 
     /// <summary>
-    /// Die Endzeile der Verortung. Die erste Zeile einer Datei ist Zeile 0 (0-basierte Zählung).
+    /// Die Endzeile der Location. Die erste Zeile einer Datei ist Zeile 0 (0-basierte Zählung).
     /// </summary>
     public int EndLine => EndLinePosition.Line;
 
@@ -139,7 +139,7 @@ public class Location: IEquatable<Location> {
     #region Equality members
 
     /// <summary>
-    /// Zwei Verortungen gelten als gleich, wenn <see cref="Extent"/>, <see cref="StartLinePosition"/>,
+    /// Zwei Locations gelten als gleich, wenn <see cref="Extent"/>, <see cref="StartLinePosition"/>,
     /// <see cref="EndLinePosition"/> und der <see cref="NormalizedFilePath"/> übereinstimmen (Pfade
     /// werden also normalisiert verglichen).
     /// </summary>
@@ -185,12 +185,12 @@ public class Location: IEquatable<Location> {
         }
     }
 
-    /// <summary>Prüft zwei Verortungen auf Gleichheit (siehe <see cref="Equals(Location)"/>).</summary>
+    /// <summary>Prüft zwei Locations auf Gleichheit (siehe <see cref="Equals(Location)"/>).</summary>
     public static bool operator ==(Location? left, Location? right) {
         return Equals(left, right);
     }
 
-    /// <summary>Prüft zwei Verortungen auf Ungleichheit (siehe <see cref="Equals(Location)"/>).</summary>
+    /// <summary>Prüft zwei Locations auf Ungleichheit (siehe <see cref="Equals(Location)"/>).</summary>
     public static bool operator !=(Location? left, Location? right) {
         return !Equals(left, right);
     }

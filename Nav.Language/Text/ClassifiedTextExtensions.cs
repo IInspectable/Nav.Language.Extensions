@@ -30,15 +30,15 @@ public static class ClassifiedTextExtensions {
     }
 
     /// <summary>
-    /// Zerlegt den mit <paramref name="extent"/> begrenzten Quelltext-Fensterausschnitt in
+    /// Zerlegt den mit <paramref name="extent"/> begrenzten Quelltext-Ausschnitt in
     /// <see cref="ClassifiedText"/>-Stücke in Quelltext-Reihenfolge. Läuft den Token-Strom des
     /// <paramref name="syntaxTree"/> ab und liefert je signifikantem Token dessen
     /// Leading-Trivia, den Token selbst und dessen Trailing-Trivia (Roslyn-Modell), jeweils auf
-    /// das Fenster zugeschnitten (überlappende Stücke werden geclippt).
+    /// den Extent zugeschnitten (überlappende Stücke werden geclippt).
     /// </summary>
     /// <param name="syntaxTree">Der Syntaxbaum, dessen Token-Strom und Quelltext abgelaufen werden.</param>
-    /// <param name="extent">Das Fenster, auf das die Stücke beschränkt werden.</param>
-    /// <returns>Die klassifizierten Stücke innerhalb des Fensters, in Quelltext-Reihenfolge.</returns>
+    /// <param name="extent">Der Extent, auf den die Stücke beschränkt werden.</param>
+    /// <returns>Die klassifizierten Stücke innerhalb des Extents, in Quelltext-Reihenfolge.</returns>
     public static IEnumerable<ClassifiedText> GetClassifiedText(this SyntaxTree syntaxTree, TextExtent extent) {
 
         var source = syntaxTree.SourceText;
@@ -71,7 +71,7 @@ public static class ClassifiedTextExtensions {
         }
     }
 
-    /// <summary>Schnittmenge aus Stück- und Fenster-Ausschnitt (Überlappung wie <c>includeOverlapping: true</c>).</summary>
+    /// <summary>Schnittmenge aus Stück- und Extent-Ausschnitt (Überlappung wie <c>includeOverlapping: true</c>).</summary>
     static bool TryClip(TextExtent piece, TextExtent window, out TextExtent clipped) {
 
         var start = piece.Start > window.Start ? piece.Start : window.Start;

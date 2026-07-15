@@ -52,7 +52,7 @@ public partial class TransitionDefinitionSyntax: SyntaxNode {
     public ContinuationTransitionSyntax? ContinuationTransition { get; }
 
     /// <summary>
-    /// Der optionale Auslöser (<c>on Signal</c> bzw. <c>spontaneous</c>/<c>spont</c>) — <c>null</c>,
+    /// Der optionale Trigger (<c>on Signal</c> bzw. <c>spontaneous</c>/<c>spont</c>) — <c>null</c>,
     /// wenn nicht angegeben.
     /// </summary>
     public TriggerSyntax? Trigger { get; }

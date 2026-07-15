@@ -45,7 +45,7 @@ public static class SyntaxFacts {
     public static readonly string IfKeyword              = "if";
     /// <summary>Das Schlüsselwort <c>else</c> — der Alternativzweig zu einer <c>if</c>-Bedingung.</summary>
     public static readonly string ElseKeyword            = "else";
-    /// <summary>Das Schlüsselwort <c>spontaneous</c> — spontaner Übergang ohne explizites Signal (verstecktes Keyword, siehe <see cref="HiddenKeywords"/>).</summary>
+    /// <summary>Das Schlüsselwort <c>spontaneous</c> — spontane Transition ohne explizites Signal (verstecktes Keyword, siehe <see cref="HiddenKeywords"/>).</summary>
     public static readonly string SpontaneousKeyword     = "spontaneous";
     /// <summary>Das Schlüsselwort <c>spont</c> — Kurzform von <see cref="SpontaneousKeyword"/> (verstecktes Keyword).</summary>
     public static readonly string SpontKeyword           = "spont";
@@ -79,7 +79,7 @@ public static class SyntaxFacts {
     public static readonly string ModalEdgeKeyword       = "o->";
 
     // Continuation-Kanten (ab Sprachversion 2): `Quelle --> View o-^ Task` bzw. `--^ Task` — der GUI-Knoten
-    // zeigt eine View UND setzt den Übergang in einen Folge-Task fort. Eigene Kategorie, keine regulären
+    // zeigt eine View UND setzt die Transition in einen Folge-Task fort. Eigene Kategorie, keine regulären
     // Transitions-Kanten (sie leiten keine neue Transition ein), daher bewusst nicht in NavKeywords/EdgeKeywords.
     /// <summary>Der Continuation-Edge-Operator <c>--^</c> — zeigt die GUI an und ruft unmittelbar den Folge-Task auf (nicht modal).</summary>
     public static readonly string ContinuationGoToEdgeKeyword  = "--^";
@@ -184,8 +184,8 @@ public static class SyntaxFacts {
         [SpontaneousKeyword] = "Spontaner Übergang ohne explizites Signal.",
         [SpontKeyword]       = "Kurzform von spontaneous — spontaner Übergang ohne explizites Signal.",
         [DoKeyword]          = "Freie Handlungsanweisung zur Aktion einer Transition — rein dokumentierend, ohne Einfluss auf den generierten Code.",
-        // Code-Keywords (in [ … ]-Deklarationen). `params`/`result` (und `task` weiter oben) sind wirt-abhängig —
-        // die flachen Einträge hier sind der host-neutrale Fallback; die Bedeutung je Wirt liefert KeywordDescriptionsByHost.
+        // Code-Keywords (in [ … ]-Deklarationen). `params`/`result` (und `task` weiter oben) sind host-abhängig —
+        // die flachen Einträge hier sind der host-neutrale Fallback; die Bedeutung je Host liefert KeywordDescriptionsByHost.
         [ResultKeyword]          = "Rückgabewert eines Tasks.",
         [ParamsKeyword]          = "Parameterliste einer Deklaration (Task, Init- oder Choice-Knoten).",
         [BaseKeyword]            = "Basisklasse und Interfaces der generierten WFS-Klasse.",
@@ -207,14 +207,14 @@ public static class SyntaxFacts {
         [ContinuationModalEdgeKeyword] = "Zeigt die GUI an und ruft unmittelbar den Folge-Task modal auf."
     }.ToImmutableDictionary();
 
-    // Wirt-abhängige Bedeutung eines Keywords: dasselbe Literal meint je Code-Block-Wirt etwas anderes
+    // Host-abhängige Bedeutung eines Keywords: dasselbe Literal meint je Code-Block-Host etwas anderes
     // (`[params]` am Task-Kopf = Parameter des Workflows, am Init-Knoten = dessen Parameter usw.). Diese
-    // Tabelle überschreibt die flache KeywordDescriptions für die betroffenen Wirte; wo kein Eintrag steht,
-    // gilt der host-neutrale Fallback aus KeywordDescriptions. Der Wirt selbst ist die Autorität von
-    // CodeBlockFacts (dieselbe, die die Gültigkeit je Wirt bestimmt).
+    // Tabelle überschreibt die flache KeywordDescriptions für die betroffenen Hosts; wo kein Eintrag steht,
+    // gilt der host-neutrale Fallback aus KeywordDescriptions. Der Host selbst ist die Autorität von
+    // CodeBlockFacts (dieselbe, die die Gültigkeit je Host bestimmt).
     static readonly ImmutableDictionary<(CodeBlockHost Host, string Keyword), string> KeywordDescriptionsByHost =
         new Dictionary<(CodeBlockHost, string), string> {
-            // `task` ist selbst wirt-abhängig: der Definitionskopf definiert den Workflow (flacher Eintrag),
+            // `task` ist selbst host-abhängig: der Definitionskopf definiert den Workflow (flacher Eintrag),
             // der Task-Knoten ruft innerhalb des Workflows einen anderen Task auf.
             [(CodeBlockHost.TaskNode,       TaskKeyword)]   = "Task-Knoten — ruft innerhalb des Workflows einen anderen Task (Unter-Workflow) auf.",
             [(CodeBlockHost.TaskDefinition, ParamsKeyword)] = "Parameterliste des Workflows (WFS).",
@@ -228,8 +228,8 @@ public static class SyntaxFacts {
     /// Die menschenlesbare Bedeutung eines Keywords — <see cref="System.String.Empty"/>, wenn
     /// <paramref name="keyword"/> keins ist bzw. keine hinterlegte Beschreibung hat. Umfasst auch die
     /// Edge-Operatoren (je Literal eine feste Bedeutung); <see cref="IEdgeModeSymbol.Description"/>
-    /// delegiert für eine konkrete Kante hierher. Host-neutral: für die wirt-abhängigen Keywords
-    /// (<c>task</c>, <c>params</c>, <c>result</c>) liefert diese Überladung den Fallback — die kontextgenaue Bedeutung
+    /// delegiert für eine konkrete Kante hierher. Für die host-abhängigen Keywords
+    /// (<c>task</c>, <c>params</c>, <c>result</c>) liefert diese host-neutrale Überladung den Fallback — die kontextgenaue Bedeutung
     /// geben <see cref="GetKeywordDescription(SyntaxToken)"/> bzw. <see cref="GetKeywordDescription(string, CodeBlockHost)"/>.
     /// </summary>
     public static string GetKeywordDescription(string keyword) {
@@ -238,8 +238,8 @@ public static class SyntaxFacts {
 
     /// <summary>
     /// Die kontextabhängige Bedeutung eines Keyword-Tokens — die Variante für die betreffende Position im
-    /// Syntaxbaum (Hover/QuickInfo). Der Code-Block-Wirt wird aus der Ancestor-Kette des Tokens abgeleitet
-    /// (<see cref="CodeBlockFacts.HostKindOf"/>); für wirt-abhängige Keywords (<c>task</c>, <c>params</c>,
+    /// Syntaxbaum (Hover/QuickInfo). Der Code-Block-Host wird aus der Ancestor-Kette des Tokens abgeleitet
+    /// (<see cref="CodeBlockFacts.HostKindOf"/>); für host-abhängige Keywords (<c>task</c>, <c>params</c>,
     /// <c>result</c>) wählt er die passende Erläuterung, sonst gilt die host-neutrale <see cref="GetKeywordDescription(string)"/>.
     /// <see cref="System.String.Empty"/>, wenn das Token kein Keyword mit hinterlegter Beschreibung ist.
     /// </summary>
@@ -257,8 +257,8 @@ public static class SyntaxFacts {
     }
 
     /// <summary>
-    /// Die Bedeutung eines Keywords im angegebenen Code-Block-Wirt — die kontextgenaue Variante für die
-    /// Completion, die den Wirt bereits kennt (<c>NavCompletionContext.Host</c>). Für wirt-abhängige
+    /// Die Bedeutung eines Keywords im angegebenen Code-Block-Host — die kontextgenaue Variante für die
+    /// Completion, die den Host bereits kennt (<c>NavCompletionContext.Host</c>). Für host-abhängige
     /// Keywords die passende Erläuterung, sonst die host-neutrale <see cref="GetKeywordDescription(string)"/>.
     /// </summary>
     internal static string GetKeywordDescription(string keyword, CodeBlockHost host) {

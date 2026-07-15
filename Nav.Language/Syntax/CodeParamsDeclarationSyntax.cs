@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Code-Deklaration <c>[params …]</c>, z.B. <c>[params string msg, bool flag]</c> — die
-/// Parameterliste einer Deklaration. Drei Wirte (<see cref="CodeBlockFacts"/>): am Kopf einer
+/// Parameterliste einer Deklaration. Drei Hosts (<see cref="CodeBlockFacts"/>): am Kopf einer
 /// <c>task</c>-Definition (<see cref="TaskDefinitionSyntax.CodeParamsDeclaration"/>) die Parameter
 /// des Workflows, an einem <c>init</c>-Knoten (<see cref="InitNodeDeclarationSyntax.CodeParamsDeclaration"/>)
 /// die des Init-Knotens, an einem <c>choice</c>-Knoten

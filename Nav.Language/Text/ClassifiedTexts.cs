@@ -1,7 +1,7 @@
 ﻿namespace Pharmatechnik.Nav.Language.Text;
 
 /// <summary>
-/// Fabrik für <see cref="ClassifiedText"/>-Stücke: je Methode ein Text mit der passenden
+/// Factory für <see cref="ClassifiedText"/>-Stücke: je Methode ein Text mit der passenden
 /// <see cref="TextClassification"/>. Zentrale Anlaufstelle, über die
 /// <see cref="DisplayPartsBuilder"/> die Anzeige eines Symbols aus einzelnen klassifizierten
 /// Teilen zusammensetzt, statt die Kategorie an jeder Stelle von Hand zu wählen.

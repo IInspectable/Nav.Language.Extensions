@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Code-Deklaration <c>[result …]</c>, z.B. <c>[result bool ergebnis]</c> — der Rückgabewert
-/// eines Tasks als Typ mit optionalem Namen. Zwei Wirte (<see cref="CodeBlockFacts"/>): am Kopf
+/// eines Tasks als Typ mit optionalem Namen. Zwei Hosts (<see cref="CodeBlockFacts"/>): am Kopf
 /// einer <c>task</c>-Definition (<see cref="TaskDefinitionSyntax.CodeResultDeclaration"/>) der
 /// Rückgabewert des Workflows, an einer <c>taskref</c>-Deklaration
 /// (<see cref="TaskDeclarationSyntax.CodeResultDeclaration"/>) der des referenzierten Tasks.

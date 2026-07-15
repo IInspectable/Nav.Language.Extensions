@@ -5,8 +5,8 @@ namespace Pharmatechnik.Nav.Language;
 /// <summary>
 /// Symbol eines Knotens, der im Deklarationsblock einer <c>task</c>-Definition deklariert ist —
 /// eine der Knoten-Arten <c>init</c>, <c>exit</c>, <c>end</c>, <c>choice</c>, <c>dialog</c>,
-/// <c>view</c> oder <c>task</c>, z.B. <c>view Auswahl;</c>. Die Knoten bilden die Ecken des
-/// Workflow-Graphen; ihre Verdrahtung über Kanten (<see cref="IEdge"/>) beschreiben
+/// <c>view</c> oder <c>task</c>, z.B. <c>view Auswahl;</c>. Die Knoten bilden zusammen mit den
+/// Kanten (<see cref="IEdge"/>) den Workflow-Graphen; ihre Verdrahtung beschreiben
 /// <see cref="ISourceNodeSymbol"/> und <see cref="ITargetNodeSymbol"/>, die konkrete Knoten-Art
 /// die abgeleiteten Interfaces (<see cref="IInitNodeSymbol"/>, <see cref="IExitNodeSymbol"/>,
 /// <see cref="IEndNodeSymbol"/>, <see cref="IChoiceNodeSymbol"/>, <see cref="IViewNodeSymbol"/>,
@@ -25,7 +25,7 @@ public interface INodeSymbol: ISymbol {
     ITaskDefinitionSymbol ContainingTask { get; }
 
     /// <summary>
-    /// Alle beim Binden aufgelösten Verweise auf diesen Knoten aus dem Transitionsblock — sowohl von
+    /// Alle beim Binden aufgelösten Referenzen auf diesen Knoten aus dem Transitionsblock — sowohl von
     /// der Quell- als auch von der Zielseite der Kanten (siehe
     /// <see cref="INodeReferenceSymbol.NodeReferenceType"/>); Grundlage z.B. für Find References.
     /// </summary>

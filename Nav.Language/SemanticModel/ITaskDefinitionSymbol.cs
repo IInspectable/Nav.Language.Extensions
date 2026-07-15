@@ -57,7 +57,7 @@ public interface ITaskDefinitionSymbol: ISymbol {
 
     /// <summary>
     /// Die im Deklarationsblock deklarierten Knoten (<c>init</c>, <c>exit</c>, <c>end</c>,
-    /// <c>choice</c>, <c>dialog</c>, <c>view</c>, <c>task</c>) — die Ecken des Workflow-Graphen
+    /// <c>choice</c>, <c>dialog</c>, <c>view</c>, <c>task</c>) — die Knoten des Workflow-Graphen
     /// (<see cref="INodeSymbol"/>); Namensduplikate meldet Nav0022.
     /// </summary>
     IReadOnlySymbolCollection<INodeSymbol> NodeDeclarations { get; }

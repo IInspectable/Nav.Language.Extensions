@@ -16,13 +16,13 @@ namespace Pharmatechnik.Nav.Language.Formatting;
 /// ein Trailing-Segment (auf der Zeile von <c>Prev</c>), null oder mehr Innenzeilen und das
 /// Leading-Segment (auf der Zeile von <c>Next</c>). Das Layout bestimmt nur zwei Dinge — ob <c>Next</c>
 /// auf derselben Zeile bleibt und seinen horizontalen Ziel-Ort (nichts/Space/Spalte bzw.
-/// Einzug/Spalte). Die Innenstruktur (Reihenfolge von Leer-, Kommentar- und Direktivzeilen) wird nie
+/// Einrückung/Spalte). Die Innenstruktur (Reihenfolge von Leer-, Kommentar- und Direktivzeilen) wird nie
 /// erfunden, entfernt oder umsortiert; normalisiert wird pro Zeile nur der Whitespace:</para>
 /// <list type="bullet">
 ///   <item><description><b>Trailing-Kommentare</b> (vor dem ersten Newline) bleiben auf der Zeile von
 ///   <c>Prev</c>, genau ein Space davor.</description></item>
 ///   <item><description><b>Eigene-Zeile-Kommentare</b> stehen auf dem Zeilen-Präfix des Layouts
-///   (Block-Einzug bzw. Gruppenspalte); der Kommentar-Text bleibt verbatim. Bei mehrzeiligen
+///   (Block-Einrückung bzw. Gruppenspalte); der Kommentar-Text bleibt verbatim. Bei mehrzeiligen
 ///   <c>/* */</c>-Kommentaren wird nur der Whitespace vor der ersten Zeile normalisiert, das Innere
 ///   bleibt unangetastet.</description></item>
 ///   <item><description><b>Direktiven</b> stehen immer auf eigener Zeile ab Spalte 0, Text verbatim —
@@ -93,7 +93,7 @@ sealed class GapRenderer {
 
         if (RequiresLineBreak(ctx) && !(allowPullUp && !ctx.Trivia.HasLineBreakingComment && !ctx.Trivia.HasDirective)) {
             // Renderer-Schranke: nie ein Token hinter einen '//'-Kommentar oder auf eine Direktivzeile
-            // ziehen — das horizontale Layout degradiert zum Umbruch auf Block-Einzug.
+            // ziehen — das horizontale Layout degradiert zum Umbruch auf Block-Einrückung.
             return RenderVertical(ctx, blankLinesBefore: 0, linePrefix: IndentString(ctx.IndentDepth));
         }
 
@@ -115,7 +115,7 @@ sealed class GapRenderer {
     /// <summary>
     /// Zeilenumbruch-Rendering nach dem Vertikalmodell (siehe Klassen-Doku): authored Zeilenstruktur
     /// erhalten, Whitespace je Zeile normalisieren, fehlende Leerzeilen bis zum Minimum ergänzen,
-    /// abschließend das Zeilen-Präfix (Einzug bzw. Spalte) vor <c>Next</c>.
+    /// abschließend das Zeilen-Präfix (Einrückung bzw. Spalte) vor <c>Next</c>.
     /// </summary>
     string RenderVertical(in GapContext ctx, int blankLinesBefore, string linePrefix, int? blankLineCap = null) {
 
@@ -123,7 +123,7 @@ sealed class GapRenderer {
         var sb    = new StringBuilder();
 
         // Trailing-Segment: Kommentare bleiben auf der Zeile von Prev, genau ein Space davor — es sei denn,
-        // der Vorpass hat den ersten Trailing-'//' auf eine gemeinsame Block-Spalte ausgerichtet (dann
+        // der Vor-Durchlauf hat den ersten Trailing-'//' auf eine gemeinsame Block-Spalte ausgerichtet (dann
         // stehen davor so viele Spaces, dass der Kommentar auf dieser Spalte sitzt). Prev endet auf der
         // kanonischen Zeilenbreite; die Spaces stammen aus TryGetTrailingCommentSpaces (= Spalte − Breite).
         var trailingCommentAligned = false;
@@ -143,11 +143,11 @@ sealed class GapRenderer {
             trailingCommentAligned = true;
         }
 
-        // Innenzeilen in authored Reihenfolge; Läufe von Leerzeilen auf den Deckel kappen (Kommentar-/
-        // Direktivzeilen setzen den Lauf zurück). Der Deckel ist normalerweise MaxBlankLines (≥ 2 oder aus);
+        // Innenzeilen in authored Reihenfolge; Läufe von Leerzeilen auf die Obergrenze kappen (Kommentar-/
+        // Direktivzeilen setzen den Lauf zurück). Die Obergrenze ist normalerweise MaxBlankLines (≥ 2 oder aus);
         // der Task-Kopf-Stapel reicht 0 herein und kollabiert damit jede authored Leerzeile zwischen den
         // gestapelten Blöcken. Danach die verbleibenden Leerzeilen zählen, um das Minimum (BlankLinesBefore)
-        // zu ergänzen — es liegt nie über dem Deckel, bleibt also erreichbar.
+        // zu ergänzen — es liegt nie über der Obergrenze, bleibt also erreichbar.
         var interior = new List<string>();
         for (var i = 1; i < lines.Count - 1; i++) {
             interior.Add(RenderInteriorLine(lines[i], linePrefix));
@@ -183,9 +183,9 @@ sealed class GapRenderer {
 
     /// <summary>
     /// Rendert den Datei-Anfang: die Leading-Trivia des <b>ersten</b> Tokens liegt vor der ersten
-    /// Paar-Lücke und wird gesondert normalisiert — Kommentarzeilen auf dem Einzug des ersten Tokens,
+    /// Paar-Lücke und wird gesondert normalisiert — Kommentarzeilen auf der Einrückung des ersten Tokens,
     /// Direktiven ab Spalte 0, Leerzeilen erhalten, das Token selbst beginnt seine Zeile auf
-    /// <paramref name="indentDepth"/> (Trailing-Whitespace/Fehl-Einzug davor entfällt).
+    /// <paramref name="indentDepth"/> (Trailing-Whitespace/Fehl-Einrückung davor entfällt).
     /// </summary>
     public string RenderLeadingGap(SyntaxToken firstToken, int indentDepth) {
 
@@ -193,7 +193,7 @@ sealed class GapRenderer {
         var prefix = IndentString(indentDepth);
         var sb     = new StringBuilder();
 
-        // Führende Leerzeilen vor dem ersten Inhalt unterliegen demselben Deckel wie im Rest der Datei.
+        // Führende Leerzeilen vor dem ersten Inhalt unterliegen derselben Obergrenze wie im Rest der Datei.
         var interior = new List<string>();
         for (var i = 0; i < lines.Count - 1; i++) {
             interior.Add(RenderInteriorLine(lines[i], prefix));
@@ -203,7 +203,7 @@ sealed class GapRenderer {
             sb.Append(content).Append(_settings.NewLine);
         }
 
-        // Zeile des ersten Tokens: Einzug, dann etwaige Inline-Kommentare vor dem Token.
+        // Zeile des ersten Tokens: Einrückung, dann etwaige Inline-Kommentare vor dem Token.
         sb.Append(prefix);
         foreach (var trivia in lines[lines.Count - 1]) {
             if (trivia.IsComment) {
@@ -245,7 +245,7 @@ sealed class GapRenderer {
             contents.Add(RenderInteriorLine(lines[i], linePrefix: IndentString(0)));
         }
 
-        // Leerzeilen-Läufe zwischen Kommentar-/Direktivzeilen am Dateiende auf den Deckel kappen (der
+        // Leerzeilen-Läufe zwischen Kommentar-/Direktivzeilen am Dateiende auf die Obergrenze kappen (der
         // EOF-Trailing-Trim entfernt anschließend die Leerzeilen hinter dem letzten Inhalt ganz).
         contents = CapBlankRuns(contents, _options.MaxBlankLines);
 
@@ -307,12 +307,12 @@ sealed class GapRenderer {
 
     /// <summary>
     /// Kappt Läufe aufeinanderfolgender Leerzeilen (leere Einträge) auf <paramref name="cap"/> — der eine
-    /// Deckel-Mechanismus für die Innenzeilen mitten im Code (<see cref="RenderVertical"/>), am Dateianfang
-    /// (<see cref="RenderLeadingGap"/>) und am Dateiende (<see cref="RenderFinalGap"/>). Der Deckel ist im
+    /// Obergrenzen-Mechanismus für die Innenzeilen mitten im Code (<see cref="RenderVertical"/>), am Dateianfang
+    /// (<see cref="RenderLeadingGap"/>) und am Dateiende (<see cref="RenderFinalGap"/>). Die Obergrenze ist im
     /// Regelfall <see cref="NavFormattingOptions.MaxBlankLines"/> (≥ 2 oder aus); der kanonische
     /// Task-Kopf-Block-Stapel reicht <c>0</c> herein und kollabiert damit jede Leerzeile zwischen den
     /// gestapelten Blöcken. Nicht-Leerzeilen (Kommentar/Direktive) setzen den Lauf zurück — sie überleben
-    /// auch bei Deckel <c>0</c>. Kein Deckel (<c>null</c>) → die Liste bleibt unverändert
+    /// auch bei Obergrenze <c>0</c>. Keine Obergrenze (<c>null</c>) → die Liste bleibt unverändert
     /// (Referenz-identisch). Idempotent: eine bereits gekappte Liste ist ein Fixpunkt.
     /// </summary>
     static List<string> CapBlankRuns(List<string> lines, int? cap) {
@@ -326,7 +326,7 @@ sealed class GapRenderer {
         foreach (var line in lines) {
             if (line.Length == 0) {
                 if (++blankRun > max) {
-                    continue; // über dem Deckel: diese Leerzeile entfällt
+                    continue; // über der Obergrenze: diese Leerzeile entfällt
                 }
             } else {
                 blankRun = 0;
@@ -339,9 +339,9 @@ sealed class GapRenderer {
     }
 
     /// <summary>
-    /// Rendert eine hand-gelegte (mehrzeilige) Anweisung als <b>Ganzes verbatim</b>, aber mit um
-    /// <paramref name="delta"/> Zeichen mitgeschobenen Innenzeilen-Präfixen — der äußere Einzug wird auf
-    /// den Block re-gesetzt (der Delta stammt aus dem Vorpass), das Innere bleibt byte-genau (relative
+    /// Rendert eine manuell umbrochene (mehrzeilige) Anweisung als <b>Ganzes verbatim</b>, aber mit um
+    /// <paramref name="delta"/> Zeichen mitgeschobenen Innenzeilen-Präfixen — die äußere Einrückung wird auf
+    /// den Block re-gesetzt (der Delta stammt aus dem Vor-Durchlauf), das Innere bleibt byte-genau (relative
     /// Form erhalten). Derselbe Mechanismus wie beim mehrzeiligen Block-Kommentar (<see cref="ShiftInteriorLines"/>).
     /// </summary>
     public string RenderRawShifted(in GapContext ctx, int delta) {
@@ -390,7 +390,7 @@ sealed class GapRenderer {
 
     /// <summary>
     /// Verschiebt den führenden Whitespace jeder Zeile <b>nach der ersten</b> um <paramref name="delta"/>
-    /// Zeichen — der eine Delta-Shift-Mechanismus für hand-gelegte Anweisungen (äußerer Einzug) und die
+    /// Zeichen — der eine Delta-Shift-Mechanismus für manuell umbrochene Anweisungen (äußere Einrückung) und die
     /// Innenzeilen mehrzeiliger Block-Kommentare. Positiv: <paramref name="delta"/> Leerzeichen voranstellen;
     /// negativ: bis zu <c>-delta</c> führende Whitespace-Zeichen entfernen (Clamp bei Spalte 0 — nie
     /// Nicht-Whitespace anfassen). Arbeitet auf den <b>Roh-Whitespace-Präfixen</b> (keine Spaltenarithmetik,
@@ -418,7 +418,7 @@ sealed class GapRenderer {
                 }
 
                 // Leerzeile = Whitespace, dem ein Zeilenumbruch folgt (nie neuen Trailing-Whitespace
-                // erzeugen). Whitespace am Text-Ende ist dagegen der Einzug VOR dem nächsten Token (die
+                // erzeugen). Whitespace am Text-Ende ist dagegen die Einrückung VOR dem nächsten Token (die
                 // letzte Zeile der Lücke) und wird sehr wohl mitgeschoben.
                 var isBlankLine = wsEnd < text.Length && (text[wsEnd] == '\n' || text[wsEnd] == '\r');
                 if (isBlankLine) {
@@ -496,7 +496,7 @@ sealed class GapRenderer {
         return ctx.Alignment.TryGetSpaces(ctx.Extent.Start, out var spaces) ? new string(' ', spaces) : fallback;
     }
 
-    /// <summary>Der Einzug für <paramref name="depth"/> Stufen gemäß <see cref="NavFormattingOptions.IndentStyle"/>.</summary>
+    /// <summary>Die Einrückung für <paramref name="depth"/> Stufen gemäß <see cref="NavFormattingOptions.IndentStyle"/>.</summary>
     string IndentString(int depth) {
 
         if (depth <= 0) {

@@ -5,7 +5,7 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language; 
 
 /// <summary>
-/// Die Bedingungs-Klausel (Guard) einer Transition bzw. Exit-Transition — der Übergang gilt nur, wenn
+/// Die Bedingungs-Klausel (Guard) einer Transition bzw. Exit-Transition — die Transition gilt nur, wenn
 /// die Bedingung zutrifft. Drei Formen: <c>if Bedingung</c> (<see cref="IfConditionClauseSyntax"/>),
 /// <c>else</c> (<see cref="ElseConditionClauseSyntax"/>) und <c>else if Bedingung</c>
 /// (<see cref="ElseIfConditionClauseSyntax"/>).

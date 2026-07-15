@@ -2,13 +2,13 @@
 
 /// <summary>
 /// Symbol des Kanten-Operators einer Kante — in <c>Start --&gt; Auswahl;</c> das <c>--&gt;</c>.
-/// Der <see cref="ISymbol.Name"/> ist das Operator-Literal, wie es im Quelltext steht; welche
-/// Aufruf-Art es kodiert, sagt <see cref="EdgeMode"/>. Die Bedeutung je Operator-Literal ist in
+/// Der <see cref="ISymbol.Name"/> ist das Operator-Literal, wie es im Quelltext steht; welchen
+/// Kantenmodus es kodiert, sagt <see cref="EdgeMode"/>. Die Bedeutung je Operator-Literal ist in
 /// <see cref="SyntaxFacts.KeywordDescriptions"/> hinterlegt (siehe <see cref="Description"/>).
 /// </summary>
 public interface IEdgeModeSymbol: ISymbol {
 
-    /// <summary>Die Aufruf-Art, die der Operator kodiert (Modal/NonModal/Goto).</summary>
+    /// <summary>Der Kantenmodus, den der Operator kodiert (Modal/NonModal/Goto).</summary>
     EdgeMode EdgeMode { get; }
 
     /// <summary>Die Kante, deren Operator dieses Symbol ist.</summary>

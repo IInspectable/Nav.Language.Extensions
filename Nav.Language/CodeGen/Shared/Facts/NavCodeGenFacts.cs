@@ -3,7 +3,7 @@
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
-/// Fabrik für die versionierbaren Codegen-Fakten (<see cref="ICodeGenFacts"/>): liefert zu einer
+/// Factory für die versionierbaren Codegen-Fakten (<see cref="ICodeGenFacts"/>): liefert zu einer
 /// <see cref="NavLanguageVersion"/> die passende Facts-Instanz. So schaltet die Codegen-Namensalgebra
 /// <b>pro Datei</b> auf die Werte ihrer Generation um — es gibt keinen prozessweiten „V2-Modus".
 /// <para>

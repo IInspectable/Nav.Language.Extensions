@@ -10,7 +10,7 @@ using System.Linq;
 namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
-/// Codemodell der <c>{Task}WFS</c>-OneShot-Datei der <b>Generation 2</b> — die (einmalig erzeugte)
+/// CodeModel der <c>{Task}WFS</c>-OneShot-Datei der <b>Generation 2</b> — die (einmalig erzeugte)
 /// Benutzer-Datei mit je einem <c>NotImplementedException</c>-Stub für die abstrakten Logic-Methoden
 /// aus <c>{Task}WFSBase</c>. Anders als V1 überschreiben die Stubs die neuen
 /// <c>{Context}.Result …Logic(args, {Context} next)</c>-Signaturen (bzw. bei
@@ -52,7 +52,7 @@ sealed class WfsCodeModelV2: FileGenerationCodeModel {
     public ImmutableList<ChoiceCallContextCodeModel>     Choices            { get; }
 
     /// <summary>
-    /// Baut das <c>{Task}WFS</c>-OneShot-Codemodell aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
+    /// Baut das <c>{Task}WFS</c>-OneShot-CodeModel aus dem Semantic Model: <see cref="TaskCodeInfo"/>, Pfade
     /// (via <paramref name="pathProvider"/>) und die Init-/Exit-/Trigger-Transitionen samt Choices (über
     /// <see cref="CodeModelBuilderV2"/>) — die Quellen der zu erzeugenden Logic-Stubs.
     /// </summary>

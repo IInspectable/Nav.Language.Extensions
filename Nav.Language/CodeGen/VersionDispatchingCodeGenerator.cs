@@ -10,8 +10,8 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 
 /// <summary>
 /// Die Codegen-Weiche: wählt je <see cref="CodeGenerationUnit"/> den Generator ihrer
-/// <see cref="NavLanguageVersion"/> und delegiert an ihn. Weil die Version ein Per-Datei-Fakt ist,
-/// kann ein einziger Lauf Dateien verschiedener Generationen mischen; die passenden Generatoren
+/// <see cref="NavLanguageVersion"/> und delegiert an ihn. Weil die Version ein Per-Datei-Fact ist,
+/// kann ein einziger Durchlauf Dateien verschiedener Generationen mischen; die passenden Generatoren
 /// werden hier je Version einmalig erzeugt und wiederverwendet.
 /// <para>
 /// Implementiert sind <see cref="NavLanguageVersion.Version1"/> (<see cref="CodeGeneratorV1"/>) und

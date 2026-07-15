@@ -7,7 +7,7 @@ namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// Die Kante einer Continuation (<c>--^</c>/<c>o-^</c>, ab Sprachversion 2): der tragende GUI-Knoten zeigt
-/// eine View <b>und</b> setzt den Übergang in einen Folge-Task fort. Der <see cref="EdgeMode"/> bestimmt die
+/// eine View <b>und</b> setzt die Transition in einen Folge-Task fort. Der <see cref="EdgeMode"/> bestimmt die
 /// Fortsetzungs-Art (<c>o-^</c> → <see cref="EdgeMode.Modal"/>, <c>--^</c> → <see cref="EdgeMode.Goto"/>) —
 /// dieselben Modi wie die regulären Transitions-Kanten, aber ein eigener Kanten-Typ.
 /// </summary>

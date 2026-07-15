@@ -16,7 +16,7 @@ namespace Pharmatechnik.Nav.Language;
 /// </summary>
 public class PathProviderFactory: IPathProviderFactory {
 
-    /// <summary>Die gemeinsam nutzbare Standard-Fabrik.</summary>
+    /// <summary>Die gemeinsam nutzbare Standard-Factory.</summary>
     public static readonly PathProviderFactory Default = new();
 
     /// <inheritdoc/>

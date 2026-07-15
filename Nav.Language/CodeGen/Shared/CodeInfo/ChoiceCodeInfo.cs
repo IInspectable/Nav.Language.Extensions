@@ -35,7 +35,7 @@ public sealed class ChoiceCodeInfo {
     public string       ChoiceLogicMethodName { get; }
 
     /// <summary>
-    /// Fabrik: baut die <see cref="ChoiceCodeInfo"/> zu einem Choice-Knoten-Symbol; leitet den
+    /// Factory: baut die <see cref="ChoiceCodeInfo"/> zu einem Choice-Knoten-Symbol; leitet den
     /// enthaltenden Task über <see cref="TaskCodeInfo.FromTaskDefinition"/> aus
     /// <see cref="INodeSymbol.ContainingTask"/> ab.
     /// </summary>

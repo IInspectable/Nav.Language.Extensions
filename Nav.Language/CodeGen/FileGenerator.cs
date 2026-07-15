@@ -10,7 +10,7 @@ using System.Collections.Immutable;
 namespace Pharmatechnik.Nav.Language.CodeGen; 
 
 /// <summary>
-/// Fabrik für einen <see cref="IFileGenerator"/> — das Gegenstück zu
+/// Factory für einen <see cref="IFileGenerator"/> — das Gegenstück zu
 /// <see cref="ICodeGeneratorProvider"/> für die dateisystem-schreibende Stufe der Pipeline.
 /// </summary>
 public interface IFileGeneratorProvider {
@@ -37,7 +37,7 @@ public interface IFileGenerator: IDisposable {
 
 }
 
-/// <summary>Die Standard-Fabrik für den <see cref="FileGenerator"/> (zustandsloser Singleton, siehe <see cref="Default"/>).</summary>
+/// <summary>Die Standard-Factory für den <see cref="FileGenerator"/> (zustandsloser Singleton, siehe <see cref="Default"/>).</summary>
 public sealed class FileGeneratorProvider: IFileGeneratorProvider {
 
     FileGeneratorProvider() {

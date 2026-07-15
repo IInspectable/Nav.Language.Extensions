@@ -6,7 +6,7 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 /// <summary>
 /// Nav1009 (<c>The choice node '{0}' is not required by the code and can be safely removed</c>,
 /// Dead-Code-Hinweis der Kategorie <see cref="DiagnosticCategory.DeadCode"/>): Ein
-/// <c>choice</c>-Knoten (<see cref="IChoiceNodeSymbol"/>), auf den kein Verweis aus dem
+/// <c>choice</c>-Knoten (<see cref="IChoiceNodeSymbol"/>), auf den keine Referenz aus dem
 /// Transitionsblock existiert (<see cref="INodeSymbol.References"/>), ist überflüssig — z.B.
 /// <c>choice C;</c> ohne jede Kante von oder auf <c>C</c>. Gemeldet wird über die gesamte
 /// Knoten-Deklaration. Deckt damit den Fall „ganz ohne Kanten" ab, den

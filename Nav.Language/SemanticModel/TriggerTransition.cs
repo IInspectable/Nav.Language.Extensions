@@ -34,7 +34,7 @@ sealed class TriggerTransition: Transition, ITriggerTransition {
     IReadOnlySymbolCollection<ITriggerSymbol> ITriggerTransition.Triggers => Triggers;
 
     /// <summary>
-    /// Die Auslöser dieser Transition als konkrete Symbol-Collection — nie <c>null</c>
+    /// Die Trigger dieser Transition als konkrete Symbol-Collection — nie <c>null</c>
     /// (ohne Trigger im Quelltext eine leere Collection).
     /// </summary>
     public SymbolCollection<TriggerSymbol> Triggers { get; }

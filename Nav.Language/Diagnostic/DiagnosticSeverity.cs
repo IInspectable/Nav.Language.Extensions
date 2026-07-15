@@ -4,7 +4,7 @@
 /// Der Schweregrad einer Diagnose — Roslyn-Analogon <c>Microsoft.CodeAnalysis.DiagnosticSeverity</c>.
 /// Jeder <see cref="DiagnosticDescriptor"/> trägt einen Standard-Schweregrad
 /// (<see cref="DiagnosticDescriptor.DefaultSeverity"/>). Die Reihenfolge der Werte ist aufsteigend nach
-/// Ernst der Meldung; <see cref="DiagnosticSeverityExtension.GetWorst(DiagnosticSeverity, DiagnosticSeverity)"/>
+/// Ernst der Diagnose; <see cref="DiagnosticSeverityExtension.GetWorst(DiagnosticSeverity, DiagnosticSeverity)"/>
 /// wertet den zugrunde liegenden Zahlenwert aus, um den schwersten von mehreren Schweregraden zu bestimmen.
 /// </summary>
 public enum DiagnosticSeverity {

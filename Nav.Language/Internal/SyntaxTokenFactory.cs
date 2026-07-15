@@ -7,7 +7,7 @@ using Pharmatechnik.Nav.Language.Text;
 namespace Pharmatechnik.Nav.Language.Internal;
 
 /// <summary>
-/// Fabrik für <see cref="SyntaxToken"/>-Instanzen und die Einfärbungs-Zuordnung nicht-signifikanter Tokens.
+/// Factory für <see cref="SyntaxToken"/>-Instanzen und die Einfärbungs-Zuordnung nicht-signifikanter Tokens.
 /// Kapselt zwei Belange des Lexers/Parsers (<see cref="NavParser"/>, <see cref="NavDirectiveParser"/>):
 /// das Erzeugen eines Tokens aus einem <see cref="TextExtent"/> — inklusive der Sonderbehandlung eines
 /// fehlenden (<see cref="TextExtent.IsMissing"/>) Ausschnitts als <see cref="SyntaxToken.Missing"/> — sowie

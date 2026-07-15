@@ -17,10 +17,10 @@ namespace Pharmatechnik.Nav.Language;
 /// Für offene Dokumente wird der vom Client gelieferte (ggf. ungespeicherte) Inhalt geparst, für alle
 /// übrigen Dateien liest der innere Provider von Platte. Zugleich dient der Provider als Workspace-Cache
 /// (Schlüssel = normalisierter Pfad) mit expliziter Invalidierung bei Overlay-Änderungen.
-/// Platten-Einträge validieren sich beim Treffer selbst über einen Datei-Stempel
+/// Disk-Einträge validieren sich beim Treffer selbst über einen Datei-Stempel
 /// (<see cref="DiskStamp"/>) — out-of-band geänderte Dateien werden so ohne Watcher beim nächsten
 /// Zugriff bemerkt und neu geparst; Overlays bleiben autoritativ (kein Stempel).
-/// VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Schale (der MCP-Server setzt keine Overlays,
+/// VS-/LSP-frei — gemeinsam genutzt von LSP- und MCP-Server-Host (der MCP-Server setzt keine Overlays,
 /// nutzt aber Cache + Invalidierung).
 /// </summary>
 public class OverlaySyntaxProvider: ISyntaxProvider {
@@ -30,24 +30,24 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
     // Normalisierter Pfad -> Inhalt des offenen Dokuments.
     readonly ConcurrentDictionary<string, string> _overlay = new();
 
-    // Normalisierter Pfad -> geparster Syntaxbaum (null = Datei existiert nicht) + Platten-Stempel.
+    // Normalisierter Pfad -> geparster Syntaxbaum (null = Datei existiert nicht) + Disk-Stempel.
     // Syntax und Stempel liegen bewusst in EINEM Eintrag: zwei getrennte Dictionaries könnten bei
     // nebenläufigen Neubauten einen frischen Stempel mit veralteter Syntax paaren — der Treffer
     // bliebe dann dauerhaft stale.
     readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 
-    /// <summary>Cache-Eintrag: geparster Syntaxbaum plus der Platten-Stempel, unter dem er gilt.</summary>
+    /// <summary>Cache-Eintrag: geparster Syntaxbaum plus der Disk-Stempel, unter dem er gilt.</summary>
     readonly record struct CacheEntry {
 
         /// <summary>Der geparste Syntaxbaum (<c>null</c> = Datei existiert nicht).</summary>
         public required CodeGenerationUnitSyntax? Syntax { get; init; }
-        /// <summary>Platten-Stempel, gegen den der Cache-Treffer validiert wird (<c>default</c> bei Overlays).</summary>
+        /// <summary>Disk-Stempel, gegen den der Cache-Treffer validiert wird (<c>default</c> bei Overlays).</summary>
         public required DiskStamp                 Stamp  { get; init; }
 
     }
 
     /// <summary>
-    /// Erzeugt den Provider über einem inneren Platten-Provider; ohne Angabe wird
+    /// Erzeugt den Provider über einem inneren Disk-Provider; ohne Angabe wird
     /// <see cref="SyntaxProvider.Default"/> verwendet.
     /// </summary>
     public OverlaySyntaxProvider(ISyntaxProvider? diskProvider = null) {
@@ -56,7 +56,7 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
 
     /// <summary>
     /// Liefert den Syntaxbaum einer Datei: Ist ein Overlay gesetzt, wird dessen (ggf. ungespeicherter) Inhalt
-    /// geparst (autoritativ, kein Platten-Stempel); sonst greift der gestempelte Platten-Cache und parst bei
+    /// geparst (autoritativ, kein Disk-Stempel); sonst greift der gestempelte Disk-Cache und parst bei
     /// veraltetem/fehlendem Stempel über den inneren Provider neu. Der Pfad wird via
     /// <see cref="PathHelper.NormalizePath"/> normalisiert (Cache-Schlüssel).
     /// </summary>
@@ -105,7 +105,7 @@ public class OverlaySyntaxProvider: ISyntaxProvider {
     }
 
     /// <summary>
-    /// Invalidiert NUR den (Platten-)Syntax-Cache einer Datei — ohne das Overlay anzutasten. Für externe
+    /// Invalidiert NUR den (Disk-)Syntax-Cache einer Datei — ohne das Overlay anzutasten. Für externe
     /// Datei-Änderungen (<c>workspace/didChangeWatchedFiles</c>): der nächste <see cref="GetSyntax"/> liest
     /// die Datei frisch von Platte (bzw. liefert <c>null</c>, falls sie gelöscht wurde).
     /// </summary>

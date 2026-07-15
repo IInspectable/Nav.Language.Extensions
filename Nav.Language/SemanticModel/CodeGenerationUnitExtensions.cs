@@ -29,7 +29,7 @@ public static class CodeGenerationUnitExtensions {
     /// Liefert die Namespace-Texte der <c>[using …]</c>-Deklarationen am Datei-Kopf
     /// (<see cref="CodeGenerationUnitSyntax.CodeUsings"/>); Deklarationen ohne Namespace-Angabe
     /// werden ausgelassen, bei <c>null</c> ist das Ergebnis leer. Grundlage der using-Direktiven
-    /// in den Codemodellen der Codegenerierung (dort typisch gefolgt von
+    /// in den CodeModels der Codegenerierung (dort typisch gefolgt von
     /// <see cref="ToSortedNamespaces"/>).
     /// </summary>
     /// <param name="codeGenerationUnit">Das Modell, dessen Usings geliefert werden, oder <c>null</c>.</param>

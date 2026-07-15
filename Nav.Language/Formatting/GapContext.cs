@@ -36,7 +36,7 @@ readonly struct GapContext {
     /// <summary>
     /// Die Einzugstiefe von <see cref="Next"/> — des Tokens, das eine etwaige neue Zeile eröffnet
     /// (aus der Ahnenkette abgeleitet, nie aus Nachbar-Operationen). Newline-Layouts richten sich
-    /// immer nach der beginnenden Zeile; die Tiefe von <see cref="Prev"/> wird für den Einzug nie
+    /// immer nach der beginnenden Zeile; die Tiefe von <see cref="Prev"/> wird für die Einrückung nie
     /// gebraucht.
     /// </summary>
     public int IndentDepth { get; }
@@ -51,8 +51,8 @@ readonly struct GapContext {
     public AlignmentMap Alignment { get; }
 
     /// <summary>
-    /// Die Formatter-Optionen des Laufs — für Regeln, deren Zuständigkeit ein Feature-Schalter ist
-    /// (z.B. Task-Kopf-Kanonisierung). Lauf-konstant und damit genauso formatierungs-invariant wie die
+    /// Die Formatter-Optionen des Durchlaufs — für Regeln, deren Zuständigkeit ein Feature-Schalter ist
+    /// (z.B. Task-Kopf-Kanonisierung). Durchlauf-konstant und damit genauso formatierungs-invariant wie die
     /// übrigen Fakten.
     /// </summary>
     public NavFormattingOptions Options { get; }
