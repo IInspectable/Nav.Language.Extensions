@@ -77,24 +77,15 @@
     <File Path="doc/WFS-Spracherweiterung — Framework-Verifikation.md" />
     <File Path="doc/nav-backlog.md" />
     <File Path="doc/nav-broken-source-robustness.md" />
-    <File Path="doc/nav-buildtasks-xmldoc-status.md" />
-    <File Path="doc/nav-cli-xmldoc-status.md" />
     <File Path="doc/nav-codeanalysis-navigation-review.md" />
-    <File Path="doc/nav-codeanalysis-xmldoc-status.md" />
-    <File Path="doc/nav-codefixes-xmldoc-status.md" />
-    <File Path="doc/nav-codegen-step4-handoff.md" />
     <File Path="doc/nav-codegen-v2-choice-navigation-status.md" />
     <File Path="doc/nav-codegen-v2-concat-design.md" />
     <File Path="doc/nav-codegen-v2-status.md" />
     <File Path="doc/nav-codegen-versioning.md" />
-    <File Path="doc/nav-codegen-xmldoc-status.md" />
     <File Path="doc/nav-completion-status.md" />
-    <File Path="doc/nav-diagnostic-xmldoc-status.md" />
     <File Path="doc/nav-diagram-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
-    <File Path="doc/nav-extension-xmldoc-status.md" />
     <File Path="doc/nav-feature-usage-census.md" />
-    <File Path="doc/nav-features-xmldoc-status.md" />
     <File Path="doc/nav-formatter-review-todo.md" />
     <File Path="doc/nav-formatter-status.md" />
     <File Path="doc/nav-grammar-status.md" />
@@ -107,22 +98,35 @@
     <File Path="doc/nav-nre-analysis-prompt.md" />
     <File Path="doc/nav-nullable-status.md" />
     <File Path="doc/nav-parser-recovery-status.md" />
-    <File Path="doc/nav-parser-test-plan.md" />
     <File Path="doc/nav-perf-optimization-status.md" />
     <File Path="doc/nav-pragmas-versioning-status.md" />
-    <File Path="doc/nav-semantic-model-cache-plan.md" />
-    <File Path="doc/nav-semanticanalyzer-xmldoc-status.md" />
-    <File Path="doc/nav-semanticmodel-xmldoc-status.md" />
-    <File Path="doc/nav-skiped-tokens-as-trivia.md" />
-    <File Path="doc/nav-sourcetext-review-todo.md" />
     <File Path="doc/nav-syntax-tree-visualizer.md" />
-    <File Path="doc/nav-syntax-xmldoc-status.md" />
-    <File Path="doc/nav-text-xmldoc-status.md" />
     <File Path="doc/nav-version-codefixes-status.md" />
     <File Path="doc/nav-versioning-status.md" />
     <File Path="doc/nav-vs-lsp-migration.md" />
-    <File Path="doc/nav-weg-b-structured-trivia.md" />
-    <File Path="doc/vs-call-hierarchy-plan.md" />
+  </Folder>
+  <!-- Abgeschlossene Kampagnen-/Handoff-Docs: fertig und aus dem aktiven /doc/ herausgenommen,
+       aber im Repo (und in der git-Historie) erhalten. -->
+  <Folder Name="/doc/archive/">
+    <File Path="doc/archive/nav-buildtasks-xmldoc-status.md" />
+    <File Path="doc/archive/nav-cli-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codeanalysis-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codefixes-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codegen-step4-handoff.md" />
+    <File Path="doc/archive/nav-codegen-xmldoc-status.md" />
+    <File Path="doc/archive/nav-diagnostic-xmldoc-status.md" />
+    <File Path="doc/archive/nav-extension-xmldoc-status.md" />
+    <File Path="doc/archive/nav-features-xmldoc-status.md" />
+    <File Path="doc/archive/nav-parser-test-plan.md" />
+    <File Path="doc/archive/nav-semantic-model-cache-plan.md" />
+    <File Path="doc/archive/nav-semanticanalyzer-xmldoc-status.md" />
+    <File Path="doc/archive/nav-semanticmodel-xmldoc-status.md" />
+    <File Path="doc/archive/nav-skiped-tokens-as-trivia.md" />
+    <File Path="doc/archive/nav-sourcetext-review-todo.md" />
+    <File Path="doc/archive/nav-syntax-xmldoc-status.md" />
+    <File Path="doc/archive/nav-text-xmldoc-status.md" />
+    <File Path="doc/archive/nav-weg-b-structured-trivia.md" />
+    <File Path="doc/archive/vs-call-hierarchy-plan.md" />
   </Folder>
   <!-- Demo bewusst NUR als Dateien, NICHT als <Project>: sie hat eine eigene Solution
        (Demos/NavV2NavigationDemo/NavV2NavigationDemo.slnx), baut nur mit MSBuild.exe und setzt ein
