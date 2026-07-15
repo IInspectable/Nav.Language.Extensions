@@ -23,14 +23,44 @@ using SourceText = Microsoft.CodeAnalysis.Text.SourceText;
 
 namespace Pharmatechnik.Nav.Language.CodeAnalysis.FindReferences; 
 
+/// <summary>
+/// Findet die Referenzen eines Nav-Symbols (einer <see cref="ITaskDefinitionSymbol"/> samt ihrer
+/// Init-/Exit-Verbindungspunkte) im generierten bzw. handgeschriebenen C#-Code der zugehörigen
+/// WFS-Klasse — die C#-seitige Ergänzung zur nav-internen Suche
+/// (<see cref="Pharmatechnik.Nav.Language.FindReferences.ReferenceFinder"/>). Verwertet die
+/// Roslyn-Referenzsuche (<see cref="SymbolFinder"/>) über die <see cref="Solution"/> und meldet jede
+/// Fundstelle als <see cref="ReferenceItem"/> an den <see cref="IFindReferencesContext"/> der
+/// <see cref="FindReferencesArgs"/>. Deckt gezielt die <see cref="NavlessClasses">nav-losen
+/// WFS-Klassen</see> ab — jene handgeschriebenen WFS-Klassen ohne eigene <c>.nav</c>-Quelle, die die
+/// Annotation-basierte Auflösung nicht erreicht. Aufgerufen vom „Alle Referenzen suchen"-Befehl der
+/// VS-Extension (<c>FindReferencesCommandHandler</c>).
+/// </summary>
 public static partial class WfsReferenceFinder {
 
+    /// <summary>
+    /// Die fest verdrahtete Liste der nav-losen WFS-Klassen: handgeschriebene Workflow-Service-Klassen
+    /// ohne zugrunde liegende <c>.nav</c>-Datei, deren voll qualifizierter Typname je
+    /// <see cref="ClassInfo.ProjectName">Projekt</see> bekannt ist. Nur in diesen Klassen sucht
+    /// <see cref="FindReferencesAsync"/> nach Verwendungen des Ausgangssymbols.
+    /// </summary>
     static readonly ImmutableArray<ClassInfo> NavlessClasses = new[] {
             new ClassInfo(projectName: "XTplus.Kasse",             className: "Pharmatechnik.Apotheke.XTplus.Kasse.WFL.KasseWFS"),
             new ClassInfo(projectName: "XTplus.Kontaktverwaltung", className: "Pharmatechnik.Apotheke.XTplus.Kontaktverwaltung.StandardKontakteSuche.WFL.StandardKontakteSucheWFS")
         }
        .ToImmutableArray();
 
+    /// <summary>
+    /// Sucht die Referenzen des <see cref="FindReferencesArgs.OriginatingSymbol">Ausgangssymbols</see>
+    /// in den nav-losen WFS-Klassen der <paramref name="solution"/> und meldet jede Fundstelle an den
+    /// <see cref="FindReferencesArgs.Context"/>. Wirkt nur, wenn das Ausgangssymbol eine
+    /// <see cref="ITaskDefinitionSymbol"/> ist; für jede Task werden drei Sichten aufgebaut — die Task
+    /// selbst (<see cref="DefinitionItem.CreateTaskDefinitionItem"/>), ihr Init-Verbindungspunkt und
+    /// ihre Exit-Verbindungspunkte — und je Projekt in dessen <see cref="ClassInfo.ClassName">WFS-Klasse</see>
+    /// aufgelöst. Fehlt die zugehörige Task-Deklaration (<see cref="ITaskDefinitionSymbol.AsTaskDeclaration"/>),
+    /// existiert keine WFS-Klasse und die Suche endet ohne Treffer.
+    /// </summary>
+    /// <param name="solution">Die zu durchsuchende Roslyn-<see cref="Solution"/> des generierten C#-Codes.</param>
+    /// <param name="args">Die Suchanfrage mit Ausgangssymbol, Solution-Kontext und Ergebnis-Senke.</param>
     public static async Task FindReferencesAsync(Solution solution, FindReferencesArgs args) {
 
         if (args.OriginatingSymbol is ITaskDefinitionSymbol taskDefinition) {
@@ -78,6 +108,15 @@ public static partial class WfsReferenceFinder {
 
     }
 
+    /// <summary>
+    /// Meldet die Task selbst als Fundstelle: Für jedes Begin-Interface-Feld der WFS-Klasse wird die
+    /// Typ-Angabe seiner Feld-Deklaration (das <c>IBegin{Task}WFS</c>-Interface) lokalisiert und als
+    /// Referenz auf <paramref name="nodeDefinition"/> an den <paramref name="context"/> gemeldet.
+    /// </summary>
+    /// <param name="context">Die Ergebnis-Senke der Referenzsuche.</param>
+    /// <param name="solution">Die durchsuchte <see cref="Solution"/> (zur Vorschau-Erzeugung).</param>
+    /// <param name="beginInterfaceFields">Die Felder der WFS-Klasse vom Typ des Begin-Interface der Task.</param>
+    /// <param name="nodeDefinition">Die Definition der Task, der die Fundstellen zugeordnet werden.</param>
     static async Task FindTaskFields(IFindReferencesContext context,
                                      Solution solution,
                                      ImmutableArray<IFieldSymbol> beginInterfaceFields,
@@ -140,6 +179,15 @@ public static partial class WfsReferenceFinder {
         }
     }
 
+    /// <summary>
+    /// Meldet den Init-Verbindungspunkt als Fundstelle: In jedem Begin-Aufruf
+    /// (<c>_beginItfField.Begin(…)</c>) der WFS-Klasse wird der Methodenname <c>Begin</c> lokalisiert
+    /// und als Referenz auf <paramref name="initDefinitionItem"/> gemeldet.
+    /// </summary>
+    /// <param name="context">Die Ergebnis-Senke der Referenzsuche.</param>
+    /// <param name="solution">Die durchsuchte <see cref="Solution"/> (zur Vorschau-Erzeugung).</param>
+    /// <param name="beginInvocations">Die Aufrufe der Begin-Interface-Felder.</param>
+    /// <param name="initDefinitionItem">Die Definition des Init-Verbindungspunkts der Task.</param>
     static async Task FindInitMethods(IFindReferencesContext context,
                                       Solution solution,
                                       ImmutableArray<InvocationExpressionSyntax> beginInvocations,
@@ -180,6 +228,17 @@ public static partial class WfsReferenceFinder {
 
     }
 
+    /// <summary>
+    /// Meldet die Exit-Verbindungspunkte als Fundstellen: Aus den Begin-Aufrufen werden die
+    /// „After"-Methoden-Deklarationen ermittelt (das zweite Argument des äußeren Transitions-Aufrufs)
+    /// und mit den passenden Exit-Definitionen aus <paramref name="exitConnectionPointDefinitions"/>
+    /// verknüpft. Ohne Exit-Definitionen (leere Menge) entfällt die Suche.
+    /// </summary>
+    /// <param name="context">Die Ergebnis-Senke der Referenzsuche.</param>
+    /// <param name="solution">Die durchsuchte <see cref="Solution"/> (zur Vorschau-Erzeugung).</param>
+    /// <param name="beginInvocations">Die Aufrufe der Begin-Interface-Felder.</param>
+    /// <param name="exitConnectionPointDefinitions">Die Exit-Definitionen, indiziert nach ihrer <see cref="Location"/>.</param>
+    /// <param name="compilation">Die Roslyn-<see cref="Compilation"/> zur symbolischen Auflösung der After-Methode.</param>
     static async Task FindTaskExitMethods(IFindReferencesContext context,
                                           Solution solution,
                                           ImmutableArray<InvocationExpressionSyntax> beginInvocations,
@@ -224,6 +283,14 @@ public static partial class WfsReferenceFinder {
 
     }
         
+    /// <summary>
+    /// Liefert die Felder der WFS-Klasse, deren Typ genau das
+    /// <see cref="TaskDeclarationCodeInfo.FullyQualifiedBeginInterfaceName">voll qualifizierte
+    /// Begin-Interface</see> (<c>IBegin{Task}WFS</c>) der Task ist — die Anker, über die Task-,
+    /// Init- und Exit-Fundstellen in der Klasse gefunden werden.
+    /// </summary>
+    /// <param name="wfsClass">Das Roslyn-Symbol der WFS-Klasse.</param>
+    /// <param name="taskDeclarationCodeInfo">Die Codegen-Info der Task-Deklaration mit dem gesuchten Begin-Interface-Namen.</param>
     static Task<ImmutableArray<IFieldSymbol>> GetBeginInterfaceFieldsAsync(INamedTypeSymbol wfsClass, TaskDeclarationCodeInfo taskDeclarationCodeInfo) {
 
         var fullyQualifiedFormat = SymbolDisplayFormat.FullyQualifiedFormat.WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted);
@@ -236,6 +303,15 @@ public static partial class WfsReferenceFinder {
         return Task.FromResult(fields);
     }
 
+    /// <summary>
+    /// Sammelt zu den Begin-Interface-Feldern die Stellen, an denen darauf eine Methode aufgerufen wird
+    /// (<c>_beginItfField.Begin(…)</c>). Nutzt die Roslyn-Referenzsuche über
+    /// <see cref="SymbolFinder"/> und behält nur jene Fundstellen, deren Syntax-Elternkette einen
+    /// <see cref="InvocationExpressionSyntax">Methodenaufruf</see> bildet.
+    /// </summary>
+    /// <param name="context">Der Kontext der Referenzsuche (liefert das Abbruch-Token).</param>
+    /// <param name="solution">Die durchsuchte <see cref="Solution"/>.</param>
+    /// <param name="fields">Die Begin-Interface-Felder, deren Aufrufstellen gesucht werden.</param>
     static async Task<ImmutableArray<InvocationExpressionSyntax>> GetBeginInvocationsAsync(IFindReferencesContext context,
                                                                                            Solution solution,
                                                                                            ImmutableArray<IFieldSymbol> fields) {
@@ -270,6 +346,16 @@ public static partial class WfsReferenceFinder {
         return invocations.ToImmutableArray();
     }
 
+    /// <summary>
+    /// Ermittelt zu den Begin-Aufrufen die Deklarationen der „After"-Methoden: Aus jedem äußeren
+    /// Transitions-Aufruf mit zwei Argumenten wird das zweite Argument (die After-Methode) symbolisch
+    /// aufgelöst (über das <see cref="SemanticModel"/> der <paramref name="compilation"/>) und auf seine
+    /// <see cref="MethodDeclarationSyntax">Methoden-Deklaration(en)</see> zurückgeführt. Diese
+    /// After-Methoden entsprechen den Exit-Verbindungspunkten der Task.
+    /// </summary>
+    /// <param name="compilation">Die Roslyn-<see cref="Compilation"/> zur symbolischen Auflösung.</param>
+    /// <param name="beginInvocations">Die Begin-Aufrufe, deren umschließende Transitions-Aufrufe untersucht werden.</param>
+    /// <param name="cancellationToken">Das Abbruch-Token.</param>
     static async Task<ImmutableArray<MethodDeclarationSyntax>> GetAfterMethodDeclarationsAsync(Compilation compilation, ImmutableArray<InvocationExpressionSyntax> beginInvocations, CancellationToken cancellationToken) {
 
         var afterMethods = ImmutableArray.CreateBuilder<MethodDeclarationSyntax>();
@@ -338,6 +424,18 @@ public static partial class WfsReferenceFinder {
         }
     }
 
+    /// <summary>
+    /// Baut aus einer Fundstelle ein <see cref="ReferenceItem"/>: Ermittelt den Vorschau-Text (die
+    /// Trefferzeile sowie einen dreizeiligen Tooltip-Kontext) als klassifizierten Text und hebt darin
+    /// die Fund-<see cref="TextExtent">Stelle</see> hervor. Ist zum <paramref name="syntaxTree"/> kein
+    /// <see cref="Document"/> in der <paramref name="solution"/> auffindbar, wird ein
+    /// „keine Referenzen"-Eintrag (<see cref="ReferenceItem.NoReferencesFoundTo"/>) zurückgegeben.
+    /// </summary>
+    /// <param name="definition">Die Definition, der die Fundstelle zugeordnet ist.</param>
+    /// <param name="referenceLocation">Die <see cref="Location"/> der Fundstelle im generierten Code.</param>
+    /// <param name="solution">Die durchsuchte <see cref="Solution"/>.</param>
+    /// <param name="syntaxTree">Der Syntaxbaum, in dem die Fundstelle liegt.</param>
+    /// <param name="cancellationToken">Das Abbruch-Token.</param>
     static async Task<ReferenceItem> CreateReferenceItemAsync(DefinitionItem definition,
                                                               Location referenceLocation,
                                                               Solution solution,
@@ -372,6 +470,14 @@ public static partial class WfsReferenceFinder {
         return referenceItem;
     }
 
+    /// <summary>
+    /// Bestimmt den Vorschau-<see cref="TextSpan"/> um <paramref name="position"/>: die Zeile der
+    /// Position, erweitert um <paramref name="previewLines"/> Zeilen davor und danach (an den
+    /// Dateigrenzen gekappt).
+    /// </summary>
+    /// <param name="sourceText">Der Quelltext des Dokuments.</param>
+    /// <param name="position">Die Zeichenposition der Fundstelle.</param>
+    /// <param name="previewLines">Die Anzahl der Kontextzeilen ober- und unterhalb (Standard: 0 = nur die Trefferzeile).</param>
     static TextSpan GetPreviewSpan(SourceText sourceText, int position, int previewLines = 0) {
 
         var lineNumber = sourceText.Lines.GetLineFromPosition(position).LineNumber;
@@ -384,6 +490,15 @@ public static partial class WfsReferenceFinder {
 
     }
 
+    /// <summary>
+    /// Zerlegt den Text im <paramref name="span"/> zeilenweise in klassifizierte Fragmente
+    /// (<see cref="ClassifiedText"/>) über den Roslyn-<see cref="Classifier"/> — die Grundlage für die
+    /// farbige Vorschau einer Fundstelle. Vom Classifier nicht abgedeckte Lücken werden als reiner Text
+    /// bzw. Leerraum nachgetragen.
+    /// </summary>
+    /// <param name="document">Das Roslyn-<see cref="Document"/> der Fundstelle.</param>
+    /// <param name="span">Der zu klassifizierende Bereich.</param>
+    /// <param name="cancellationToken">Das Abbruch-Token.</param>
     static async Task<ImmutableArray<ClassifiedText>> ToClassifiedTextAsync(Document document,
                                                                             TextSpan span,
                                                                             CancellationToken cancellationToken) {
@@ -444,6 +559,12 @@ public static partial class WfsReferenceFinder {
         
 
     // Nicht vollständig. Haupsache die Vorschau sieht hübsch aus
+    /// <summary>
+    /// Bildet einen Roslyn-<see cref="ClassificationTypeNames">Klassifizierungstyp</see> auf die
+    /// engine-eigene <see cref="TextClassification"/> ab. Bewusst unvollständig — es genügt, was die
+    /// Vorschau optisch trägt; alles Übrige fällt auf <see cref="TextClassification.Text"/>.
+    /// </summary>
+    /// <param name="c">Der Name des Roslyn-Klassifizierungstyps.</param>
     static TextClassification GetClassification(string c) {
 
         if (c == ClassificationTypeNames.ClassName     ||
@@ -481,6 +602,14 @@ public static partial class WfsReferenceFinder {
         return TextClassification.Text;
     }
 
+    /// <summary>
+    /// Übersetzt eine Roslyn-<see cref="Microsoft.CodeAnalysis.Location"/> in die engine-eigene
+    /// <see cref="Location"/>. Liefert <c>false</c>, wenn die Roslyn-Location <c>null</c> ist, nicht im
+    /// Quelltext liegt oder keine gültige Zeilen-Span besitzt.
+    /// </summary>
+    /// <param name="loc">Die zu übersetzende Roslyn-Location.</param>
+    /// <param name="location">Die erzeugte engine-eigene <see cref="Location"/> bei Erfolg, sonst <c>default</c>.</param>
+    /// <returns><c>true</c>, wenn eine gültige <see cref="Location"/> ermittelt werden konnte.</returns>
     private static bool TryGetLocation(Microsoft.CodeAnalysis.Location loc, out Location location) {
 
         location = default;
