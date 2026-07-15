@@ -83,6 +83,7 @@
     <File Path="doc/nav-codegen-v2-concat-design.md" />
     <File Path="doc/nav-codegen-v2-status.md" />
     <File Path="doc/nav-codegen-versioning.md" />
+    <File Path="doc/nav-codegen-xmldoc-status.md" />
     <File Path="doc/nav-completion-status.md" />
     <File Path="doc/nav-diagnostic-xmldoc-status.md" />
     <File Path="doc/nav-diagram-status.md" />
