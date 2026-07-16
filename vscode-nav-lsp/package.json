@@ -18,6 +18,9 @@
   "activationEvents": [
     "onLanguage:nav"
   ],
+  "extensionDependencies": [
+    "EditorConfig.EditorConfig"
+  ],
   "main": "./dist/extension.js",
   "scripts": {
     "esbuild-base": "esbuild ./extension.js --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --target=node18",
@@ -45,6 +48,11 @@
         "path": "./syntaxes/nav.tmLanguage.json"
       }
     ],
+    "configurationDefaults": {
+      "[nav]": {
+        "editor.detectIndentation": false
+      }
+    },
     "configuration": {
       "title": "Nav Language Server",
       "properties": {
