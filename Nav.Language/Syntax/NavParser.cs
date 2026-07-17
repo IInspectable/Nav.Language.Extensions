@@ -2064,14 +2064,18 @@ sealed partial class NavParser {
 
     /// <summary>
     /// Ob an der aktuellen Position eine <c>[keyword …]</c>-Code-Deklaration mit dem erwarteten
-    /// <paramref name="keyword"/> beginnt: ein <c>[</c>, gefolgt vom Keyword selbst — <b>oder</b> (Präfix-
-    /// Rescue beim Tippen) von einem Identifier, dessen Text ein <b>echtes Präfix</b> des Keywords ist
+    /// <paramref name="keyword"/> beginnt. Die 10 Code-Keywords sind <b>kontextuelle</b> Keywords: Der Lexer
+    /// emittiert für sie einen <see cref="SyntaxTokenType.Identifier"/> (an jeder anderen Position sind sie
+    /// gewöhnliche Bezeichner, etwa <c>result</c> als Parameter-Name in <c>[params Foo result]</c>). Als
+    /// Leader direkt hinter <c>[</c> zählt daher ein Identifier, dessen Text <b>exakt</b> dem kanonischen
+    /// Keyword-Literal entspricht — <b>oder</b> (Präfix-Rescue beim Tippen) ein <b>echtes Präfix</b> davon
     /// (<c>[namespace …]</c> für <c>namespaceprefix</c>, <c>[usin …]</c> für <c>using</c>). Nach einem
-    /// <c>[</c> an einer Code-Deklarations-Position ist ein Identifier strukturell nie gültig; er kann daher
-    /// gefahrlos als das gemeinte, noch unvollständige Keyword gedeutet werden. Die zugehörige
-    /// <c>ParseCode*Declaration</c> konsumiert es dann über <see cref="EatKeywordOrSkip"/> (Missing-Keyword +
-    /// Skip-Trivia). Steht statt eines Identifiers das echte Keyword einer <b>anderen</b> Deklaration, ist es
-    /// ein Keyword-Token (kein Identifier) → der Präfix-Zweig greift nicht.
+    /// <c>[</c> an einer Code-Deklarations-Position ist ein Identifier strukturell nie ein Name; er kann
+    /// daher gefahrlos als das gemeinte Keyword gedeutet werden. Die zugehörige <c>ParseCode*Declaration</c>
+    /// konsumiert ihn über <see cref="EatKeywordOrSkip"/>, das den Leader per Retype zum Keyword-Token
+    /// hochstuft (exakter Treffer) bzw. ihn als Skip-Trivia überspringt und ein Missing-Keyword meldet
+    /// (Präfix). Der Zweig <c>PeekType(1) == keyword</c> bleibt für hart gelexte Keyword-Token defensiv
+    /// erhalten, greift für die kontextuellen Code-Keywords aber nicht mehr.
     /// </summary>
     bool AtCodeDeclaration(SyntaxTokenType keyword) {
 
@@ -2083,7 +2087,13 @@ sealed partial class NavParser {
             return true;
         }
 
-        return PeekType(1) == SyntaxTokenType.Identifier && IsKeywordPrefix(keyword, PeekText(1));
+        if (PeekType(1) == SyntaxTokenType.Identifier) {
+            var text = PeekText(1);
+            return text == SyntaxFacts.GetKeywordText(keyword)   // exakt: kontextuelles Code-Keyword (als Identifier gelext)
+                || IsKeywordPrefix(keyword, text);               // Präfix: beim Tippen noch unvollständig
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -2249,6 +2259,20 @@ sealed partial class NavParser {
 
         if (At(keyword)) {
             return Eat(keyword);
+        }
+
+        // Kontextuelles Code-Keyword: als Identifier gelext, Text == kanonisches Literal. In der
+        // Leader-Position (direkt hinter '[') zum Keyword-Token hochstufen → der finalisierte Baum wird
+        // byte-identisch zum früher hart gelexten Keyword; alles Downstream (Classification, QuickInfo,
+        // Completion, Formatter, Outlining) sieht unverändert den Keyword-Token-Typ. Der Roh-Strom (_raw)
+        // ist unveränderlich, daher wird eine umgetypte Kopie zurückgegeben und der Cursor wie in Eat
+        // vorgerückt (nicht der Store mutiert).
+        if (At(SyntaxTokenType.Identifier) && CurrentText == SyntaxFacts.GetKeywordText(keyword)) {
+            var token = _raw[_pos] with { Type = keyword };
+            _firstSignificantStart ??= token.Start;
+            _pos++;
+            SkipHidden();
+            return token;
         }
 
         ReportMissing(Describe(keyword));
