@@ -299,6 +299,14 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
   `nav-codegen-v2-status.md` § Gating-Punkt 3) fortgeschrieben.
 - **Damit sind S1–S6 abgeschlossen — das `cancel`-Keyword steht vollständig** (Syntax, Semantic Model,
   Analyzer, V2-Codegen-Gating, Completion, Golden + Doku).
+- **Nachtrag — Hover/QuickInfo-Tooltip** (uncommitted). Der `KeywordDescriptions`-Eintrag für `cancel`
+  (`SyntaxFacts.cs`) ist auf einen aussagekräftigen Text geschärft (Verhalten „tut nichts, kein
+  Re-Render", Abgrenzung zu `end`/`exit` als deklarations-loses Kantenziel, nur per Goto-Kante an
+  Choice-Arm/direkter Init-/Trigger-Kante, ab Sprachversion 2). Der Tooltip erscheint über den
+  **Keyword-Fallback** in `NavHoverService.GetKeywordHover`: die `cancel`-Referenz hat keine Deklaration
+  → leere Signatur-DisplayParts über den Symbol-Pfad → der Hover fällt bewusst auf die Keyword-Erklärung
+  zurück. Zwei neue Tests in `NavHoverServiceTests` (`Hover_OnCancelTarget…` an direkter Kante **und** am
+  Choice-Arm) sichern diesen Pfad ab. net472 1946/0 (+3 explicit-skip) + MCP 115/0; net10 1886/1886.
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)

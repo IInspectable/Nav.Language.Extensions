@@ -178,7 +178,7 @@ public static class SyntaxFacts {
         [InitKeywordAlt]     = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
         [EndKeyword]         = "Endknoten — regulärer Abschluss des Workflows.",
         [ExitKeyword]        = "Exit-Knoten — benannter Ausgang eines Tasks, von außen referenzierbar.",
-        [CancelKeyword]      = "Abbrechen-Ausgang einer Transition — die Navigation bricht ab und tut nichts (kein deklarierter Knoten, ab Sprachversion 2).",
+        [CancelKeyword]      = "Abbruch-Ausgang einer Transition (ab Sprachversion 2): bricht die Navigation ab — sie tut nichts und bleibt ohne Re-Render auf dem aktuellen Knoten stehen. Anders als end/exit kein deklarierter Knoten, sondern nur als Kantenziel per Goto-Kante (-->) an einem Choice-Arm oder einer direkten Init-/Trigger-Kante.",
         [ChoiceKeyword]      = "Verzweigungsknoten — wählt anhand von Bedingungen (if/else) einen von mehreren Folgewegen.",
         [DialogKeyword]      = "GUI-Knoten: zeigt einen Dialog an.",
         [ViewKeyword]        = "GUI-Knoten: zeigt eine View (Ansicht) an.",
