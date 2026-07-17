@@ -202,10 +202,38 @@ siehe CLAUDE.md).
 
 ## Stand
 
-- **Noch nichts umgesetzt.** Reine Analyse-/Planungs-Session. Arbeitsbaum sauber, Branch `master`, HEAD
-  `83db0983`.
-- **Nächster Schritt: Step 1.**
-- Offene Design-Frage bewusst entschieden: **B-konservativ** (B-vollständig ist nicht Teil dieses Plans).
+- **Steps 1–3 umgesetzt (uncommitted).** Code-Keywords lexen als `Identifier`; der Parser stuft den Leader
+  hinter `[` per Retype wieder zum Keyword hoch. `[params ErrorBoxResult result]` parst diagnosefrei,
+  `result` an der Namensposition ist ein `Identifier` mit `TextClassification.ParameterName`.
+- **B-konservativ** umgesetzt: Code-Keywords bleiben in `SyntaxFacts.Keywords`
+  (`IsValidIdentifier("result") == false`), Top-Level-Namen werden weiter via Nav2000 gemeldet.
+
+### Zwei Plan-Abweichungen (beim Umsetzen entdeckt, sachlich unkritisch)
+
+1. **`_raw` ist ein `readonly ImmutableArray<RawToken>`**, kein mutierbarer Array — die Skizze 1d
+   (`_raw[_pos] = _raw[_pos] with { … }`) scheitert mit `CS0200`. Sachlich identisches Ergebnis: In
+   `EatKeywordOrSkip` wird eine **umgetypte Kopie** zurückgegeben und der Cursor wie in `Eat` vorgerückt
+   (der Store bleibt unangetastet). Die Aufrufer konsumieren den Rückgabewert, daher genügt die Kopie.
+2. **`[base Foo using]` (Step-2-Beispiel) parst *nicht* sauber** — eine `[base …]`-Deklaration hat keine
+   Namensposition (nur `codeType (":" codeType ("," codeType)*)?`), ein zweiter Identifier ist dort
+   `unexpected input`. Ersetzt durch `[params using base]` (ehemaliges Keyword in **Typ-** und
+   **Namensposition**) plus `[params Foo result, Bar params, Baz code]` (mehrere ehemalige Keywords als Namen).
+
+### Ergebnis je Step
+
+- **Step 1** (`NavLexer.cs`, `NavParser.cs`) ✅ — `nav build` grün; `nav snapshot` **ohne `.expected.cs`-Diff**
+  (byte-identisch); net472 (`nav test`) und net10 (`dotnet test`) grün.
+- **Step 2** (`Nav.Language.Tests\Syntax\ContextualCodeKeywordTests.cs`, neu) ✅ — 6 Test-Methoden +
+  `[TestCaseSource]` über `SyntaxFacts.CodeKeywords` (10 Fälle). net472 1962/0, net10 1902/0 (je +16).
+- **Step 3** (Classification-Probe) ✅ — Klassifikation ist baumgetrieben; die LSP-Semantic-Tokens
+  (`SemanticTokensBuilder.CollectSpans` → `syntaxTree.Tokens` → `MapTokenType(token.Classification)`)
+  sind eine reine Funktion der `TextClassification` des finalisierten Baums. Live gegen `nav.lsp` belegt:
+  Leader `params` → `keyword` (Token-Typ 0), Name `result` → `parameter` (Token-Typ 6). Zusätzlich deckt
+  das grüne Golden `Syntax\Tests\FullFeature.nav.tokens` alle 10 Leader (→ `Keyword`) und Parameter-Namen
+  (→ `ParameterName`) host-unabhängig ab.
+
+- **Nächster Schritt:** keiner offen — Feature komplett. Optionaler Folge-Schritt bliebe nur **B-vollständig**
+  (siehe oben), falls je gewünscht.
 
 ## Verifikation (Kommandos)
 
