@@ -14,6 +14,12 @@
     Zeilenenden bleibt unverändert. Dateien, die nicht sauber als UTF-8 dekodieren
     (z. B. UTF-16 oder Binärdaten), werden in Ruhe gelassen.
 
+    Ausgenommen ist Markdown mit YAML-Frontmatter (erste Zeile '---'): dessen Parser
+    erkennt den öffnenden Delimiter hinter einem BOM nicht mehr und liest die Datei
+    als frontmatter-los. Betroffen sind u. a. SKILL.md und die Memory-Dateien, deren
+    'description' damit unsichtbar würde. Frontmatter-Parser verlangen UTF-8 ohne BOM —
+    das ist keine Aufweichung der Repo-Regel, sondern ein fremdes Dateiformat.
+
     Der Hook darf Edits nie blockieren: Fehler werden geschluckt, Exit-Code immer 0.
 #>
 
@@ -40,22 +46,34 @@ try {
     )
     if ($textExt -notcontains $ext) { exit 0 }
 
+    $bom = [byte[]](0xEF, 0xBB, 0xBF)
+
     $bytes = [System.IO.File]::ReadAllBytes($path)
     if ($bytes.Length -eq 0) { exit 0 }
-    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-        exit 0  # BOM bereits vorhanden
-    }
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
 
     # Nur eingreifen, wenn der Inhalt sauberes UTF-8 ist — sonst würde ein
     # vorangestelltes BOM eine andere Kodierung (z. B. UTF-16) zerstören.
     try {
         $strict = New-Object System.Text.UTF8Encoding($false, $true)
-        [void]$strict.GetString($bytes)
+        $text = $strict.GetString($bytes)
     } catch {
         exit 0
     }
 
-    $bom = [byte[]](0xEF, 0xBB, 0xBF)
+    # Markdown mit YAML-Frontmatter: kein BOM setzen — und ein vorhandenes entfernen,
+    # damit der Hook einmal beschädigte Dateien beim nächsten Edit wieder heilt.
+    if ($ext -eq '.md' -and $text.TrimStart([char]0xFEFF) -match '^---\r?\n') {
+        if ($hasBom) {
+            $out = New-Object byte[] ($bytes.Length - $bom.Length)
+            [System.Array]::Copy($bytes, $bom.Length, $out, 0, $out.Length)
+            [System.IO.File]::WriteAllBytes($path, $out)
+        }
+        exit 0
+    }
+
+    if ($hasBom) { exit 0 }
+
     $out = New-Object byte[] ($bom.Length + $bytes.Length)
     [System.Array]::Copy($bom, 0, $out, 0, $bom.Length)
     [System.Array]::Copy($bytes, 0, $out, $bom.Length, $bytes.Length)
