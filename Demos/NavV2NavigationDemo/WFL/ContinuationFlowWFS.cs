@@ -65,6 +65,11 @@ public partial class ContinuationFlowWFS {
     // exit Error:Ok --> DemoView: Rücksprung aus der modalen Fehler-Box zurück auf die View.
     protected override AfterErrorCallContext.Result AfterErrorLogic(ErrorBoxResult result,
                                                                     AfterErrorCallContext next) {
+        return next.Choice_DemoView(result);
+    }
+
+    protected override Choice_DemoViewCallContext.Result Choice_DemoViewLogic(ErrorBoxResult result, Choice_DemoViewCallContext next) {
+
         if (result == ErrorBoxResult.Abbrechen) {
             return next.Cancel();
         }

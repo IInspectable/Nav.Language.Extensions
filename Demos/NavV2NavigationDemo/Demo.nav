@@ -39,9 +39,12 @@ task ContinuationFlow [base StandardWFS: IWFServiceBase]
 
     view    DemoView;
 
+
     task    ErrorBox Error;
     choice  ChoiceValidation [params string subject];
+    choice  Choice_DemoView  [params ErrorBoxResult result];
     choice  ChoiceSaveChanges;
+
 
     // Start: erst prüfen, dann anzeigen.
     Init1 --> ChoiceValidation;
@@ -62,5 +65,7 @@ task ContinuationFlow [base StandardWFS: IWFServiceBase]
     DemoView    --> Exit             on OnClose;   // schließen ohne Speichern
 
     // Rücksprung aus der modalen Fehler-Box zurück auf die View.
-    Error:Ok --> DemoView;
+    Error:Ok        --> Choice_DemoView;
+    Choice_DemoView --> DemoView;
+    Choice_DemoView --> cancel;
 }
