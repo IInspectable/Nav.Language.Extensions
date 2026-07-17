@@ -23,12 +23,6 @@ auf, wie zentral die **Provider-/Caching-Schicht** (`OverlaySyntaxProvider`, `Ca
 `NavSolution`) für Performance **und** Korrektheit ist — und dass der LSP diese Schicht bereits
 vollständig und invalidierungs-sicher nutzt, die native VS-Extension aber nur teilweise.
 
-**Offener Perf-Nebenbefund (nicht Teil dieses Docs, aber nicht vergessen):** Der Build-Pfad
-(`Pharmatechnik.Nav.Language.targets:16`) hat `NavUseSyntaxCache` per Default `false` → Includes werden
-je `.nav` neu geparst. Ein geteilter `CachedSyntaxProvider` (Maschinerie existiert: `SyntaxProviderFactory.Cached`)
-ist ~6,7× schneller im Semantic Model, reiner Perf-Schalter ohne Ausgabeänderung. Kandidat für einen
-separaten, kleinen PR (Build-Default → `true`, CLI-Default optional). LSP/MCP sind bereits cached.
-
 ## 3. Ist-Stand: Provider-Verdrahtung je Host (verifiziert)
 
 | Host / Pfad | Provider | Cached / invalidiert? |
@@ -204,8 +198,8 @@ Die Migration legt eine **neue Extension neben die bestehende native** (`Nav.Lan
 (nativer Dienst + LSP am selben Content-Type, §4) macht ein inkrementelles Feature-für-Feature-*Umbauen*
 im laufenden Produkt unsauber. Greenfield dreht das um: „Schritt für Schritt" gilt für die **Entwicklung**
 (Feature um Feature im noch nicht ausgelieferten Host), der Wechsel für den Endnutzer ist ein sauberer
-**Cutover** (alte deinstallieren, neue installieren). Die alte Extension bleibt bis zum letzten Tag ein
-voller Fallback. Der Spike (§7) ist bereits der erste Commit dieses Projekts, kein Wegwerf-Code.
+**Cutover** — und zwar als **Update** der alten Extension, nicht als zweite Extension daneben (§8c).
+Der Spike (§7) ist bereits der erste Commit dieses Projekts, kein Wegwerf-Code.
 
 ### 8a. Name
 
@@ -273,6 +267,43 @@ Zwei Struktur-Prinzipien:
 
 Solution-Einhängung: die drei Projekte als `<Project>` im `Nav.Language.Extensions.slnx` auf Root-Ebene
 (neben `Nav.Language.Lsp`/`Nav.Language.Mcp`).
+
+### 8c. Update-Identität: die Neue ersetzt die Alte per Update
+
+**Beschluss:** Der Endnutzer soll die neue Extension als **Update** der alten bekommen — nicht als
+zweite, danebenliegende Extension. Identität einer VSIX ist ausschließlich `Identity/@Id` im
+`source.extension.vsixmanifest`; **gleiche `Id` + höhere `Version` = Update der installierten**. Der neue
+Head (`Nav.Language.Lsp.VisualStudio2026`) übernimmt daher die Id der Legacy **verbatim**:
+
+```xml
+<Identity Id="NavLanguageExtensions.IUnknown.679d829b-0b59-49b0-9984-16975abb7f9e"
+          Version="0.0.0" Language="en-US" Publisher="Dipl.-Ing. Maximilian Hänel" />
+```
+
+- **`Id` unverändert**, trotz neuem Projekt-, Assembly- und Namespace-Namen. Sie ist eine reine
+  Identitäts-GUID; der Namensbestandteil darin hat **keine** Funktion und darf beim Greenfield-Neuanfang
+  nicht „mit aufgeräumt" werden — ein neu vergebener Id bedeutet eine fremde Extension und damit kein
+  Update, sondern eine Zweitinstallation.
+- **`Version` höher als die letzte ausgelieferte alte.** Ergibt sich von selbst: die Version ist
+  git-abgeleitet (`ComputeGitVersion`), der Patch zählt die Commits seit dem Tag — der neue Head entsteht
+  auf späteren Commits und liegt damit automatisch darüber. Die eingecheckte `0.0.0` bleibt Platzhalter;
+  gestempelt wird in die obj-/bin-Kopie des Manifests. Das Target **`NavStampVsixManifest`
+  (`Nav.Language.Extension2026/CustomBuild.targets`) muss der neue Head mitbringen** — inklusive seines
+  Guards, der einen Kommandozeilen-Build abbricht, statt ein `0.0.0`-VSIX auszuliefern.
+- **`DisplayName`, `Description`, `Publisher`, Icons** dürfen frei wandern — Anzeige, nicht Identität.
+
+Dass beide dadurch nie gleichzeitig installiert sein können, ist **gewollt** und kein Preis:
+
+- **Parallel ist ausschließlich der Quellcode** — zwei Projekte im Repo, damit die neue Extension
+  Feature um Feature wachsen kann, während die alte funktionsfähig bleibt. **Installiert ist immer nur
+  eine von beiden**, alt *oder* neu. Ein A/B-Vergleich zweier gleichzeitig laufender `.nav`-Dienste ist
+  nicht nur unmöglich, sondern nach §4 ohnehin unerwünscht — die geteilte Id erzwingt das strukturell,
+  statt es der Disziplin zu überlassen.
+- **Wechsel während der Implementierungsphase:** vorher die jeweils andere **manuell deinstallieren**,
+  dann die gewünschte installieren. Bewusst akzeptierter Handgriff, der nur die Entwickler und nur bis
+  zum Cutover betrifft. Damit stellt sich die Frage nach VSIXInstaller-Downgrades gar nicht erst.
+- **Für den Endnutzer** bleibt es beim glatten Weg: eine Update-Installation ersetzt die alte still, kein
+  manuelles Deinstallieren.
 
 ## 9. Quellen (Auswahl)
 
