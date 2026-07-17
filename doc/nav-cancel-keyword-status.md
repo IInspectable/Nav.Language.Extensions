@@ -233,10 +233,28 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
   - **Tests:** gepaarte `NavCompletionServiceTests` (`TargetSlot_UnderVersion1_DoesNotOfferCancelKeyword`
     / `…_UnderVersion2_AlsoOffersCancelKeyword`, Muster der `…OnChoiceNode_UnderVersion1/2`-Paare).
     Completion 89/89; net472 1940/0 (+3 explicit-skip); net10 1880/1880.
-- **S6 — Golden-Fixtures + Doku.** `.nav`-Golden mit `Choice --> cancel if …` **und**
-  `View --> cancel on …`; V2-Snapshots via `nav snapshot` unter `Regression/Tests/V2/`. Design-Doc
-  `doc/nav-codegen-v2-concat-design.md` und den Gating-Abschnitt in `doc/nav-codegen-v2-status.md`
-  (§ „Offene Gating-Entscheidungen") fortschreiben. **DoD:** Goldens grün, Design-Doku aktuell.
+- **S6 — Golden-Fixtures + Doku. ✅ ERLEDIGT** (uncommitted). Golden-Fixture
+  `Regression\Tests\V2\CancelFlow.nav` (`#version 2`, distinkter Task-Name **und** `[namespaceprefix]`,
+  §7-Port-Caveat) deckt **beide** Formen in einem Fixture ab:
+  - `Home --> cancel on OnEscape` (unbedingter Swallow, E5) → **nur** der `OnEscapeCallContext` bekommt
+    `public Result Cancel() => new(() => _wfs.Cancel());`.
+  - `Choice_Confirm --> cancel if "Abbruch"` (bedingter Cancel, E5) → **nur** der
+    `Choice_ConfirmCallContext` bekommt `Cancel()`.
+  - Kontrast im selben Golden: der `Init1CallContext` (`Init1 --> Home`) und der `OnDecideCallContext`
+    (`Home --> Choice_Confirm on OnDecide`, zeigt auf die Choice, deklariert **selbst** kein cancel)
+    tragen **kein** `Cancel()` — genau der V2-only-Unterschied zu V1 (dort trüge jeder Context den
+    unbedingten Cancel-Default).
+  - **Snapshots:** vier `.expected.cs` via Regression-Generierung (`RegressionTests.GenerateFiles`) +
+    `nav snapshot`; in `Nav.Language.Tests.csproj` als `Content` eingehängt (die generierten `.cs` fallen
+    unter die bestehenden `NoCompile`-Globs `Regression\Tests\V2\{WFL,IWFL}\**`).
+  - **Doku fortgeschrieben:** `doc/nav-codegen-v2-concat-design.md` — die „immer `Cancel()`"-Zeile der
+    §3.4-Tabelle auf `--> cancel` (deklariert) korrigiert + neuer Abschnitt **§3.4a** (Cancel ist in V2
+    deklarationspflichtig); `doc/nav-codegen-v2-status.md` § „Offene Gating-Entscheidungen" Punkt 3 auf
+    „vollständig umgesetzt (S1–S6)" gesetzt.
+  - **DoD erfüllt:** Goldens grün, V1- **und** bestehende V2-Regression byte-identisch, Design-Doku aktuell.
+  - **Verifikation:** `nav build` 0/0; `nav test` (net472) 1944/0 (+3 explicit-skip) + MCP 115/0; net10
+    1883/1884 (der eine Fehler = bekannter Last-Flaky `NavWorkspaceCoreSemanticCacheTests.OutOfBandChange…`,
+    isoliert 5/5 grün).
 
 ## Fallen (in dieser/früheren Sessions als teuer erkannt)
 
@@ -273,10 +291,14 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
   (analog `end`) nur ab `#version 2` an (`NavLanguageFeature.Cancel`); `FallbackItems` filtert `cancel`
   in V1 heraus (Loose End S1a). VS + LSP ziehen über den geteilten Service automatisch nach. Gepaarte
   `NavCompletionServiceTests` (Version1/Version2). net472 1940/0; net10 1880/1880.
-- **Nächster Schritt: S6 (Golden-Fixtures + Doku).** `.nav`-Golden mit `Choice --> cancel if …` **und**
-  `View --> cancel on …`; V2-Snapshots via `nav snapshot` unter `Regression/Tests/V2/` (die
-  `Cancel()`-Callable erscheint dort wieder). Design-Doku `doc/nav-codegen-v2-concat-design.md` und den
-  Gating-Abschnitt in `doc/nav-codegen-v2-status.md` fortschreiben.
+- **S6 umgesetzt** (uncommitted). Golden-Fixture `Regression\Tests\V2\CancelFlow.nav` mit **beiden**
+  Formen (`Home --> cancel on OnEscape` + `Choice_Confirm --> cancel if "Abbruch"`); vier `.expected.cs`
+  via Regression-Generierung + `nav snapshot`. Das Golden zeigt das Gating direkt: `OnEscape`- und
+  `Choice_Confirm`-Context tragen `Cancel()`, `Init1`- und `OnDecide`-Context nicht. V1- und bestehende
+  V2-Regression byte-identisch. Design-Doku (`nav-codegen-v2-concat-design.md` §3.4/§3.4a,
+  `nav-codegen-v2-status.md` § Gating-Punkt 3) fortgeschrieben.
+- **Damit sind S1–S6 abgeschlossen — das `cancel`-Keyword steht vollständig** (Syntax, Semantic Model,
+  Analyzer, V2-Codegen-Gating, Completion, Golden + Doku).
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)

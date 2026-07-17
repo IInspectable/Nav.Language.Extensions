@@ -165,6 +165,7 @@
     <Content Include="Regression\Tests\V2\ChoiceFlow.nav" />
     <Content Include="Regression\Tests\V2\NotImplementedFlow.nav" />
     <Content Include="Regression\Tests\V2\DoNotInjectFlow.nav" />
+    <Content Include="Regression\Tests\V2\CancelFlow.nav" />
   </ItemGroup>
 
   <ItemGroup>
