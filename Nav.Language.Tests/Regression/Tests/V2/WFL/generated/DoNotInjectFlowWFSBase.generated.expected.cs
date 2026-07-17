@@ -58,7 +58,6 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -85,7 +84,6 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -117,7 +115,6 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
             /// <NavInitCall>NS.V2.DoNotInject.WFL.IBeginEditorWFS</NavInitCall>
             #endregion
             public Result BeginEdit(NS.V2.DoNotInject.WFL.IBeginEditorWFS wfs, int id) => new(() => _wfs.OpenModalTask<EditorResult>(() => wfs.Begin(id), _wfs.AfterEdit));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -146,7 +143,6 @@ namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
     }

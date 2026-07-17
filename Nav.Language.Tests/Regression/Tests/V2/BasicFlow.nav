@@ -13,7 +13,10 @@
 //   - Begin{Task} in allen 3 Modi    via  --> / o-> / ==>  auf einen Task-Knoten
 //   - Exit({result})                 via  Home --> Exit on OnClose
 //   - End()                          via  Home --> end  on OnEnd
-//   - Cancel()                       ist immer verfügbar (kein eigener Nav-Ausgang)
+//
+// Cancel() ist GEGATET: die Aufruffläche bekommt sie nur, wenn die Quelle einen cancel-Ausgang
+// (--> cancel …) deklariert. BasicFlow deklariert keinen → kein Cancel() im generierten Code.
+// Das Gating ist in CancelCodeGenTests abgedeckt.
 //
 // Init-Legalität: aus Init1 ist per Goto nur der View-Knoten erreichbar (GOTO_GUI ∈ IINIT_TASK);
 // Modal/Nonmodal und End hängen ausschließlich an Trigger-Transitionen ab Home und sind daher

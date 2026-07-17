@@ -68,7 +68,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
             #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -99,7 +98,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
             #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -126,7 +124,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -158,7 +155,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
             #endregion
             public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -190,7 +186,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             /// <NavInitCall>NS.V2.Choice.WFL.IBeginAWFS</NavInitCall>
             #endregion
             public Result BeginA() => new(() => _wfs.OpenModalTask<AResult>(() => _wfs._a.Begin(), _wfs.AfterA));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -226,7 +221,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             /// <NavChoiceCall>Choice_Escalate</NavChoiceCall>
             #endregion
             public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -247,7 +241,6 @@ namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
     }

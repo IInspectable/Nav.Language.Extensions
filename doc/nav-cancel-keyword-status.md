@@ -192,13 +192,30 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
     Volllast, isoliert 5/5 grün). Build 0 Warnungen/0 Fehler. Die S2-Fixtures in `CancelSemanticTests.cs`
     (ohne `#version` → V1) tragen nun zusätzlich Nav5000; sie prüfen aber nur Nav0011-Abwesenheit +
     Modell-Struktur (versionsunabhängig) und bleiben grün.
-- **S4 — V2-Codegen-Gating (Kern).** In `CallContextCodeModel.cs:122-123` die Cancel-Callable **nur**
-  emittieren, wenn die Quelle einen Cancel-Ausgang trägt — Gating via `edge.TargetsCancel()` (S2):
-  ein `bool declaresCancel`-Argument an `CallContextCodeModel.Build`, das der Aufrufer aus den Outgoings
-  der Quelle (bzw. `choiceNode.Outgoings`) berechnet. `ChoiceCallContextCodeModel` zieht nach. V1
-  (`TransitionCodeModel.cs:44`) bleibt unverändert. **DoD:** V2-Unit **ohne** `cancel`-Deklaration hat
-  **keine** `Cancel()`-Methode am Context (und `return Cancel()` in Logik ist dann Compile-Fehler, E3);
-  V2-Unit **mit** Deklaration hat sie; **V1-Regression byte-identisch** (Dispatcher-Invariante).
+- **S4 — V2-Codegen-Gating (Kern). ✅ ERLEDIGT** (uncommitted). Die Cancel-Callable wird in
+  `CallContextCodeModel.Build` **nur** emittiert, wenn die Quelle einen Cancel-Ausgang trägt:
+  - Neues **`bool declaresCancel`**-Argument an `CallContextCodeModel.Build`; das Cancel-`Entry` hängt
+    hinter `if (declaresCancel)`. Ohne Deklaration fehlt die Callable → `return next.Cancel()` in der
+    Logik ist Compile-Fehler (E3 — die geerbte Framework-`Cancel()` liefert `CANCEL`, nicht den opaken
+    Context-`Result`).
+  - Alle vier Aufrufer berechnen `declaresCancel` aus den Outgoings ihrer Quelle via
+    `edge.TargetsCancel()` (S2): `TransitionCallContextCodeModel.FromInit`/`FromExit`
+    (`…Outgoings.Any(e => e.TargetsCancel())`), `FromTrigger` (`triggerTransition.TargetsCancel()`,
+    Einzelkante) und `ChoiceCallContextCodeModel.FromChoice` (`choiceNode.Outgoings.Any(…)`).
+    `FromExit` ist mitgegatet, obwohl cancel dort per Nav0126 (E5) unzulässig ist — in gültigen
+    Programmen ist der Wert dort immer `false`, das Gating bleibt uniform.
+  - **V1 unberührt:** `CallContextCodeModel` ist rein V2; V1 (`TransitionCodeModel.cs:44`) emittiert das
+    unbedingte Cancel weiter. Die 23 V1-Regression-Goldens blieben **byte-identisch**; nur die 5 V2-Goldens
+    verloren ihre 30 `public Result Cancel()`-Zeilen (keine deklariert cancel).
+  - **DoD erfüllt:** V2-Unit ohne `cancel` hat keine `Cancel()`-Methode; V2-Unit mit `--> cancel`
+    (Trigger-Kante **oder** Choice-Arm) hat genau eine; V1-Regression byte-identisch.
+  - **Tests:** `Nav.Language.Tests\CancelCodeGenTests.cs` (3 Fälle: kein cancel → 0 `Cancel()`; direkte
+    Trigger-Kante → 1; Choice-Arm → 1, jeweils per Zählung im generierten `WFSBase`). V2-Goldens via
+    `nav snapshot` neu (5 Dateien, −30 Zeilen). `BasicFlow.nav`-Kommentar (Cancel „immer verfügbar")
+    auf das Gating aktualisiert. CodeAnalysis-Golden `InitCallSite_JumpsToAfterMethod.expected`
+    nachgezogen (Span 71→70, weil im V2-`InitFlowWFSBase.generated.cs` die Cancel-Zeile des
+    Init-Contexts entfällt). net472 1938/0 (+3 explicit-skip); net10 1877/1878 grün (der eine Fehler
+    = bekannter Last-Flaky `NavWorkspaceCoreSemanticCacheTests.OutOfBandChange…`, isoliert 5/5 grün).
 - **S5 — Completion.** `cancel` als Zielvorschlag (analog `end`) — nur im V2-Kontext, hinter dem
   Versionsgate. **DoD:** Completion bietet `cancel` an passender Kantenposition in V2 an.
 - **S6 — Golden-Fixtures + Doku.** `.nav`-Golden mit `Choice --> cancel if …` **und**
@@ -228,16 +245,21 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
   (`ICancelNodeReferenceSymbol`), **kein** synthetisches Knoten-Symbol (Kollision mit dem non-null-
   `INodeSymbol.Syntax`-Kontrakt, siehe oben). Cancel-Ausgang über `edge.TargetsCancel()` abfragbar;
   Nav0011 nimmt cancel aus.
-- **S3 umgesetzt** (uncommitted). Drei Diagnosen: **Nav5000** (Versionsgate via neuem
+- **S3 umgesetzt** (Commit `0c666412`). Drei Diagnosen: **Nav5000** (Versionsgate via neuem
   `NavLanguageFeature.Cancel`), **Nav0125** (nur per Goto `-->`, analog Nav0106), **Nav0126**
   (nicht an Exit-Transition, E5-Stellen-Restriktion). Nav0125/0126 schweigen in V1 (Nav5000 ist dort
-  die eine Diagnose). Fünf Diagnostics-Fixtures. net472 1935/0 (+3 explicit-skip) + MCP 115/0; net10
-  grün (bekannter flaky Cache-Test isoliert 5/5). Build 0 Fehler/0 Warnungen.
-- **Nächster Schritt: S4 (V2-Codegen-Gating, Kern).** In `CallContextCodeModel.cs:122-123` die
-  Cancel-Callable **nur** emittieren, wenn die Quelle einen Cancel-Ausgang trägt — Gating via
-  `edge.TargetsCancel()`: `bool declaresCancel`-Argument an `CallContextCodeModel.Build`, berechnet aus
-  den Outgoings der Quelle (bzw. `choiceNode.Outgoings`); `ChoiceCallContextCodeModel` zieht nach. V1
-  (`TransitionCodeModel.cs:44`) bleibt byte-identisch (Dispatcher-Invariante).
+  die eine Diagnose). Fünf Diagnostics-Fixtures. Build 0 Fehler/0 Warnungen.
+- **S4 umgesetzt** (uncommitted). Cancel-Gating im V2-Codegen: `bool declaresCancel` an
+  `CallContextCodeModel.Build`, in allen vier Aufrufern aus `edge.TargetsCancel()` berechnet; ohne
+  Deklaration keine `Cancel()`-Callable → `return next.Cancel()` ist Compile-Fehler (E3). V1
+  byte-identisch (5 V2-Goldens −30 Cancel-Zeilen, 23 V1-Goldens unverändert). Neue
+  `CancelCodeGenTests` (3 Fälle) + nachgezogener CodeAnalysis-Golden (Span-Shift 71→70). net472
+  1938/0; net10 grün bis auf den bekannten Last-Flaky (isoliert 5/5).
+- **Nächster Schritt: S5 (Completion).** `cancel` als Zielvorschlag analog `end` — **nur** im
+  V2-Kontext, hinter dem Versionsgate. **Loose End aus S1a beachten:** weil `cancel ∈ NavKeywords`,
+  bietet `NavCompletionService.FallbackItems` es in mehrdeutigen Positionen **auch in V1** an — das
+  V2-Gating der Completion muss diesen Fallback-Pfad mit abdecken, nicht nur die dedizierte
+  Ziel-Vorschlagsstelle (bei `end`: `NavCompletionService.cs:271`).
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)

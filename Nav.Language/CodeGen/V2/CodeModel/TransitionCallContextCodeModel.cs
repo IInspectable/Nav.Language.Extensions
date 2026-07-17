@@ -103,7 +103,8 @@ sealed class TransitionCallContextCodeModel {
                 commandType    : InitCommandType,
                 logicMethodName: logicName,
                 directCalls    : initNode.Outgoings.GetDirectCalls(),
-                ownerTaskResult: taskResult);
+                ownerTaskResult: taskResult,
+                declaresCancel : initNode.Outgoings.Any(edge => edge.TargetsCancel()));
 
         return new TransitionCallContextCodeModel(
             annotationKind           : TransitionAnnotationKind.Init,
@@ -140,7 +141,8 @@ sealed class TransitionCallContextCodeModel {
                 commandType    : TransitionCommandType,
                 logicMethodName: logicName,
                 directCalls    : taskNode.Outgoings.GetDirectCalls(),
-                ownerTaskResult: taskResult);
+                ownerTaskResult: taskResult,
+                declaresCancel : taskNode.Outgoings.Any(edge => edge.TargetsCancel()));
 
         return new TransitionCallContextCodeModel(
             annotationKind           : TransitionAnnotationKind.Exit,
@@ -178,7 +180,8 @@ sealed class TransitionCallContextCodeModel {
                 commandType    : TransitionCommandType,
                 logicMethodName: logicName,
                 directCalls    : new IEdge[] { triggerTransition }.GetDirectCalls(),
-                ownerTaskResult: taskResult);
+                ownerTaskResult: taskResult,
+                declaresCancel : triggerTransition.TargetsCancel());
 
             yield return new TransitionCallContextCodeModel(
                 annotationKind           : TransitionAnnotationKind.Trigger,

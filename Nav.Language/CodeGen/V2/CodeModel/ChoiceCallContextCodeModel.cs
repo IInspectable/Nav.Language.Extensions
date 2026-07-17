@@ -1,6 +1,7 @@
 ﻿#region Using Directives
 
 using System.Collections.Immutable;
+using System.Linq;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -76,7 +77,8 @@ sealed class ChoiceCallContextCodeModel {
             commandType    : commandType,
             logicMethodName: logicName,
             directCalls    : choiceNode.Outgoings.GetDirectCalls(),
-            ownerTaskResult: ownerTaskResult);
+            ownerTaskResult: ownerTaskResult,
+            declaresCancel : choiceNode.Outgoings.Any(edge => edge.TargetsCancel()));
 
         return new ChoiceCallContextCodeModel(
             choiceName: choiceNode.Name,
