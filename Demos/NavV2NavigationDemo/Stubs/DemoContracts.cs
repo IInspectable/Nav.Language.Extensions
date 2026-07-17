@@ -1,11 +1,10 @@
 ﻿// -----------------------------------------------------------------------------------------------
 // Demo-Kontrakte, die im echten System NICHT von diesem Task erzeugt werden:
-//   * die Transfer-Objekte / Result-DTOs (HomeTO, MsgResult, DetailResult) — kaemen vom GUI- bzw.
-//     von den Sub-Task-Generatoren,
-//   * die Begin-Einstiege der referenzierten Sub-Tasks (IBeginMsgWFS/IBeginDetailWFS) — kaemen aus
-//     Msg.nav bzw. Detail.nav.
+//   * das Transfer-Objekt des View-Knotens (DemoViewTO) — käme vom GUI-Generator,
+//   * das Result-DTO des Sub-Tasks (ErrorBoxResult) — käme aus ErrorBox.nav,
+//   * der Begin-Einstieg des referenzierten Sub-Tasks (IBeginErrorBoxWFS) — käme aus ErrorBox.nav.
 //
-// Fuer dieses isolierte Navigations-Demo werden sie hier von Hand bereitgestellt, damit der
+// Für dieses isolierte Navigations-Demo werden sie hier von Hand bereitgestellt, damit der
 // generierte V2-Code kompiliert. (Auch dies ist reine Kompilier-Attrappe.)
 // -----------------------------------------------------------------------------------------------
 
@@ -13,23 +12,21 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 
 namespace NavV2Demo.IWFL {
 
-    // Transfer-Objekt des View-Knotens Home. (Im echten System vom GUI-Generator erzeugt.)
-    public class HomeTO { }
+    // Transfer-Objekt des View-Knotens DemoView. (Im echten System vom GUI-Generator erzeugt.)
+    public class DemoViewTO { }
 
-    // Result-DTOs der Sub-Tasks. (Im echten System aus Msg.nav / Detail.nav erzeugt.)
-    public class MsgResult { }
-    public class DetailResult { }
+    // Result-DTO des Sub-Tasks ErrorBox. (Im echten System aus ErrorBox.nav erzeugt.)
+    public enum ErrorBoxResult {
+        Ok,
+        Abbrechen
+    }
 }
 
 namespace NavV2Demo.Sub.WFL {
 
-    // Begin-Einstiege der referenzierten Sub-Tasks (taskref Msg / Detail). Auf genau diese
-    // IBegin…WFS-Namen zeigt die <NavInitCall>-Annotation im generierten CallContext.
-    public interface IBeginMsgWFS {
-        IINIT_TASK Begin(string text);
-    }
-
-    public interface IBeginDetailWFS {
-        IINIT_TASK Begin(int id);
+    // Begin-Einstieg des referenzierten Sub-Tasks (taskref ErrorBox). Auf genau diesen
+    // IBeginErrorBoxWFS-Namen zeigt die <NavInitCall>-Annotation im generierten CallContext.
+    public interface IBeginErrorBoxWFS {
+        IINIT_TASK Begin(string message);
     }
 }
