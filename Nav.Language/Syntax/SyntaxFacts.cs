@@ -39,6 +39,8 @@ public static class SyntaxFacts {
     public static readonly string ViewKeyword            = "view";
     /// <summary>Das Schlüsselwort <c>exit</c> — ein benannter Ausgang eines Tasks.</summary>
     public static readonly string ExitKeyword            = "exit";
+    /// <summary>Das Schlüsselwort <c>cancel</c> — der Abbrechen-Ausgang einer Transition als Kantenziel (ohne Deklaration, ab Sprachversion 2).</summary>
+    public static readonly string CancelKeyword          = "cancel";
     /// <summary>Das Schlüsselwort <c>on</c> — der Trigger einer Transition.</summary>
     public static readonly string OnKeyword              = "on";
     /// <summary>Das Schlüsselwort <c>if</c> — die Bedingung (Guard) einer Transition.</summary>
@@ -112,6 +114,7 @@ public static class SyntaxFacts {
         DialogKeyword,
         ViewKeyword,
         ExitKeyword,
+        CancelKeyword,
         OnKeyword,
         IfKeyword,
         ElseKeyword,
@@ -175,6 +178,7 @@ public static class SyntaxFacts {
         [InitKeywordAlt]     = "Startknoten eines Tasks — der Eintrittspunkt, von dem die erste Transition ausgeht.",
         [EndKeyword]         = "Endknoten — regulärer Abschluss des Workflows.",
         [ExitKeyword]        = "Exit-Knoten — benannter Ausgang eines Tasks, von außen referenzierbar.",
+        [CancelKeyword]      = "Abbruch-Ausgang einer Transition (ab Sprachversion 2): bricht die Navigation ab — sie tut nichts und bleibt ohne Re-Render auf dem aktuellen Knoten stehen. Anders als end/exit kein deklarierter Knoten, sondern nur als Kantenziel per Goto-Kante (-->) an einem Choice-Arm oder einer direkten Init-/Trigger-Kante.",
         [ChoiceKeyword]      = "Verzweigungsknoten — wählt anhand von Bedingungen (if/else) einen von mehreren Folgewegen.",
         [DialogKeyword]      = "GUI-Knoten: zeigt einen Dialog an.",
         [ViewKeyword]        = "GUI-Knoten: zeigt eine View (Ansicht) an.",
@@ -460,6 +464,7 @@ public static class SyntaxFacts {
         [SyntaxTokenType.DialogKeyword]          = DialogKeyword,
         [SyntaxTokenType.ViewKeyword]            = ViewKeyword,
         [SyntaxTokenType.ExitKeyword]            = ExitKeyword,
+        [SyntaxTokenType.CancelKeyword]          = CancelKeyword,
         [SyntaxTokenType.OnKeyword]              = OnKeyword,
         [SyntaxTokenType.IfKeyword]              = IfKeyword,
         [SyntaxTokenType.ElseKeyword]            = ElseKeyword,

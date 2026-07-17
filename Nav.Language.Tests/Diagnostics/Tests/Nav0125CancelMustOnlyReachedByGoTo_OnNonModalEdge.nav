@@ -1,0 +1,11 @@
+﻿#version 2
+
+task A
+{
+    init I1;
+    view V;
+
+    I1 --> V;
+    V ==> cancel on Trigger;
+}
+//==>>[Semantic](9,7,9,10): error Nav0125: Cancel can only be reached by a goto edge (-->)

@@ -549,6 +549,55 @@ public class NavHoverServiceTests {
         Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.DoKeyword)));
     }
 
+    //   |cancel:|  Abbruch-Ziel 'cancel' an einer direkten Trigger-Kante
+    //   |carm:|    Abbruch-Ziel 'cancel' an einem Choice-Arm
+    static readonly NavMarkup CancelM = NavMarkup.Parse(
+        """
+        #version 2
+        task A
+        {
+            init I1;
+            view V1;
+            exit e1;
+            choice C1;
+
+            I1 --> V1;
+            V1 --> |cancel:|cancel on OnEscape;
+            V1 --> C1 on OnDecide;
+            C1 --> e1;
+            C1 --> |carm:|cancel if "Abbruch";
+        }
+
+        """);
+
+    [Test]
+    public void Hover_OnCancelTarget_ShowsKeywordMeaning() {
+
+        var unit = ParseModel(CancelM.Source, @"n:\av\cancel.nav");
+        var info = NavHoverService.GetHover(unit, CancelM.Position("cancel")); // direkte Trigger-Kante
+
+        Assert.That(info, Is.Not.Null);
+        // 'cancel' hat keine Deklaration → leere Signatur-DisplayParts über den Symbol-Pfad; der Hover
+        // fällt bewusst auf die Keyword-Erklärung zurück (nicht auf einen leeren Symbol-Hover).
+        Assert.That(Signature(info),    Is.EqualTo(SyntaxFacts.CancelKeyword));
+        Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.CancelKeyword)));
+        Assert.That(info.Documentation, Is.Not.Empty);
+        Assert.That(info.Calls,         Is.Empty);
+    }
+
+    [Test]
+    public void Hover_OnCancelTargetInChoiceArm_ShowsKeywordMeaning() {
+
+        var unit = ParseModel(CancelM.Source, @"n:\av\cancel.nav");
+        var info = NavHoverService.GetHover(unit, CancelM.Position("carm")); // Choice-Arm
+
+        Assert.That(info, Is.Not.Null);
+        // Auch am Choice-Arm erklärt der Hover das cancel-Keyword — dieselbe Bedeutung wie an der
+        // direkten Kante (das Ziel ist in beiden Fällen der deklarations-lose Abbruch-Ausgang).
+        Assert.That(Signature(info),    Is.EqualTo(SyntaxFacts.CancelKeyword));
+        Assert.That(info.Documentation, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.CancelKeyword)));
+    }
+
     // `params`/`result` sind wirt-abhängig: dasselbe Literal an Task-Definition, Init- bzw. Choice-Knoten
     // (und `result` an taskref) bedeutet je etwas anderes. Marker sitzen jeweils direkt vor dem Keyword.
     static readonly NavMarkup HostKeywordM = NavMarkup.Parse(

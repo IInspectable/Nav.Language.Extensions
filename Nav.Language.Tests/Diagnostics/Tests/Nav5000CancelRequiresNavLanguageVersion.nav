@@ -1,0 +1,9 @@
+﻿task A
+{
+    init I1;
+    view V;
+
+    I1 --> V;
+    V --> cancel on Trigger;
+}
+//==>>[Semantic](7,11,7,17): error Nav5000: 'Cancel' requires Nav language version 2. Add '#version 2'.

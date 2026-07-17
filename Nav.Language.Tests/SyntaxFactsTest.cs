@@ -20,6 +20,7 @@ public class SyntaxFactsTest {
         "init",
         "Init",
         "exit",
+        "cancel",
         "end",
         "if",
         "do",
@@ -131,6 +132,11 @@ public class SyntaxFactsTest {
     [Test]
     public void ExitKeywordTest() {
         Assert.That(SyntaxFacts.ExitKeyword, Is.EqualTo("exit"));
+    }
+
+    [Test]
+    public void CancelKeywordTest() {
+        Assert.That(SyntaxFacts.CancelKeyword, Is.EqualTo("cancel"));
     }
 
     [Test]

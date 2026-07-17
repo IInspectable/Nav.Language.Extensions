@@ -317,7 +317,7 @@ konstruiert (§3.2/§3.3) — kein Zwischenmarker:
 | `--> Choice` (auch **Choice→Choice**) | `{Choice}({params})` | `_wfs.{Choice}Logic({params}, new(_wfs)).Unwrap()` (Forward, §3.5; rekursiv bei Choice-Ketten) |
 | `--> Exit` | `Exit({result})` | `InternalTaskResult(result)` → `TASK_RESULT<T>`, castfrei (§3.8/②) |
 | `--> End` | `End()` | `EndNonModal()` → `END` |
-| immer | `Cancel()` | `Cancel()` → `CANCEL` |
+| `--> cancel` (deklariert, §3.4a) | `Cancel()` | `Cancel()` → `CANCEL` |
 
 **Die drei Positionen einer Continuation (`Quelle --> GUI o-^/--^ Task`).** Wer *was* sein darf, ist
 strikt getrennt — die `Show{Node}`/`Begin{Node}`-Spalten oben spiegeln das bereits:
@@ -334,6 +334,20 @@ nicht willkürlich: `.Begin{Task}(…)` baut `.Concat(OpenModalTask/GotoTask(…
 Task-Boundary-Command (§3.8/①). Der **tragende** Knoten dagegen ist immer ein GUI-Knoten
 (View/Dialog), **nie** ein Task — er baut das `GOTO_GUI`/`OPEN_MODAL_GUI`, auf dem `.Concat(…)` sitzt.
 Zwei verschiedene tragende Views in *einer* Continuation sind unzulässig (**Nav0122**).
+
+#### 3.4a `Cancel()` ist in V2 **deklarationspflichtig** (nicht „immer")
+
+Die Zeile `Cancel()` der Tabelle oben ist der **einzige** Context-Member, der nicht aus einer
+regulären Navigations-Kante folgt — historisch wurde er in **jedem** Context unbedingt emittiert. In
+**V2** ist er stattdessen an eine explizite Deklaration gebunden: der Context bekommt `Cancel()` **nur
+dann**, wenn seine Quelle einen `cancel`-Ausgang deklariert — als Choice-Arm (`Choice --> cancel if
+"…"`, bedingter Cancel) **oder** als direkte Init-/Trigger-Kante (`View --> cancel on …`, unbedingter
+Swallow). Fehlt die Deklaration, fehlt die Callable; ein `return next.Cancel()` in der Logik ist dann
+ein **Compile-Fehler** (die geerbte Framework-`Cancel()` liefert `CANCEL`, nicht den opaken
+Context-`Result`) — Deklaration und Implementierung können nicht mehr auseinanderlaufen. **V1 bleibt
+unverändert** (unbedingtes Cancel in jedem Context). Grund, Entscheidungen (E1–E6) und Diagnosen
+(Nav5000/Nav0125/Nav0126) stehen in **`doc/nav-cancel-keyword-status.md`**; das Golden dazu ist
+`Regression/Tests/V2/CancelFlow.nav`.
 
 **`[notimplemented]`/`[donotinject]` (beide korpus-real — 5 bzw. 6 echte `.nav`, kein opt-out).**
 Beide werden in V2 unterstützt — ein „in `#version 2` verboten" schüfe eine nie migrierbare V1-Insel.
@@ -487,6 +501,8 @@ protected sealed class Choice_RetryCallContext {
             new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
     }
 
+    // Cancel() nur, wenn Choice_Retry einen `cancel`-Ausgang deklariert (§3.4a) — hier zur
+    // Illustration der Fläche gezeigt; ohne Deklaration entfällt diese Zeile.
     public Result Cancel() => new(() => _wfs.Cancel());
 }
 

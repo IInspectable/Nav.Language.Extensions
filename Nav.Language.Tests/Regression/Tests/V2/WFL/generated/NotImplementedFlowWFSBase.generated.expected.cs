@@ -58,7 +58,6 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -90,7 +89,6 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
             /// <NavInitCall>IWFService</NavInitCall>
             #endregion
             public Result BeginWarn(string text) => new(() => throw new NotImplementedException("Task Warn is specified as [notimplemented]"));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -119,7 +117,6 @@ namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
     }

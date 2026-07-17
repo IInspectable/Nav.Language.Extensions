@@ -17,7 +17,13 @@ public enum NavLanguageFeature {
     /// Parameter-Klausel an einer <c>choice</c>-Deklaration (<c>choice X [params …]</c>), analog zum
     /// <c>init</c>-Knoten. Ab <see cref="NavLanguageVersion.Version2"/>.
     /// </summary>
-    ChoiceParameters
+    ChoiceParameters,
+
+    /// <summary>
+    /// Das <c>cancel</c>-Kantenziel (<c>… --&gt; cancel …</c>) — der deklarierte Abbruch-/„Nichts-tun"-
+    /// Ausgang einer Transition (kein deklarierter Knoten). Ab <see cref="NavLanguageVersion.Version2"/>.
+    /// </summary>
+    Cancel
 
 }
 
@@ -38,6 +44,7 @@ public static class NavLanguageFeatures {
         return feature switch {
             NavLanguageFeature.Continuation    => NavLanguageVersion.Version2,
             NavLanguageFeature.ChoiceParameters => NavLanguageVersion.Version2,
+            NavLanguageFeature.Cancel           => NavLanguageVersion.Version2,
             // Ein künftiges, versionsloses Feature (oder ein unbekannter Wert) gilt als seit jeher verfügbar.
             _ => NavLanguageVersion.Default
         };

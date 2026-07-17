@@ -1,0 +1,41 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.Cancel]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: cancel-Ausgang im V2-Codegen — beide zulässigen Formen (E5) in einem Fixture.
+//
+// Deckt ab:
+//   - Unbedingter Swallow: View --> cancel on ...  (direkte Trigger-Kante) → genau dieser
+//     Trigger-Context (OnEscape) bekommt die geerbte Cancel()-Aufruffläche.
+//   - Bedingter Cancel: Choice --> cancel if "..." (Choice-Arm) → genau der Choice-Context
+//     (Choice_Confirm) bekommt Cancel(), NICHT die auf die Choice zeigende Trigger-Quelle
+//     (OnDecide zeigt auf die Choice, deklariert selbst kein cancel).
+//
+// V2-Gating (S4): Cancel() wird NUR dort emittiert, wo cancel deklariert ist. Alle anderen
+// Contexte (Init1, OnDecide) tragen KEIN Cancel() — im Gegensatz zu V1 (unbedingtes Cancel für
+// jeden Context). Das ist genau der V2-only-Unterschied, den dieses Golden festhält.
+
+task CancelFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1;
+    exit Done;
+    view Home;
+    choice Choice_Confirm;
+
+    Init1 --> Home;
+
+    // Unbedingter Swallow: OnEscape tut bewusst nichts (No-Op, kein Re-Render).
+    Home --> cancel         on OnEscape;
+
+    // Trigger auf eine Choice; erst der Choice-Context trägt den bedingten Cancel.
+    Home --> Choice_Confirm on OnDecide;
+
+    Choice_Confirm --> Done;
+    Choice_Confirm --> cancel if "Abbruch";
+}

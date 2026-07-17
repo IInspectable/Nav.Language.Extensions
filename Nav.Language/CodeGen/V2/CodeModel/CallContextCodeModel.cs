@@ -15,7 +15,8 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// Das versionsübergreifende Herzstück des V2-Codegens: die <b>benannte Aufruffläche einer
 /// Kanten-Quelle</b> (Init-, Trigger- oder Exit-Transition). Pro tatsächlich vorhandener Nav-Kante
 /// trägt der Context genau eine Methode (<c>Show{Node}</c> / <c>Begin{Node}</c> / <c>Exit</c> /
-/// <c>End</c>), plus das immer verfügbare <c>Cancel</c>; jede baut ihr Framework-Kommando
+/// <c>End</c>), plus <c>Cancel</c> genau dann, wenn die Quelle einen <c>cancel</c>-Ausgang deklariert
+/// (<c>… --&gt; cancel …</c>, V2-Gating; siehe <see cref="Build"/>); jede baut ihr Framework-Kommando
 /// <b>deferred</b> in einem <c>Func&lt;…&gt;</c>-Thunk und verpackt es im opaken, geschachtelten
 /// <c>Result</c>. Der Maschinerie-Rückgabetyp (<see cref="CommandType"/>) ist <c>IINIT_TASK</c> für
 /// Init-Transitionen und <c>INavCommand</c> für Trigger/Exit.
@@ -78,11 +79,19 @@ sealed class CallContextCodeModel {
     /// <see cref="Call"/> und wird zu einem <c>{Choice}(…)</c>-Forward (§3.5). <paramref name="ownerTaskResult"/>
     /// ist das Ergebnis des <b>umgebenden</b> Tasks (für die fixe <c>Exit</c>-Factory, §3.4).
     /// </summary>
+    /// <param name="declaresCancel">
+    /// Ob die Quelle einen <c>cancel</c>-Ausgang deklariert (<c>… --&gt; cancel …</c>, erkannt via
+    /// <see cref="EdgeExtensions.TargetsCancel"/>). Nur dann bekommt der Context die <c>Cancel()</c>-Callable.
+    /// Fehlt die Deklaration, fehlt die Callable — ein <c>return next.Cancel()</c> in der Logik ist dann ein
+    /// <b>Compile-Fehler</b> (die geerbte Framework-<c>Cancel()</c> liefert <c>CANCEL</c>, nicht den opaken
+    /// Context-<c>Result</c>; E3). So können Deklaration und Implementierung in V2 nicht auseinanderlaufen.
+    /// </param>
     public static CallContextCodeModel Build(string contextTypeName,
                                              string commandType,
                                              string logicMethodName,
                                              IEnumerable<Call> directCalls,
-                                             ParameterCodeModel ownerTaskResult) {
+                                             ParameterCodeModel ownerTaskResult,
+                                             bool declaresCancel) {
 
         // Wie V1: Exits werden im Codegen nicht unterschieden (FoldExits) — mehrere exit-Ziele
         // kollabieren auf eine einzige Exit()-Factory.
@@ -119,8 +128,11 @@ sealed class CallContextCodeModel {
             }
         }
 
-        // Cancel ist immer implizit erreichbar (kein eigener Nav-Ausgang).
-        entries.Add(new Entry(SortOrderCancel, "Cancel", new CallableMethodModel("Cancel()", $"{WfsFieldName}.Cancel()")));
+        // V2-Gating (E3): die Cancel()-Callable nur, wenn die Quelle einen cancel-Ausgang deklariert.
+        // Ohne Deklaration fehlt sie → ein return next.Cancel() in der Logik ist ein Compile-Fehler.
+        if (declaresCancel) {
+            entries.Add(new Entry(SortOrderCancel, "Cancel", new CallableMethodModel("Cancel()", $"{WfsFieldName}.Cancel()")));
+        }
 
         // Stabile Reihenfolge: nach Kategorie (Task/Gui/Exit/End/Cancel), dann Name; OrderBy ist stabil,
         // sodass mehrere Begin{Node}-Überladungen ihre Init-Reihenfolge behalten.

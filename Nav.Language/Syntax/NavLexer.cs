@@ -546,10 +546,10 @@ sealed class NavLexer {
         }
     }
 
-    // Längen-Schranken der Wort-Schlüsselwörter ('do'/'if'/'on' = 2 … 'namespaceprefix' = 15) — als
+    // Längen-Schranken der Wort-Schlüsselwörter ('do'/'if'/'on' = 2 … 'spontaneous' = 11) — als
     // billiger Vorab-Filter vor dem Dictionary-Lookup (siehe ScanIdentifierOrKeyword).
     const int MinKeywordLength = 2;
-    const int MaxKeywordLength = 15;
+    const int MaxKeywordLength = 11;
 
     // Die Wort-Schlüsselwörter der Grammatik (exakt die literalen, kleingeschriebenen Formen).
     // Mehrzeichen-Kanten ('-->', 'o->', '==>') sind hier bewusst nicht enthalten — sie werden vor
@@ -563,22 +563,18 @@ sealed class NavLexer {
         ["dialog"]          = SyntaxTokenType.DialogKeyword,
         ["view"]            = SyntaxTokenType.ViewKeyword,
         ["exit"]            = SyntaxTokenType.ExitKeyword,
+        ["cancel"]          = SyntaxTokenType.CancelKeyword,
         ["on"]              = SyntaxTokenType.OnKeyword,
         ["if"]              = SyntaxTokenType.IfKeyword,
         ["else"]            = SyntaxTokenType.ElseKeyword,
         ["spontaneous"]     = SyntaxTokenType.SpontaneousKeyword,
         ["spont"]           = SyntaxTokenType.SpontKeyword,
         ["do"]              = SyntaxTokenType.DoKeyword,
-        ["result"]          = SyntaxTokenType.ResultKeyword,
-        ["params"]          = SyntaxTokenType.ParamsKeyword,
-        ["base"]            = SyntaxTokenType.BaseKeyword,
-        ["namespaceprefix"] = SyntaxTokenType.NamespaceprefixKeyword,
-        ["using"]           = SyntaxTokenType.UsingKeyword,
-        ["code"]            = SyntaxTokenType.CodeKeyword,
-        ["generateto"]      = SyntaxTokenType.GeneratetoKeyword,
-        ["notimplemented"]  = SyntaxTokenType.NotimplementedKeyword,
-        ["abstractmethod"]  = SyntaxTokenType.AbstractmethodKeyword,
-        ["donotinject"]     = SyntaxTokenType.DonotinjectKeyword,
+        // Die 10 Code-Keywords ('result', 'params', 'base', 'namespaceprefix', 'using', 'code',
+        // 'generateto', 'notimplemented', 'abstractmethod', 'donotinject') sind bewusst NICHT gelistet:
+        // Sie sind kontextuelle Keywords und lexen als Identifier. Nur als Leader direkt hinter '[' stuft
+        // der Parser sie per Retype wieder zum Keyword hoch (siehe NavParser.EatKeywordOrSkip); an jeder
+        // anderen Position bleiben sie ein gewöhnlicher Identifier (z.B. Parameter-Name in [params Foo result]).
     };
 
     // Die Schlüsselwörter, die nur im Präprozessor-Modus (innerhalb einer '#'-Direktive) als eigene Token

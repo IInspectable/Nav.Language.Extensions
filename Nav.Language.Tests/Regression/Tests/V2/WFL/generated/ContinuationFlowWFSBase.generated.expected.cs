@@ -64,7 +64,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -91,7 +90,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -118,7 +116,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
             }
 
             public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -147,7 +144,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
             }
 
             public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -186,7 +182,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
                 #endregion
                 public Result BeginWarn(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterWarn)));
             }
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
         #region Nav Annotations
@@ -225,7 +220,6 @@ namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
                 #endregion
                 public Result BeginDrill(int id) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.GotoTask<DetailResult>(() => _wfs._detail.Begin(id), _wfs.AfterDrill)));
             }
-            public Result Cancel() => new(() => _wfs.Cancel());
         }
 
     }

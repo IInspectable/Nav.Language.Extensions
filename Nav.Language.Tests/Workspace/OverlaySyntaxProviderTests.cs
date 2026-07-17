@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 
 using NUnit.Framework;
 
@@ -159,6 +160,49 @@ public class OverlaySyntaxProviderTests {
 
         var disk = provider.GetSyntax(path);
         Assert.That(disk!.ToString(), Does.Contain("Beta"));
+    }
+
+    [Test]
+    public void GetSyntax_ConcurrentMisses_ShareSingleInstance() {
+
+        // Regression gegen den Cache-Stampede: viele parallele Erst-Zugriffe auf dieselbe Datei treffen
+        // zeitgleich auf einen leeren Cache. Ohne Single-Flight parst jeder Thread selbst und schreibt
+        // last-writer-wins eine eigene Instanz — der aufsitzende Tier-2-Semantik-Cache (Validierung per
+        // Referenzgleichheit) verfehlt seinen Treffer beim nächsten Scan dann grundlos. Mit Single-Flight
+        // teilen sich alle Zugriffe genau EINE Instanz.
+        var path = WriteNavFile("a.nav", AlphaSource);
+
+        const int workers = 16;
+        const int rounds  = 50;
+
+        for (var round = 0; round < rounds; round++) {
+
+            // Frischer Provider je Runde: der Cache ist leer, der Stampede also erzwungen.
+            var provider = new OverlaySyntaxProvider();
+            var results  = new CodeGenerationUnitSyntax[workers];
+            var threads  = new Thread[workers];
+
+            // Eigene Threads (kein Thread-Pool) + Startgatter: alle Worker starten wirklich zeitgleich.
+            using var gate = new ManualResetEventSlim(initialState: false);
+
+            for (var i = 0; i < workers; i++) {
+                var index = i;
+                threads[i] = new Thread(() => {
+                    gate.Wait();
+                    results[index] = provider.GetSyntax(path);
+                });
+                threads[i].Start();
+            }
+
+            gate.Set();
+            foreach (var thread in threads) {
+                thread.Join();
+            }
+
+            var reference = results[0];
+            Assert.That(reference, Is.Not.Null,           $"Runde {round}");
+            Assert.That(results,   Is.All.SameAs(reference), $"Runde {round}: Stampede lieferte mehrere Instanzen");
+        }
     }
 
     string WriteNavFile(string name, string content) {

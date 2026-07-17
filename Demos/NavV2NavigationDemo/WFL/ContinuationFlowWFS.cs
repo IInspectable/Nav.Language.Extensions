@@ -1,99 +1,79 @@
-﻿#region Using Directives
+﻿// ReSharper disable UnusedMember.Global
+// ReSharper disable InconsistentNaming
 
 using NavV2Demo.IWFL;
 
-#endregion
-
 namespace NavV2Demo.WFL;
 
-// Handgeschriebener Logic-Teil des Workflows — HIER wird die Begin↔After-Navigation getestet.
-//
-// Die beiden Trigger-Logiken unten enthalten die Continuation-Aufrufe
-//   next.ShowHome(to).BeginWarn(...)   und   next.ShowHome(to).BeginDrill(...)
-// Genau diese BeginXY-Aufrufstellen sind die Ziele/Quellen der GoTo-Sprünge:
-//   * Cursor auf AfterWarnLogic  →  GoTo  →  findet den BeginWarn-Aufruf (und umgekehrt).
-//   * Cursor auf AfterDrillLogic →  GoTo  →  findet den BeginDrill-Aufruf (und umgekehrt).
-// ReSharper disable once UnusedMember.Global
-// ReSharper disable once InconsistentNaming
-public partial class ContinuationFlowWFS
-{
-    // Init: Home anzeigen.
-    protected override Init1CallContext.Result BeginLogic(Init1CallContext next)
-    {
-        return next.ShowHome(new HomeTO());
+// Handgeschriebener Logic-Teil des Demo-Workflows — das Testobjekt für die Begin↔After-Navigation.
+// Jede Override delegiert über den generierten CallContext (Parameter `next`) an genau die Ausgänge,
+// die Demo.nav für den jeweiligen Knoten vorsieht. Der Schwerpunkt: die verschachtelte Choice
+// ChoiceSaveChanges → ChoiceValidation, über die die Continuation (die modale Fehler-Box) fließt.
+public partial class ContinuationFlowWFS {
+    // ── Demo-Zustand ──────────────────────────────────────────────────────────────────────────
+    // In einem echten WFS käme das aus dem Datenmodell bzw. der View; hier reine Kompilier-Attrappe.
+    static bool IsValid(string subject) => !string.IsNullOrWhiteSpace(subject);
+    bool HasPendingChanges() => true;
+
+    // init Init1 --> ChoiceValidation: beim Start erst prüfen, dann anzeigen.
+    protected override Init1CallContext.Result BeginLogic(Init1CallContext next) {
+        return next.ChoiceValidation(subject: "Start");
     }
 
-    // Rücksprung aus dem modalen Warn-Task → zurück auf Home.
-    // (GoTo von hier führt zu OnShowWarnLogic → next.ShowHome(to).BeginWarn(...).)
-    protected override AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
-                                                                  AfterWarnCallContext next)
-    {
-        return next.ShowHome(new HomeTO());
-    }
+    // choice ChoiceValidation: gültig zeigt nur die View, ungültig legt modal die Fehler-Box darüber.
+    protected override ChoiceValidationCallContext.Result ChoiceValidationLogic(string subject,
+                                                                                ChoiceValidationCallContext next) {
+        var to = new DemoViewTO();
 
-    // Rücksprung aus dem Drill-Task → zurück auf Home.
-    // (GoTo von hier führt zu OnDrillDownLogic → next.ShowHome(to).BeginDrill(...).)
-    protected override AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
-                                                                    AfterDrillCallContext next)
-    {
-        return next.ShowHome(new HomeTO());
-    }
-
-    // Schließen → Task mit Ergebnis 'true' beenden.
-    protected override OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                              OnCloseCallContext next)
-    {
-        return next.Exit(true);
-    }
-
-    // o-^ : Home zeigen und modal in den Warn-Task fortsetzen.
-    //       >>> Aufrufstelle BeginWarn — Sprungziel aus AfterWarnLogic. <<<
-    protected override OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
-                                                                    OnShowWarnCallContext next)
-    {
-        return next.ShowHome(to).BeginWarn("Achtung — bitte bestätigen!");
-    }
-
-    // Zweiter Continuation-Einstieg in Warn — ANDERE Logic-Methode, gleiche Sub-Task-Grenze.
-    //       >>> Zweite Aufrufstelle BeginWarn — muss beim GoTo aus AfterWarnLogic mitgelistet werden. <<<
-    protected override OnReWarnCallContext.Result OnReWarnLogic(HomeTO to,
-                                                                OnReWarnCallContext next)
-    {
-        return next.ShowHome(to).BeginWarn("Erneuter Hinweis — nochmal bestätigen!");
-    }
-
-    // --^ : Home zeigen und per Goto in den Drill-Task navigieren.
-    //       >>> Aufrufstelle BeginDrill — Sprungziel aus AfterDrillLogic. <<<
-    protected override OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
-                                                                      OnDrillDownCallContext next)
-    {
-        return next.ShowHome(to).BeginDrill(42);
-    }
-
-    // Trigger, der die Entscheidung anstößt: delegiert an die Choice Choice_Retry.
-    protected override OnDecideCallContext.Result OnDecideLogic(HomeTO to,
-                                                                OnDecideCallContext next)
-    {
-        return next.Choice_Retry("warn");
-    }
-
-    // Choice-Logic: entscheidet anhand des übergebenen Grundes zwischen den drei Choice-Ausgängen.
-    // Die geteilte Logic existiert genau einmal — alle Quellen (hier OnDecide) delegieren hierher.
-    protected override Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
-                                                                        Choice_RetryCallContext next)
-    {
-        switch (reason)
-        {
-            case "warn":
-                // Continuation-Ausgang → DRITTE BeginWarn-Aufrufstelle, diesmal in der Choice-Logic.
-                //       >>> Muss beim GoTo aus AfterWarnLogic mitgelistet werden. <<<
-                return next.ShowHome(new HomeTO()).BeginWarn("Choice → Warnung anzeigen");
-
-            case "abbruch":
-                return next.Exit(false);
-
-            default:
-                return next.ShowHome(new HomeTO()); // plain: zurück auf Home (impliziter Result)
+        if (IsValid(subject)) {
+            return next.ShowDemoView(to);
         }
+
+        // Continuation: DemoView zeigen UND modal die Fehler-Box darüberlegen (GotoGUI.Concat(OpenModalTask)).
+        return next.ShowDemoView(to)
+                   .BeginError($"Ungültige Eingabe: '{subject}'.");
+    }
+
+    // trigger OnSave --> ChoiceSaveChanges: nicht direkt prüfen, sondern über die Save-Choice gehen.
+    protected override OnSaveCallContext.Result OnSaveLogic(DemoViewTO to,
+                                                            OnSaveCallContext next) {
+        return next.ChoiceSaveChanges();
+    }
+
+    // choice ChoiceSaveChanges: ohne Änderungen sofort raus, mit Änderungen weiter in die Prüfung.
+    protected override ChoiceSaveChangesCallContext.Result ChoiceSaveChangesLogic(ChoiceSaveChangesCallContext next) {
+        if (!HasPendingChanges()) {
+            return next.Exit(par: true);
+        }
+
+        // Verschachtelte Choice: vor dem Speichern erneut prüfen — über diesen Sprung fließt die Continuation.
+        return next.ChoiceValidation(subject: "Speichern");
+    }
+
+    // trigger OnRefresh --> ChoiceValidation: erneut prüfen (z.B. nach Nachbearbeitung).
+    protected override OnRefreshCallContext.Result OnRefreshLogic(DemoViewTO to,
+                                                                  OnRefreshCallContext next) {
+        return next.ChoiceValidation(subject: "Aktualisieren");
+    }
+
+    // trigger OnClose --> Exit: schließen ohne Speichern.
+    protected override OnCloseCallContext.Result OnCloseLogic(DemoViewTO to,
+                                                              OnCloseCallContext next) {
+        return next.Exit(par: false);
+    }
+
+    // exit Error:Ok --> DemoView: Rücksprung aus der modalen Fehler-Box zurück auf die View.
+    protected override AfterErrorCallContext.Result AfterErrorLogic(ErrorBoxResult result,
+                                                                    AfterErrorCallContext next) {
+        return next.Choice_DemoView(result);
+    }
+
+    protected override Choice_DemoViewCallContext.Result Choice_DemoViewLogic(ErrorBoxResult result, Choice_DemoViewCallContext next) {
+
+        if (result == ErrorBoxResult.Abbrechen) {
+            return next.Cancel();
+        }
+
+        return next.ShowDemoView(new DemoViewTO());
     }
 }

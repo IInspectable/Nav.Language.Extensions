@@ -458,6 +458,15 @@ ggf. mit der versionierten Such-Strategie-Schnittstelle.
    (`ContinuationFlow`, S6), Choice-mit-3-Quellen (`ChoiceFlow`, S7) **und** die isolierten Sonderformen
    (`NotImplementedFlow`/`DoNotInjectFlow`, S8) liegen als Golden vor. Der Backbone der gestaffelten
    Goldens (§7) steht komplett; nichts mehr offen.
+3. **`cancel`-Keyword + V2-only-Cancel-Gating — eigenes Vorhaben, vollständig umgesetzt (S1–S6).** In V2
+   wird die `Cancel()`-Aufruffläche nur noch emittiert, wenn die Quelle einen `cancel`-Ausgang deklariert
+   (Choice-Arm `Choice --> cancel if "…"` oder direkte Init-/Trigger-Kante `View --> cancel on …`); V1
+   bleibt unbedingt. Fehlt die Deklaration, ist ein `return next.Cancel()` ein Compile-Fehler (das
+   Typsystem erzwingt Deckungsgleichheit). Golden: `Regression/Tests/V2/CancelFlow.nav` (beide Formen in
+   einem Fixture — `OnEscape`-Trigger-Context und `Choice_Confirm`-Context tragen `Cancel()`, `Init1`- und
+   `OnDecide`-Context nicht). Entscheidungen (E1–E6), verifizierte Fakten, Diagnosen (Nav5000/Nav0125/
+   Nav0126) und Step-Plan in **`doc/nav-cancel-keyword-status.md`**; Design-Fläche in
+   `doc/nav-codegen-v2-concat-design.md` §3.4a.
 
 ## Verifikation (Wiederholrezept)
 

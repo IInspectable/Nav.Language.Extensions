@@ -64,6 +64,12 @@ resharper_unused_auto_property_accessor_global_highlighting = none
 resharper_collection_never_queried_global_highlighting = none
 resharper_collection_never_updated_global_highlighting = none
 
+# Formatierung: öffnende Klammer am ZEILENENDE (K&R), nicht auf einer neuen Zeile (Allman).
+# Ohne diese Regel fällt der VS-Formatter auf den C#-Standard (Allman) zurück; die tatsächliche
+# Repo-Konvention (generierter Code + ReSharper-Default) ist aber K&R. Hier explizit festgezurrt,
+# damit sie unabhängig von ReSharper und dessen .DotSettings gilt.
+csharp_new_line_before_open_brace = none
+
 [*.xaml]
 # Der DataContext der QuickInfo-Controls wird erst zur Laufzeit gesetzt; ReSharpers Designtime-Auflösung
 # kennt ihn nicht und meldet die (korrekten) Bindings als unauflösbar.

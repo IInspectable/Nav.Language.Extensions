@@ -44,3 +44,20 @@ partial class NodeReferenceSymbol: Symbol, INodeReferenceSymbol {
     public IEdge Edge { get; internal set; } = null!;
 
 }
+
+/// <summary>
+/// Implementierung von <see cref="ICancelNodeReferenceSymbol"/> — die Zielreferenz eines
+/// <c>cancel</c>-Kantenziels. Sie löst sich per Design nie auf (<see cref="NodeReferenceSymbol.Declaration"/>
+/// stets <c>null</c>): <c>cancel</c> hat keine Deklaration (E4). Eine eigene, versiegelte Ableitung — statt
+/// des untypisierten Rückfalls <see cref="NodeReferenceSymbol"/> — macht das <c>cancel</c>-Ziel am fertigen
+/// Modell als eigener Fall erkennbar (<see cref="EdgeExtensions.TargetsCancel"/>) und grenzt es vom echten
+/// „unauflösbaren Name" (Nav0011) ab.
+/// </summary>
+sealed partial class CancelNodeReferenceSymbol: NodeReferenceSymbol, ICancelNodeReferenceSymbol {
+
+    /// <summary>Initialisiert die stets unaufgelöste <c>cancel</c>-Zielreferenz.</summary>
+    public CancelNodeReferenceSymbol(SyntaxTree syntaxTree, string name, Location location, NodeReferenceType nodeReferenceType)
+        : base(syntaxTree, name, location, declaration: null, nodeReferenceType) {
+    }
+
+}

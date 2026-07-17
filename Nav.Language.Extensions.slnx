@@ -77,12 +77,14 @@
     <File Path="doc/WFS-Spracherweiterung — Framework-Verifikation.md" />
     <File Path="doc/nav-backlog.md" />
     <File Path="doc/nav-broken-source-robustness.md" />
+    <File Path="doc/nav-cancel-keyword-status.md" />
     <File Path="doc/nav-codeanalysis-navigation-review.md" />
     <File Path="doc/nav-codegen-v2-choice-navigation-status.md" />
     <File Path="doc/nav-codegen-v2-concat-design.md" />
     <File Path="doc/nav-codegen-v2-status.md" />
     <File Path="doc/nav-codegen-versioning.md" />
     <File Path="doc/nav-completion-status.md" />
+    <File Path="doc/nav-contextual-code-keywords-status.md" />
     <File Path="doc/nav-diagram-status.md" />
     <File Path="doc/nav-directive-subparser.md" />
     <File Path="doc/nav-feature-usage-census.md" />

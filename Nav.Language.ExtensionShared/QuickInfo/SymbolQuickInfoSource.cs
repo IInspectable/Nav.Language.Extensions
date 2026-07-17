@@ -33,8 +33,9 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
 
     /// <summary>
     /// VS-SDK-Vertrag: baut den Hover-Inhalt zum <see cref="ISymbol"/> unter dem Trigger-Punkt. Findet dort
-    /// kein Symbol, greift der Keyword-Fallback (<see cref="BuildKeywordQuickInfoAsync"/>). Liefert
-    /// <c>null</c>, wenn weder Symbol noch dokumentiertes Keyword vorliegt.
+    /// kein Symbol — oder eines ohne anzeigbare Signatur (z.B. das deklarationslose <c>cancel</c>-Ziel) —,
+    /// greift der Keyword-Fallback (<see cref="BuildKeywordQuickInfoAsync"/>). Liefert <c>null</c>, wenn
+    /// weder Symbol noch dokumentiertes Keyword vorliegt.
     /// </summary>
     public async Task<QuickInfoItem> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken) {
 
@@ -57,27 +58,30 @@ sealed class SymbolQuickInfoSource: SemanticModelServiceDependent, IAsyncQuickIn
         var position      = subjectTriggerPoint.Value.Position;
         var triggerSymbol = codeGenerationUnitAndSnapshot.CodeGenerationUnit.Symbols.FindAtPosition(position);
 
-        // Kein Symbol unter dem Caret — steht dort ein Keyword-Token, zeigt der Tooltip dessen Bedeutung
-        // (SyntaxFacts, die einzige Autorität). Spiegelt den Keyword-Fallback des LSP-Hovers (NavHoverService).
-        if (triggerSymbol == null) {
-            return await BuildKeywordQuickInfoAsync(codeGenerationUnitAndSnapshot, position);
+        // Steht ein Symbol mit anzeigbarer Signatur unter dem Caret, zeigt der Tooltip dessen QuickInfo.
+        if (triggerSymbol != null) {
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            var qiContent = QuickinfoBuilderService.BuildSymbolQuickInfoContent(triggerSymbol);
+            if (qiContent != null) {
+
+                var location = triggerSymbol.Location;
+                var applicableToSpan = codeGenerationUnitAndSnapshot.Snapshot.CreateTrackingSpan(
+                    location.Start,
+                    location.Length,
+                    SpanTrackingMode.EdgeExclusive);
+
+                return new QuickInfoItem(applicableToSpan: applicableToSpan,
+                                         item: qiContent);
+            }
         }
 
-        var location = triggerSymbol.Location;
-        var applicableToSpan = codeGenerationUnitAndSnapshot.Snapshot.CreateTrackingSpan(
-            location.Start,
-            location.Length,
-            SpanTrackingMode.EdgeExclusive);
-
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-        var qiContent = QuickinfoBuilderService.BuildSymbolQuickInfoContent(triggerSymbol);
-        if (qiContent == null) {
-            return null;
-        }
-
-        return new QuickInfoItem(applicableToSpan: applicableToSpan,
-                                 item: qiContent);
+        // Kein Symbol unter dem Caret — oder eines ohne anzeigbare Signatur (z.B. das deklarationslose
+        // cancel-Ziel, dessen Referenz-Symbol leere DisplayParts liefert): steht dort ein Keyword-Token,
+        // zeigt der Tooltip dessen Bedeutung (SyntaxFacts, die einzige Autorität). Spiegelt den
+        // Keyword-Fallback des LSP-Hovers (NavHoverService), der ebenso durchfällt.
+        return await BuildKeywordQuickInfoAsync(codeGenerationUnitAndSnapshot, position);
     }
 
     /// <summary>

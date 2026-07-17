@@ -1,0 +1,12 @@
+﻿#version 2
+
+task A
+{
+    init Init1;
+    exit Exit;
+    view View;
+
+    Init1 --> View;
+    View  --> Exit on OnOk;
+    View  --> cancel on OnEscape;
+}
