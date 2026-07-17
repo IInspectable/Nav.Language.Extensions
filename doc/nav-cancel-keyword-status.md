@@ -216,8 +216,23 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
     nachgezogen (Span 71→70, weil im V2-`InitFlowWFSBase.generated.cs` die Cancel-Zeile des
     Init-Contexts entfällt). net472 1938/0 (+3 explicit-skip); net10 1877/1878 grün (der eine Fehler
     = bekannter Last-Flaky `NavWorkspaceCoreSemanticCacheTests.OutOfBandChange…`, isoliert 5/5 grün).
-- **S5 — Completion.** `cancel` als Zielvorschlag (analog `end`) — nur im V2-Kontext, hinter dem
-  Versionsgate. **DoD:** Completion bietet `cancel` an passender Kantenposition in V2 an.
+- **S5 — Completion. ✅ ERLEDIGT** (uncommitted). `cancel` als Zielvorschlag analog `end`, hinter dem
+  Versionsgate:
+  - `NavCompletionService.TargetItems` bekommt die effektive `NavLanguageVersion` und fügt
+    `SyntaxFacts.CancelKeyword` **nur** an, wenn `NavLanguageFeatures.IsAvailable(NavLanguageFeature.Cancel,
+    version)` — dieselbe Nav5000-Gate-Autorität wie Continuation/choice-`params`. `end` bleibt
+    versionsunabhängig. Die Kanten-Modus-Restriktion (nur Goto, Nav0125) wird — wie bei `end` (Nav0106) —
+    bewusst **nicht** zusätzlich gepruned (`TargetSlot` wird für alle regulären Edge-Modi erreicht;
+    Parität mit `end`).
+  - **Loose End S1a geschlossen:** `FallbackItems` bekommt ebenfalls die Version und filtert `cancel`
+    über `IsNavKeywordAvailable` heraus, wenn das Feature nicht verfügbar ist — sonst böte der
+    konservative Fallback `cancel` (∈ `NavKeywords`) auch in V1 an.
+  - VS + LSP teilen `NavCompletionService` → beide Hosts ziehen automatisch nach (keine host-eigene
+    `end`/`cancel`-Zielliste).
+  - **DoD erfüllt:** Completion bietet `cancel` an der Zielposition **nur** ab `#version 2` an.
+  - **Tests:** gepaarte `NavCompletionServiceTests` (`TargetSlot_UnderVersion1_DoesNotOfferCancelKeyword`
+    / `…_UnderVersion2_AlsoOffersCancelKeyword`, Muster der `…OnChoiceNode_UnderVersion1/2`-Paare).
+    Completion 89/89; net472 1940/0 (+3 explicit-skip); net10 1880/1880.
 - **S6 — Golden-Fixtures + Doku.** `.nav`-Golden mit `Choice --> cancel if …` **und**
   `View --> cancel on …`; V2-Snapshots via `nav snapshot` unter `Regression/Tests/V2/`. Design-Doc
   `doc/nav-codegen-v2-concat-design.md` und den Gating-Abschnitt in `doc/nav-codegen-v2-status.md`
@@ -253,13 +268,15 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
   `CallContextCodeModel.Build`, in allen vier Aufrufern aus `edge.TargetsCancel()` berechnet; ohne
   Deklaration keine `Cancel()`-Callable → `return next.Cancel()` ist Compile-Fehler (E3). V1
   byte-identisch (5 V2-Goldens −30 Cancel-Zeilen, 23 V1-Goldens unverändert). Neue
-  `CancelCodeGenTests` (3 Fälle) + nachgezogener CodeAnalysis-Golden (Span-Shift 71→70). net472
-  1938/0; net10 grün bis auf den bekannten Last-Flaky (isoliert 5/5).
-- **Nächster Schritt: S5 (Completion).** `cancel` als Zielvorschlag analog `end` — **nur** im
-  V2-Kontext, hinter dem Versionsgate. **Loose End aus S1a beachten:** weil `cancel ∈ NavKeywords`,
-  bietet `NavCompletionService.FallbackItems` es in mehrdeutigen Positionen **auch in V1** an — das
-  V2-Gating der Completion muss diesen Fallback-Pfad mit abdecken, nicht nur die dedizierte
-  Ziel-Vorschlagsstelle (bei `end`: `NavCompletionService.cs:271`).
+  `CancelCodeGenTests` (3 Fälle) + nachgezogener CodeAnalysis-Golden (Span-Shift 71→70).
+- **S5 umgesetzt** (uncommitted). Completion-Gating: `NavCompletionService.TargetItems` bietet `cancel`
+  (analog `end`) nur ab `#version 2` an (`NavLanguageFeature.Cancel`); `FallbackItems` filtert `cancel`
+  in V1 heraus (Loose End S1a). VS + LSP ziehen über den geteilten Service automatisch nach. Gepaarte
+  `NavCompletionServiceTests` (Version1/Version2). net472 1940/0; net10 1880/1880.
+- **Nächster Schritt: S6 (Golden-Fixtures + Doku).** `.nav`-Golden mit `Choice --> cancel if …` **und**
+  `View --> cancel on …`; V2-Snapshots via `nav snapshot` unter `Regression/Tests/V2/` (die
+  `Cancel()`-Callable erscheint dort wieder). Design-Doku `doc/nav-codegen-v2-concat-design.md` und den
+  Gating-Abschnitt in `doc/nav-codegen-v2-status.md` fortschreiben.
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)

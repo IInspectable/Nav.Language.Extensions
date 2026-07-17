@@ -134,6 +134,48 @@ public class NavCompletionServiceTests {
     }
 
     [Test]
+    public void TargetSlot_UnderVersion1_DoesNotOfferCancelKeyword() {
+
+        // `cancel` ist ein Version-2-Zielkeyword (dieselbe Nav5000-Gate-Autorität wie Continuation/choice-params).
+        // Unter #version 1 (Default) wird es im Ziel-Slot NICHT angeboten — sonst böte die Completion einen
+        // Vorschlag an, der beim Commit sofort Nav5000 würfe. `end` (versionsunabhängig) bleibt. Die exakte
+        // Offers-Menge belegt zugleich die Abwesenheit von `cancel`; das DoesNotOffer macht sie explizit.
+        At("""
+           task Main
+           {
+               init i;
+               exit e;
+               task Sub;
+               i --> |Sub;
+           }
+
+           """)
+            .Offers(ConnectionPoint("e"), Task("Sub"), Keyword(SyntaxFacts.EndKeyword))
+            .DoesNotOffer(SyntaxFacts.CancelKeyword);
+    }
+
+    [Test]
+    public void TargetSlot_UnderVersion2_AlsoOffersCancelKeyword() {
+
+        // Ab #version 2 tritt `cancel` als deklarationsloses Ziel-Keyword neben `end` (analog `end`, hinter dem
+        // Versionsgate). Der Ziel-Slot bietet dann: die Zielknoten + `end` + `cancel`.
+        At("""
+           #version 2
+
+           task Main
+           {
+               init i;
+               exit e;
+               task Sub;
+               i --> |Sub;
+           }
+
+           """)
+            .Offers(ConnectionPoint("e"), Task("Sub"),
+                    Keyword(SyntaxFacts.EndKeyword), Keyword(SyntaxFacts.CancelKeyword));
+    }
+
+    [Test]
     public void EdgeSlot_OffersOnlyVisibleEdgeKeywords() {
 
         // Caret (|) hinter dem Quellknoten `i`, vor der Edge `-->`. Hinter dem Quellknoten kann nur eine Edge

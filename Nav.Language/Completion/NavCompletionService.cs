@@ -19,7 +19,8 @@ namespace Pharmatechnik.Nav.Language.Completion;
 /// Text-Rückwärtsscan; je nach Situation werden nur die dort tatsächlich sinnvollen Kategorien angeboten:
 /// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
 /// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
-/// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
+/// hinter einer Edge die Zielknoten (plus <c>end</c>, ab <c>#version 2</c> zusätzlich <c>cancel</c>); hinter
+/// <c>knoten:</c> die Exit-Connection-Points; hinter
 /// einem Ziel die je nach Quellknoten zulässigen Folge-Klauseln (GUI-Quelle <c>on</c>/<c>do</c>, init/choice
 /// <c>if</c>/<c>else</c>/<c>do</c>, Exit-Transition <c>if</c>/<c>do</c>) — nie eine Klausel, die sofort einen
 /// Analyzer-Fehler auslöste; im Schlüsselwort-Slot eines Code-Blocks
@@ -151,7 +152,7 @@ public static class NavCompletionService {
                 return VisibleEdgeKeywordItems();
 
             case NavCompletionContextKind.TargetSlot:
-                return TargetItems(context);
+                return TargetItems(context, unit.LanguageVersion);
 
             case NavCompletionContextKind.ContinuationTargetSlot:
                 return ContinuationTargetItems(context);
@@ -181,7 +182,7 @@ public static class NavCompletionService {
                 return KeywordItems(SyntaxFacts.DoKeyword);
 
             default:
-                return FallbackItems(context);
+                return FallbackItems(context, unit.LanguageVersion);
         }
     }
 
@@ -266,10 +267,20 @@ public static class NavCompletionService {
     // ihr Name IST `end` (aus dem `end`-Schlüsselwort gebildet), und ein End-Ziel schreibt man ausschließlich über
     // dieses Schlüsselwort. Ohne den Ausschluss stünde `end` doppelt in der Liste (End-Knoten-Symbol + Keyword) —
     // bei mehreren `end`-Deklarationen sogar mehrfach.
-    static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
+    // Ab #version 2 zusätzlich das deklarationslose Ziel-Keyword `cancel` (dieselbe Nav5000-Gate-Autorität wie die
+    // übrigen V2-Konstrukte): in V1 böte die Completion sonst einen Vorschlag an, der beim Commit sofort Nav5000
+    // würfe. `cancel` hat — wie `end` — keinen Knoten und wird ausschließlich über sein Schlüsselwort geschrieben;
+    // die Kanten-Modus-Restriktion (nur Goto, Nav0125) teilt es sich mit `end` (Nav0106) und wird — wie dort —
+    // hier bewusst NICHT zusätzlich gepruned.
+    static List<NavCompletionItem> TargetItems(NavCompletionContext context, NavLanguageVersion version) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol and not IEndNodeSymbol);
         items.Add(KeywordItem(SyntaxFacts.EndKeyword));
+
+        if (NavLanguageFeatures.IsAvailable(NavLanguageFeature.Cancel, version)) {
+            items.Add(KeywordItem(SyntaxFacts.CancelKeyword));
+        }
+
         return items;
     }
 
@@ -325,18 +336,33 @@ public static class NavCompletionService {
     // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
     // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
     // Den Ersetzungsbereich der Edge-Keywords hängt WithOperatorReplacements zentral an.
-    static List<NavCompletionItem> FallbackItems(NavCompletionContext context) {
+    // `cancel` ∈ NavKeywords, ist aber ein V2-Feature (Nav5000): hier wird es unter der effektiven #version
+    // gegatet — sonst böte der Fallback es auch in V1 an (Loose End aus S1a, dieselbe Gate-Autorität wie
+    // TargetItems), obwohl ein cancel-Ausgang dort sofort Nav5000 würfe.
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context, NavLanguageVersion version) {
         var items = new List<NavCompletionItem>();
         AddNodeReferences(items, context.Task);
 
         foreach (var keyword in SyntaxFacts.NavKeywords
                                 .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
+                                .Where(k => IsNavKeywordAvailable(k, version))
                                 .OrderBy(k => k, StringComparer.Ordinal)) {
             items.Add(KeywordItem(keyword));
         }
 
         items.AddRange(VisibleEdgeKeywordItems());
         return items;
+    }
+
+    // Ob ein Nav-Keyword unter der effektiven Sprachversion überhaupt angeboten werden darf. Nur die
+    // versions-gegateten Keywords werden hier eingeschränkt (heute: `cancel` = V2, Nav5000); alle übrigen
+    // Nav-Keywords sind versionsneutral.
+    static bool IsNavKeywordAvailable(string keyword, NavLanguageVersion version) {
+        if (keyword == SyntaxFacts.CancelKeyword) {
+            return NavLanguageFeatures.IsAvailable(NavLanguageFeature.Cancel, version);
+        }
+
+        return true;
     }
 
     // Die im jeweiligen Host noch anbietbaren, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
