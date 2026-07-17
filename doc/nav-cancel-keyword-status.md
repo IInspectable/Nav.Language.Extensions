@@ -119,12 +119,28 @@ Die Wahl bestimmt, wie viel von der `end`-Symbolmaschinerie (References, Reachab
 
 ## Plan (Steps)
 
-- **S1 — Grammatik/Syntax.** `CancelKeyword`/`CancelKeyword`-Token in `SyntaxFacts.cs` +
-  `SyntaxTokenType`; `CancelTargetNodeSyntax` + `ParseCancelTargetNode` (analog
-  `EndTargetNodeSyntax`/`:1160`); `ParseTargetNode` (`:1150`) und `StartsTargetNode` (`:1187`) um das
-  cancel-Keyword erweitern; Lexer/Klassifikation (Keyword). **Berührt:** `Syntax\` (Facts, Parser, Lexer,
-  neue Target-Syntax). **DoD:** `X --> cancel …` parst, `cancel` wird als Keyword klassifiziert; kein
-  `cancel;` als Deklaration (E4).
+- **S1 — Grammatik/Syntax. ✅ ERLEDIGT** (Commit `8734a564`). `CancelKeyword`-Token in `SyntaxFacts.cs` +
+  `SyntaxTokenType` (= 58); `CancelTargetNodeSyntax` + `ParseCancelTargetNode` (analog
+  `EndTargetNodeSyntax`); `ParseTargetNode` (jetzt Switch) und `StartsTargetNode` um das
+  cancel-Keyword erweitert; Lexer-Keyword-Tabelle + Klassifikation via `Tok(…, Keyword)`;
+  `Rule.CancelTargetNode` + Snippet-Einstieg `Syntax.ParseCancelTargetNode`. **Berührt:** `Syntax\`
+  (Facts, Parser, Lexer, `TargetNodeSyntax.cs`, `Syntax.cs`). **DoD erfüllt:** `X --> cancel …` parst,
+  `cancel` wird als Keyword klassifiziert; kein `cancel;` als Deklaration (E4).
+  - **Entwurfsentscheidung (S1a):** `cancel` ist ein **hartes Wort-Keyword** (wie `end`), Aufnahme in
+    `NavKeywords` — *nicht* eine eigene Kategorie wie die Continuation-*Operatoren* (`--^`/`o-^`). Ein
+    Wort-Token, das der Lexer als Keyword ausgibt, muss reserviert sein (`IsKeyword`=true,
+    `IsValidIdentifier`=false); alles andere wäre inkonsistent. `end` ist der grammatische Zwilling.
+    Versionsunabhängig gelext (wie die Continuation-Kanten); die V2-only-Wirksamkeit ist S3.
+  - **V1-Bruch empirisch ausgeschlossen:** Im Produktivkorpus (`d:\tfs\Main`, 1908 `.nav`) kommt
+    kleingeschriebenes `cancel` **ausschließlich** in Kommentaren vor (22 Treffer, alle `// Ok/cancel`,
+    Trivia) — kein einziger `cancel`-Identifier-Token. Die Reservierung bricht V1 also nicht.
+  - **Loose End für S5 (Completion):** Weil `cancel ∈ NavKeywords`, bietet
+    `NavCompletionService.FallbackItems` es in mehrdeutigen Positionen **auch in V1** an. Das
+    V2-Gating der Completion (S5) muss diesen Fallback-Pfad mit abdecken, nicht nur die dedizierte
+    Ziel-Vorschlagsstelle (bei `end`, `NavCompletionService.cs:271`).
+  - **Tests:** `SyntaxFactsTest` (ExpectedKeywords + `CancelKeywordTest`), `SyntaxTreeAllRulesTests` +
+    `SyntaxWalkerTests` (V2-Snippet `V --> cancel;`, Knoten-Zähler 52→53), neu
+    `Syntax\CancelSyntaxTests.cs`. net472 1925/0, net10 1865/0 + MCP 115/0.
 - **S2 — Semantic Model.** Zielauflösung von `cancel` gemäß Design-Frage oben (empfohlen: synthetisches
   `ICancelNodeSymbol`); der Cancel-Ausgang erscheint in den `Outgoings`/`GetDirectCalls` der Quelle.
   **DoD:** Für eine Quelle mit `--> cancel` ist der Cancel-Ausgang im Semantic Model abfragbar.
@@ -160,9 +176,12 @@ Die Wahl bestimmt, wie viel von der `end`-Symbolmaschinerie (References, Reachab
 
 ## Stand
 
-- **Nichts umgesetzt.** Arbeitsbaum sauber (`master`, `be520208 formatting`). Kein `cancel`-Keyword im
-  Repo (nur `CancellationToken`-Treffer).
-- **Nächster Schritt: S1.** Vor S2 die offene Design-Frage (synthetisches Symbol vs. Kanten-Flag) klären.
+- **S1 umgesetzt** (Commit `8734a564`, auf `master`). `cancel` parst als RHS-Kantenziel
+  (`CancelTargetNodeSyntax`) und wird als Keyword klassifiziert; Build 0 Fehler, net472 1925/0,
+  net10 1865/0 + MCP 115/0.
+- **Nächster Schritt: S2 (Semantic Model).** **Vorher** die offene Design-Frage (synthetisches
+  `ICancelNodeSymbol` vs. Kanten-Flag) entscheiden — Empfehlung weiterhin synthetisches Symbol
+  (uniforme `directCalls`-Iteration, siehe oben).
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)
