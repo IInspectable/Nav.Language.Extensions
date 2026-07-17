@@ -315,6 +315,26 @@ public partial class DiagnosticDescriptors {
         );
 
         /// <summary>
+        /// Cancel can only be reached by a goto edge (-->)
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0125CancelMustOnlyReachedByGoTo = new(
+            id             : DiagnosticId.Nav0125,
+            messageFormat  : "Cancel can only be reached by a goto edge (-->)",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
+        /// Cancel is not allowed as the target of an exit transition
+        /// </summary>
+        public static readonly DiagnosticDescriptor Nav0126CancelNotAllowedAfterExit = new(
+            id             : DiagnosticId.Nav0126,
+            messageFormat  : "Cancel is not allowed as the target of an exit transition",
+            category       : Category,
+            defaultSeverity: DiagnosticSeverity.Error
+        );
+
+        /// <summary>
         /// The choice node '{0}' has no incoming edges
         /// </summary>
         public static readonly DiagnosticDescriptor Nav0111ChoiceNode0HasNoIncomingEdges = new(

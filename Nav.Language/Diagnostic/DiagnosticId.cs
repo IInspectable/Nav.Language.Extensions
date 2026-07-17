@@ -47,6 +47,8 @@ static class DiagnosticId {
     public const string Nav0122 = nameof(Nav0122);
     // Nav0123 bewusst unbelegt (toter Zwischenstand des V2-Designs).
     public const string Nav0124 = nameof(Nav0124);
+    public const string Nav0125 = nameof(Nav0125);
+    public const string Nav0126 = nameof(Nav0126);
 
     public const string Nav0200 = nameof(Nav0200);
     public const string Nav0201 = nameof(Nav0201);

@@ -123,6 +123,11 @@
     <Content Include="Diagnostics\Tests\Nav0106EndNode0MustOnlyReachedByGoTo_OnExitTransition.nav" />
     <Content Include="Diagnostics\Tests\Nav0106EndNode0MustOnlyReachedByGoTo_OnModalEdge.nav" />
     <Content Include="Diagnostics\Tests\Nav0106EndNode0MustOnlyReachedByGoTo_OnNonModalEdge.nav" />
+    <Content Include="Diagnostics\Tests\Nav0125CancelMustOnlyReachedByGoTo_OnModalEdge.nav" />
+    <Content Include="Diagnostics\Tests\Nav0125CancelMustOnlyReachedByGoTo_OnNonModalEdge.nav" />
+    <Content Include="Diagnostics\Tests\Nav0126CancelNotAllowedAfterExitTransition.nav" />
+    <Content Include="Diagnostics\Tests\Nav5000CancelRequiresNavLanguageVersion.nav" />
+    <Content Include="Diagnostics\Tests\CancelViaGotoWithoutErrors.nav" />
     <Content Include="Diagnostics\Tests\Nav0107ExitNode0HasNoIncomingEdges.nav" />
     <Content Include="Diagnostics\Tests\Nav0108EndNodeHasNoIncomingEdges.nav" />
     <Content Include="Diagnostics\Tests\Nav0109InitNode0HasNoOutgoingEdges.nav" />

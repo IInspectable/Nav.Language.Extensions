@@ -99,7 +99,8 @@ den bedingten Fall vollständig; nur der unbedingte Swallow braucht E5.
 - Analyzer: `Nav0106EndNode0MustOnlyReachedByGoTo`, `Nav0108EndNodeHasNoIncomingEdges`,
   `Nav0118EndNode0NotAllowedBecauseReachableFromInit1` (Muster für cancel-Diagnosen).
 
-**Freie Diagnose-Nummern:** `Nav0123`, `Nav0125`, `Nav5002` (belegt: …0122, 0124, 5000, 5001).
+**Freie Diagnose-Nummern:** `Nav5002`, ab `Nav0127` (belegt: …0122, 0124, **0125+0126 = cancel, S3**,
+5000, 5001; `Nav0123` bleibt Grabstein — toter V2-Zwischenstand, nie wiederverwenden).
 
 **Versionsgate-Autorität:** `NavLanguageVersion` (Version1/SupportedVersions/IsSupported) + `Nav5000` —
 siehe `doc/nav-pragmas-versioning-status.md`. `cancel` ist ein V2-Feature → Gate wie andere V2-Konstrukte.
@@ -165,10 +166,32 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
     `Declaration==null`, `TargetsCancel`, `Edge`-Rückverweis; kein Nav0011; **kein** Call; Kontrolle:
     echter unauflösbarer Name feuert weiterhin Nav0011). net472 1930/0 (+3 explicit-skip) + MCP 115/0;
     net10 1869/0 (Cache-Test `SecondScan_ReturnsSameUnitInstances` flaky unter Volllast, isoliert grün).
-- **S3 — Analyzer/Diagnosen.** Versionsgate (`cancel` erst ab V2 → `Nav5xxx`, Autorität
-  `NavLanguageVersion`); „cancel nur per Goto `-->` erreichbar" (analog `Nav0106`); ggf.
-  Stellen-Restriktion (nur Choice-Arm oder direkte Init/Trigger-Kante, E5). **DoD:** Fehlnutzung
-  (falsche Version, `o->`/`==>` auf cancel) wird als Nav-Diagnose gemeldet.
+- **S3 — Analyzer/Diagnosen. ✅ ERLEDIGT.** Drei Prüfungen umgesetzt:
+  - **Versionsgate (Nav5000, bestehende ID):** neues `NavLanguageFeature.Cancel` → `Version2`
+    (`NavLanguageFeature.cs`); `Nav5000FeatureRequiresNavLanguageVersion` gated jede Kante mit
+    `edge.TargetsCancel()`, verankert am `cancel`-Keyword (`edge.TargetReference.Location`).
+  - **Nav0125 „Cancel nur per Goto `-->`" (neu):** analog `Nav0106` (End) — `o->`/`==>` auf cancel
+    ist ein Fehler, verankert am Kanten-Operator (`edge.EdgeMode.Location`); cancel hat keinen Namen,
+    die Meldung nennt daher keinen (`Cancel can only be reached by a goto edge (-->)`).
+  - **Nav0126 „Cancel nicht an Exit-Transition" (neu, Stellen-Restriktion E5):** cancel ist nur an
+    Init-/Trigger-/Choice-Kanten zulässig, **nicht** als Ziel einer `IExitTransition`
+    (`taskDefinition.ExitTransitions.Where(t => t.TargetsCancel())`), verankert am `cancel`-Keyword.
+  - **Folgefehler-Unterdrückung:** Nav0125/0126 schweigen, wenn `cancel` unter der wirksamen `#version`
+    gar nicht verfügbar ist (`NavLanguageFeatures.IsAvailable`) — dann ist Nav5000 die eine treffende
+    Diagnose (Muster von Nav0120/0121/0122). Nav0104/0105/0106 feuern **nicht** auf cancel (deren
+    Guards prüfen `TargetReference.Declaration`-Typen; cancel hat `Declaration == null`).
+  - **Auto-Discovery:** beide Analyzer werden vom `Nav.Analyzer.SourceGenerator` automatisch
+    eingesammelt (kein Registry-Eintrag nötig).
+  - **DoD erfüllt:** Fehlnutzung (falsche Version, `o->`/`==>` auf cancel, cancel an Exit) wird als
+    Nav-Diagnose gemeldet.
+  - **Tests:** fünf Fixtures im Diagnostics-Harness (`Nav.Language.Tests\Diagnostics\Tests\`):
+    `Nav5000CancelRequiresNavLanguageVersion` (V1 → Nav5000), `Nav0125…_OnModalEdge`/`_OnNonModalEdge`
+    (V2 `o->`/`==>` → Nav0125), `Nav0126CancelNotAllowedAfterExitTransition` (V2 Exit → Nav0126),
+    `CancelViaGotoWithoutErrors` (V2 Goto-Trigger → 0 Diagnosen). net472 1935/0 (+3 explicit-skip) +
+    MCP 115/0; net10 grün (bekannter flaky Cache-Test `NavWorkspaceCoreSemanticCacheTests` unter
+    Volllast, isoliert 5/5 grün). Build 0 Warnungen/0 Fehler. Die S2-Fixtures in `CancelSemanticTests.cs`
+    (ohne `#version` → V1) tragen nun zusätzlich Nav5000; sie prüfen aber nur Nav0011-Abwesenheit +
+    Modell-Struktur (versionsunabhängig) und bleiben grün.
 - **S4 — V2-Codegen-Gating (Kern).** In `CallContextCodeModel.cs:122-123` die Cancel-Callable **nur**
   emittieren, wenn die Quelle einen Cancel-Ausgang trägt — Gating via `edge.TargetsCancel()` (S2):
   ein `bool declaresCancel`-Argument an `CallContextCodeModel.Build`, das der Aufrufer aus den Outgoings
@@ -201,14 +224,20 @@ den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn ma
 
 - **S1 umgesetzt** (Commit `8734a564`, auf `master`). `cancel` parst als RHS-Kantenziel
   (`CancelTargetNodeSyntax`) und wird als Keyword klassifiziert.
-- **S2 umgesetzt** (uncommitted). Design-Frage entschieden: **Referenz-Marker**
+- **S2 umgesetzt** (Commit `46bffd03`). Design-Frage entschieden: **Referenz-Marker**
   (`ICancelNodeReferenceSymbol`), **kein** synthetisches Knoten-Symbol (Kollision mit dem non-null-
   `INodeSymbol.Syntax`-Kontrakt, siehe oben). Cancel-Ausgang über `edge.TargetsCancel()` abfragbar;
-  Nav0011 nimmt cancel aus. Build 0 Fehler/0 Warnungen; net472 1930/0 (+3 explicit-skip) + MCP 115/0;
-  net10 1869/0 (bekannter flaky Cache-Test isoliert grün).
-- **Nächster Schritt: S3 (Analyzer/Diagnosen).** Versionsgate (`cancel` erst ab V2 → `Nav5000`-Autorität
-  `NavLanguageVersion`, freie Nummer z.B. Nav5002/Nav0123/0125); „cancel nur per Goto `-->`" (analog
-  Nav0106); ggf. Stellen-Restriktion (E5). Gating-Abfrage steht (`TargetsCancel`).
+  Nav0011 nimmt cancel aus.
+- **S3 umgesetzt** (uncommitted). Drei Diagnosen: **Nav5000** (Versionsgate via neuem
+  `NavLanguageFeature.Cancel`), **Nav0125** (nur per Goto `-->`, analog Nav0106), **Nav0126**
+  (nicht an Exit-Transition, E5-Stellen-Restriktion). Nav0125/0126 schweigen in V1 (Nav5000 ist dort
+  die eine Diagnose). Fünf Diagnostics-Fixtures. net472 1935/0 (+3 explicit-skip) + MCP 115/0; net10
+  grün (bekannter flaky Cache-Test isoliert 5/5). Build 0 Fehler/0 Warnungen.
+- **Nächster Schritt: S4 (V2-Codegen-Gating, Kern).** In `CallContextCodeModel.cs:122-123` die
+  Cancel-Callable **nur** emittieren, wenn die Quelle einen Cancel-Ausgang trägt — Gating via
+  `edge.TargetsCancel()`: `bool declaresCancel`-Argument an `CallContextCodeModel.Build`, berechnet aus
+  den Outgoings der Quelle (bzw. `choiceNode.Outgoings`); `ChoiceCallContextCodeModel` zieht nach. V1
+  (`TransitionCodeModel.cs:44`) bleibt byte-identisch (Dispatcher-Invariante).
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)

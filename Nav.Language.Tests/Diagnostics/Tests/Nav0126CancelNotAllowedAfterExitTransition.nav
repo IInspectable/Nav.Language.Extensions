@@ -1,0 +1,18 @@
+﻿#version 2
+
+task C
+{
+    init I1;
+    exit e1;
+    I1 --> e1;
+}
+
+task A
+{
+    init I1;
+    task C;
+
+    I1   --> C;
+    C:e1 --> cancel;
+}
+//==>>[Semantic](16,14,16,20): error Nav0126: Cancel is not allowed as the target of an exit transition

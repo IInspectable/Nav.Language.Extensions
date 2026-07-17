@@ -5,8 +5,9 @@ namespace Pharmatechnik.Nav.Language.SemanticAnalyzer;
 
 /// <summary>
 /// Nav5000 (<c>'{0}' requires Nav language version {1}. Add '#version {1}'.</c>, Fehler) — das
-/// Versions-Gate der Version-2-Konstrukte: Continuation-Kanten (<c>o-^</c>/<c>--^</c>) und
-/// Choice-Parameter (<c>choice X [params …]</c>) sind erst ab <see cref="NavLanguageVersion.Version2"/>
+/// Versions-Gate der Version-2-Konstrukte: Continuation-Kanten (<c>o-^</c>/<c>--^</c>),
+/// Choice-Parameter (<c>choice X [params …]</c>) und das <c>cancel</c>-Kantenziel
+/// (<c>… --&gt; cancel …</c>) sind erst ab <see cref="NavLanguageVersion.Version2"/>
 /// zulässig. Der Parser bleibt bewusst permissiv (er kennt stets die volle Syntax); die
 /// Versions-Abhängigkeit ist eine rein semantische Prüfung — so entsteht statt eines kryptischen
 /// Parse-Fehlers eine treffende <c>Nav5000</c>-Diagnose samt Handlungsanweisung (<c>#version 2</c>
@@ -33,15 +34,24 @@ public class Nav5000FeatureRequiresNavLanguageVersion: NavAnalyzer {
                                                    .Select(edge => edge.ContinuationTransition)
                                                    .WhereNotNull()) {
 
-            if (Gate(NavLanguageFeature.Continuation, version, continuation.EdgeMode?.Location ?? continuation.Location) is {} diagnostic) {
+            if (Gate(NavLanguageFeature.Continuation, version, continuation.EdgeMode?.Location ?? continuation.Location) is { } diagnostic) {
                 yield return diagnostic;
             }
         }
 
         // Choice-Parameter (choice X [params …]): eine Diagnose je Klausel, verankert an der [params …]-Klausel.
         foreach (var choice in taskDefinition.NodeDeclarations.OfType<IChoiceNodeSymbol>()) {
-            if (choice.Syntax.CodeParamsDeclaration is {} codeParams &&
-                Gate(NavLanguageFeature.ChoiceParameters, version, codeParams.GetLocation()) is {} diagnostic) {
+            if (choice.Syntax.CodeParamsDeclaration is { } codeParams &&
+                Gate(NavLanguageFeature.ChoiceParameters, version, codeParams.GetLocation()) is { } diagnostic) {
+                yield return diagnostic;
+            }
+        }
+
+        // cancel-Kantenziel (… --> cancel …): eine Diagnose je Kante, verankert am cancel-Keyword (der
+        // Zielreferenz). TargetsCancel() ist genau dann wahr, wenn die Zielreferenz die deklarationslose
+        // ICancelNodeReferenceSymbol ist — dann ist sie non-null.
+        foreach (var edge in taskDefinition.Edges().Where(edge => edge.TargetsCancel())) {
+            if (Gate(NavLanguageFeature.Cancel, version, edge.TargetReference!.Location) is { } diagnostic) {
                 yield return diagnostic;
             }
         }
