@@ -140,6 +140,11 @@ public enum SyntaxTokenType {
     ContinuationGoToEdgeKeyword  = 56, // --^
     /// <summary>Der Continuation-Kanten-Operator <c>o-^</c> (modal, ab Sprachversion 2).</summary>
     ContinuationModalEdgeKeyword = 57, // o-^
+    /// <summary>
+    /// Das Schlüsselwort <c>cancel</c> — der Abbrechen-Ausgang einer Transition als Kantenziel (ohne
+    /// Deklaration, ab Sprachversion 2).
+    /// </summary>
+    CancelKeyword          = 58,
     /// <summary>Das abschließende Datei-Ende-Token.</summary>
     EndOfFile              = 255
 

@@ -58,8 +58,8 @@ public class SyntaxWalkerTests {
             walker.Walk(skipped);
         }
 
-        // Die Continuation-Konstrukte (ab Sprachversion 2) fehlen in AllRules (Version 1) — eigener Schnipsel,
-        // damit auch ihre generierten WalkXxx-Methoden erreicht werden.
+        // Die Continuation-Konstrukte und das cancel-Kantenziel (ab Sprachversion 2) fehlen in AllRules
+        // (Version 1) — eigener Schnipsel, damit auch ihre generierten WalkXxx-Methoden erreicht werden.
         walker.Walk(SyntaxTree.ParseText(
                         """
                         #version 2
@@ -69,6 +69,7 @@ public class SyntaxWalkerTests {
                             task T;
                             V --> V o-^ T;
                             V --> V --^ T;
+                            V --> cancel;
                         }
                         """).Root);
 

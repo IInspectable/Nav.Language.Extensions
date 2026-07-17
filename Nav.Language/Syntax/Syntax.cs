@@ -70,6 +70,11 @@ public static class Syntax {
         return (EndTargetNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.EndTargetNode, filePath, cancellationToken).Root;
     }
 
+    /// <summary>Parst ein Snippet der Regel <see cref="NavParser.Rule.CancelTargetNode"/> und liefert die <see cref="CancelTargetNodeSyntax"/>-Wurzel.</summary>
+    public static CancelTargetNodeSyntax ParseCancelTargetNode(string? text, string? filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
+        return (CancelTargetNodeSyntax)NavParser.ParseRule(text, NavParser.Rule.CancelTargetNode, filePath, cancellationToken).Root;
+    }
+
     /// <summary>Parst ein Snippet der Regel <see cref="NavParser.Rule.ParameterList"/> und liefert die <see cref="ParameterListSyntax"/>-Wurzel.</summary>
     public static ParameterListSyntax ParseParameterList(string? text, string? filePath = null, CancellationToken cancellationToken = default(CancellationToken)) {
         return (ParameterListSyntax)NavParser.ParseRule(text, NavParser.Rule.ParameterList, filePath, cancellationToken).Root;

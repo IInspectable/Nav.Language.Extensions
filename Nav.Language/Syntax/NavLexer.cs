@@ -563,6 +563,7 @@ sealed class NavLexer {
         ["dialog"]          = SyntaxTokenType.DialogKeyword,
         ["view"]            = SyntaxTokenType.ViewKeyword,
         ["exit"]            = SyntaxTokenType.ExitKeyword,
+        ["cancel"]          = SyntaxTokenType.CancelKeyword,
         ["on"]              = SyntaxTokenType.OnKeyword,
         ["if"]              = SyntaxTokenType.IfKeyword,
         ["else"]            = SyntaxTokenType.ElseKeyword,

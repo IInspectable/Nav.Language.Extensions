@@ -41,6 +41,26 @@ public partial class EndTargetNodeSyntax: TargetNodeSyntax {
 }
 
 /// <summary>
+/// Das Schlüsselwort <c>cancel</c> als Zielknoten, z.B. <c>View --&gt; cancel;</c> — die Transition
+/// bricht ab und tut nichts. Anders als <see cref="EndTargetNodeSyntax"/> gibt es dazu <b>keine</b>
+/// Knoten-Deklaration: <c>cancel</c> hat keinen Namen, keine Parameter und keine Identität, es existiert
+/// nur als Kantenziel (ab Sprachversion 2).
+/// </summary>
+[Serializable]
+[SampleSyntax("cancel")]
+public partial class CancelTargetNodeSyntax: TargetNodeSyntax {
+
+    internal CancelTargetNodeSyntax(TextExtent extent): base(extent) {
+    }
+
+    /// <summary>Das Schlüsselwort <c>cancel</c>.</summary>
+    public          SyntaxToken CancelKeyword => ChildTokens().FirstOrMissing(SyntaxTokenType.CancelKeyword);
+    /// <summary>Der Text des <c>cancel</c>-Schlüsselworts.</summary>
+    public override string      Name          => CancelKeyword.ToString();
+
+}
+
+/// <summary>
 /// Ein benannter Knoten als Zielknoten, z.B. <c>init --&gt; View;</c> — referenziert einen im
 /// Knoten-Deklarationsteil deklarierten Knoten über seinen Namen.
 /// </summary>

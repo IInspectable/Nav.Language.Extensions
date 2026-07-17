@@ -167,7 +167,8 @@ sealed partial class NavParser {
         ElseIfConditionClause,         DialogNodeDeclaration,     CodeNamespaceDeclaration,
         ExitTransitionDefinition,      CodeGenerateToDeclaration, TransitionDefinitionBlock,
         CodeDoNotInjectDeclaration,    CodeAbstractMethodDeclaration,
-        CodeNotImplementedDeclaration, ContinuationTransition
+        CodeNotImplementedDeclaration, ContinuationTransition,
+        CancelTargetNode
     }
 
     /// <summary>
@@ -215,6 +216,7 @@ sealed partial class NavParser {
             case Rule.GenericType:                   return ParseGenericType();
             case Rule.NonModalEdge:                  return ParseNonModalEdge();
             case Rule.EndTargetNode:                 return ParseEndTargetNode();
+            case Rule.CancelTargetNode:              return ParseCancelTargetNode();
             case Rule.ParameterList:                 return ParseParameterList();
             case Rule.SignalTrigger:                 return ParseSignalTrigger();
             case Rule.StringLiteral:                 return ParseStringLiteral();
@@ -1144,11 +1146,16 @@ sealed partial class NavParser {
     /// <remarks>
     /// <code><![CDATA[
     /// targetNode ::= endTargetNode          (* "end" *)
+    ///              | cancelTargetNode       (* "cancel" *)
     ///              | identifierTargetNode   (* Identifier *)
     /// ]]></code>
     /// </remarks>
     TargetNodeSyntax ParseTargetNode() {
-        return At(SyntaxTokenType.EndKeyword) ? ParseEndTargetNode() : ParseIdentifierTargetNode();
+        switch (At0) {
+            case SyntaxTokenType.EndKeyword:    return ParseEndTargetNode();
+            case SyntaxTokenType.CancelKeyword: return ParseCancelTargetNode();
+            default:                            return ParseIdentifierTargetNode();
+        }
     }
 
     /// <summary>Grammatikregel <c>endTargetNode</c> → <see cref="EndTargetNodeSyntax"/>.</summary>
@@ -1160,6 +1167,19 @@ sealed partial class NavParser {
     EndTargetNodeSyntax ParseEndTargetNode() {
         var keyword = Eat(SyntaxTokenType.EndKeyword);
         var node    = new EndTargetNodeSyntax(Span(keyword));
+        Tok(node, keyword, TextClassification.Keyword);
+        return node;
+    }
+
+    /// <summary>Grammatikregel <c>cancelTargetNode</c> → <see cref="CancelTargetNodeSyntax"/>.</summary>
+    /// <remarks>
+    /// <code><![CDATA[
+    /// cancelTargetNode ::= "cancel"
+    /// ]]></code>
+    /// </remarks>
+    CancelTargetNodeSyntax ParseCancelTargetNode() {
+        var keyword = Eat(SyntaxTokenType.CancelKeyword);
+        var node    = new CancelTargetNodeSyntax(Span(keyword));
         Tok(node, keyword, TextClassification.Keyword);
         return node;
     }
@@ -1182,9 +1202,11 @@ sealed partial class NavParser {
         return SyntaxFacts.IsEdgeKeyword(At0);
     }
 
-    /// <summary>Ob an der aktuellen Position ein Zielknoten beginnt — <c>end</c> oder ein Identifier.</summary>
+    /// <summary>Ob an der aktuellen Position ein Zielknoten beginnt — <c>end</c>, <c>cancel</c> oder ein Identifier.</summary>
     bool StartsTargetNode() {
-        return At(SyntaxTokenType.EndKeyword) || At(SyntaxTokenType.Identifier);
+        return At(SyntaxTokenType.EndKeyword)    ||
+               At(SyntaxTokenType.CancelKeyword) ||
+               At(SyntaxTokenType.Identifier);
     }
 
     /// <summary>Grammatikregel <c>edge</c> → <see cref="EdgeSyntax"/>.</summary>
