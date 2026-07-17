@@ -475,13 +475,22 @@ sealed class TaskDefinitionSymbolBuilder: SyntaxNodeVisitor {
     /// Erzeugt für den benannten Knoten (<paramref name="nodeSyntax"/>) das passende, typisierte
     /// <see cref="NodeReferenceSymbol"/> (je nach aufgelöster Deklaration Init/Choice/Task/Gui/Exit/End)
     /// mit der angegebenen Referenz-Richtung <paramref name="referenceType"/> — auch die Quellseite
-    /// einer Continuation nutzt dies (siehe <see cref="CreateContinuationTransition"/>); liefert null,
-    /// wenn kein Knoten benannt ist.
+    /// einer Continuation nutzt dies (siehe <see cref="CreateContinuationTransition"/>). Das
+    /// deklarationslose <c>cancel</c>-Ziel (E4) wird als eigene, stets unaufgelöste
+    /// <see cref="CancelNodeReferenceSymbol"/> gebildet; liefert null, wenn kein Knoten benannt ist.
     /// </summary>
     private NodeReferenceSymbol? CreateNodeReference(TargetNodeSyntax? nodeSyntax, NodeReferenceType referenceType) {
 
         if (nodeSyntax == null) {
             return null;
+        }
+
+        // cancel ist ein Kantenziel OHNE Deklaration (E4): "cancel" steht in keiner Knotentabelle, die
+        // Namensauflösung greift also nicht. Muss deshalb VOR TryFindSymbol stehen und liefert eine eigene,
+        // stets unaufgelöste Referenz — so ist das cancel-Ziel als eigener Fall erkennbar und von Nav0011
+        // (unauflösbarer Name) abgegrenzt.
+        if (nodeSyntax is CancelTargetNodeSyntax) {
+            return new CancelNodeReferenceSymbol(nodeSyntax.SyntaxTree, nodeSyntax.Name, nodeSyntax.GetLocation(), referenceType);
         }
 
         var nodeDeclaration = _taskDefinition.NodeDeclarations.TryFindSymbol(nodeSyntax.Name);

@@ -35,3 +35,19 @@ public interface INodeReferenceSymbol: ISymbol {
     IEdge Edge { get; }
 
 }
+
+/// <summary>
+/// Die Zielreferenz eines <c>cancel</c>-Kantenziels (<c>… --&gt; cancel …</c>, ab Sprachversion 2).
+/// Anders als alle anderen Knoten-Referenzen (siehe <see cref="INodeReferenceSymbol{T}"/>) trägt sie
+/// <b>keinen</b> Typ-Parameter und löst sich <b>nie</b> auf: <c>cancel</c> hat per Design keine
+/// Deklaration (es hat keinen Namen, keine Parameter, keine Identität — es ist nur ein Kantenziel), also
+/// ist <see cref="INodeReferenceSymbol.Declaration"/> hier stets <c>null</c>. Weil es keinen Knoten gibt,
+/// erscheint <c>cancel</c> nie als <see cref="Call"/>; der Cancel-Ausgang einer Quelle wird stattdessen
+/// über diese Referenz erkannt (<see cref="EdgeExtensions.TargetsCancel"/>) — z.B. für das V2-Gating der
+/// generierten <c>Cancel()</c>-Aufruffläche. Ein <c>cancel</c>-Ziel ist deshalb auch von
+/// <see cref="SemanticAnalyzer.Nav0011CannotResolveNode0"/> ausgenommen — die fehlende Deklaration ist
+/// hier gewollt, kein unauflösbarer Name.
+/// </summary>
+public interface ICancelNodeReferenceSymbol: INodeReferenceSymbol {
+
+}

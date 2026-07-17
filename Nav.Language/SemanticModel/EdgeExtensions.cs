@@ -57,6 +57,17 @@ public static class EdgeExtensions {
     }
 
     /// <summary>
+    /// Ob die Kante auf das deklarationslose <c>cancel</c>-Ziel zeigt (<c>… --&gt; cancel …</c>, ab
+    /// Sprachversion 2). Weil <c>cancel</c> keinen Knoten hat (E4), ist die Zielreferenz eine
+    /// <see cref="ICancelNodeReferenceSymbol"/> ohne aufgelöste Deklaration — der Cancel-Ausgang erscheint
+    /// darum nie als <see cref="Call"/> (siehe <see cref="GetDirectCalls"/>) und wird stattdessen über diese
+    /// Prüfung erkannt (Grundlage z.B. für das V2-Gating der generierten <c>Cancel()</c>-Aufruffläche).
+    /// </summary>
+    public static bool TargetsCancel(this IEdge edge) {
+        return edge.TargetReference is ICancelNodeReferenceSymbol;
+    }
+
+    /// <summary>
     /// Liefert die <b>direkten</b> Aufrufe der <paramref name="edges"/> — die <see cref="Call"/>s ihrer
     /// unmittelbaren Ziele, <b>ohne</b> Choices plattzufalten. Zeigt eine Kante auf eine Choice, entsteht
     /// ein <see cref="Call"/> auf den <b>Choice-Knoten selbst</b> (dessen <see cref="Call.Node"/> ein

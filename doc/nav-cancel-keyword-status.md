@@ -104,18 +104,25 @@ den bedingten Fall vollständig; nur der unbedingte Swallow braucht E5.
 **Versionsgate-Autorität:** `NavLanguageVersion` (Version1/SupportedVersions/IsSupported) + `Nav5000` —
 siehe `doc/nav-pragmas-versioning-status.md`. `cancel` ist ein V2-Feature → Gate wie andere V2-Konstrukte.
 
-## Offene Design-Frage (vor S2 entscheiden — **Vermutung/Empfehlung**, nicht verifiziert)
+## Entschiedene Design-Frage (vor S2, jetzt festgelegt): **Referenz-Marker**, kein Knoten-Symbol
 
-Wie fließt der Cancel-Ausgang in die `directCalls`-Iteration (`CallContextCodeModel.cs:102`)?
-- **Empfehlung:** ein **synthetisches `ICancelNodeSymbol`** (analog `IEndNodeSymbol`, aber **ohne**
-  Deklaration — on-demand synthetisiert, sobald ein Ziel `cancel` referenziert). Dann bleibt die
-  `foreach`-Schleife uniform und das Gating ist schlicht
-  `directCalls.Any(c => c.Node is ICancelNodeSymbol)`.
-- **Alternative:** ein Flag auf der Kante/Transition statt eines Knoten-Symbols — spart das Symbol,
-  bricht aber die einheitliche Call-Iteration.
+Wie fließt der Cancel-Ausgang ins Modell? **Entschieden: Referenz-Marker** (`ICancelNodeReferenceSymbol`),
+**kein** synthetisches Knoten-Symbol.
 
-Die Wahl bestimmt, wie viel von der `end`-Symbolmaschinerie (References, Reachability,
-`SymbolsAndSelf`) für cancel überhaupt gebraucht wird. **Vor S2 festlegen.**
+**Warum nicht das (ursprünglich empfohlene) synthetische `ICancelNodeSymbol`:** Es kollidiert frontal mit
+dem Kontrakt **`INodeSymbol.Syntax` = `NodeDeclarationSyntax` (non-null)** — jedes abgeleitete
+Knoten-Interface verengt `Syntax` sogar auf seine Deklarations-Syntax (`IEndNodeSymbol.Syntax` →
+`EndNodeDeclarationSyntax`). `cancel` hat per E4 **keine** Deklaration → es gäbe keinen `NodeDeclarationSyntax`,
+den ein Cancel-Knoten zurückgeben könnte. Ein Knoten-Symbol ginge nur, wenn man `INodeSymbol.Syntax`
+**nullable** macht (Kern-Kontrakt aufweichen, Visitor neu, alle generischen `.Syntax`-Konsumenten prüfen).
+
+**Der gewählte Marker** respektiert den non-null-Kontrakt vollständig und greift minimal ein:
+- `cancel` erscheint **nie** als `Call` (kein Knoten → `GetDirectCalls` überspringt es, `targetNode` ist null).
+- Das Gating (S4) fragt die Kanten der Quelle ab: **`edge.TargetsCancel()`** bzw.
+  `edge.TargetReference is ICancelNodeReferenceSymbol` — für direkte Kanten `source.Outgoings.Any(e => e.TargetsCancel())`,
+  für Choice-Arme `choiceNode.Outgoings.Any(e => e.TargetsCancel())`.
+- Von der `end`-Symbolmaschinerie (References/Reachability/`SymbolsAndSelf`/`NodeDeclarations`) wird **nichts**
+  gebraucht: Cancel-Knoten existieren nicht, also tauchen sie in keinem dieser Pfade auf.
 
 ## Plan (Steps)
 
@@ -141,15 +148,31 @@ Die Wahl bestimmt, wie viel von der `end`-Symbolmaschinerie (References, Reachab
   - **Tests:** `SyntaxFactsTest` (ExpectedKeywords + `CancelKeywordTest`), `SyntaxTreeAllRulesTests` +
     `SyntaxWalkerTests` (V2-Snippet `V --> cancel;`, Knoten-Zähler 52→53), neu
     `Syntax\CancelSyntaxTests.cs`. net472 1925/0, net10 1865/0 + MCP 115/0.
-- **S2 — Semantic Model.** Zielauflösung von `cancel` gemäß Design-Frage oben (empfohlen: synthetisches
-  `ICancelNodeSymbol`); der Cancel-Ausgang erscheint in den `Outgoings`/`GetDirectCalls` der Quelle.
-  **DoD:** Für eine Quelle mit `--> cancel` ist der Cancel-Ausgang im Semantic Model abfragbar.
+- **S2 — Semantic Model. ✅ ERLEDIGT.** Zielauflösung von `cancel` als **Referenz-Marker** (siehe
+  entschiedene Design-Frage oben). **Umgesetzt:**
+  - `ICancelNodeReferenceSymbol: INodeReferenceSymbol` (Marker ohne Typ-Parameter, `Declaration` stets
+    null) — `SemanticModel\INodeReferenceSymbol.cs`; Impl `CancelNodeReferenceSymbol` (sealed partial,
+    Deklaration fest null) — `SemanticModel\NodeReferenceSymbol.cs`.
+  - `TaskDefinitionSymbolBuilder.CreateNodeReference`: `CancelTargetNodeSyntax` wird **vor** der
+    Namensauflösung zur `CancelNodeReferenceSymbol` (kein `TryFindSymbol` — „cancel" steht in keiner
+    Knotentabelle).
+  - `EdgeExtensions.TargetsCancel(this IEdge)` — die Abfrage des Cancel-Ausgangs (Grundlage für S3/S4).
+  - `Nav0011CannotResolveNode0` nimmt `ICancelNodeReferenceSymbol` aus (`{ Declaration: null } and not
+    ICancelNodeReferenceSymbol`) — die fehlende Deklaration ist bei cancel gewollt (E4).
+  - **DoD erfüllt:** Für eine Quelle mit `--> cancel` liefert `edge.TargetsCancel()`/
+    `edge.TargetReference is ICancelNodeReferenceSymbol` den Cancel-Ausgang; kein Nav0011.
+  - **Tests:** `Nav.Language.Tests\CancelSemanticTests.cs` (Trigger-Kante + Choice-Arm: Referenztyp,
+    `Declaration==null`, `TargetsCancel`, `Edge`-Rückverweis; kein Nav0011; **kein** Call; Kontrolle:
+    echter unauflösbarer Name feuert weiterhin Nav0011). net472 1930/0 (+3 explicit-skip) + MCP 115/0;
+    net10 1869/0 (Cache-Test `SecondScan_ReturnsSameUnitInstances` flaky unter Volllast, isoliert grün).
 - **S3 — Analyzer/Diagnosen.** Versionsgate (`cancel` erst ab V2 → `Nav5xxx`, Autorität
   `NavLanguageVersion`); „cancel nur per Goto `-->` erreichbar" (analog `Nav0106`); ggf.
   Stellen-Restriktion (nur Choice-Arm oder direkte Init/Trigger-Kante, E5). **DoD:** Fehlnutzung
   (falsche Version, `o->`/`==>` auf cancel) wird als Nav-Diagnose gemeldet.
 - **S4 — V2-Codegen-Gating (Kern).** In `CallContextCodeModel.cs:122-123` die Cancel-Callable **nur**
-  emittieren, wenn die Quelle einen Cancel-Ausgang trägt; `ChoiceCallContextCodeModel` zieht nach. V1
+  emittieren, wenn die Quelle einen Cancel-Ausgang trägt — Gating via `edge.TargetsCancel()` (S2):
+  ein `bool declaresCancel`-Argument an `CallContextCodeModel.Build`, das der Aufrufer aus den Outgoings
+  der Quelle (bzw. `choiceNode.Outgoings`) berechnet. `ChoiceCallContextCodeModel` zieht nach. V1
   (`TransitionCodeModel.cs:44`) bleibt unverändert. **DoD:** V2-Unit **ohne** `cancel`-Deklaration hat
   **keine** `Cancel()`-Methode am Context (und `return Cancel()` in Logik ist dann Compile-Fehler, E3);
   V2-Unit **mit** Deklaration hat sie; **V1-Regression byte-identisch** (Dispatcher-Invariante).
@@ -177,11 +200,15 @@ Die Wahl bestimmt, wie viel von der `end`-Symbolmaschinerie (References, Reachab
 ## Stand
 
 - **S1 umgesetzt** (Commit `8734a564`, auf `master`). `cancel` parst als RHS-Kantenziel
-  (`CancelTargetNodeSyntax`) und wird als Keyword klassifiziert; Build 0 Fehler, net472 1925/0,
-  net10 1865/0 + MCP 115/0.
-- **Nächster Schritt: S2 (Semantic Model).** **Vorher** die offene Design-Frage (synthetisches
-  `ICancelNodeSymbol` vs. Kanten-Flag) entscheiden — Empfehlung weiterhin synthetisches Symbol
-  (uniforme `directCalls`-Iteration, siehe oben).
+  (`CancelTargetNodeSyntax`) und wird als Keyword klassifiziert.
+- **S2 umgesetzt** (uncommitted). Design-Frage entschieden: **Referenz-Marker**
+  (`ICancelNodeReferenceSymbol`), **kein** synthetisches Knoten-Symbol (Kollision mit dem non-null-
+  `INodeSymbol.Syntax`-Kontrakt, siehe oben). Cancel-Ausgang über `edge.TargetsCancel()` abfragbar;
+  Nav0011 nimmt cancel aus. Build 0 Fehler/0 Warnungen; net472 1930/0 (+3 explicit-skip) + MCP 115/0;
+  net10 1869/0 (bekannter flaky Cache-Test isoliert grün).
+- **Nächster Schritt: S3 (Analyzer/Diagnosen).** Versionsgate (`cancel` erst ab V2 → `Nav5000`-Autorität
+  `NavLanguageVersion`, freie Nummer z.B. Nav5002/Nav0123/0125); „cancel nur per Goto `-->`" (analog
+  Nav0106); ggf. Stellen-Restriktion (E5). Gating-Abfrage steht (`TargetsCancel`).
 - Dieses Doc ist in `Nav.Language.Extensions.slnx` unter `/doc/` eingehängt.
 
 ## Verifikation (Wiederholrezept)
