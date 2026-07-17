@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using NUnit.Framework;
 using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
@@ -48,13 +48,7 @@ public class SyntaxTreeNavigationTests {
 
         var syntaxTree = SyntaxTree.ParseText(s);
 
-        int pos = 0;
-        foreach (var token in syntaxTree.Tokens) {
-            Assert.That(token.Start, Is.EqualTo(pos));
-            pos = token.End;
-        }
-
-        Assert.That(pos, Is.EqualTo(s.Length));          
+        AssertContiguousCoverage(syntaxTree, s);
     }
 
     [Test]
@@ -64,13 +58,32 @@ public class SyntaxTreeNavigationTests {
 
         var syntaxTree = SyntaxTree.ParseText(s);
 
+        AssertContiguousCoverage(syntaxTree, s);
+    }
+
+    // Trivia (Whitespace/Zeilenende/Kommentar) liegt nicht mehr als eigenes Token im flachen Strom,
+    // sondern angehängt an die Token. Der lückenlose Coverage-Check muss die Trivia daher mitlaufen
+    // lassen: je Token Leading-Trivia, eigener Extent und Trailing-Trivia kacheln den Text fortlaufend.
+    static void AssertContiguousCoverage(SyntaxTree syntaxTree, string source) {
+
         int pos = 0;
         foreach (var token in syntaxTree.Tokens) {
+
+            foreach (var trivia in token.LeadingTrivia) {
+                Assert.That(trivia.Start, Is.EqualTo(pos));
+                pos = trivia.End;
+            }
+
             Assert.That(token.Start, Is.EqualTo(pos));
             pos = token.End;
+
+            foreach (var trivia in token.TrailingTrivia) {
+                Assert.That(trivia.Start, Is.EqualTo(pos));
+                pos = trivia.End;
+            }
         }
 
-        Assert.That(pos, Is.EqualTo(s.Length));
+        Assert.That(pos, Is.EqualTo(source.Length));
     }
 
     [Test]
@@ -105,24 +118,6 @@ public class SyntaxTreeNavigationTests {
         var syntaxTree = SyntaxTree.ParseText(nav);
         Assert.That(syntaxTree.Diagnostics.Any(),                                                                   Is.True);
         Assert.That(syntaxTree.Root.DescendantNodes().OfType<TaskDefinitionSyntax>().First().Identifier.ToString(), Is.EqualTo("T1"));
-    }
-
-    [Test]
-    [Ignore("Enablen sobald Trivias unterst�tzt werden.")]
-    public void TestCommentToken() {
-        var syntaxTree = SyntaxTree.ParseText("task /* Kommentar*/ \r\nTest { init I;}");
-
-        Assert.That(syntaxTree.Diagnostics.Length,                Is.EqualTo(0));
-        Assert.That(syntaxTree.Tokens.Count(t=>t.Parent == null), Is.EqualTo(0));
-
-        var task = syntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>().First();
-
-        Assert.That(task.ChildTokens().Count(), Is.EqualTo(4));
-
-        var comments = task.ChildTokens().OfClassification(TextClassification.Comment).ToList();
-        Assert.That(comments.Count,             Is.EqualTo(1));
-        Assert.That(comments[0].ToString(),     Is.EqualTo("/* Kommentar*/"));
-        Assert.That(comments[0].Classification, Is.EqualTo(TextClassification.Comment));
     }
 
     [Test]

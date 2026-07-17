@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Ermittelt den Pfad zur Full-Framework-MSBuild.exe über vswhere.
 

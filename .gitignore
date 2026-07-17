@@ -50,13 +50,16 @@
 /vscode-nav-lsp/server
 /vscode-nav-lsp/*.vsix
 /vscode-nav-lsp/package-lock.json
+# Marketplace-README wird beim Publish aus der Single Source (Root-README.md) generiert.
+/vscode-nav-lsp/README.md
 
 /Nav.Language.Tests/bin
 /Nav.Language.Tests/obj
 /Nav.Language.Tests/Regression/Tests/**/*.cs
 !/Nav.Language.Tests/Regression/**/*.expected.cs
 
-/.vs
+# VS-Cache (Solution-State, Design-Time-Build-Cache) — auch projekt-lokale .vs-Ordner, nicht nur im Root
+.vs/
 # Persönliche ReSharper-Settings (maschinenlokal: absolute Pfade, Test-Session-State, Cache-Keys)
 /**/*.DotSettings.user
 /**/*.generated.cs
@@ -71,3 +74,6 @@ TestResult.xml
 
 
 .roslyn-mcp
+
+# Golden-Snapshot-Ist-Ergebnisse der Navigationstests (nur .expected wird eingecheckt)
+*.actual

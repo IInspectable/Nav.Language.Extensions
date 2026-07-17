@@ -1,0 +1,70 @@
+﻿root = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Grundlinie für alle Dateien.
+# Projektregel (CLAUDE.md): Standard-Dateikodierung ist UTF-8 *mit* BOM — der
+# Grundzustand für sämtliche authored Text-/Code-/Projektdateien. Ausnahmen
+# (JSON/YAML, Dotfiles, byte-eingefrorene Golden, Binärdateien) folgen darunter
+# über spezifischere Globs (der spezifischere Glob gewinnt).
+# ─────────────────────────────────────────────────────────────────────────────
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+trim_trailing_whitespace = true
+insert_final_newline = true
+charset = utf-8-bom
+
+# ── JSON/YAML: bewusst OHNE BOM ──
+# Node/vsce sowie manche .NET-JSON-Reader stolpern über ein BOM; entspricht dem
+# Ist-Zustand (die VS-Code-Extension- und Tooling-JSONs sind BOM-frei).
+[*.{json,yml,yaml}]
+charset = utf-8
+
+# ── Dotfiles: OHNE BOM (git-Tooling-Konvention) ──
+[{.gitattributes,.gitignore}]
+charset = utf-8
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Byte-eingefrorene Golden/Snapshot + DSL-Quellen: editorconfig NICHT eingreifen
+# lassen. Die absoluten Offsets in .tokens/.tree/.diag/.trivia hängen an exakt
+# den committeten Bytes (inkl. BOM); ein beim Speichern hinzugefügtes/entferntes
+# BOM oder umgeschriebene Zeilenenden würden sämtliche Offsets lautlos
+# verschieben. Deshalb charset/eol/Whitespace hier neutralisieren (spiegelt das
+# `-text`-Einfrieren in Nav.Language.Tests/Syntax/Tests/.gitattributes).
+# ─────────────────────────────────────────────────────────────────────────────
+[*.{nav,tokens,tree,diag,trivia,expected}]
+charset = unset
+end_of_line = unset
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+# ── Binärdateien von den Text-Regeln ausnehmen ──
+[*.{png,ico,dll,exe,docx,nupkg,addins,pkgdef}]
+charset = unset
+end_of_line = unset
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ReSharper-Highlight-Unterdrückungen (unverändert).
+# ─────────────────────────────────────────────────────────────────────────────
+[*.cs]
+# ReSharper "UnusedAutoPropertyAccessor.Global": Die betroffenen Properties sind DTO-/CodeModel-/Polyfill-
+# Member, die zur Laufzeit genutzt werden, für die solution-weite "Global"-Heuristik aber unsichtbar bleiben:
+# die MCP-/LSP-Ergebnistypen werden über JSON-Serialisierung (System.Text.Json, reflektiv) befüllt und
+# gelesen, die CodeGen-CodeModels reflektiv über StringTemplate, die Attribute in Internal/NullableAttributes.cs
+# vom Compiler. Ein Entfernen der Accessoren bräche Serialisierung bzw. Codegenerierung — deshalb wird die
+# Inspektion projektweit abgeschaltet, statt echte Nutzung als "ungenutzt" zu melden.
+resharper_unused_auto_property_accessor_global_highlighting = none
+
+# Dieselbe solution-weite "Global"-Blindheit: NavRefactoringResult.Actions wird nur für die JSON-Ausgabe
+# befüllt (nie im Prozess gelesen), und NavigationBarTaskItemBuilder.MemberItems wird sehr wohl befüllt
+# (bedingter .Add), was die Heuristik übersieht. Beide sind False Positives.
+resharper_collection_never_queried_global_highlighting = none
+resharper_collection_never_updated_global_highlighting = none
+
+[*.xaml]
+# Der DataContext der QuickInfo-Controls wird erst zur Laufzeit gesetzt; ReSharpers Designtime-Auflösung
+# kennt ihn nicht und meldet die (korrekten) Bindings als unauflösbar.
+resharper_xaml_binding_with_context_not_resolved_highlighting = none

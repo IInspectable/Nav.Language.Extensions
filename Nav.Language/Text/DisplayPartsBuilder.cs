@@ -6,7 +6,7 @@ using Pharmatechnik.Nav.Language.CodeGen;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 class DisplayPartsBuilder: SymbolVisitor<ImmutableArray<ClassifiedText>> {
 
@@ -195,8 +195,11 @@ class DisplayPartsBuilder: SymbolVisitor<ImmutableArray<ClassifiedText>> {
     #endregion
 
     public override ImmutableArray<ClassifiedText> VisitEdgeModeSymbol(IEdgeModeSymbol edgeModeSymbol) {
+        // Der DisplayName ist menschenlesbare Prosa („Modal Continuation", „GoTo Edge") — kein
+        // Sprach-Keyword. Deshalb als neutraler Text klassifizieren (nicht Keyword-blau); das
+        // Operator-Signal trägt bereits das Icon der QuickInfo.
         return CreateClassifiedText(
-            ClassifiedTexts.Keyword(edgeModeSymbol.Verb)
+            ClassifiedTexts.Text(edgeModeSymbol.DisplayName)
         );
     }
 

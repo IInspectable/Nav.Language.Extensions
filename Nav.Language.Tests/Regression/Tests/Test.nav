@@ -6,101 +6,104 @@
 [using Pharmatechnik.Apotheke.XTplus.Common.IWFL]
 [using Pharmatechnik.Apotheke.XTplus.Common.WFL]
 
-taskref Foo [namespaceprefix NS.2]		
-		    [notimplemented]	
-		    [result FooResult r1] {
+taskref Foo [namespaceprefix NS.2]
+            [notimplemented]
+            [result FooResult r1]
+{
 
-    init I1;
-    init I2;
-    exit E1;
-    exit E2;
+    init    I1;
+    init    I2;
+    exit    E1;
+    exit    E2;
 }
 
-taskref MessageboxOk [namespaceprefix NS.2]		
-		    [result MessageboxOkResult r] {
+taskref MessageboxOk [namespaceprefix NS.2]
+                     [result MessageboxOkResult r]
+{
 
-    init Init1 [params string text, MessageboxIcon icon];
-    init Init2 [params string text, string? title, MessageboxIcon icon];
-    exit Ok;
-    exit Abbrechen;
+    init    Init1 [params string text, MessageboxIcon icon];
+    init    Init2 [params string text, string? title, MessageboxIcon icon];
+    exit    Ok;
+    exit    Abbrechen;
 }
 
-taskref MessageboxConinue [namespaceprefix NS.2]		
-		    [result MessageboxOkResult r] {
+taskref MessageboxConinue [namespaceprefix NS.2]
+                          [result MessageboxOkResult r]
+{
 
     init;
     exit Continue;
 }
 
-taskref ShowSomething [namespaceprefix NS.3]		
-		    [result bool] {
+taskref ShowSomething [namespaceprefix NS.3]
+                      [result bool]
+{
 
     init;
     exit Exit;
 }
 
-task Test 
-    [code "public enum TestReturnCode {"
-          "    OK,"
-          "    Abbrechen"
-          "}"] 
-    [base StandardWFS : IWFServiceBase]
-    [params ITestBS testBS, 
-            ISozFactory SOZFactory]
-    [result bool?]
+task Test [code "public enum TestReturnCode {"
+"    OK,"
+"    Abbrechen"
+"}"]
+          [base StandardWFS: IWFServiceBase]
+          [params ITestBS testBS,
+                  ISozFactory SOZFactory]
+          [result bool?]
 {
 
-    init Init1 [params TestInitParams, int? nullableParam];
-    init Init2 [abstractmethod];
+    init    Init1 [params TestInitParams, int? nullableParam];
+    init    Init2               [abstractmethod];
     exit    Exit;
-    task Foo;
-    task MessageboxOk MsgExit;
-    task MessageboxOk NoResults;
-    task MessageboxConinue MsgNonModal;
-    task MessageboxConinue MsgContinue;
-    task MessageboxConinue MsgAbstract [abstractmethod];
-    task ShowSomething DoSomething [donotinject];
-    view View;
+    task    Foo;
+    task    MessageboxOk        MsgExit;
+    task    MessageboxOk        NoResults;
+    task    MessageboxConinue   MsgNonModal;
+    task    MessageboxConinue   MsgContinue;
+    task    MessageboxConinue   MsgAbstract [abstractmethod];
+    task    ShowSomething       DoSomething [donotinject];
+    view    View;
     end;
     choice  Choice_Init;
 
-    Init1               --> Choice_Init;
-    Init2               --> Exit ; 
+    Init1       --> Choice_Init;
+    Init2       --> Exit;
 
-    Choice_Init         --> NoResults;
-    Choice_Init         --> View;
-     
+    Choice_Init --> NoResults;
+    Choice_Init --> View;
 
-    NoResults:Abbrechen --> Exit;
-    NoResults:Ok        --> View;
 
-    View                --> View on OnReloadClick;
-    View                o-> View on OnShowMeModal;
-    View                ==> View on OnShowMeNonModal;
+    NoResults:Abbrechen     --> Exit;
+    NoResults:Ok            --> View;
 
-    View                --> end on OnEnd;
+    View                    --> View on OnReloadClick;
+    View                    o-> View on OnShowMeModal;
+    View                    ==> View on OnShowMeNonModal;
 
-    View                o-> MsgExit on OnExitClick;
-    MsgExit:Abbrechen   --> View;
-    MsgExit:Ok          --> Exit;
+    View                    --> end on OnEnd;
 
-    View o-> MsgContinue on OnContinue;
-    MsgContinue:Continue --> View;
+    View                    o-> MsgExit on OnExitClick;
+    MsgExit:Abbrechen       --> View;
+    MsgExit:Ok              --> Exit;
 
-    View ==> MsgNonModal on OnMsgNonModal;
-    MsgNonModal:Continue --> View;
+    View                    o-> MsgContinue on OnContinue;
+    MsgContinue:Continue    --> View;
 
-    View --> Foo on OnGoToNotImplemented;
-    View ==> Foo on OnNonNotImplemented;
-    View o-> Foo on OnModalNotImplemented;
+    View                    ==> MsgNonModal on OnMsgNonModal;
+    MsgNonModal:Continue    --> View;
 
-    Foo:E2              --> View;
-    Foo:E1              --> Exit;
+    View                    --> Foo on OnGoToNotImplemented;
+    View                    ==> Foo on OnNonNotImplemented;
+    View                    o-> Foo on OnModalNotImplemented;
 
-    View                 o-> MsgAbstract on OnMsgAbstract;
-    MsgAbstract:Continue --> View;
+    Foo:E2                  --> View;
+    Foo:E1                  --> Exit;
 
-    View                o-> DoSomething on OnDoSomething;
-    DoSomething:Exit    --> View;
+    View                    o-> MsgAbstract on OnMsgAbstract;
+    MsgAbstract:Continue    --> View;
+
+    View                    o-> DoSomething on OnDoSomething;
+    DoSomething:Exit        --> View;
 
 }

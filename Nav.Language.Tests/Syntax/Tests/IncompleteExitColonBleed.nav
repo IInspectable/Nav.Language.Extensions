@@ -1,0 +1,6 @@
+﻿task A
+{
+    init I1;
+    I1:
+    I1 --> end;
+}

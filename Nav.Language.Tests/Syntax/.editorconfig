@@ -1,0 +1,11 @@
+﻿# Der Ordnername „Syntax" ist zugleich der Name der zentral genutzten Helfer-Klasse
+# Pharmatechnik.Nav.Language.Syntax (Snippet-Parser je Grammatikregel, z.B. Syntax.ParseTaskDefinition).
+# Ein ordner-gematchter Namespace „Nav.Language.Tests.Syntax" würde das Namespace-Segment über den Typ
+# legen und jeden unqualifizierten „Syntax."-Aufruf projektweit brechen (CS0234/CS0118). Deshalb bleiben
+# die Tests hier bewusst im flachen Wurzel-Namespace „Nav.Language.Tests" — die IDE0130-Konvention
+# (Namespace = Ordnerstruktur) ist in diesem einen Ordner nicht anwendbar und wird gezielt abgeschaltet.
+[*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+# ReSharpers eigene Entsprechung zu IDE0130 greift denselben — hier bewusst gebrochenen — Ordner=Namespace-
+# Fall; ebenfalls gezielt abschalten.
+resharper_check_namespace_highlighting = none

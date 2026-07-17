@@ -11,10 +11,15 @@ using Pharmatechnik.Nav.Language.Extension.QuickInfo;
 
 namespace Pharmatechnik.Nav.Language.Extension.Completion; 
 
+/// <summary>
+/// Der MEF-Provider der Nav-Completion-Quelle. Exportiert für den VS-SDK-Vertrag
+/// <see cref="IAsyncCompletionSourceProvider"/> und über <see cref="NavLanguageContentDefinitions.ContentType"/>
+/// auf den Nav-Inhaltstyp beschränkt; erzeugt je Ansicht eine <see cref="NavCompletionSource"/> und reicht
+/// ihr den importierten <see cref="QuickinfoBuilderService"/> für die Tooltips durch.
+/// </summary>
 [Export(typeof(IAsyncCompletionSourceProvider))]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 [Name(nameof(NavCompletionSourceProvider))]
-[Order(Before = nameof(EdgeCompletionSourceProvider))]
 class NavCompletionSourceProvider: AsyncCompletionSourceProvider {
 
     [ImportingConstructor]
@@ -22,8 +27,10 @@ class NavCompletionSourceProvider: AsyncCompletionSourceProvider {
         QuickinfoBuilderService = quickinfoBuilderService;
     }
 
+    /// <summary>Der für die Completion-Tooltips durchgereichte QuickInfo-Dienst.</summary>
     public QuickinfoBuilderService QuickinfoBuilderService { get; }
 
+    /// <summary>Erzeugt die <see cref="NavCompletionSource"/> für eine Ansicht.</summary>
     protected override IAsyncCompletionSource CreateCompletionSource() {
         return new NavCompletionSource(QuickinfoBuilderService);
     }

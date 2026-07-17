@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
@@ -19,6 +19,15 @@ using Pharmatechnik.Nav.Language.Extension.Common;
 
 namespace Pharmatechnik.Nav.Language.Extension.Diagnostics; 
 
+/// <summary>
+/// Pro-Ansicht geführter Dienst, der die aktuellen Diagnosen einer <c>.nav</c>-Datei bündelt und
+/// bereitstellt. Er aggregiert die <see cref="DiagnosticErrorTag"/>s über einen
+/// <see cref="ITagAggregator{T}"/>, gruppiert sie nach <see cref="DiagnosticSeverity"/> und bietet
+/// Abfragen (Anzahl/Vorhandensein je Schweregrad, schlimmster Schweregrad) sowie das Navigieren zur
+/// nächsten Diagnose. Speist die Anzeigen <see cref="DiagnosticSummaryMargin"/> und
+/// <see cref="DiagnosticStripeMargin"/>. Wird per <see cref="GetOrCreate"/> als Singleton je
+/// <see cref="IWpfTextView"/> gehalten.
+/// </summary>
 sealed class DiagnosticService : IDisposable {
 
     readonly IWpfTextView                       _textView;
@@ -47,12 +56,17 @@ sealed class DiagnosticService : IDisposable {
         Invalidate();
     }
 
+    /// <summary>
+    /// Liefert den <see cref="DiagnosticService"/> der Ansicht und legt ihn beim ersten Zugriff als
+    /// Singleton in der Property-Sammlung der <see cref="IWpfTextView"/> an.
+    /// </summary>
     public static DiagnosticService GetOrCreate(IWpfTextView textView) {
         var componentModel = NavLanguagePackage.GetGlobalService<SComponentModel, IComponentModel>();
         return textView.Properties.GetOrCreateSingletonProperty(() =>
                                                                     new DiagnosticService(textView, componentModel));
     }
 
+    /// <summary>Meldet den Dienst von allen Ereignissen ab und gibt den Tag-Aggregator frei.</summary>
     public void Dispose() {
         _textView.Properties.RemoveProperty(this);
 
@@ -74,6 +88,7 @@ sealed class DiagnosticService : IDisposable {
         UpdateDiagnostics();
     }
         
+    /// <summary>Wird ausgelöst, sobald sich Eingaben ändern und die Diagnosen neu berechnet werden (Analyse läuft an).</summary>
     public event EventHandler DiagnosticsChanging;
 
     void OnDiagnosticsChanging() {
@@ -83,6 +98,7 @@ sealed class DiagnosticService : IDisposable {
         DiagnosticsChanging?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Wird ausgelöst, sobald die Diagnosen neu berechnet vorliegen (Analyse abgeschlossen).</summary>
     public event EventHandler DiagnosticsChanged;
 
     void OnDiagnosticsChanged() {
@@ -92,11 +108,13 @@ sealed class DiagnosticService : IDisposable {
         DiagnosticsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Der schlimmste aktuell vorhandene <see cref="DiagnosticSeverity"/> oder <see langword="null"/>, wenn keine Diagnosen vorliegen.</summary>
     [CanBeNull]
     public DiagnosticSeverity? WorstSeverity {
         get { return _worstSeverity; }
     }
 
+    /// <summary><see langword="true"/>, wenn weder Fehler noch Warnungen vorliegen.</summary>
     public bool NoErrorsOrWarnings {
         get {
             return CountDiagnosticsWithSeverity(DiagnosticSeverity.Error)   == 0 &&
@@ -104,10 +122,15 @@ sealed class DiagnosticService : IDisposable {
         }
     }
 
+    /// <summary><see langword="true"/>, solange die Analyse läuft und noch kein Ergebnis vorliegt.</summary>
     public bool WaitingForAnalysis {
         get { return _waitingForAnalysis; }
     }
 
+    /// <summary>
+    /// Verwirft die berechneten Diagnosen und stößt über die beteiligten <see cref="SemanticModelService"/>
+    /// eine Neuberechnung an.
+    /// </summary>
     public void Invalidate() {
 
         OnDiagnosticsChanging();
@@ -119,23 +142,31 @@ sealed class DiagnosticService : IDisposable {
         }
     }
 
+    /// <summary>Gibt an, ob es Diagnosen mit dem angegebenen <paramref name="severity"/> gibt.</summary>
     public bool HasDiagnosticsWithSeverity(DiagnosticSeverity severity) {
         return _diagnosticMapping.ContainsKey(severity);            
     }
 
+    /// <summary>Zählt die Diagnosen mit dem angegebenen <paramref name="severity"/>.</summary>
     public int CountDiagnosticsWithSeverity(DiagnosticSeverity severity) {
         return HasDiagnosticsWithSeverity(severity) ? _diagnosticMapping[severity].Count: 0;
     }
 
+    /// <summary>Liefert die (nach Position sortierten) Diagnose-Tag-Spans mit dem angegebenen <paramref name="severity"/>.</summary>
     public IEnumerable<IMappingTagSpan<DiagnosticErrorTag>> GetDiagnosticsWithSeverity(DiagnosticSeverity severity) {
         return (HasDiagnosticsWithSeverity(severity)? _diagnosticMapping[severity] : null) 
             ?? Enumerable.Empty<IMappingTagSpan<DiagnosticErrorTag>>();
     }
 
+    /// <summary><see langword="true"/>, wenn überhaupt eine Diagnose zum Anspringen vorliegt.</summary>
     public bool CanGoToNextDiagnostic {
         get { return _diagnosticMapping.Count > 0; }
     }
 
+    /// <summary>
+    /// Springt zur nächsten Diagnose, wobei die Schweregrade in der Reihenfolge Error, Warning, Suggestion
+    /// abgearbeitet werden.
+    /// </summary>
     public bool GoToNextDiagnostic() {
             
         var severities = new[] {
@@ -148,6 +179,11 @@ sealed class DiagnosticService : IDisposable {
                          .FirstOrDefault();           
     }
 
+    /// <summary>
+    /// Springt zur nächsten Diagnose des angegebenen <paramref name="severity"/> hinter der Caret-Position;
+    /// hinter der letzten wird zur ersten umgebrochen. Liefert <see langword="false"/>, wenn es keine solche
+    /// Diagnose gibt.
+    /// </summary>
     public bool GoToNextDiagnostic(DiagnosticSeverity severity) {
 
         if(!HasDiagnosticsWithSeverity(severity)) {
@@ -156,7 +192,7 @@ sealed class DiagnosticService : IDisposable {
 
         var caretPos = _textView.Caret.Position.BufferPosition;
             
-        // TODO noch optimieren / �berpr�fen
+        // TODO noch optimieren / überprüfen
         foreach(var tagSpan in GetDiagnosticsWithSeverity(severity)
                    .Select(mappingTagSpan => _textView.MapToSingleSnapshotSpan(mappingTagSpan))) {
 
@@ -170,6 +206,10 @@ sealed class DiagnosticService : IDisposable {
         return GoToDiagnostic(ts);
     }
                 
+    /// <summary>
+    /// Fragt alle <see cref="DiagnosticErrorTag"/>s über den Aggregator ab, gruppiert sie nach Schweregrad
+    /// (je Gruppe nach Position sortiert), ermittelt den schlimmsten Schweregrad und meldet die Änderung.
+    /// </summary>
     void UpdateDiagnostics() {
 
         var mappingSpan = _textView.BufferGraph.CreateMappingSpan(

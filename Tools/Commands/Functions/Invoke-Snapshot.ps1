@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Erzeugt die Regression-Snapshots (.expected.cs) neu.
 

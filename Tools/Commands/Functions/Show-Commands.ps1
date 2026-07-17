@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Listet alle Nav-Commands (Aufruf, Kurzbeschreibung) auf.
 

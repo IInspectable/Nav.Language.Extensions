@@ -20,6 +20,14 @@ using Pharmatechnik.Nav.Language.Extension.Utilities;
 
 namespace Pharmatechnik.Nav.Language.Extension.Commands; 
 
+/// <summary>
+/// Command-Handler für die Standard-Editorbefehle „Comment Selection" und „Uncomment Selection" in
+/// Nav-Dateien. Kommentiert die selektierten Zeilen mit <see cref="SyntaxFacts.SingleLineComment"/>
+/// aus bzw. wieder ein; eine partielle Selektion innerhalb einer Zeile wird als Blockkommentar
+/// (<see cref="SyntaxFacts.BlockCommentStart"/>/<see cref="SyntaxFacts.BlockCommentEnd"/>) behandelt.
+/// Alle Änderungen laufen als eine einzige, undo-fähige <see cref="TextUndoTransaction"/> und werden
+/// währenddessen von einem <see cref="IWaitIndicator"/> begleitet.
+/// </summary>
 [Export(typeof(ICommandHandler))]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 [Name(CommandHandlerNames.CommentUncommentSelectionCommandHandler)]
@@ -41,8 +49,13 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         _editorOperationsFactoryService = editorOperationsFactoryService;
     }
 
+    /// <summary>Im Command-System angezeigter Name des Befehls.</summary>
     public string DisplayName => "Comment/uncomment lines";
 
+    /// <summary>
+    /// Meldet „Comment Selection" als verfügbar, sofern der Puffer beschreibbar ist (Editier-Zugriff),
+    /// sonst <see cref="CommandState.Unspecified"/>.
+    /// </summary>
     public CommandState GetCommandState(CommentSelectionCommandArgs args) {
         if (args.SubjectBuffer.CheckEditAccess()) {
             return CommandState.Available;
@@ -51,12 +64,17 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         return CommandState.Unspecified;
     }
 
+    /// <summary>Kommentiert die aktuelle Selektion aus (<see cref="Operation.Comment"/>).</summary>
     public bool ExecuteCommand(CommentSelectionCommandArgs args, CommandExecutionContext executionContext) {
 
         ExecuteCommand(args.TextView, args.SubjectBuffer, Operation.Comment);
         return true;
     }
 
+    /// <summary>
+    /// Meldet „Uncomment Selection" als verfügbar, sofern der Puffer beschreibbar ist, sonst
+    /// <see cref="CommandState.Unspecified"/>.
+    /// </summary>
     public CommandState GetCommandState(UncommentSelectionCommandArgs args) {
         if (args.SubjectBuffer.CheckEditAccess()) {
             return CommandState.Available;
@@ -65,11 +83,16 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         return CommandState.Unspecified;
     }
 
+    /// <summary>Entfernt die Kommentierung der aktuellen Selektion (<see cref="Operation.Uncomment"/>).</summary>
     public bool ExecuteCommand(UncommentSelectionCommandArgs args, CommandExecutionContext executionContext) {
         ExecuteCommand(args.TextView, args.SubjectBuffer, Operation.Uncomment);
         return true;
     }
 
+    /// <summary>
+    /// Legacy-Überladung des Command-States mit Weiterreichung an den nächsten Handler
+    /// (<paramref name="nextHandler"/>), falls der Puffer nicht beschreibbar ist.
+    /// </summary>
     public CommandState GetCommandState(UncommentSelectionCommandArgs args, Func<CommandState> nextHandler) {
         if (args.SubjectBuffer.CheckEditAccess()) {
             return CommandState.Available;
@@ -78,10 +101,16 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         return nextHandler();
     }
 
+    /// <summary>Legacy-Überladung: entfernt die Kommentierung der Selektion (Weiterreich-Signatur).</summary>
     public void ExecuteCommand(UncommentSelectionCommandArgs args, Action nextHandler) {
         ExecuteCommand(args.TextView, args.SubjectBuffer, Operation.Uncomment);
     }
 
+    /// <summary>
+    /// Führt das Ein-/Auskommentieren als eine undo-fähige Transaktion aus: sammelt über
+    /// <see cref="CollectEdits"/> die nötigen Textänderungen, wendet sie an und stellt die betroffenen
+    /// Zeilen als neue Selektion wieder her.
+    /// </summary>
     void ExecuteCommand(ITextView textView, ITextBuffer subjectBuffer, Operation operation) {
 
         var title   = operation == Operation.Comment ? "Comment Selection" : "Uncomment Selection";
@@ -106,6 +135,11 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         }
     }
 
+    /// <summary>
+    /// Sammelt für jede selektierte Span die Textänderungen (<paramref name="textEdit"/>) und die danach
+    /// zu selektierenden Bereiche (<paramref name="spansToSelect"/>) — je nach <paramref name="operation"/>
+    /// über <see cref="CommentSpan"/> oder <see cref="UncommentSpan"/>.
+    /// </summary>
     void CollectEdits(IEditorOptions options, NormalizedSnapshotSpanCollection selectedSpans, ITextEdit textEdit, List<ITrackingSpan> spansToSelect, Operation operation) {
         foreach (var span in selectedSpans) {
             if (operation == Operation.Comment) {
@@ -116,6 +150,11 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         }
     }
 
+    /// <summary>
+    /// Kommentiert eine einzelne Span aus: leere/rein whitespace-Selektionen werden übersprungen, eine
+    /// partielle Selektion innerhalb einer Zeile wird als Blockkommentar umschlossen, ansonsten werden alle
+    /// nicht-leeren Zeilen ab der kleinsten signifikanten Spalte mit einem Zeilenkommentar versehen.
+    /// </summary>
     void CommentSpan(IEditorOptions options, SnapshotSpan span, ITextEdit textEdit, List<ITrackingSpan> spansToSelect) {
         var firstAndLastLine = DetermineFirstAndLastLine(span);
 
@@ -164,6 +203,11 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         }
     }
 
+    /// <summary>
+    /// Entfernt aus allen selektierten Zeilen das führende <see cref="SyntaxFacts.SingleLineComment"/>-Präfix,
+    /// sofern vorhanden, und selektiert anschließend die geänderten Zeilen.
+    /// </summary>
+    /// <returns><see langword="true"/>, wenn mindestens ein Zeilenkommentar entfernt wurde.</returns>
     bool TryUncommentSingleLineComments(SnapshotSpan span, ITextEdit textEdit, List<ITrackingSpan> spansToSelect) {
         // First see if we're selecting any lines that have the single-line comment prefix.
         // If so, then we'll just remove the single-line comment prefix from those lines.
@@ -194,6 +238,11 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         return true;
     }
 
+    /// <summary>
+    /// Entfernt einen die Selektion umschließenden Blockkommentar
+    /// (<see cref="SyntaxFacts.BlockCommentStart"/>/<see cref="SyntaxFacts.BlockCommentEnd"/>) — entweder den
+    /// exakt selektierten oder den textuell umgebenden — und selektiert den freigelegten Bereich.
+    /// </summary>
     void TryUncommentContainingBlockComment(SnapshotSpan span, ITextEdit textEdit, List<ITrackingSpan> spansToSelect) {
 
         // ReSharper disable once RedundantAssignment
@@ -246,6 +295,11 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         }
     }
 
+    /// <summary>
+    /// Entfernt die Kommentierung einer Span: zuerst werden Zeilenkommentare
+    /// (<see cref="TryUncommentSingleLineComments"/>) versucht, andernfalls ein umschließender Blockkommentar
+    /// (<see cref="TryUncommentContainingBlockComment"/>).
+    /// </summary>
     void UncommentSpan(SnapshotSpan span, ITextEdit textEdit, List<ITrackingSpan> spansToSelect) {
         if (TryUncommentSingleLineComments(span, textEdit, spansToSelect)) {
             return;
@@ -254,6 +308,10 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         TryUncommentContainingBlockComment(span, textEdit, spansToSelect);
     }
 
+    /// <summary>
+    /// Ermittelt erste und letzte von der Span berührte Zeile. Endet die Span exakt am Zeilenanfang der
+    /// Folgezeile, wird die vorhergehende Zeile als letzte gewertet (die leere Randzeile zählt nicht mit).
+    /// </summary>
     static Tuple<ITextSnapshotLine, ITextSnapshotLine> DetermineFirstAndLastLine(SnapshotSpan span) {
         var firstLine = span.Snapshot.GetLineFromPosition(span.Start.Position);
         var lastLine  = span.Snapshot.GetLineFromPosition(span.End.Position);
@@ -296,9 +354,12 @@ class CommentUncommentSelectionCommandHandler: ICommandHandler<CommentSelectionC
         return indentToCommentAt;
     }
 
+    /// <summary>Richtung des Befehls: Zeilen aus- oder wieder einkommentieren.</summary>
     enum Operation {
 
+        /// <summary>Selektion auskommentieren.</summary>
         Comment,
+        /// <summary>Kommentierung der Selektion entfernen.</summary>
         Uncomment
 
     }

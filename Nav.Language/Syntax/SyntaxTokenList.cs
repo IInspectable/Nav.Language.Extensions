@@ -5,8 +5,6 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.Internal;
 using Pharmatechnik.Nav.Language.Text;
 
@@ -14,16 +12,27 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language; 
 
+/// <summary>
+/// Eine nach Position sortierte, unveränderliche Liste von <see cref="SyntaxToken"/> mit
+/// Binärsuche-Lookups: der flache Strom der signifikanten Token eines <see cref="SyntaxTree"/>
+/// (<see cref="SyntaxTree.Tokens"/> — trivia-frei, siehe dort) ebenso wie die lokalen Token strukturierter
+/// Trivia (<see cref="StructuredTriviaSyntax"/>).
+/// </summary>
 [Serializable]
 public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
 
     static readonly IReadOnlyList<SyntaxToken> EmptyTokens = new List<SyntaxToken>(Enumerable.Empty<SyntaxToken>()).AsReadOnly();
     readonly        IReadOnlyList<SyntaxToken> _tokens;
 
-    public SyntaxTokenList(List<SyntaxToken> tokens): this(tokens, attachSorted: false) {
+    /// <summary>
+    /// Erzeugt eine Liste aus den — nicht notwendigerweise sortierten — <paramref name="tokens"/>; sie
+    /// werden kopiert und nach Position sortiert (<see cref="SyntaxTokenComparer.Default"/>). <c>null</c>
+    /// ergibt die leere Liste.
+    /// </summary>
+    public SyntaxTokenList(List<SyntaxToken>? tokens): this(tokens, attachSorted: false) {
     }
 
-    SyntaxTokenList(IReadOnlyList<SyntaxToken> tokens, bool attachSorted) {
+    SyntaxTokenList(IReadOnlyList<SyntaxToken>? tokens, bool attachSorted) {
 
         if (attachSorted || tokens == null || tokens.Count == 0) {
             // Tokens sind bereits sortiert oder es gibt keine Tokens
@@ -35,12 +44,19 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         }
     }
 
+    /// <summary>
+    /// Übernimmt <paramref name="tokens"/> ohne Kopie und ohne Sortier-Lauf — der Aufrufer garantiert, dass
+    /// die Liste bereits nach Position sortiert ist und nachträglich nicht mehr verändert wird (alle
+    /// Binärsuche-Lookups setzen die Sortierung voraus).
+    /// </summary>
     internal static SyntaxTokenList AttachSortedTokens(IReadOnlyList<SyntaxToken> tokens) {
         return new SyntaxTokenList(tokens, attachSorted: true);
     }
 
+    /// <summary>Die leere Token-Liste.</summary>
     public static readonly SyntaxTokenList Empty = new(null);
 
+    /// <summary>Enumeriert die Token in Positions-Reihenfolge.</summary>
     public IEnumerator<SyntaxToken> GetEnumerator() {
         return _tokens.GetEnumerator();
     }
@@ -49,13 +65,26 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return GetEnumerator();
     }
 
+    /// <summary>Die Anzahl der Token in dieser Liste.</summary>
     public int Count => _tokens.Count;
 
+    /// <summary>Das Token am Index <paramref name="index"/> (Positions-Reihenfolge).</summary>
     public SyntaxToken this[int index] => _tokens[index];
 
-    [NotNull]
+    /// <summary>
+    /// Die Token innerhalb des <paramref name="extent"/> in Positions-Reihenfolge — standardmäßig nur
+    /// vollständig enthaltene; mit <paramref name="includeOverlapping"/> auch die nur überlappenden.
+    /// </summary>
     public IEnumerable<SyntaxToken> this[TextExtent extent, bool includeOverlapping = false] => _tokens.GetElements(extent, includeOverlapping);
 
+    /// <summary>
+    /// Das Token, dessen <b>eigener</b> Extent (Halbintervall <c>[Start, End)</c>) die <paramref name="position"/>
+    /// abdeckt, oder <see cref="SyntaxToken.Missing"/>, wenn dort kein Token steht. Liegt die Position in
+    /// angehängter Trivia (Whitespace/Kommentar), wird das die Trivia tragende signifikante Token <b>nicht</b>
+    /// mitgeliefert — dafür gibt es <see cref="FindOwningToken"/>. Dies ist der exakte Low-Level-Lookup
+    /// (z.B. für BraceMatching): Da Trivia nicht mehr im flachen Token-Strom geführt wird, liefert er an einer
+    /// Trivia-Position <see cref="SyntaxToken.Missing"/>.
+    /// </summary>
     public SyntaxToken FindAtPosition(int position) {
         if (position < 0) {
             return SyntaxToken.Missing;
@@ -64,7 +93,81 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return _tokens.FindElementAtPosition(position, defaultIfNotFound: true);
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {
+    /// <summary>
+    /// Das Token, zu dem die <paramref name="position"/> gehört — nach Roslyn-Vorbild (<c>FindToken</c>): liegt
+    /// die Position auf dem Extent eines Tokens, ist es dieses; liegt sie in angehängter Trivia
+    /// (Whitespace/Zeilenende/Kommentar), ist es das <b>signifikante Token, an dem die Trivia hängt</b>. Damit
+    /// liefert dieser Lookup — anders als <see cref="FindAtPosition"/> — im gültigen Bereich nie eine
+    /// Trivia-Position als „leer" zurück. Für Positionen außerhalb des Texts (negativ oder ohne tragendes
+    /// Token) wird <see cref="SyntaxToken.Missing"/> geliefert (Nav wirft hier — anders als Roslyn — nicht).
+    /// </summary>
+    public SyntaxToken FindOwningToken(int position) {
+        if (position < 0) {
+            return SyntaxToken.Missing;
+        }
+
+        // Exakter Treffer auf dem eigenen Extent eines Tokens.
+        var exact = FindAtPosition(position);
+        if (!exact.IsMissing) {
+            return exact;
+        }
+
+        // Die Position liegt nicht auf dem Extent eines Tokens — also in angehängter Trivia (oder außerhalb des
+        // Texts). Der flache Strom ist trivia-frei; die FullSpans der Token (Leading + Extent + Trailing) kacheln
+        // den Text. Die Trivia an dieser Position gehört damit entweder als Trailing zum unmittelbaren Vorgänger
+        // oder als Leading zum unmittelbaren Nachfolger. Beide finden wir per Binärsuche über das erste Token mit
+        // Start > position.
+        int next = FindFirstIndexAfterPosition(position);
+
+        // Vorgänger (letztes Token mit Start <= position): dessen Trailing-Trivia reicht von End bis FullEnd.
+        if (next - 1 >= 0) {
+            var previous = _tokens[next - 1];
+            foreach (var trivia in previous.TrailingTrivia) {
+                if (trivia.Start <= position && position < trivia.End) {
+                    return previous;
+                }
+            }
+        }
+
+        // Nachfolger (erstes Token mit Start > position): dessen Leading-Trivia reicht von FullStart bis Start.
+        if (next < _tokens.Count) {
+            var successor = _tokens[next];
+            foreach (var trivia in successor.LeadingTrivia) {
+                if (trivia.Start <= position && position < trivia.End) {
+                    return successor;
+                }
+            }
+        }
+
+        return SyntaxToken.Missing;
+    }
+
+    /// <summary>
+    /// Index des ersten Tokens mit <c>Start &gt; position</c> (Lower-Bound-Binärsuche über die nach
+    /// <see cref="SyntaxToken.Start"/> sortierte Liste), bzw. <see cref="Count"/>, wenn keines folgt.
+    /// </summary>
+    int FindFirstIndexAfterPosition(int position) {
+        int lo = 0;
+        int hi = _tokens.Count;
+        while (lo < hi) {
+            int mid = lo + (hi - lo >> 1);
+            if (_tokens[mid].Start <= position) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+
+        return lo;
+    }
+
+    /// <summary>
+    /// Läuft — wie <see cref="NextOrPrevious(SyntaxNode,SyntaxToken,bool)"/> — vom
+    /// <paramref name="currentToken"/> aus vor bzw. zurück, bis ein Token vom Typ <paramref name="type"/>
+    /// gefunden ist; <see cref="SyntaxToken.Missing"/>, wenn keines mehr im Extent von
+    /// <paramref name="node"/> liegt.
+    /// </summary>
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, SyntaxTokenType type, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
             if (token.Type == type) {
@@ -75,7 +178,13 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, TextClassification classification, bool nextToken) {
+    /// <summary>
+    /// Läuft — wie <see cref="NextOrPrevious(SyntaxNode,SyntaxToken,bool)"/> — vom
+    /// <paramref name="currentToken"/> aus vor bzw. zurück, bis ein Token mit der Klassifikation
+    /// <paramref name="classification"/> gefunden ist; <see cref="SyntaxToken.Missing"/>, wenn keines mehr
+    /// im Extent von <paramref name="node"/> liegt.
+    /// </summary>
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, TextClassification classification, bool nextToken) {
         SyntaxToken token = currentToken;
         while (!(token = NextOrPrevious(node, token, nextToken)).IsMissing) {
             if (token.Classification == classification) {
@@ -86,7 +195,13 @@ public sealed class SyntaxTokenList: IReadOnlyList<SyntaxToken> {
         return SyntaxToken.Missing;
     }
 
-    internal SyntaxToken NextOrPrevious(SyntaxNode node, SyntaxToken currentToken, bool nextToken) {
+    /// <summary>
+    /// Das auf <paramref name="currentToken"/> folgende (bzw. ihm vorausgehende) Token im Strom — begrenzt
+    /// auf den Extent von <paramref name="node"/>: liegt das Nachbar-Token außerhalb, ist das Ergebnis
+    /// <see cref="SyntaxToken.Missing"/>. Die Basis der parent-lokalen Navigation von
+    /// <see cref="SyntaxToken.NextToken()"/>/<see cref="SyntaxToken.PreviousToken()"/>.
+    /// </summary>
+    internal SyntaxToken NextOrPrevious(SyntaxNode? node, SyntaxToken currentToken, bool nextToken) {
         return _tokens.NextOrPreviousElement(node, currentToken, nextToken, SyntaxToken.Missing);
     }
 

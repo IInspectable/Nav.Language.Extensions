@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
     <!-- Apphost/Assembly heißt nav → self-contained Single-File-Publish liefert nav.exe.
          SelfContained/PublishSingleFile/RID werden beim Publish per Kommandozeile gesetzt
@@ -13,9 +14,22 @@
     <AssemblyName>nav</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <!-- Eingebundene NDesk-Options.cs nutzt Legacy-Serialisierung/CAS (Exception-Serialisierungs-Ctor,
-         GetObjectData, SecurityPermission). Auf net10 nur veraltet, nicht funktional relevant — die
-         Warnungen für die unveränderte Fremddatei unterdrücken. -->
+    <!-- Getrimmt ausliefern: die reflektionsbasierte Analyzer-Erkennung ist (in Nav.Language) durch den
+         Nav.Analyzer.SourceGenerator ersetzt, der Codegen ist CodeBuilder-basiert (keine Laufzeit-
+         Template-Reflection). PublishTrimmed gehört AUSSCHLIESSLICH ins App-csproj (nie als globale
+         CLI-Property — sonst erbt es an die netstandard2.0-Referenzen und bricht mit NETSDK1124). -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!-- Eingebundene NDesk-Options.cs (Shared/Options.cs) nutzt Legacy-Serialisierung/CAS
+         (Exception-Serialisierungs-Ctor, GetObjectData, SecurityPermission). Auf net10 nur veraltet,
+         nicht funktional relevant — diese Warnungen unterdrücken.
+         Die früher hier ebenfalls unterdrückten Trim-Warnungen IL2026/IL2062/IL2087 stammten aus dem
+         generischen, reflektionsbasierten Options-Pfad (Option.Parse<T>() → TypeDescriptor.GetConverter).
+         nav nutzt ausschließlich untypisierte Action<string>-Callbacks; dieser Pfad wurde in Options.cs
+         entfernt statt suppressed → die IL-Codes gehören nicht mehr in NoWarn.
+         Die verbleibenden IL2104-Rollups aus NLog / NLog.Targets.Network (via Nav.Utilities) bleiben
+         BEWUSST sichtbar (nicht in NoWarn): ungenutzte NLog-Reflection-Pfade (Auto-Load/Extension-
+         Registrierung + GelfLayout), kein NLog-Update behebt sie. Details: doc/nav-mcp-trimming-status.md. -->
     <NoWarn>$(NoWarn);SYSLIB0003;SYSLIB0051;CS0672</NoWarn>
   </PropertyGroup>
 
@@ -25,7 +39,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\Options.cs" Link="CommandLine\Options.cs" />
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
   </ItemGroup>
   
   <ItemGroup>
@@ -38,8 +52,7 @@
     <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
   </ItemGroup>
-  
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
+
   <Import Project="CustomBuild.targets" />
 
 </Project>

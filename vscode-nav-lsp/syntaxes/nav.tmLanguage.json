@@ -3,12 +3,26 @@
     "name": "Nav",
     "scopeName": "source.nav",
     "patterns": [
+        { "include": "#preprocessor" },
         { "include": "#comments" },
         { "include": "#strings" },
         { "include": "#edges" },
         { "include": "#keywords" }
     ],
     "repository": {
+        "preprocessor": {
+            "patterns": [
+                {
+                    "match": "^\\s*(#)\\s*(pragma)(?:\\s+(version)(?:\\s+(\\d+))?)?",
+                    "captures": {
+                        "1": { "name": "keyword.control.directive.pragma.nav" },
+                        "2": { "name": "keyword.control.directive.pragma.nav" },
+                        "3": { "name": "keyword.control.directive.pragma.nav" },
+                        "4": { "name": "constant.numeric.nav" }
+                    }
+                }
+            ]
+        },
         "comments": {
             "patterns": [
                 {

@@ -1,0 +1,69 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.Choice]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: Choices in C# — der durchgängige Fall.
+//
+// Deckt in einem Fixture ab:
+//   - 3 Quellen an dieselbe Choice: Init-, Trigger- und Exit-Transition delegieren an Choice_Retry
+//   - Union pro Ziel-Knoten: Choice_Retry hat zur View Home eine plain- UND eine Continuation-Kante
+//     (--> Home  und  --> Home o-^ Msg) → EINE mode-freie Show-Methode mit Union-Rückgabetyp
+//   - Choice→Choice: Choice_Retry --> Choice_Escalate (rekursives Forwarding, kein Platt-Falten)
+//   - Multi-Exit: der Task hat zwei exit-Knoten (Done, Esc), auf die dieselbe Exit()-Fabrik abbildet
+//
+// Choice-Parameter (NEU): choice X [params ...] — jede Quelle übergibt die Argumente bei der
+// Delegation; die geteilte Choice-Logic existiert genau einmal.
+//
+// Init-Legalität: alles aus Init1 über Choice_Retry Erreichbare liegt in der IINIT_TASK-Menge
+// (GOTO_GUI, GotoGUI(...).Concat(OpenModalTask(...)), TASK_RESULT).
+
+taskref A [namespaceprefix NS.V2.Choice]
+          [result AResult r1] {
+
+    init;
+    exit E1;
+    exit E2;
+}
+
+taskref Msg [namespaceprefix NS.V2.Choice]
+            [result MsgResult r] {
+
+    init [params string text];
+    exit Ok;
+}
+
+task ChoiceFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1 [params string message];
+    exit Done;
+    exit Esc;
+    task A;
+    task Msg;
+    view Home;
+    choice Choice_Retry    [params string reason];
+    choice Choice_Escalate [params int level];
+
+    // Drei Quellen delegieren an dieselbe Choice:
+    Init1 --> Choice_Retry;                // Quelle 1: Init-Transition
+    Home  --> Choice_Retry on OnRetry;     // Quelle 2: Trigger-Transition
+    A:E1  --> Choice_Retry;                // Quelle 3: Exit-Transition
+
+    Home  o-> A on OnStartA;
+    A:E2  --> Home;
+
+    // Choice-Ausgänge:
+    Choice_Retry --> Home;                        // plain      ┐ Union auf Home
+    Choice_Retry --> Home o-^ Msg if "Fehler";    // Continuation┘
+    Choice_Retry --> Choice_Escalate if "Fatal";  // Choice→Choice
+
+    Choice_Escalate --> Done;                      // Multi-Exit-Ziel 1
+    Choice_Escalate --> Esc;                       // Multi-Exit-Ziel 2
+
+    Msg:Ok --> Home;
+}

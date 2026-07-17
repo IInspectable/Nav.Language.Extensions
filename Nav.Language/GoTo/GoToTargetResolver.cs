@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -45,7 +45,7 @@ sealed class GoToTargetResolver: SymbolVisitor<IEnumerable<Location>> {
         return One(exitConnectionPointReferenceSymbol.Declaration?.Location);
     }
 
-    static IEnumerable<Location> One(Location location) {
+    static IEnumerable<Location> One(Location? location) {
         return location == null ? None : new[] { location };
     }
 

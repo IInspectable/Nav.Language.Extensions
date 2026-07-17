@@ -6,6 +6,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net472</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language.BuildTasks</RootNamespace>
     <AssemblyName>Pharmatechnik.Nav.Language.BuildTasks</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    
@@ -18,7 +19,7 @@
 
 
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -56,7 +57,6 @@
     </PackageReference>
   </ItemGroup>
 
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="CustomBuild.targets" />
 
 </Project>

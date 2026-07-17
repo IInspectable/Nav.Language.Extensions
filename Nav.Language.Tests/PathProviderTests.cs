@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using NUnit.Framework;
 using Pharmatechnik.Nav.Language;

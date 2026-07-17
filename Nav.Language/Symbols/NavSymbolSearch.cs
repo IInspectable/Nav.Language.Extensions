@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 #endregion
 
 namespace Pharmatechnik.Nav.Language.Symbols;
@@ -26,13 +24,21 @@ public static class NavSymbolSearch {
     /// gleichen Namens (z.B. ein Knotenname in zwei Tasks) werden alle zurückgegeben, damit der Aufrufer
     /// disambiguieren kann; Duplikate an derselben Stelle (Datei + Startoffset) werden entfernt.
     /// </summary>
+    /// <param name="unit">Die zu durchsuchende <see cref="CodeGenerationUnit"/>.</param>
+    /// <param name="name">
+    /// Der exakt (ordinal) zu treffende Symbolname. Ist er <c>null</c> oder leer, wird eine leere Liste
+    /// geliefert.
+    /// </param>
     /// <param name="taskScope">
     /// Optionaler Task-Name. Ist er gesetzt, wird ausschließlich innerhalb der Task-Definition(en) dieses
     /// Namens gesucht (deren Knoten + die Task selbst) — zur Disambiguierung mehrdeutiger Knotennamen.
     /// </param>
-    [NotNull]
-    public static IReadOnlyList<ISymbol> FindByName([NotNull] CodeGenerationUnit unit, string name,
-                                                    string taskScope = null) {
+    /// <returns>
+    /// Die passenden Symbole in Suchreihenfolge, dedupliziert über ihre Location; eine leere Liste, wenn
+    /// <paramref name="name"/> leer ist oder kein Symbol passt.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="unit"/> ist <c>null</c>.</exception>
+    public static IReadOnlyList<ISymbol> FindByName(CodeGenerationUnit unit, string? name, string? taskScope = null) {
 
         if (unit == null) {
             throw new ArgumentNullException(nameof(unit));
@@ -42,18 +48,8 @@ public static class NavSymbolSearch {
             return Array.Empty<ISymbol>();
         }
 
-        var seen    = new HashSet<(string, int)>();
+        var seen    = new HashSet<(string?, int)>();
         var results = new List<ISymbol>();
-
-        void TryAdd(ISymbol symbol) {
-            if (symbol?.Location == null || !string.Equals(symbol.Name, name, StringComparison.Ordinal)) {
-                return;
-            }
-
-            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
-                results.Add(symbol);
-            }
-        }
 
         if (taskScope != null) {
             foreach (var task in unit.TaskDefinitions.Where(t => string.Equals(t.Name, taskScope, StringComparison.Ordinal))) {
@@ -84,6 +80,16 @@ public static class NavSymbolSearch {
         }
 
         return results;
+
+        void TryAdd(ISymbol? symbol) {
+            if (symbol?.Location == null || !string.Equals(symbol.Name, name, StringComparison.Ordinal)) {
+                return;
+            }
+
+            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
+                results.Add(symbol);
+            }
+        }
     }
 
     /// <summary>
@@ -95,28 +101,26 @@ public static class NavSymbolSearch {
     /// (z.B. ein Knotenname in mehreren Tasks) werden alle zurückgegeben; Duplikate an derselben Stelle
     /// (Datei + Startoffset) werden entfernt.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<ISymbol> FindDefinitionsByPrefix([NotNull] CodeGenerationUnit unit, string prefix) {
+    /// <param name="unit">Die zu durchsuchende <see cref="CodeGenerationUnit"/>.</param>
+    /// <param name="prefix">
+    /// Der groß-/kleinschreibungsignorierend zu treffende Namenspräfix. <c>null</c> wird wie ein leerer
+    /// Präfix behandelt und matcht alle Definitionen.
+    /// </param>
+    /// <returns>
+    /// Die passenden Definitions-Symbole (Task-Definitionen und deren Knoten), dedupliziert über ihre
+    /// Location; eine leere Liste, wenn kein Symbol passt.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="unit"/> ist <c>null</c>.</exception>
+    public static IReadOnlyList<ISymbol> FindDefinitionsByPrefix(CodeGenerationUnit unit, string? prefix) {
 
         if (unit == null) {
             throw new ArgumentNullException(nameof(unit));
         }
 
-        prefix = prefix ?? string.Empty;
+        prefix ??= string.Empty;
 
-        var seen    = new HashSet<(string, int)>();
+        var seen    = new HashSet<(string?, int)>();
         var results = new List<ISymbol>();
-
-        void TryAdd(ISymbol symbol) {
-            if (symbol?.Location == null || symbol.Name == null ||
-                !symbol.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
-                return;
-            }
-
-            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
-                results.Add(symbol);
-            }
-        }
 
         // Nur Definitionen: lokale Task-Definitionen und deren Knoten. Die taskref-Deklarationen
         // (unit.TaskDeclarations) bleiben außen vor — Verwendungsstellen liefert nav_references.
@@ -128,6 +132,17 @@ public static class NavSymbolSearch {
         }
 
         return results;
+
+        void TryAdd(ISymbol? symbol) {
+            if (symbol?.Location == null ||
+                !symbol.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
+                return;
+            }
+
+            if (seen.Add((symbol.Location.FilePath, symbol.Location.Start))) {
+                results.Add(symbol);
+            }
+        }
     }
 
 }

@@ -13,6 +13,12 @@ using Pharmatechnik.Nav.Language.FindReferences;
 
 namespace Pharmatechnik.Nav.Language.Extension.FindReferences; 
 
+/// <summary>
+/// Eine Fundstellen-Zeile im „Find All References"-Fenster: eine konkrete Referenz (<see cref="ReferenceItem"/>)
+/// einer Definition, ergänzt um die <see cref="ProjectInfo"/> (für Projektspalte und -filter). Der
+/// Spalteninhalt ist der klassifizierte Zeilentext mit hervorgehobener Trefferstelle und einem
+/// lazy erzeugten Tooltip.
+/// </summary>
 class ReferenceEntry: Entry {
 
     ReferenceEntry(FindReferencesPresenter presenter,
@@ -25,6 +31,7 @@ class ReferenceEntry: Entry {
         ProjectInfo   = projectInfo;
     }
 
+    /// <summary>Factory für eine Fundstellen-Zeile unter dem gegebenen Definitionsknoten.</summary>
     public static ReferenceEntry Create(FindReferencesPresenter presenter,
                                         DefinitionEntry definitionEntry,
                                         ReferenceItem referenceItem,
@@ -34,11 +41,15 @@ class ReferenceEntry: Entry {
         return new ReferenceEntry(presenter, referenceItem, definitionEntry, projectInfo);
     }
 
+    /// <summary>Die zugrunde liegende Engine-Fundstelle (Location, Textteile, Trefferbereich).</summary>
     public ReferenceItem ReferenceItem { get; }
+    /// <summary>Projektzuordnung der Fundstelle (Name/GUID) für Spalte und Filter.</summary>
     public ProjectInfo   ProjectInfo   { get; }
 
+    /// <inheritdoc/>
     public override string Text => ReferenceItem.Text;
 
+    /// <summary>Liefert Zellwerte (Datei, Zeile/Spalte, Projekt); sonst Rückfall auf die Basisklasse.</summary>
     public override object GetValue(string keyName) {
         switch (keyName) {
 
@@ -59,6 +70,7 @@ class ReferenceEntry: Entry {
         return base.GetValue(keyName);
     }
 
+    /// <summary>Baut den Spalteninhalt: den eingefärbten Zeilentext samt lazy erzeugtem Tooltip.</summary>
     public override FrameworkElement TryCreateColumnContent() {
 
         var content = LinePartsToTextBlock();

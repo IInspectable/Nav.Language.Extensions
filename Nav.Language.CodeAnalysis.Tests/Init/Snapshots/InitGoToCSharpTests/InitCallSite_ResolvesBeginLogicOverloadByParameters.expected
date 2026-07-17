@@ -1,0 +1,7 @@
+﻿// C# → C#
+// Von der Aufrufstelle BeginOverChild(wfs, "hi", true) auf den passenden Overload
+// BeginLogic(string, bool) — der Golden pinnt den Span des ZWEI-Parameter-Overloads,
+// nicht des einparametrigen BeginLogic(string).
+
+<OverChildWFS.cs> (16,44)-(16,54)  "BeginLogic"
+    protected override INavCommandBody BeginLogic(string text,

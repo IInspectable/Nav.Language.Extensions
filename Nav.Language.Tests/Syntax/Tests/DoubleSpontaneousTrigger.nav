@@ -1,0 +1,9 @@
+﻿task T
+{
+    init I1;
+    exit E1;
+    view V1;
+
+    init --> V1;
+    V1 --> E1 spont spontaneous;
+}

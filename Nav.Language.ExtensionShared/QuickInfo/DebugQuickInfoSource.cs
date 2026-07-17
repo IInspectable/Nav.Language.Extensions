@@ -14,11 +14,21 @@ using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
 
 namespace Pharmatechnik.Nav.Language.Extension.QuickInfo; 
 
+/// <summary>
+/// Diagnose-Hover für Sprachentwickler: zeigt bei gedrückt gehaltenem <c>Strg+Umschalt</c> zum Token unter
+/// dem Cursor dessen Art, Klassifikation, Position und Parent-Syntaxknoten. Erfüllt den VS-SDK-Vertrag
+/// <see cref="IAsyncQuickInfoSource"/> und bezieht den Syntaxbaum über den <see cref="ParserServiceDependent"/>-Basispfad.
+/// </summary>
 sealed class DebugQuickInfoSource: ParserServiceDependent, IAsyncQuickInfoSource {
 
     public DebugQuickInfoSource(ITextBuffer textBuffer): base(textBuffer) {
     }
 
+    /// <summary>
+    /// VS-SDK-Vertrag: baut den Debug-Tooltip zum Token unter dem Trigger-Punkt (exakter Lookup via
+    /// <c>FindAtPosition</c>). Liefert nur ein Ergebnis, wenn <c>Strg+Umschalt</c> gedrückt ist und an der
+    /// Position ein echtes Token liegt; sonst <c>null</c>.
+    /// </summary>
     public async Task<QuickInfoItem> GetQuickInfoItemAsync(IAsyncQuickInfoSession session, CancellationToken cancellationToken) {
 
         await Task.Yield().ConfigureAwait(false);
@@ -39,6 +49,10 @@ sealed class DebugQuickInfoSource: ParserServiceDependent, IAsyncQuickInfoSource
 
         var triggerToken = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(triggerPoint.Value.Position);
 
+        // Bewusst der EXAKTE Lookup (FindAtPosition), nicht das owning FindToken: das Debug-QuickInfo zeigt das
+        // Token genau unter dem Cursor. An einer Trivia-Position liefert FindAtPosition kein Token (Missing) —
+        // sobald die Trivia nicht mehr im flachen Token-Strom liegt; dann gibt es hier nichts zu zeigen, der
+        // Missing-Zweig fängt das ab.
         if (triggerToken.IsMissing || triggerToken.Parent == null) {
             return null;
         }

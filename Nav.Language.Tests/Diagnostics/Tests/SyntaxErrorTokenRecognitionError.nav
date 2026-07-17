@@ -9,5 +9,4 @@
 }
 #字
 
-//==>>[Syntax](10,1,10,1): error Nav3000: Invalid Preprocessor directive
-//==>>[Syntax](10,2,10,3): error Nav0002: token recognition error at: '字'
+//==>>[Syntax](10,1,10,3): error Nav3000: Invalid preprocessor directive

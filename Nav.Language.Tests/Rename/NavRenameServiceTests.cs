@@ -1,6 +1,5 @@
-#region Using Directives
+﻿#region Using Directives
 
-using System;
 using System.Linq;
 
 using NUnit.Framework;
@@ -16,26 +15,34 @@ namespace Nav.Language.Tests.Rename;
 [TestFixture]
 public class NavRenameServiceTests {
 
-    const string Nav = "task A\n"         +
-                       "{\n"              +
-                       "    init I1;\n"   +
-                       "    exit e1;\n"   +
-                       "\n"               + // Leerzeile — garantiert symbolfreie Position
-                       "    I1 --> e1;\n" +
-                       "}\n";
+    //   |kw:|    Position im Keyword 'exit'
+    //   |decl:e1| Deklaration von 'e1'
+    //   |ws:|    Leerzeile — garantiert symbolfreie Position
+    //   |ref:e1| Referenz auf 'e1'
+    static readonly NavMarkup M = NavMarkup.Parse(
+        """
+        task A
+        {
+            init I1;
+            e|kw:|xit |decl:e1|;
+        |ws:|
+            I1 --> |ref:e1|;
+        }
+
+        """);
 
     static readonly TextEditorSettings Settings = new(tabSize: 4, newLine: "\n");
 
     [Test]
     public void Rename_FromDeclaration_RenamesDeclarationAndReference() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "exit e1", "exit "); // auf der Deklaration 'e1'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("decl"); // auf der Deklaration 'e1'
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
         Assert.That(fix, Is.Not.Null);
 
-        var actual = ApplyChanges(Nav, fix, "e2");
+        var actual = ApplyChanges(M.Source, fix, "e2");
 
         Assert.That(actual, Does.Contain("exit e2;"));
         Assert.That(actual, Does.Contain("I1 --> e2;"));
@@ -45,13 +52,13 @@ public class NavRenameServiceTests {
     [Test]
     public void Rename_FromReference_YieldsSameResult() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "--> e1", "--> "); // auf der Referenz 'e1'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("ref"); // auf der Referenz 'e1'
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
         Assert.That(fix, Is.Not.Null);
 
-        var actual = ApplyChanges(Nav, fix, "e2");
+        var actual = ApplyChanges(M.Source, fix, "e2");
 
         Assert.That(actual, Does.Contain("exit e2;"));
         Assert.That(actual, Does.Contain("I1 --> e2;"));
@@ -60,8 +67,8 @@ public class NavRenameServiceTests {
     [Test]
     public void Rename_OnWhitespace_ReturnsNull() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = Nav.IndexOf("e1;\n\n", StringComparison.Ordinal) + "e1;\n".Length; // Leerzeile
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("ws"); // Leerzeile
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
 
@@ -71,8 +78,8 @@ public class NavRenameServiceTests {
     [Test]
     public void Rename_OnKeyword_ReturnsNull() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = Nav.IndexOf("exit", StringComparison.Ordinal) + 1; // im Keyword 'exit'
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("kw"); // im Keyword 'exit'
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
 
@@ -82,8 +89,8 @@ public class NavRenameServiceTests {
     [Test]
     public void Validate_RejectsAlreadyDeclaredName() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "exit e1", "exit ");
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("decl");
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
         Assert.That(fix, Is.Not.Null);
@@ -97,8 +104,8 @@ public class NavRenameServiceTests {
     [Test]
     public void Rename_ToSameName_ProducesNoChanges() {
 
-        var unit  = ParseModel(Nav, @"n:\av\a.nav");
-        var caret = IndexOfToken(Nav, "exit e1", "exit ");
+        var unit  = ParseModel(M.Source, @"n:\av\a.nav");
+        var caret = M.Position("decl");
 
         var fix = NavRenameService.GetRenameFix(unit, caret, Settings);
         Assert.That(fix, Is.Not.Null);
@@ -109,12 +116,6 @@ public class NavRenameServiceTests {
     }
 
     #region Helpers
-
-    static int IndexOfToken(string source, string anchor, string leading) {
-        var anchorIndex = source.IndexOf(anchor, StringComparison.Ordinal);
-        Assert.That(anchorIndex, Is.GreaterThanOrEqualTo(0), $"Anker '{anchor}' nicht gefunden.");
-        return anchorIndex + leading.Length;
-    }
 
     static string ApplyChanges(string text, Pharmatechnik.Nav.Language.CodeFixes.Refactoring.RenameCodeFix fix, string newName) {
         var writer = new TextChangeWriter();

@@ -1,0 +1,21 @@
+﻿#version 2
+
+// Präfix-Klasch: eine Choice namens ShowV trifft aus derselben Quelle (hier: Choice C1) auf den
+// präfixten Member Show{V} des gleichnamigen View-Knotens V — beide erzeugen den Member ShowV.
+
+task A
+{
+    init I1;
+    exit e;
+    view V;
+    choice C1;
+    choice ShowV;
+
+    I1 --> C1;
+    C1 --> V;
+    C1 --> ShowV;
+    ShowV --> e;
+    V     --> e on OnGo;
+}
+//==>>[Semantic](10,10,10,11): error Nav0124: The generated member 'ShowV' collides with another generated member
+//==>>[Semantic](12,12,12,17): error Nav0124: The generated member 'ShowV' collides with another generated member

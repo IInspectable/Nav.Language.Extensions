@@ -12,11 +12,20 @@ using Microsoft.VisualStudio.Shell.Interop;
 
 namespace Pharmatechnik.Nav.Language.Extension.Utilities; 
 
+/// <summary>
+/// MEF-Dienst, der die aktuelle Visual-Studio-Solution über <see cref="IVsSolution"/> aufzählt und
+/// daraus einen <see cref="ProjectMapper"/> erzeugt — die Datenquelle, um Nav-Dateien ihrem Projekt
+/// zuzuordnen. Muss auf dem UI-Thread benutzt werden.
+/// </summary>
 [Export(typeof(ProjectService))]
 class ProjectService {
 
     readonly IVsSolution _vsSolution1;
 
+    /// <summary>
+    /// MEF-Import-Konstruktor; bezieht die <see cref="IVsSolution"/> aus dem VS-Service-Provider.
+    /// </summary>
+    /// <param name="serviceProvider">Der von MEF bereitgestellte VS-Service-Provider.</param>
     [ImportingConstructor]
     public ProjectService(SVsServiceProvider serviceProvider) {
 
@@ -25,6 +34,11 @@ class ProjectService {
         _vsSolution1 = (IVsSolution) serviceProvider.GetService(typeof(SVsSolution)) ?? throw new InvalidOperationException();
     }
 
+    /// <summary>
+    /// Zählt alle geladenen und ungeladenen Projekte der Solution auf und baut daraus einen
+    /// <see cref="ProjectMapper"/>. Liefert <see cref="ProjectMapper.Empty"/>, wenn die Aufzählung
+    /// fehlschlägt. Muss auf dem UI-Thread aufgerufen werden.
+    /// </summary>
     public ProjectMapper GetProjectMapper() {
 
         ThreadHelper.ThrowIfNotOnUIThread();

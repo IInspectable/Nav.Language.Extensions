@@ -1,0 +1,6 @@
+﻿taskref TR []
+{
+    init I1;
+    exit E1;
+    end;
+}

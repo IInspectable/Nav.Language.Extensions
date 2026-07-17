@@ -4,17 +4,31 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
 static class EnumerableExtensions {
 
     public static IReadOnlyList<T> ToReadOnlyList<T>(this IEnumerable<T> source, int expectedCapacity) {
         var result = new List<T>(expectedCapacity);
         result.AddRange(source);
+        return result;
+    }
+
+    /// <summary>
+    /// Liefert eine neue Liste, in der jedes Element, für das <paramref name="predicate"/> zutrifft, durch
+    /// <paramref name="replacement"/> ersetzt ist; alle übrigen Elemente werden unverändert übernommen.
+    /// Ersetzt NICHT in-place — die Eingabeliste bleibt unangetastet (der einzig gangbare Weg für
+    /// immutable Elemente, die man nur durch eine veränderte Kopie „bearbeiten" kann).
+    /// </summary>
+    public static IReadOnlyList<T> ReplaceIf<T>(this IReadOnlyList<T> source, Func<T, bool> predicate, Func<T, T> replacement) {
+        var result = new T[source.Count];
+        for (var i = 0; i < source.Count; i++) {
+            var item  = source[i];
+            result[i] = predicate(item) ? replacement(item) : item;
+        }
+
         return result;
     }
 
@@ -25,14 +39,14 @@ static class EnumerableExtensions {
     /// <summary>
     /// Filtert aus einer Sequenz von Elementen alle Null-Objekte heraus.
     /// </summary>
-    [NotNull]
-    [ItemNotNull]
-    public static IEnumerable<T> WhereNotNull<T>([CanBeNull] this IEnumerable<T> source) {
+    public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?>? source) where T : class {
         if (source == null) {
             return Enumerable.Empty<T>();
         }
 
-        return source.Where(t => t != null);
+        // t! ist durch das vorangehende Where(t => t != null) belegt — die Flussanalyse
+        // trägt die Filterung nicht über den Where-Aufruf hinweg.
+        return source.Where(t => t != null).Select(t => t!);
     }
 
 }

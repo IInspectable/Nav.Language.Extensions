@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -21,7 +21,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// (<c>nav_goto</c>, <c>nav_references</c>, …) brauchen den Pfad bereits.
 /// </summary>
 [McpServerToolType]
-public static class NavFindSymbolTool {
+public sealed class NavFindSymbolTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;
@@ -54,6 +54,8 @@ public static class NavFindSymbolTool {
         int offset = 0,
         CancellationToken cancellationToken = default) {
 
+        // MCP-Parameter kommt aus der JSON-Deserialisierung — optimistische non-null-Annotation.
+        // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         var result = new NavFindSymbolResult { Prefix = prefix ?? "" };
 
         // Solution-weite Suche braucht die geladene Solution.
@@ -71,11 +73,10 @@ public static class NavFindSymbolTool {
             cancellationToken);
 
         // Optionaler Art-Filter, solution-weite Dedup über (Datei, Startoffset), stabile Sortierung.
-        var seen = new HashSet<(string, int)>();
+        var seen = new HashSet<(string?, int)>();
         var matched = found
-                     .Where(symbol => string.IsNullOrEmpty(kind) || NavNameResolution.KindMatches(symbol, kind!))
-                     .Where(symbol => symbol.Location != null &&
-                                      seen.Add((symbol.Location.FilePath, symbol.Location.Start)))
+                     .Where(symbol => string.IsNullOrEmpty(kind) || NavNameResolution.KindMatches(symbol, kind))
+                     .Where(symbol => seen.Add((symbol.Location.FilePath, symbol.Location.Start)))
                      .OrderBy(symbol => symbol.Location.FilePath, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(symbol => symbol.Location.Start)
                      .ToList();

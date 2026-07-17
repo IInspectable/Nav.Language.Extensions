@@ -1,27 +1,35 @@
-﻿namespace Pharmatechnik.Nav.Language; 
+﻿namespace Pharmatechnik.Nav.Language;
 
 public static partial class DiagnosticDescriptors {
 
     // Unbenutzer Code wird etwas gesondert behandelt, da weder Error noch Warning.
     // Im Editor wird der Code z.B. etwas abgeduckellt dargestellt. Deshalb bekommt
     // diese Art von Diagnostic eine eigene Kategorie.
+    /// <summary>
+    /// Die Tote-Code-Diagnosen des Katalogs (<c>Nav1xxx</c>) — Hinweise auf Deklarationen oder
+    /// Direktiven, die der generierte Code nicht benötigt und die gefahrlos entfernt werden können.
+    /// Sie bilden eine eigene Kategorie (<see cref="DiagnosticCategory.DeadCode"/>), weil sie weder
+    /// Fehler noch Warnung im engeren Sinn sind und im Editor eigens (abgedunkelt) dargestellt werden.
+    /// </summary>
     public static class DeadCode {
 
+        /// <summary>Die gemeinsame Kategorie aller hier definierten Deskriptoren (<see cref="DiagnosticCategory.DeadCode"/>).</summary>
         public const DiagnosticCategory Category = DiagnosticCategory.DeadCode;
+        /// <summary>Der gemeinsame Schweregrad der Tote-Code-Hinweise (<see cref="DiagnosticSeverity.Warning"/>).</summary>
         public const DiagnosticSeverity Severity = DiagnosticSeverity.Warning;
 
         /// <summary>
-        /// The include directive for the file '{0}' appeared previously in this file\r\nInclude Directive is unnecessary
+        /// The include directive for '{0}' appeared previously in this file and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1001IncludeDirectiveForFile0AppearedPreviously = new(
             id             : DiagnosticId.Nav1001,
-            messageFormat  : "The include directive for the file '{0}' appeared previously in this file",
+            messageFormat  : "The include directive for '{0}' appeared previously in this file and can be safely removed",
             category       : Category,
             defaultSeverity: Severity
         );
 
         /// <summary>
-        /// The using directive for '{0}' appeared previously in this file.\r\nUsing Directive is unnecessary
+        /// The using directive for '{0}' appeared previously in this file and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1002UsingDirective0AppearedPreviously = new(
             id             : DiagnosticId.Nav1002,
@@ -51,11 +59,11 @@ public static partial class DiagnosticDescriptors {
         );
 
         /// <summary>
-        /// The self referencing taskref directive is not required by the code and can be safely removed
+        /// The self-referencing taskref directive is not required by the code and can be safely removed
         /// </summary>
         public static readonly DiagnosticDescriptor Nav1006SelfReferencingIncludeNotRequired = new(
             id: DiagnosticId.Nav1006,
-            messageFormat  : "The self referencing taskref directive is not required by the code and can be safely removed",
+            messageFormat  : "The self-referencing taskref directive is not required by the code and can be safely removed",
             category       : Category,
             defaultSeverity: Severity
         );

@@ -1,0 +1,16 @@
+﻿CodeGenerationUnitSyntax [0-101]  {EndOfFile}
+  TaskDefinitionSyntax [0-100]  {TaskKeyword, Identifier, OpenBrace, CloseBrace}
+    NodeDeclarationBlockSyntax [13-47]
+      InitNodeDeclarationSyntax [13-21]  {InitKeyword, Identifier, Semicolon}
+      ExitNodeDeclarationSyntax [26-34]  {ExitKeyword, Identifier, Semicolon}
+      ViewNodeDeclarationSyntax [39-47]  {ViewKeyword, Identifier, Semicolon}
+    TransitionDefinitionBlockSyntax [53-85]
+      TransitionDefinitionSyntax [53-65]  {Semicolon}
+        InitSourceNodeSyntax [53-57]  {InitKeyword}
+        GoToEdgeSyntax [58-61]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [62-64]  {Identifier}
+      TransitionDefinitionSyntax [70-85]
+        IdentifierSourceNodeSyntax [70-72]  {Identifier}
+        GoToEdgeSyntax [73-76]  {GoToEdgeKeyword}
+        IdentifierTargetNodeSyntax [77-79]  {Identifier}
+        SpontaneousTriggerSyntax [80-85]  {SpontKeyword}

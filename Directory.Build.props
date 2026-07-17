@@ -1,14 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project>
 
-  <Import Project="$(MSBuildThisFileDirectory)Version.props"/>
+  <Import Project="$(MSBuildThisFileDirectory)Build\Version.targets"/>
 
   <PropertyGroup>
-    <LangVersion>10.0</LangVersion>
+    <!-- Projektweit C# 11: schaltet Raw-String-Literale frei (für die CodeBuilder-basierten
+         Codegen-Emitter, die zusammenhängende Ausgabe als mehrzeilige Raw Strings schreiben).
+         Reines Compiler-Feature ohne BCL-Abhängigkeit — trägt auch auf net472/netstandard2.0.
+         Bewusst 11.0 statt `latest`, um keine runtime-abhängigen neueren Features (C# 12/13)
+         versehentlich freizuschalten. -->
+    <LangVersion>11.0</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>
     <NoWarn>$(NoWarn);NU1507</NoWarn>
   </PropertyGroup>
+
+  <!-- JetBrains-Annotationen projektübergreifend. Rein design-time (siehe Directory.Packages.props);
+       PrivateAssets="all" hält sie aus der transitiven Abhängigkeitskette der erzeugten Assemblies.
+       Die versionslose Referenz zieht ihre Version aus dem Central Package Management. Schaltet ein
+       Projekt CPM ab (ein standalone-Teilbaum ohne Directory.Packages.props), bräche die versionslose
+       Referenz mit NU1015 — daher nur einbinden, wenn CPM aktiv ist. -->
+  <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' != 'false'">
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
+  </ItemGroup>
 
 </Project>

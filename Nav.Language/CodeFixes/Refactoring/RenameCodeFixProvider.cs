@@ -8,8 +8,18 @@ using System.Threading;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring; 
 
+/// <summary>
+/// Ermittelt den an einer Position/Auswahl anwendbaren <see cref="RenameCodeFix"/> (Roslyn-Analogon:
+/// <c>CodeFixProvider</c>). Ordnet jedem im <see cref="CodeFixContext"/> gefundenen Symbol den passenden
+/// konkreten Umbenennungs-Fix zu und löst dabei Referenzen und Aliasse auf das jeweils umzubenennende
+/// Symbol auf (z.B. eine Knotenreferenz auf ihre Deklaration, ein Alias auf seinen Knoten).
+/// </summary>
 public static class RenameCodeFixProvider {
 
+    /// <summary>
+    /// Liefert die anwendbaren <see cref="RenameCodeFix"/>-Fixes zu den Symbolen des
+    /// <paramref name="context"/> — je gefundenem Symbol den zugehörigen konkreten Rename-Fix.
+    /// </summary>
     public static IEnumerable<RenameCodeFix> SuggestCodeFixes(CodeFixContext context, CancellationToken cancellationToken = default) {
         return context.FindSymbols()
                       .Select(symbol => new Visitor(symbol, context).Visit(symbol))

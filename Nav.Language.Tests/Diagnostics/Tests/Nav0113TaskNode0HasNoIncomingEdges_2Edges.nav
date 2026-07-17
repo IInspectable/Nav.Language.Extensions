@@ -19,6 +19,7 @@ task A
     C:e1 --> e1;
     C:e2 --> e1;
 }
+//==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
 //==>>[Semantic](15,10,15,11): warning Nav0113: The task node 'C' has no incoming edges
 //==>>[DeadCode](19,5,19,17): warning Nav1010: The task node 'C' has no incoming edges
 //==>>[DeadCode](20,5,20,17): warning Nav1010: The task node 'C' has no incoming edges

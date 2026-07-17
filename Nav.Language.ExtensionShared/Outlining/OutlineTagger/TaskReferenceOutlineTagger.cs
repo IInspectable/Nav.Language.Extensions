@@ -1,13 +1,25 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der zum einen jede Task-Deklaration (<see cref="TaskDeclarationSyntax"/>)
+/// einzeln einklappbar macht und zum anderen zusammenhängende Folgen von <c>taskref</c>-Einbindungen
+/// (<see cref="IncludeDirectiveSyntax"/>) zu je einer Region bündelt. Aufgerufen vom
+/// <see cref="OutliningTagger"/>.
+/// </summary>
 class TaskReferenceOutlineTagger {
 
+    /// <summary>
+    /// Liefert die Outlining-Regionen für Task-Deklarationen (Region beginnt hinter dem Namen, damit dieser
+    /// als Kopf sichtbar bleibt) sowie für benachbarte Blöcke von <c>taskref</c>-Einbindungen. Ein
+    /// Include-Block wird erst ab zwei aufeinanderfolgenden Einbindungen zu einer Region zusammengefasst.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable<ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         // Task Declarations
@@ -24,12 +36,9 @@ class TaskReferenceOutlineTagger {
                 continue;
             }
 
-            var rgnStartToken = nameToken.NextToken();
-            if (rgnStartToken.IsMissing) {
-                continue;
-            }
-
-            int start  = Math.Min(nameToken.End +1, rgnStartToken.Start);
+            // Die Region beginnt unmittelbar hinter dem Namen (dessen Trailing-Trivia eingeschlossen) und reicht
+            // bis zum Knotenende — so bleibt der Name als Kopf der eingeklappten Region sichtbar.
+            int start  = nameToken.End;
             int length = extent.End - start;
 
             if (length <= 0) {
@@ -44,7 +53,7 @@ class TaskReferenceOutlineTagger {
         }
 
 
-        // Zusammenh�ngende Bl�cke von taskref "file" als Region zusammenfassen
+        // Zusammenhängende Blöcke von taskref "file" als Region zusammenfassen
         var allRelevant = syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>().Concat<SyntaxNode>(
                                                     syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes <TaskDeclarationSyntax>())
                                                .Concat(
@@ -69,7 +78,10 @@ class TaskReferenceOutlineTagger {
                         yield break;
                     }
 
-                    int start = keywordToken.End + 1;
+                    // Hinter dem taskref-Schlüsselwort samt dessen Trailing-Trivia beginnen: das ist genau die
+                    // Trennstrecke bis zum Dateiliteral. So trifft die Region deren Anfang unabhängig davon, wie
+                    // viele Trennzeichen dazwischenstehen — statt der fragilen Annahme von genau einem Leerzeichen.
+                    int start = keywordToken.FullExtent.End;
 
                     int length = extendEnd.End - start;
 

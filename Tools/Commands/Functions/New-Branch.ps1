@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Legt einen Branch samt danebenliegendem Git-Worktree an und wechselt hinein.
 

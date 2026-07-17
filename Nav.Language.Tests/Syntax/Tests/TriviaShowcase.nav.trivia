@@ -1,0 +1,41 @@
+﻿    L SingleLineComment [0-49]        "// Führender Zeilenkommentar ganz am Dateianfang\r"
+    L NewLine           [49-50]       "\n"
+    L NewLine           [50-52]       "\r\n"
+    L MultiLineComment  [52-111]      "/* Mehrzeiliger\r\n   Block-Kommentar\r\n   über drei Zeilen */"
+    L NewLine           [111-113]     "\r\n"
+    L NewLine           [113-115]     "\r\n"
+  115 TaskKeyword
+    T Whitespace        [119-120]     " "
+  120 Identifier
+    T Whitespace        [121-131]     "          "
+    T SingleLineComment [131-181]     "// nachgestellter Kommentar hinter dem Task-Namen\r"
+    T NewLine           [181-182]     "\n"
+  182 OpenBrace
+    T NewLine           [183-185]     "\r\n"
+    L Whitespace        [185-186]     "\t"
+  186 InitKeyword
+    T Whitespace        [190-191]     " "
+  193 Semicolon
+    T Whitespace        [194-198]     "    "
+    T SingleLineComment [198-240]     "// Tab-Einrückung plus Trailing-Kommentar\r"
+    T NewLine           [240-241]     "\n"
+    L NewLine           [241-243]     "\r\n"
+    L Whitespace        [243-244]     "\t"
+  244 ExitKeyword
+    T Whitespace        [248-249]     " "
+  251 Semicolon
+    T NewLine           [252-254]     "\r\n"
+    L NewLine           [254-256]     "\r\n"
+    L NewLine           [256-258]     "\r\n"
+    L Whitespace        [258-259]     "\t"
+    L SingleLineComment [259-311]     "// freistehender Kommentar zwischen zwei Leerzeilen\r"
+    L NewLine           [311-312]     "\n"
+    L Whitespace        [312-313]     "\t"
+  313 Identifier
+    T Whitespace        [315-316]     " "
+  316 GoToEdgeKeyword
+    T Whitespace        [319-320]     " "
+  322 Semicolon
+    T NewLine           [323-325]     "\r\n"
+  325 CloseBrace
+    T NewLine           [326-328]     "\r\n"

@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Reine MSBuild-Integrationstests fuer den inkrementellen Nav-Build. Das Projekt startet
+       MSBuild.exe als EIGENEN Prozess und prueft Dateisystem-Zustaende — es laedt die net472-
+       Task-Assembly NICHT in-process. Dadurch ist es versionsunabhaengig und kann reines net10
+       sein. Lauf ueber `dotnet test … -f net10.0` (nicht ueber den net472-`n test`-Runner). -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pharmatechnik.Nav.Language.BuildTasks.Tests</RootNamespace>
+    <AssemblyName>Nav.Language.BuildTasks.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- runtimeconfig.json erzwingen + transitive DLLs kopieren, damit `dotnet test` auch nach
+         einem Bau via full-framework MSBuild.exe ohne Cache-Probing laeuft (analog Nav.Language.Tests). -->
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <NoWarn>1701;1702;AD0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <!-- .nav-Fixtures bleiben Quelldateien und werden ins Output kopiert; die Tests kopieren sie von
+       dort pro Testlauf in ein frisches Temp-Arbeitsverzeichnis. -->
+  <ItemGroup>
+    <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

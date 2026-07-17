@@ -3,5 +3,4 @@
   <PropertyGroup>
     <ProductName>Nav Language Code Analysis</ProductName>
   </PropertyGroup>
-  <Import Project="..\_build\WriteThisAssemblyFile.targets" />
 </Project>

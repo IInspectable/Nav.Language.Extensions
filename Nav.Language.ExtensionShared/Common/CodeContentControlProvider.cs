@@ -15,6 +15,11 @@ using Microsoft.VisualStudio.Text.Projection;
 
 namespace Pharmatechnik.Nav.Language.Extension.Common; 
 
+/// <summary>
+/// MEF-Dienst, der WPF-Steuerelemente mit einer eingebetteten Nav-Code-Vorschau erzeugt — etwa
+/// für Outlining-Tooltips und QuickInfo. Die Vorschau nutzt einen echten <see cref="IWpfTextView"/>
+/// über Projektions- bzw. Elisions-Puffern, sodass die Nav-Syntaxhervorhebung erhalten bleibt.
+/// </summary>
 [Export(typeof(CodeContentControlProvider))]
 sealed class CodeContentControlProvider {
 
@@ -25,6 +30,10 @@ sealed class CodeContentControlProvider {
     readonly TextViewConnectionListener      _textViewConnectionListener;
     readonly ITextBufferFactoryService       _textBufferFactoryService;
     readonly ITextEditorFactoryService       _textEditorFactoryService;
+    /// <summary>
+    /// Wird von MEF aufgerufen und bezieht die zur Erzeugung der Vorschau-Ansichten benötigten
+    /// Editor- und Puffer-Factory-Dienste.
+    /// </summary>
     [ImportingConstructor]
     public CodeContentControlProvider(ITextEditorFactoryService textEditorFactory, 
                                       IProjectionBufferFactoryService projectionFactory, 
@@ -41,16 +50,38 @@ sealed class CodeContentControlProvider {
 
     #endregion
 
+    /// <summary>
+    /// Text-View-Rolle, mit der die Vorschau-Ansichten dieses Providers markiert werden, damit sie
+    /// sich von regulären Editor-Ansichten unterscheiden lassen.
+    /// </summary>
     public const string CodeContentTextViewRole = nameof(CodeContentTextViewRole);
 
+    /// <summary>
+    /// Erzeugt ein Vorschau-Steuerelement für das Outlining, das den angegebenen Bereich des
+    /// Original-Puffers gekürzt darstellt.
+    /// </summary>
+    /// <param name="span">Der im Original-Puffer zu zeigende Bereich.</param>
+    /// <returns>Ein <see cref="ContentControl"/> mit der eingebetteten Code-Vorschau.</returns>
     public ContentControl CreateContentControlForOutlining(SnapshotSpan span) {
         return new CodePreviewControl(() => CreateTextView(span));
     }
 
+    /// <summary>
+    /// Erzeugt ein Vorschau-Steuerelement für die QuickInfo, das den übergebenen Nav-Code in einem
+    /// eigenen Puffer mit passendem Parse-Modus darstellt.
+    /// </summary>
+    /// <param name="textBuffer">Puffer, dessen <see cref="ITextBuffer.ContentType"/> übernommen wird.</param>
+    /// <param name="navCode">Der anzuzeigende Nav-Quelltext.</param>
+    /// <param name="parseMethod">Der auf den Vorschau-Puffer anzuwendende Parse-Modus.</param>
+    /// <returns>Ein <see cref="ContentControl"/> mit der eingebetteten Code-Vorschau.</returns>
     public ContentControl CreateContentControlForQuickInfo(ITextBuffer textBuffer, string navCode, ParseMethod parseMethod) {
         return new CodePreviewControl(() => CreateTextView(textBuffer, navCode, parseMethod));
     }
 
+    /// <summary>
+    /// Erzeugt eine Vorschau-Ansicht über einem neuen Puffer, der mit dem übergebenen Nav-Code und
+    /// Parse-Modus befüllt wird.
+    /// </summary>
     IWpfTextView CreateTextView(ITextBuffer textBuffer, string navCode, ParseMethod parseMethod) {
 
         var buffer = _textBufferFactoryService.CreateTextBuffer(navCode, textBuffer.ContentType);
@@ -68,6 +99,10 @@ sealed class CodeContentControlProvider {
         return view;
     }
 
+    /// <summary>
+    /// Erzeugt eine Vorschau-Ansicht über einem gekürzten Elisions-/Projektions-Puffer für den
+    /// angegebenen Bereich des Original-Puffers.
+    /// </summary>
     IWpfTextView CreateTextView(SnapshotSpan span) {
 
         var buffer = CreatePreviewBuffer(span);
@@ -82,6 +117,10 @@ sealed class CodeContentControlProvider {
         return view;
     }
 
+    /// <summary>
+    /// Baut den Puffer für die Bereichsvorschau: ein Elisions-Puffer über den relevanten Zeilen,
+    /// bei Kürzung um ein „…" ergänzt.
+    /// </summary>
     ITextBuffer CreatePreviewBuffer(SnapshotSpan span) {
 
         var exposedSpans = GetPreviewSpans(span, 23, out bool needsEllipses);
@@ -93,6 +132,10 @@ sealed class CodeContentControlProvider {
         return buffer;
     }
 
+    /// <summary>
+    /// Umschließt den bereits gekürzten Elisions-Puffer mit einem Projektions-Puffer, der ein
+    /// abschließendes „…" anhängt.
+    /// </summary>
     ITextBuffer CreateProjectionBufferWithEllipses(ITextBuffer elisionBuffer) {
         // The elision buffer is too long.  We've already trimmed it, but now we want to add
         // a "..." to it.  We do that by creating a projection of both the elision buffer and
@@ -200,10 +243,17 @@ sealed class CodeContentControlProvider {
 
     #region CodePreviewControl
 
+    /// <summary>
+    /// WPF-Steuerelement, das seine Text-View-Vorschau verzögert (erst bei Sichtbarkeit) erzeugt
+    /// und beim Ausblenden wieder schließt, um Ressourcen zu sparen.
+    /// </summary>
     sealed class CodePreviewControl : ContentControl {
 
         readonly Func<IWpfTextView> _createView;
 
+        /// <summary>
+        /// Die eingebettete Text-View; wird beim ersten Zugriff über die übergebene Factory erzeugt.
+        /// </summary>
         ITextView TextView {
             get {
                 var wpfTextView = (IWpfTextView)Content;
@@ -215,6 +265,11 @@ sealed class CodeContentControlProvider {
             }
         }
 
+        /// <summary>
+        /// Initialisiert das Steuerelement mit der Factory, die die Vorschau-Ansicht bei Bedarf
+        /// erzeugt.
+        /// </summary>
+        /// <param name="createView">Erzeugt die einzubettende <see cref="IWpfTextView"/>.</param>
         public CodePreviewControl(Func<IWpfTextView> createView) {
             _createView         =  createView;
             IsVisibleChanged    += OnIsVisibleChanged;
@@ -222,6 +277,9 @@ sealed class CodeContentControlProvider {
             HorizontalAlignment =  HorizontalAlignment.Left;
         }
 
+        /// <summary>
+        /// Erzeugt die Vorschau beim Einblenden und schließt die Text-View beim Ausblenden.
+        /// </summary>
         void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) {
             if ((bool)e.NewValue) {
                 Content ??= _createView().VisualElement;

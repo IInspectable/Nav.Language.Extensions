@@ -6,4 +6,5 @@
 
     I1  --> e1;
 }
+//==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
 //==>>[Semantic](4,10,4,12): warning Nav0109: The init node 'I2' has no outgoing edges

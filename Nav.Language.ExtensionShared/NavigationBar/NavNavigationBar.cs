@@ -28,6 +28,14 @@ using Control = System.Windows.Controls.Control;
 
 namespace Pharmatechnik.Nav.Language.Extension.NavigationBar; 
 
+/// <summary>
+/// Die Navigationsleiste eines <c>.nav</c>-Editors — die Dropdown-Comboboxen oberhalb des Textes
+/// (Projekt- und Task-Combobox). Implementiert den VS-Kontrakt <see cref="IVsDropdownBarClient"/>
+/// (Einträge, Text, Icons, Auswahl) und lauscht als <see cref="SemanticModelServiceDependent"/> auf
+/// Modelländerungen sowie — über <see cref="IVsCodeWindowEvents"/> und die Caretposition — auf
+/// View-/Cursor-Wechsel, um die aktive Auswahl nachzuführen. Die Einträge liefern
+/// <see cref="NavigationBarProjectItemBuilder"/> und <see cref="NavigationBarTaskItemBuilder"/>.
+/// </summary>
 class NavigationBar: SemanticModelServiceDependent, 
                      IVsDropdownBarClient, 
                      IVsDropdownBarClient4, 
@@ -268,6 +276,11 @@ class NavigationBar: SemanticModelServiceDependent,
     }
 
 
+    /// <summary>
+    /// Liefert den <see cref="ImageMoniker"/> des Eintrags (<see cref="IVsDropdownBarClient4"/>) — der
+    /// moderne, moniker-basierte Icon-Pfad (das ImageList-basierte
+    /// <see cref="IVsDropdownBarClient.GetEntryImage"/> bleibt daher ungenutzt).
+    /// </summary>
     public ImageMoniker GetEntryImage(int iCombo, int iIndex) {
         var items   = GetItems(iCombo);
         var moniker = iIndex >= items.Count ? default : items[iIndex].ImageMoniker;
@@ -367,6 +380,7 @@ class NavigationBar: SemanticModelServiceDependent,
         }).FileAndForget("nav/navigationbar/themechanged");
     }
 
+    /// <summary>Liefert die Einträge der angegebenen Combobox (Projekt/Task/Member).</summary>
     ImmutableList<NavigationBarItem> GetItems(int iCombo) {
         switch (iCombo) {
             case ProjectComboIndex:
@@ -422,6 +436,11 @@ class NavigationBar: SemanticModelServiceDependent,
         }
     #endif
 
+    /// <summary>
+    /// Setzt die aktive Auswahl der Combobox anhand der Caretposition (siehe
+    /// <see cref="CalculateActiveSelection"/>) und lässt die Combobox neu zeichnen — nötig, weil sich
+    /// dabei auch die Schriftattribute (ausgegraut/normal) ändern können.
+    /// </summary>
     void SetActiveSelection(int comboBoxId) {
 
         if (_dropdownBar == null) {

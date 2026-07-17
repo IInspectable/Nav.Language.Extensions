@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!--
+    Bewusst KEIN Import des Engine-Repo-Roots (..\..\Directory.Build.props). Diese Datei stoppt die
+    MSBuild-Aufwärtssuche nach Directory.Build.props — die Demo bleibt dadurch eine standalone,
+    minimale Nachbildung dessen, was ein EXTERNES Team sieht: ohne git-Versionsstempelung
+    (ComputeGitVersion), ohne die Quellgenerator-Verdrahtung und ohne das Central Package Management
+    der Engine. Genau diese Isolation macht den Demo-Build zu einem ehrlichen Smoke-Test der
+    ausgelieferten Build Tools statt zu einem Sonderfall der Engine-Build-Infrastruktur.
+  -->
+  <PropertyGroup>
+    <!-- Central Package Management der Engine (Repo-Root Directory.Packages.props) abklemmen: dessen
+         Aufwärtssuche ist unabhängig von Directory.Build.props und würde sonst greifen. Die Demo hat
+         ohnehin keine PackageReferences. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+
+    <!-- Wurzel des Engine-Repos, von hier zwei Ebenen hoch (Demos\NavV2NavigationDemo\ → Repo-Root).
+         Der Demo-Codegen importiert darüber die frisch publizierten Build Tools aus
+         $(NavRepoRoot)deploy\Build Tools (siehe .csproj). -->
+    <NavRepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</NavRepoRoot>
+  </PropertyGroup>
+
+</Project>

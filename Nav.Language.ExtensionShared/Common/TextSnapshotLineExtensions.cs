@@ -8,6 +8,11 @@ using Microsoft.VisualStudio.Text;
 // ReSharper disable ForCanBeConvertedToForeach
 namespace Pharmatechnik.Nav.Language.Extension.Common; 
 
+/// <summary>
+/// Erweiterungsmethoden über <see cref="ITextSnapshotLine"/>: erstes/letztes signifikantes Zeichen,
+/// tabulatorbewusste Umrechnung zwischen Offset und Spalte, Leerzeilen-Test und das Rückwärtssuchen
+/// nach einer passenden Zeile.
+/// </summary>
 static class TextSnapshotLineExtensions {
 
     #region Dokumentation
@@ -132,6 +137,14 @@ static class TextSnapshotLineExtensions {
         return true;
     }
 
+    /// <summary>
+    /// Läuft von <paramref name="line"/> aus zeilenweise rückwärts und liefert die erste Zeile, die
+    /// <paramref name="predicate"/> erfüllt, oder <see langword="null"/>, wenn keine solche Zeile
+    /// existiert.
+    /// </summary>
+    /// <param name="line">Die Ausgangszeile (wird selbst nicht geprüft).</param>
+    /// <param name="predicate">Das Prädikat, das die gesuchte Zeile erfüllen muss.</param>
+    /// <returns>Die erste passende vorangehende Zeile, oder <see langword="null"/>.</returns>
     public static ITextSnapshotLine GetPreviousMatchingLine(this ITextSnapshotLine line, Func<ITextSnapshotLine, bool> predicate) {
             
         if(line.LineNumber <= 0) {

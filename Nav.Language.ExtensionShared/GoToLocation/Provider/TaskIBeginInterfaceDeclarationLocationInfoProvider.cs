@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Linq;
 using System.Threading;
@@ -17,10 +17,17 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einer Nav-Task-Deklaration zum generierten Begin-Interface (<c>IBegin…</c>) im C#-Code
+/// (Richtung Nav→C#). Aus dem <see cref="TaskDeclarationCodeInfo"/> löst die Roslyn-Brücke die — ggf.
+/// mehreren — Interface-Deklarationen auf; angezeigt wird der voll qualifizierte Begin-Interface-Name mit dem
+/// GoToInterfacePublic-Icon, nach Anzeigename sortiert.
+/// </summary>
 class TaskIBeginInterfaceDeclarationLocationInfoProvider : CodeAnalysisLocationInfoProvider {
 
     readonly TaskDeclarationCodeInfo _taskDeclarationCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="taskDeclarationCodeInfo"/> der Task-Deklaration.</summary>
     public TaskIBeginInterfaceDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, TaskDeclarationCodeInfo taskDeclarationCodeInfo) : base(sourceBuffer) {
         _taskDeclarationCodeInfo = taskDeclarationCodeInfo;
     }

@@ -1,0 +1,6 @@
+﻿// Nav → C#
+// F12 auf den Trigger `on OnOpen` landet auf der OnOpenLogic im konkreten WFS —
+// der Golden pinnt Datei + exakten Span (nicht nur „irgendwo steht OnOpenLogic").
+
+<TriggerFlowWFS.cs> (16,53)-(16,64)  "OnOpenLogic"
+    protected override OnOpenCallContext.Result OnOpenLogic(HomeTO to,

@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -6,7 +6,7 @@ using Protocol = Microsoft.VisualStudio.LanguageServer.Protocol;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.Lsp;
+namespace Pharmatechnik.Nav.Language.Lsp.CallHierarchy;
 
 /// <summary>
 /// Baut die LSP-<see cref="CallHierarchyItem"/>s für die Aufrufhierarchie aus den Engine-Task-Symbolen
@@ -35,7 +35,7 @@ static class CallHierarchyBuilder {
 
     static CallHierarchyItem? Build(string name, Location nameLocation, Location blockLocation) {
 
-        if (string.IsNullOrEmpty(nameLocation?.FilePath)) {
+        if (string.IsNullOrEmpty(nameLocation.FilePath)) {
             return null;
         }
 

@@ -1,0 +1,15 @@
+﻿  115    4  TaskKeyword             Keyword                      TaskDefinitionSyntax
+  120    1  Identifier              TaskName                     TaskDefinitionSyntax
+  182    1  OpenBrace               Punctuation                  TaskDefinitionSyntax
+  186    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
+  191    2  Identifier              Identifier                   InitNodeDeclarationSyntax
+  193    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
+  244    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
+  249    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
+  251    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
+  313    2  Identifier              Identifier                   IdentifierSourceNodeSyntax
+  316    3  GoToEdgeKeyword         Keyword                      GoToEdgeSyntax
+  320    2  Identifier              Identifier                   IdentifierTargetNodeSyntax
+  322    1  Semicolon               Punctuation                  TransitionDefinitionSyntax
+  325    1  CloseBrace              Punctuation                  TaskDefinitionSyntax
+  328    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

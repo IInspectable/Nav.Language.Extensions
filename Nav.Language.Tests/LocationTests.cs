@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using NUnit.Framework;
 using Pharmatechnik.Nav.Language;
+using Pharmatechnik.Nav.Language.Text;
 
 namespace Nav.Language.Tests; 
 
@@ -51,8 +52,53 @@ public class LocationTests {
         );
 
         var t1 = syntax.DescendantNodes<TaskDefinitionSyntax>().First(td => td.Identifier.ToString() == "T1");
-        Assert.That(t1.GetLocation().LineRange.Start.Line, Is.EqualTo(0));          
+        Assert.That(t1.GetLocation().LineRange.Start.Line, Is.EqualTo(0));
     }
 
-        
+    [Test]
+    public void NormalizedFilePathIsLowercasedFullPath() {
+
+        var location = new Location(@"C:\Foo\BAR.nav");
+
+        Assert.That(location.NormalizedFilePath, Is.EqualTo(@"c:\foo\bar.nav"));
+    }
+
+    [Test]
+    public void NormalizedFilePathIsCachedPerInstance() {
+
+        var location = new Location(@"C:\Foo\Bar.nav");
+
+        // Normalisierung (Uri-Parse + GetFullPath + ToLowerInvariant) läuft nur einmal pro Instanz
+        Assert.That(location.NormalizedFilePath, Is.SameAs(location.NormalizedFilePath));
+    }
+
+    [Test]
+    public void NormalizedFilePathOfNullFilePathIsNull() {
+
+        var location = new Location(TextExtent.Empty, LinePosition.Empty, filePath: null);
+
+        Assert.That(location.FilePath,           Is.Null);
+        Assert.That(location.NormalizedFilePath, Is.Null);
+    }
+
+    [Test]
+    public void LocationsWithDifferentlyCasedFilePathsAreEqual() {
+
+        var left  = new Location(@"C:\Foo\Bar.nav");
+        var right = new Location(@"c:\foo\bar.NAV");
+
+        // Equality vergleicht den normalisierten Pfad, nicht den Roh-Pfad
+        Assert.That(left.Equals(right), Is.True);
+        Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+    }
+
+    [Test]
+    public void LocationsWithDifferentFilePathsAreNotEqual() {
+
+        var left  = new Location(@"C:\Foo\Bar.nav");
+        var right = new Location(@"C:\Foo\Baz.nav");
+
+        Assert.That(left.Equals(right), Is.False);
+    }
+
 }

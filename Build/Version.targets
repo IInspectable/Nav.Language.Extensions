@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!--
+    Git-abgeleitete Produktversion (löst das frühere statische Version.props ab).
+
+    Schema (striktes 3-teiliges SemVer, weil vsce + VS-VSIX-Manifest + AssemblyVersion nichts
+    anderes akzeptieren):
+      Kern        = Major.Minor.(TagPatch + CommitsSeitTag)   aus `git describe`
+      Assembly    = Major.Minor.0.0                            (stabile Binding-Identität)
+      Informational = Kern + "+" + Branch + "." + KurzSHA      (nur informell)
+
+    Dieses Target ist die EINZIGE Autorität: Es berechnet die Version in jedem Build-Pfad selbst aus
+    git (über Directory.Build.props in jedem Projekt aktiv — `n build`/MSBuild.exe, `dotnet build`,
+    `dotnet publish`, VS-IDE). PowerShell rechnet nichts mehr nach und reicht auch kein
+    `-p:ProductVersion` durch; Get-ProductVersion liest die hier berechneten Werte lesend per
+    `dotnet msbuild -getProperty` (für vsce-/VSIX-Dateinamen). Die `ProductVersion`-Bedingungen
+    erlauben weiterhin ein Override von außen (z.B. Release-Pinning per `-p`), sind aber im
+    Normalbetrieb leer. Worktree-fest (gemeinsame History).
+  -->
+  <Target Name="ComputeGitVersion">
+
+    <!-- Nur rechnen, wenn nicht von außen vorgegeben. Der match-Filter greift bewusst nur
+         3-teilige vX.Y.Z-Tags (schließt Alt-Tags wie v4.0 aus). -->
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git describe --tags --long --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitDescribe" />
+      <Output TaskParameter="ExitCode" PropertyName="_NavGitDescribeExit" />
+    </Exec>
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git rev-parse --abbrev-ref HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitBranch" />
+    </Exec>
+    <Exec Condition=" '$(ProductVersion)' == '' "
+          Command="git rev-list --count HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory).."
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_NavGitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_NavGitCountExit" />
+    </Exec>
+
+    <!-- describe parsen: "vMAJOR.MINOR.PATCH-HEIGHT-gSHA". Strenger Shape-Check per Regex, exakt
+         identisch zum PowerShell-Pendant in Get-ProductVersion.ps1 — der match-Glob ist
+         zwangsläufig grob (git-Wildmatch kann „nur Ziffern, genau 3 Gruppen" nicht ausdrücken),
+         daher liegt die Strenge im Parser. Nicht-konforme Tags (z.B. ein Pre-Release v1.2.3-beta,
+         das der Glob durchließe) fallen so genauso sauber in den 0.0.<count>-Fallback wie in
+         PowerShell, statt positionell per Split fehlinterpretiert zu werden. Tag-Format-Regex an
+         beiden Stellen synchron halten (Konsistenz per Test abgesichert). -->
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' and '$(_NavGitDescribeExit)' == '0' ">
+      <_NavDesc>$(_NavGitDescribe.Trim())</_NavDesc>
+      <_NavDescOk>$([System.Text.RegularExpressions.Regex]::IsMatch('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$'))</_NavDescOk>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' and '$(_NavDescOk)' == 'true' ">
+      <_NavMajor>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$1'))</_NavMajor>
+      <_NavMinor>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$2'))</_NavMinor>
+      <_NavTagPatch>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$3'))</_NavTagPatch>
+      <_NavHeight>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$4'))</_NavHeight>
+      <_NavSha>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavDesc)', '^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9A-Fa-f]+)$', '$5'))</_NavSha>
+      <_NavPatch>$([MSBuild]::Add($(_NavTagPatch), $(_NavHeight)))</_NavPatch>
+      <ProductVersion>$(_NavMajor).$(_NavMinor).$(_NavPatch)</ProductVersion>
+    </PropertyGroup>
+
+    <!-- Fallback ohne erreichbares Tag (frischer/shallow Clone) ODER bei git-Ausfall: 0.0.<Anzahl>.
+         Die Commit-Anzahl wird NUR übernommen, wenn rev-list mit 0 endete UND die Ausgabe eine reine
+         Zahl ist. Schlägt git fehl (z.B. „fatal: detected dubious ownership"), landet dessen
+         Fehlertext via ConsoleToMSBuild sonst in _NavGitCount und damit in der Version — exakt die
+         Lücke, die PowerShell per `2>$null` + Exit-Check vermeidet. -->
+    <PropertyGroup Condition=" '$(ProductVersion)' == '' ">
+      <_NavCountRaw>$(_NavGitCount.Trim())</_NavCountRaw>
+      <_NavCount Condition=" '$(_NavGitCountExit)' == '0' and $([System.Text.RegularExpressions.Regex]::IsMatch('$(_NavCountRaw)', '^[0-9]+$')) ">$(_NavCountRaw)</_NavCount>
+      <_NavCount Condition=" '$(_NavCount)' == '' ">0</_NavCount>
+      <ProductVersion>0.0.$(_NavCount)</ProductVersion>
+      <_NavVersionFallback>true</_NavVersionFallback>
+    </PropertyGroup>
+    <Warning Condition=" '$(_NavVersionFallback)' == 'true' "
+             Text="Kein vX.Y.Z-Tag erreichbar – Fallback-Produktversion $(ProductVersion) verwendet." />
+
+    <!-- AssemblyVersion = Major.Minor.0.0 (stabil pro Minor, kein Binding-Churn). -->
+    <PropertyGroup Condition=" '$(AssemblyVersion)' == '' ">
+      <AssemblyVersion>$(ProductVersion.Split('.')[0]).$(ProductVersion.Split('.')[1]).0.0</AssemblyVersion>
+    </PropertyGroup>
+
+    <!-- Informational: Kern + Branch (SemVer-sanitisiert) + KurzSHA. Nur wenn nicht vorgegeben. -->
+    <PropertyGroup Condition=" '$(ProductVersionInformational)' == '' ">
+      <_NavBranch>$(_NavGitBranch.Trim())</_NavBranch>
+      <_NavBranchSan>$([System.Text.RegularExpressions.Regex]::Replace('$(_NavBranch)', '[^0-9A-Za-z-]', '-'))</_NavBranchSan>
+      <ProductVersionInformational Condition=" '$(_NavSha)' != '' ">$(ProductVersion)+$(_NavBranchSan).$(_NavSha)</ProductVersionInformational>
+      <ProductVersionInformational Condition=" '$(ProductVersionInformational)' == '' ">$(ProductVersion)</ProductVersionInformational>
+    </PropertyGroup>
+
+    <Message Importance="low" Text="ComputeGitVersion: ProductVersion=$(ProductVersion) AssemblyVersion=$(AssemblyVersion) Informational=$(ProductVersionInformational)" />
+  </Target>
+
+  <!--
+    Git-Version in die SDK-Assembly-Info-Pipeline einspeisen. Hosts wie der LSP- (nav.lsp) und der
+    MCP-Server (nav.mcp) binden weder GobalAssemblyInfo.cs noch den AssemblyInfo-Quellgenerator ein und
+    trügen sonst die SDK-Default-Version 1.0.0.0. Dieses Target greift nur bei SDK-Assembly-Info-Generierung
+    (GenerateAssemblyInfo != false); die GobalAssemblyInfo-Projekte setzen GenerateAssemblyInfo=false,
+    bei ihnen läuft GetAssemblyVersion gar nicht erst — sie bleiben unberührt. BeforeTargets greift
+    nur, wenn die SDK-Targets existieren (SDK-Projekte); für das legacy VS-Extension-Projekt
+    (non-SDK) ist es ein No-op.
+  -->
+  <Target Name="SetSdkVersionFromGit"
+          BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+          DependsOnTargets="ComputeGitVersion"
+          Condition=" '$(GenerateAssemblyInfo)' != 'false' ">
+    <PropertyGroup>
+      <!-- ProductVersionInformational trägt Branch+SHA bereits selbst — das automatische Anhängen
+           der SourceRevision durch das SDK daher abschalten (sonst doppelt). -->
+      <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+      <Version Condition=" '$(Version)' == '' or '$(Version)' == '1.0.0' ">$(ProductVersion)</Version>
+      <FileVersion Condition=" '$(FileVersion)' == '' ">$(ProductVersion)</FileVersion>
+      <InformationalVersion Condition=" '$(InformationalVersion)' == '' ">$(ProductVersionInformational)</InformationalVersion>
+      <!-- AssemblyVersion (Major.Minor.0.0) hat ComputeGitVersion bereits gesetzt; GetAssemblyVersion
+           übernimmt den vorhandenen Wert und leitet nichts mehr aus Version ab. -->
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    Der AssemblyInfo-Quellgenerator (UseAssemblyInfoGenerator) liest ProductVersion & Co. als
+    build_property.* aus der Analyzer-.editorconfig, die das SDK-Ziel GenerateMSBuildEditorConfigFileCore
+    schreibt (das TASK heißt GenerateMSBuildEditorConfig, das TARGET aber …FileCore). Dieses Ziel
+    materialisiert die @(CompilerVisibleProperty)-Werte zum Zeitpunkt seines Laufs — ComputeGitVersion
+    MUSS also vorher gelaufen sein, sonst landen leere Werte in der .editorconfig. Nur aktiv, wenn der
+    Generator eingebunden ist (sonst keine git-Exec-Kosten im Design-Time-Build fremder Projekte).
+  -->
+  <Target Name="_NavComputeGitVersionBeforeEditorConfig"
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore"
+          DependsOnTargets="ComputeGitVersion"
+          Condition=" '$(UseAssemblyInfoGenerator)' == 'true' " />
+
+</Project>

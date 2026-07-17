@@ -1,0 +1,14 @@
+﻿# Die .nav-Fixtures und ihre .tokens-/.tree-/.diag-/.trivia-Golden in diesem Ordner sind byte-genau
+# eingefroren: Die Golden enthalten ABSOLUTE Byte-Offsets (bzw. daraus abgeleitete Zeilen/Spalten) in
+# die zugehörige .nav. Schriebe ein Editor beim Speichern das BOM oder die Zeilenenden um, verschöben
+# sich sämtliche Offsets und die Golden würden lautlos ungültig.
+#
+# Diese Datei spiegelt das `-text`-Einfrieren der benachbarten .gitattributes auf die Editor-Ebene:
+# charset/end_of_line/Whitespace werden neutralisiert, damit ein direktes Öffnen+Speichern einer Golden
+# (oder Fixture) die Bytes nie anfasst. Die Root-.editorconfig setzt dieselbe Regel bereits repo-weit;
+# hier steht sie zusätzlich lokal — co-lokalisiert zur .gitattributes, konsistent mit dem Muster dort.
+[*.{nav,tokens,tree,diag,trivia}]
+charset = unset
+end_of_line = unset
+trim_trailing_whitespace = false
+insert_final_newline = false

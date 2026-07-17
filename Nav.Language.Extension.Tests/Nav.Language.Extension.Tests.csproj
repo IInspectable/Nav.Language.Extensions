@@ -5,7 +5,6 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net472</TargetFramework>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>Nav.Language.Extension.Tests</RootNamespace>
     <AssemblyName>Nav.Language.Extension.Tests</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    

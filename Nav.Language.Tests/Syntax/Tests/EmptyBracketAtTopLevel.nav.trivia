@@ -1,0 +1,36 @@
+﻿    1 NamespaceprefixKeyword
+    T Whitespace        [16-17]       " "
+   35 CloseBracket
+    T NewLine           [36-37]       "\n"
+   38 UsingKeyword
+    T Whitespace        [43-44]       " "
+   66 CloseBracket
+    T NewLine           [67-68]       "\n"
+    L SkippedTokensTrivia[68-70]       "[]"
+    L NewLine           [70-71]       "\n"
+    L NewLine           [71-72]       "\n"
+   72 TaskKeyword
+    T Whitespace        [76-77]       " "
+   77 Identifier
+    T NewLine           [92-93]       "\n"
+   93 OpenBrace
+    T NewLine           [94-95]       "\n"
+    L Whitespace        [95-99]       "    "
+   99 InitKeyword
+  103 Semicolon
+    T NewLine           [104-105]     "\n"
+    L Whitespace        [105-109]     "    "
+  109 ExitKeyword
+    T Whitespace        [113-114]     " "
+  118 Semicolon
+    T NewLine           [119-120]     "\n"
+    L NewLine           [120-121]     "\n"
+    L Whitespace        [121-125]     "    "
+  125 InitKeyword
+    T Whitespace        [129-130]     " "
+  130 GoToEdgeKeyword
+    T Whitespace        [133-134]     " "
+  138 Semicolon
+    T NewLine           [139-140]     "\n"
+  140 CloseBrace
+    T NewLine           [141-142]     "\n"

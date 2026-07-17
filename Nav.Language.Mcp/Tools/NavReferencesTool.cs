@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.ComponentModel;
@@ -19,7 +19,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_references</c>: findet alle solution-weiten Vorkommen eines Task- oder Knotennamens.
 /// </summary>
 [McpServerToolType]
-public static class NavReferencesTool {
+public sealed class NavReferencesTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;

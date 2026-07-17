@@ -1,0 +1,57 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.Basic]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: CallContext-Grundform.
+//
+// Deckt alle Übergangs-Arten des V2-CallContext ab — OHNE Continuation und OHNE Choice
+// (die haben eigene Golden-Fälle). Zeigt je Kanten-Art genau einen Repräsentanten:
+//   - Show{View} (goto)              via  Init1 --> Home  bzw.  Home --> Home on OnReload
+//   - Begin{Task} in allen 3 Modi    via  --> / o-> / ==>  auf einen Task-Knoten
+//   - Exit({result})                 via  Home --> Exit on OnClose
+//   - End()                          via  Home --> end  on OnEnd
+//   - Cancel()                       ist immer verfügbar (kein eigener Nav-Ausgang)
+//
+// Init-Legalität: aus Init1 ist per Goto nur der View-Knoten erreichbar (GOTO_GUI ∈ IINIT_TASK);
+// Modal/Nonmodal und End hängen ausschließlich an Trigger-Transitionen ab Home und sind daher
+// NICHT aus der Init-Reichweite erreichbar (kein Nav0110/Nav0118).
+
+taskref Sub [namespaceprefix NS.V2.Basic]
+            [result SubResult r] {
+
+    init;
+    exit Done;
+}
+
+task BasicFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1 [params string message];
+    exit Exit;
+    task Sub GotoSub;
+    task Sub ModalSub;
+    task Sub NonModalSub;
+    view Home;
+    end;
+
+    // Init-Transition: goto-only (init-legal)
+    Init1 --> Home;
+
+    // Trigger-Transitionen ab Home — hier sind alle Modi zulässig
+    Home  --> Home        on OnReload;      // Show{Home} (goto)
+    Home  --> GotoSub     on OnGoto;        // Begin{GotoSub} (GotoTask)
+    Home  o-> ModalSub    on OnModal;       // Begin{ModalSub} (OpenModalTask)
+    Home  ==> NonModalSub on OnNonModal;    // Begin{NonModalSub} (StartNonModalTask)
+    Home  --> Exit        on OnClose;       // Exit(result) → TASK_RESULT
+    Home  --> end         on OnEnd;         // End() → END
+
+    // Exit-Transitionen (Rücksprung der Sub-Tasks)
+    GotoSub:Done     --> Home;
+    ModalSub:Done    --> Home;
+    NonModalSub:Done --> Home;
+}

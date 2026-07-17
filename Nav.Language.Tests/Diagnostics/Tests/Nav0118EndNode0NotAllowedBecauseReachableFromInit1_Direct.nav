@@ -1,0 +1,8 @@
+﻿task A
+{
+    init I1;
+    end;
+
+    I1 --> end;
+}
+//==>>[Semantic](6,8,6,11): error Nav0118: End node 'end' not allowed here because it's reachable from init node 'I1'

@@ -3,41 +3,36 @@
 using System;
 using System.Collections.Immutable;
 
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
 class ReferenceItemBuilder {
 
-    [CanBeNull]
     public static ReferenceItem Invoke(DefinitionItem definitionItem, ISymbol reference) {
 
-        if (definitionItem == null || reference.SyntaxTree == null) {
-            return null;
-        }
+        // Referenz-Site-Symbole der aktuellen Unit tragen stets einen SyntaxTree; einzig importierte
+        // TaskDeclarations haben null (siehe ISymbol.SyntaxTree), die hier nie als reference übergeben werden.
+        var syntaxTree = reference.SyntaxTree!;
 
-        var referenceLine = reference.SyntaxTree.SourceText.GetTextLineAtPosition(reference.Location.Start);
-            
+        var referenceLine = syntaxTree.SourceText.GetTextLineAtPosition(reference.Location.Start);
+
         // Text
         var textExtent = referenceLine.ExtentWithoutLineEndings;
 
-        var textParts = reference.SyntaxTree
-                                 .GetClassifiedText(textExtent)
-                                 .ToImmutableArray();
+        var textParts = syntaxTree.GetClassifiedText(textExtent)
+                                  .ToImmutableArray();
 
-          
+
         var textHighlightExtent = new TextExtent(start:  reference.Start - referenceLine.Start,
                                                  length: reference.Location.Length);
 
         // ToolTip
         var tipExtent = GetToolTipExtent(referenceLine);
-        var toolTipParts = reference.SyntaxTree
-                                    .GetClassifiedText(tipExtent)
-                                    .ToImmutableArray();
+        var toolTipParts = syntaxTree.GetClassifiedText(tipExtent)
+                                     .ToImmutableArray();
 
         var toolTipHighlightExtent = new TextExtent(start : reference.Start - tipExtent.Start,
                                                     length: reference.Location.Length);

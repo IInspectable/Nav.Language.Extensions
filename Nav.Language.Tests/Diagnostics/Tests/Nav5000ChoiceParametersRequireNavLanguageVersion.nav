@@ -1,0 +1,12 @@
+﻿task A
+{
+    init I1;
+    exit e;
+    choice C [params int x];
+    view V;
+
+    I1 --> C;
+    C  --> V;
+    V  --> e on OnV;
+}
+//==>>[Semantic](5,14,5,28): error Nav5000: 'ChoiceParameters' requires Nav language version 2. Add '#version 2'.

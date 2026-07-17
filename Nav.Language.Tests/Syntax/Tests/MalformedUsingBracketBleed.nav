@@ -1,0 +1,13 @@
+﻿[namespaceprefix Company.Product]
+
+[using System.Text]
+[usin System.Linq]
+[using System.Collections]
+
+task A
+{
+    init;
+    exit End;
+
+    init --> End;
+}

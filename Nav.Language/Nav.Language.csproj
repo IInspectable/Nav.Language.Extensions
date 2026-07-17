@@ -6,9 +6,15 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language</RootNamespace>
     <AssemblyName>Pharmatechnik.Nav.Language</AssemblyName>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Welle 5 der Nullable-Kampagne: projektweiter NRT-Kontext löst die vormaligen per-Datei-
+         `#nullable enable`-Direktiven ab (alle entfernt). WarningsAsErrors=Nullable macht künftige
+         Nullable-Verstöße zu Build-Fehlern — sonst wäre jede neue Datei zwar geprüft, aber ohne Gate. -->
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>$(WarningsAsErrors);Nullable</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -17,83 +23,30 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
-    
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
+
   </ItemGroup>
+
   <ItemGroup>
-    <EmbeddedResource Include="CodeGen\Templates\Common.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\IBeginWFS.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\IWFS.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\TO.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\WFSBase.stg" />
-    <EmbeddedResource Include="CodeGen\Templates\WFSOneShot.stg" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <ExportStringTemplates Include="CodeGen\Templates\CodeGenFacts.stg">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.CodeGen</CustomToolNamespace>
-    </ExportStringTemplates>
-    <!--<Compile Remove="CodeGen\Templates\CodeGenFacts.generated.cs"/>
-    <Compile Include="CodeGen\Templates\CodeGenFacts.generated.cs"/>-->
-  </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="Antlr4">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Antlr4.Runtime" />
-    <PackageReference Include="StringTemplate4" />
     <PackageReference Include="System.Collections.Immutable" />
-    <PackageReference Include="System.CodeDom" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
+    <!-- Quellgenerator: setzt die über die Parse*-EBNF-Fragmente verstreute Grammatik zu NavGrammar.Ebnf
+         zusammen. Nur als Analyzer eingebunden, nicht als referenzierte Assembly. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Grammar.SourceGenerator\Nav.Grammar.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <!-- Quellgenerator: erzeugt SyntaxNodeVisitor/SyntaxNodeWalker und SymbolVisitor aus den *Syntax-/
+         *Symbol-Typen (löst die VS-only T4-Templates ab). Nur als Analyzer eingebunden. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <!-- Quellgenerator: erzeugt Analyzer.CreateAll() mit statischen Verweisen auf alle INavAnalyzer-
+         Implementierungen (löst die trim-unsichere Reflection in Analyzer.cs ab). Nur als Analyzer. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Analyzer.SourceGenerator\Nav.Analyzer.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
-  <ItemGroup>
-    <Antlr4 Update="Grammar\NavGrammar.g4">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.Generated</CustomToolNamespace>
-    </Antlr4>
-    <Antlr4 Update="Grammar\NavTokens.g4">
-      <CustomToolNamespace>Pharmatechnik.Nav.Language.Generated</CustomToolNamespace>
-    </Antlr4>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Syntax\Generated\Syntax.Generated.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Syntax.Generated.cs</LastGenOutput>
-    </None>
-    <None Update="Syntax\Generated\SyntaxNodeVisitor.Generated.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>SyntaxNodeVisitor.Generated.cs</LastGenOutput>
-    </None>
-    <None Update="Syntax\Generated\SyntaxNodeWalker.Generated.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>SyntaxNodeWalker.Generated.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Update="Syntax\Generated\Syntax.Generated.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Syntax.Generated.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Syntax\Generated\SyntaxNodeVisitor.Generated.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>SyntaxNodeVisitor.Generated.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Syntax\Generated\SyntaxNodeWalker.Generated.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>SyntaxNodeWalker.Generated.tt</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
-  <Import Project="CustomBuild.targets" />
 
 </Project>

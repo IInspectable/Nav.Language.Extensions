@@ -8,5 +8,5 @@
     A  --> e1 on Foo;
     A  --> e1 on Foo;
 }
-//==>>[Semantic](8,18,8,21): error Nav0023: An outgoing edge for Trigger 'Foo' is already declared
-//==>>[Semantic](9,18,9,21): error Nav0023: An outgoing edge for Trigger 'Foo' is already declared
+//==>>[Semantic](8,18,8,21): error Nav0023: An outgoing edge for trigger 'Foo' is already declared
+//==>>[Semantic](9,18,9,21): error Nav0023: An outgoing edge for trigger 'Foo' is already declared

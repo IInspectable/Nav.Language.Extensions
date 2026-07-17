@@ -1,0 +1,6 @@
+﻿// C# → C#
+// Rücksprung von Choice_EscalateLogic auf die Choice→Choice-Aufrufstelle
+// next.Choice_Escalate(…) (aus dem Choice_Retry-Kontext) — der historisch fragile Fall.
+
+<UserCode.cs> (10,18)-(10,33)  "Choice_Escalate"
+    next.Choice_Escalate(1);

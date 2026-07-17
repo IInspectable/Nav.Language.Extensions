@@ -47,16 +47,17 @@ public class RegressionTests {
         var fileSpecs = CollectNavFiles();
 
         var pipeline = NavCodeGeneratorPipeline.CreateDefault();
-        var b        = pipeline.Run(fileSpecs);
+        var result   = pipeline.Run(fileSpecs);
 
-        Assert.That(b, Is.True);
+        Assert.That(result.Succeeded, Is.True);
     }
 
     static IEnumerable<FileTestCase> PlainGetFileTestCases() {
 
         var directory = GetRegressiontestDirectory();
 
-        var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories).Where(f => !f.EndsWith("expected.cs"));
+        var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+                             .Where(f => !f.EndsWith("expected.cs"));
 
         return files.Select(f => new FileTestCase {
                 GeneratedFile = Path.GetFullPath(f),

@@ -1,0 +1,41 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.NotImpl]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: [notimplemented] als isolierte Sonderform (§3.4).
+//
+// Der Ziel-Task-Wrapper bleibt begin-bar — Begin{Node} existiert weiter, inkl. Init-Parameter —,
+// scheitert aber beim Unwrap()-Aufruf mit NotImplementedException (exakt V1s Laufzeitverhalten,
+// ins Thunk-Modell überführt). Für einen [notimplemented]-Task wird KEINE After{Node}-Maschinerie
+// erzeugt; die deklarierte exit-Kante ist nur da, damit Nav0025 (unverbundener exit) schweigt.
+// Bewusst OHNE Choice/Continuation — der Diff bleibt auf das eine Konzept fokussiert.
+
+taskref Stub [namespaceprefix NS.V2.NotImpl]
+             [notimplemented]
+             [result StubResult r] {
+
+    init [params string text];
+    exit Done;
+}
+
+task NotImplementedFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1;
+    exit Exit;
+    task Stub Warn;
+    view Home;
+
+    Init1 --> Home;
+
+    // o-> auf einen [notimplemented]-Task: BeginWarn(string text) existiert, wirft aber beim Unwrap().
+    Home o-> Warn on OnWarn;
+    Home --> Exit on OnClose;
+
+    Warn:Done --> Home;
+}

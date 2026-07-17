@@ -23,6 +23,20 @@ using Pharmatechnik.Nav.Language.Extension.Notification;
 
 namespace Pharmatechnik.Nav.Language.Extension.CSharp.GoTo; 
 
+/// <summary>
+/// Der Daten-Tagger hinter den Nav-GoTo-Symbolen im generierten C#-Code (ein Tagger je
+/// <see cref="ITextBuffer"/>). Er liest über den <see cref="AnnotationReader"/> die Nav-Annotationen des
+/// Roslyn-Dokuments und baut daraus (via <see cref="IntraTextGoToTagSpanBuilder"/>)
+/// <see cref="IntraTextGoToTag"/>s; die sichtbaren Adornments erzeugt darüber der
+/// <see cref="IntraTextGoToAdornmentTagger"/>.
+/// <para>
+/// Auslöser für eine Neuberechnung sind Buffer-Änderungen, Roslyn-Workspace-Ereignisse (inkl.
+/// Re-Registration nach einem Build) sowie — als <see cref="IClassAnnotationChangeListener"/> — geänderte
+/// Annotationen einer Basisklasse in einer anderen Datei. Die Berechnung läuft entprellt und im
+/// Hintergrund über einen Rx-Stream (<c>Throttle</c>/<c>Switch</c>); das Ergebnis wird im GUI-Kontext
+/// übernommen (siehe <see cref="TrySetResult"/>).
+/// </para>
+/// </summary>
 class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeListener, IDisposable {
 
     static readonly Logger Logger = Logger.Create<IntraTextGoToTagger>();
@@ -79,6 +93,12 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
         Logger.Info($"{nameof(IntraTextGoToTagger)}.Ctor Ende: {_textBuffer.GetTextDocument()?.FilePath}");
     }
 
+    /// <summary>
+    /// Reagiert auf geänderte Annotationen eines Tasks in einer <em>anderen</em> Datei: Betrifft die
+    /// Änderung einen Task, den auch dieses Dokument referenziert, wird neu getaggt. So erhalten
+    /// abgeleitete Klassen ihre Symbole aktualisiert, obwohl sie kein eigenes Roslyn-Änderungsereignis
+    /// bekommen, nur weil sich die Datei der Basisklasse geändert hat.
+    /// </summary>
     void IClassAnnotationChangeListener.OnClassAnnotationsChanged(object sender, ClassAnnotationChangedArgs e) {
 
         // Die Änderung kommt von uns selbst 
@@ -99,6 +119,10 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+    /// <summary>
+    /// Liefert die zuletzt berechneten <see cref="IntraTextGoToTag"/>s, auf den angefragten Snapshot
+    /// übersetzt und auf die angefragten Spans eingeschränkt.
+    /// </summary>
     public IEnumerable<ITagSpan<IntraTextGoToTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         if (_result == null || spans.Count == 0) {
@@ -266,6 +290,7 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
         Invalidate();
     }
 
+    /// <summary>Stößt eine (entprellte) Neuberechnung der Tags an, indem der Rx-Stream „gefüttert" wird.</summary>
     public void Invalidate() {
         RebuildTriggered?.Invoke(this, EventArgs.Empty);
     }
@@ -330,6 +355,7 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
         }
     }
 
+    /// <summary>Eingabe eines Tag-Bau-Laufs: der zu analysierende Snapshot und sein Roslyn-Dokument.</summary>
     struct BuildTagsArgs {
 
         public ITextSnapshot Snapshot   { get; init; }
@@ -337,6 +363,11 @@ class IntraTextGoToTagger: ITagger<IntraTextGoToTag>, IClassAnnotationChangeList
 
     }
 
+    /// <summary>
+    /// Ergebnis eines Tag-Bau-Laufs: die gefundenen <see cref="IntraTextGoToTag"/>s samt der
+    /// zugrunde liegenden Nav-Annotationen und der Eingabe. <see cref="DocumentResolved"/> unterscheidet
+    /// ein echtes Ergebnis von einem Übergangszustand ohne aufgelöstes Roslyn-Dokument.
+    /// </summary>
     sealed class BuildTagsResult {
 
         public BuildTagsResult(BuildTagsArgs buildArgs) {

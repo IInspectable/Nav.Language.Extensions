@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- net10.0-only (bewusst kein Multi-Target): Nav.Language.Mcp zielt selbst nur auf net10.0 und
+         lässt sich daher nur aus einem net10.0-Projekt referenzieren. Der Lauf erfolgt ausschließlich
+         über `dotnet test` (nicht über den net472-NUnit-Console-Runner von `nav test`). -->
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): die
+         Fixtures nutzen Raw String Literals und Collection Expressions für gut lesbare, mehrzeilige
+         .nav-Quellen — beides reine Compiler-Features. -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Nav.Language.Mcp.Tests</RootNamespace>
+    <AssemblyName>Nav.Language.Mcp.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <NoWarn>1701;1702;AD0001</NoWarn>
+  </PropertyGroup>
+
+  <!-- Beim Bau via full-framework MSBuild.exe (`nav build`) werden die .NET-Core-Run-Artefakte sonst
+       nicht erzeugt: runtimeconfig.json erzwingen und alle transitiven NuGet-DLLs (testhost …) ins
+       Output kopieren, damit `dotnet test` ohne Cache-Probing läuft. -->
+  <PropertyGroup>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Zieht Nav.Language / Nav.Utilities transitiv. -->
+    <ProjectReference Include="..\Nav.Language.Mcp\Nav.Language.Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+</Project>

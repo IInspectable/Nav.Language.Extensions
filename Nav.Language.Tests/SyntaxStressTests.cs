@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +18,8 @@ public class SyntaxStressTests {
 
         Assert.That(syntax.CodeBaseDeclaration, Is.Not.Null);
 
+        // Bewusste Robustheitsprüfung: der Test verifiziert die non-null-Zusage der Annotation zur Laufzeit.
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
         var nullSyntaxen = syntax.CodeBaseDeclaration.BaseTypes.Where(b => b == null);
         Assert.That(nullSyntaxen.Any(), Is.False);
     }
@@ -38,6 +40,7 @@ public class SyntaxStressTests {
             var tree =SyntaxTree.ParseText(text);
 
             CheckNonNullChild(tree.Root);
+            CheckRoundTrip(tree, text);
         }
     }
 
@@ -51,6 +54,7 @@ public class SyntaxStressTests {
             var tree = SyntaxTree.ParseText(text);
 
             CheckNonNullChild(tree.Root);
+            CheckRoundTrip(tree, text);
         }
     }
 
@@ -59,6 +63,27 @@ public class SyntaxStressTests {
         foreach (var child in node.ChildNodes()) {
             CheckNonNullChild(child);
         }
+    }
+
+    // Full-Fidelity-Invariante: Die sortierte Token-Liste plus ihre angehängte Trivia deckt den
+    // Quelltext lückenlos ab — je Token Leading-Trivia, eigener Text und Trailing-Trivia konkateniert
+    // ergeben exakt den Originaltext zurück (Trivia liegt nicht mehr als eigenes Token im Strom).
+    static void CheckRoundTrip(SyntaxTree tree, string text) {
+        var sb = new StringBuilder();
+        foreach (var token in tree.Tokens) {
+
+            foreach (var trivia in token.LeadingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
+
+            sb.Append(token.ToString());
+
+            foreach (var trivia in token.TrailingTrivia) {
+                sb.Append(trivia.ToString(tree.SourceText));
+            }
+        }
+
+        Assert.That(sb.ToString(), Is.EqualTo(text));
     }
 
     List<int> RandomShuffle(IEnumerable<int> source) {

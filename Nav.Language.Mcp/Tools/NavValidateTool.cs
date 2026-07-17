@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.ComponentModel;
 
@@ -13,7 +13,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// registriert), der <c>path</c>-Parameter stammt aus den Tool-Argumenten des Clients.
 /// </summary>
 [McpServerToolType]
-public static class NavValidateTool {
+public sealed class NavValidateTool {
 
     [McpServerTool(Name = "nav_validate")]
     [Description("Validates a Nav (.nav) file and returns all diagnostics (errors, warnings, suggestions), " +

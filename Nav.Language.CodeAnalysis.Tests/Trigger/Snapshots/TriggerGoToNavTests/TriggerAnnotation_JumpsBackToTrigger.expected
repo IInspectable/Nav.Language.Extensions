@@ -1,0 +1,6 @@
+﻿// C# → Nav
+// Rücksprung von OnOpenLogic landet auf dem Trigger `on OnOpen` im .nav —
+// der Golden pinnt den exakten Span, nicht bloß irgendein OnOpen-Vorkommen.
+
+<nav> (19,26)-(19,32)  "OnOpen"
+    Home   --> Detail on OnOpen;

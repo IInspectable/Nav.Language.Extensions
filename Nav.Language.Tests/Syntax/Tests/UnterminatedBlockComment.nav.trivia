@@ -1,0 +1,29 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T NewLine           [6-7]         "\n"
+    7 OpenBrace
+    T NewLine           [8-9]         "\n"
+    L Whitespace        [9-13]        "    "
+   13 InitKeyword
+    T Whitespace        [17-18]       " "
+   20 Semicolon
+    T NewLine           [21-22]       "\n"
+    L Whitespace        [22-26]       "    "
+   26 ExitKeyword
+    T Whitespace        [30-31]       " "
+   33 Semicolon
+    T NewLine           [34-35]       "\n"
+    L Whitespace        [35-39]       "    "
+   39 Identifier
+    T Whitespace        [41-42]       " "
+   42 GoToEdgeKeyword
+    T Whitespace        [45-46]       " "
+   48 Semicolon
+    T NewLine           [49-50]       "\n"
+   50 CloseBrace
+    T NewLine           [51-52]       "\n"
+    L NewLine           [52-53]       "\n"
+    L SkippedTokensTrivia[53-102]      "/* offener Blockkommentar ohne schließendes Token"
+    L NewLine           [102-103]     "\n"
+  103 EndOfFile

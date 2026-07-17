@@ -1,9 +1,21 @@
-namespace Pharmatechnik.Nav.Language; 
+﻿namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Semantic-Model-Umsetzung von <see cref="IEdgeModeSymbol"/>. Entsteht im
+/// <see cref="TaskDefinitionSymbolBuilder"/> je Kante aus deren Operator-Syntax
+/// (<see cref="EdgeSyntax"/> bzw. <see cref="ContinuationEdgeSyntax"/>): der Name ist das
+/// Operator-Literal aus dem Quelltext, <see cref="EdgeMode"/> der von der Syntax kodierte Modus.
+/// </summary>
 sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
 
-    // ReSharper disable once NotNullMemberIsNotInitialized Transition wird im Ctor der Transition w�hrend der Initialisierung gesetzt 
-    // In der "freien" Wildbahn" darf hingegen der Null Fall nicht auftreten
+    /// <summary>
+    /// Erzeugt das Kantenmodus-Symbol; die tragende <see cref="Edge"/> wird anschließend im
+    /// Kanten-Konstruktor verankert.
+    /// </summary>
+    /// <param name="syntaxTree">Der Syntaxbaum, aus dem das Symbol stammt.</param>
+    /// <param name="name">Das Operator-Literal, wie es im Quelltext steht (z.B. <c>--&gt;</c>).</param>
+    /// <param name="location">Die Fundstelle des Operators.</param>
+    /// <param name="edgeMode">Der vom Operator kodierte Kantenmodus.</param>
     public EdgeModeSymbol(SyntaxTree syntaxTree, string name, Location location, EdgeMode edgeMode)
         : base(name, location) {
 
@@ -11,42 +23,53 @@ sealed partial class EdgeModeSymbol: Symbol, IEdgeModeSymbol {
         EdgeMode   = edgeMode;
     }
 
+    /// <inheritdoc/>
     public override SyntaxTree SyntaxTree { get; }
 
+    /// <inheritdoc/>
     public EdgeMode EdgeMode { get; }
-    public IEdge    Edge     { get; set; }
 
-    public string DisplayName {
-        get {
-            // TODO Evtl. Strings wo anders hinpacken
-            switch (EdgeMode) {
-                case EdgeMode.Modal:
-                    return "Modal Edge";
-                case EdgeMode.NonModal:
-                    return "NonModal Edge";
-                case EdgeMode.Goto:
-                    return "GoTo Edge";
-                default:
-                    return Name;
-            }
-        }
-    }
+    // Wird im Ctor der Edge während der Initialisierung gesetzt — in der "freien Wildbahn" darf
+    // der Null-Fall nicht auftreten.
+    /// <inheritdoc/>
+    public IEdge Edge { get; internal set; } = null!;
 
-    public string Verb {
-        get {
-            // TODO Evtl. Strings wo anders hinpacken
-            switch (EdgeMode) {
+    /// <summary>
+    /// Ob dieser Kantenmodus zu einer Continuation (<c>o-^</c>/<c>--^</c>) gehört statt zu einer
+    /// gewöhnlichen Transition. Die <see cref="Language.EdgeMode"/>-Werte selbst sind identisch
+    /// (Modal/Goto) — erst die tragende Kante unterscheidet Continuation von regulärer Transition.
+    /// </summary>
+    public bool IsContinuation => Edge is IContinuationTransition;
 
-                case EdgeMode.Modal:
-                    return "modal";
-                case EdgeMode.NonModal:
-                    return "non-modal";
-                case EdgeMode.Goto:
-                    return "go to";
-                default:
-                    return "";
-            }
-        }
-    }
+    /// <summary>
+    /// Menschenlesbare Kanten-Art (z.B. „Modal Edge" bzw. „Modal Continuation") — Kopfzeile der QuickInfo.
+    /// Ein Non-Modal-Continuation gibt es in der Sprache nicht (<c>==></c> ist stets eine reguläre Kante).
+    /// </summary>
+    public string DisplayName => EdgeMode switch {
+        EdgeMode.Modal    => IsContinuation ? "Modal Continuation" : "Modal Edge",
+        EdgeMode.NonModal => "NonModal Edge",
+        EdgeMode.Goto     => IsContinuation ? "GoTo Continuation" : "GoTo Edge",
+        _                 => Name
+    };
+
+    /// <summary>
+    /// Ein Satz, der die Bedeutung des Kantenmodus erklärt — die Erläuterungszeile der QuickInfo (Doku-Stil).
+    /// Delegiert an <see cref="SyntaxFacts.GetKeywordDescription"/>: jede Kante ist ein konkretes
+    /// Keyword-Literal mit fester Bedeutung, dort liegt die einzige Autorität.
+    /// </summary>
+    public string Description => SyntaxFacts.GetKeywordDescription(EdgeKeyword);
+
+    /// <summary>
+    /// Das konkrete Kanten-Keyword dieses Modus — die Continuation-Varianten (<c>--^</c>/<c>o-^</c>)
+    /// eingeschlossen. Ein Non-Modal-Continuation gibt es in der Sprache nicht (<c>==></c> ist stets eine
+    /// reguläre Kante), daher fällt <see cref="EdgeMode.NonModal"/> unabhängig von <see cref="IsContinuation"/>
+    /// auf <c>==></c>.
+    /// </summary>
+    string EdgeKeyword => EdgeMode switch {
+        EdgeMode.Modal    => IsContinuation ? SyntaxFacts.ContinuationModalEdgeKeyword : SyntaxFacts.ModalEdgeKeyword,
+        EdgeMode.NonModal => SyntaxFacts.NonModalEdgeKeyword,
+        EdgeMode.Goto     => IsContinuation ? SyntaxFacts.ContinuationGoToEdgeKeyword : SyntaxFacts.GoToEdgeKeyword,
+        _                 => Name
+    };
 
 }

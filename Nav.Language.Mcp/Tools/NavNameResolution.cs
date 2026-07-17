@@ -1,10 +1,9 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Symbols;
 
 #endregion
@@ -34,7 +33,7 @@ static class NavNameResolution {
         // würde beide behalten, weil der Knoten in der Task liegt. Greift der Filter ins Leere, bleiben die
         // ursprünglichen Kandidaten erhalten (besser „weiterhin mehrdeutig" als fälschlich „nicht gefunden").
         if (!string.IsNullOrEmpty(kind) && candidates.Count > 1) {
-            var filtered = candidates.Where(candidate => KindMatches(candidate, kind!)).ToList();
+            var filtered = candidates.Where(candidate => KindMatches(candidate, kind)).ToList();
             if (filtered.Count > 0) {
                 candidates = filtered;
             }

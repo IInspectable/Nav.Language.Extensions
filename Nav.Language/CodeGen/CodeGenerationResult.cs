@@ -1,41 +1,32 @@
 ﻿#region Using Directives
 
 using System;
-using System.Linq;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-
-using JetBrains.Annotations;
-
-// ReSharper disable InconsistentNaming
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
+/// <summary>
+/// Das Ergebnis der Codegenerierung für genau eine <see cref="ITaskDefinitionSymbol"/>: die Liste
+/// der zu schreibenden Artefakte. Menge und Zuschnitt der Artefakte sind Sache der jeweiligen
+/// Generation — der nachgelagerte <see cref="IFileGenerator"/> wertet nur noch <see cref="Specs"/>
+/// aus und schreibt jeden Spec gemäß seiner eigenen <see cref="CodeGenerationSpec.OverwritePolicy"/>.
+/// </summary>
 public sealed class CodeGenerationResult {
 
-    public CodeGenerationResult(
-        ITaskDefinitionSymbol taskDefinition,
-        CodeGenerationSpec iBeginWfsCodeSpec,
-        CodeGenerationSpec iWfsCodeSpec,
-        CodeGenerationSpec wfsBaseCodeSpec,
-        CodeGenerationSpec wfsCodeSpec,
-        [CanBeNull] IEnumerable<CodeGenerationSpec> toCodeSpecs) {
-
-        TaskDefinition    = taskDefinition    ?? throw new ArgumentNullException(nameof(taskDefinition));
-        IBeginWfsCodeSpec = iBeginWfsCodeSpec ?? throw new ArgumentNullException(nameof(iBeginWfsCodeSpec));
-        IWfsCodeSpec      = iWfsCodeSpec      ?? throw new ArgumentNullException(nameof(iWfsCodeSpec));
-        WfsBaseCodeSpec   = wfsBaseCodeSpec   ?? throw new ArgumentNullException(nameof(wfsBaseCodeSpec));
-        WfsCodeSpec       = wfsCodeSpec       ?? throw new ArgumentNullException(nameof(wfsCodeSpec));
-        ToCodeSpecs       = (toCodeSpecs ?? Enumerable.Empty<CodeGenerationSpec>()).ToImmutableList();
+    /// <summary>Erzeugt das Ergebnis aus der Task-Definition und ihren generierten Specs.</summary>
+    /// <param name="taskDefinition">Die Task-Definition, aus der die Artefakte erzeugt wurden.</param>
+    /// <param name="specs">Die zu schreibenden Artefakte (nur nicht-leere).</param>
+    public CodeGenerationResult(ITaskDefinitionSymbol taskDefinition, ImmutableArray<CodeGenerationSpec> specs) {
+        TaskDefinition = taskDefinition ?? throw new ArgumentNullException(nameof(taskDefinition));
+        Specs          = specs;
     }
 
-    public ITaskDefinitionSymbol             TaskDefinition    { get; }
-    public CodeGenerationSpec                IBeginWfsCodeSpec { get; }
-    public CodeGenerationSpec                IWfsCodeSpec      { get; }
-    public CodeGenerationSpec                WfsBaseCodeSpec   { get; }
-    public CodeGenerationSpec                WfsCodeSpec       { get; }
-    public ImmutableList<CodeGenerationSpec> ToCodeSpecs       { get; }
+    /// <summary>Die Task-Definition, aus der die Artefakte erzeugt wurden.</summary>
+    public ITaskDefinitionSymbol TaskDefinition { get; }
+
+    /// <summary>Die zu schreibenden Artefakte dieser Task-Definition (leere Specs sind ausgefiltert).</summary>
+    public ImmutableArray<CodeGenerationSpec> Specs { get; }
 
 }

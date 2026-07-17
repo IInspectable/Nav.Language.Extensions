@@ -6,6 +6,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net472</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseAssemblyInfoGenerator>true</UseAssemblyInfoGenerator>
     <RootNamespace>Pharmatechnik.Nav.Language.CodeAnalysis</RootNamespace>
     <AssemblyName>Pharmatechnik.Nav.Language.CodeAnalysis</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -17,11 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="Annotation\generated\NavTaskAnnotationVisitor.Generated.tt" />
+    <Compile Include="..\Build\GobalAssemblyInfo.cs" Link="Properties\GobalAssemblyInfo.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,12 +28,18 @@
   <ItemGroup>
     <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
     <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
+
+    <!-- Quellgenerator: erzeugt das NavTaskAnnotationVisitor-Besucherpaar aus den konkreten
+         NavTaskAnnotation-Ableitungen (löst das VS-only EnvDTE-T4-Template ab). Nur als Analyzer
+         eingebunden, nicht als referenzierte Assembly. -->
+    <ProjectReference Include="..\Build\SourceGenerators\Nav.Visitor.SourceGenerator\Nav.Visitor.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis" />
   </ItemGroup>
 
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="CustomBuild.targets" />
 </Project>

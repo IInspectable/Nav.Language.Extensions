@@ -7,4 +7,4 @@
     I1   o-> Choice_e1;
     Choice_e1 --> e1;
 }
-//==>>[Semantic](7,10,7,13): error Nav0104: Choice node 'Choice_e1' must only be reached by -->
+//==>>[Semantic](7,10,7,13): error Nav0104: Choice node 'Choice_e1' can only be reached by a goto edge (-->)

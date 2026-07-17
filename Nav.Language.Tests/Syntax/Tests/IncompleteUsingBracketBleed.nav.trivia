@@ -1,0 +1,40 @@
+﻿    1 NamespaceprefixKeyword
+    T Whitespace        [16-17]       " "
+   32 CloseBracket
+    T NewLine           [33-34]       "\n"
+    L NewLine           [34-35]       "\n"
+   35 OpenBracket
+   36 UsingKeyword
+    T Whitespace        [41-42]       " "
+   42 Identifier
+    T NewLine           [53-54]       "\n"
+   55 UsingKeyword
+    T Whitespace        [60-61]       " "
+   72 CloseBracket
+    T NewLine           [73-74]       "\n"
+    L NewLine           [74-75]       "\n"
+   75 TaskKeyword
+    T Whitespace        [79-80]       " "
+   80 Identifier
+    T NewLine           [81-82]       "\n"
+   82 OpenBrace
+    T NewLine           [83-84]       "\n"
+    L Whitespace        [84-88]       "    "
+   88 InitKeyword
+   92 Semicolon
+    T NewLine           [93-94]       "\n"
+    L Whitespace        [94-98]       "    "
+   98 ExitKeyword
+    T Whitespace        [102-103]     " "
+  106 Semicolon
+    T NewLine           [107-108]     "\n"
+    L NewLine           [108-109]     "\n"
+    L Whitespace        [109-113]     "    "
+  113 InitKeyword
+    T Whitespace        [117-118]     " "
+  118 GoToEdgeKeyword
+    T Whitespace        [121-122]     " "
+  125 Semicolon
+    T NewLine           [126-127]     "\n"
+  127 CloseBrace
+    T NewLine           [128-129]     "\n"

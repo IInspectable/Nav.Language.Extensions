@@ -73,12 +73,11 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\_build\GobalAssemblyInfo.cs">
+    <Compile Include="..\Build\GobalAssemblyInfo.cs">
       <Link>Properties\GobalAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="HACK_ThemeColorFixer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ThisAssembly.generated.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icons.pkgdef">
@@ -88,6 +87,7 @@
     <None Include="Additional.VsixItems.targets" />
     <Content Include="Icons.imagemanifest">
       <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
@@ -99,6 +99,10 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Content Include="Resources\Icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Resources\Icons\Scratch.txt" />
     <Content Include="Resources\Preview.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -107,6 +111,29 @@
     <None Include="CustomBuild.targets">
       <SubType>Designer</SubType>
     </None>
+  </ItemGroup>
+  <PropertyGroup>
+    <!-- VS-Install-Verzeichnis (…\Common7\IDE\) zum Auflösen der Call-Hierarchy-Assemblies. Diese gibt
+         es in KEINEM NuGet (auch nicht im SDK-Metapaket) — sie liegen nur im VS-Install. DevEnvDir wird
+         von den VSSDK-Targets gesetzt; als Fallback aus VsInstallRoot ableiten. -->
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == '' and '$(DevEnvDir)' != ''">$(DevEnvDir)</NavVsIdeDir>
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == '' and '$(VsInstallRoot)' != ''">$(VsInstallRoot)\Common7\IDE\</NavVsIdeDir>
+    <!-- Fallback für MSBuild.exe-Aufrufe ohne gesetztes DevEnvDir/VsInstallRoot (z.B. `n build` via
+         vswhere): MSBuild.exe liegt immer unter <VsInstallRoot>\MSBuild\Current\Bin → drei Ebenen hoch. -->
+    <NavVsIdeDir Condition="'$(NavVsIdeDir)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildBinPath)\..\..\..\Common7\IDE\'))</NavVsIdeDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- VS-eigenes Call-Hierarchy-Toolfenster: ICallHierarchyMemberItem & Co. (Kontrakt) sowie der
+         Präsentations-Service SCallHierarchy/ICallHierarchy. Private=false: von VS bereitgestellt,
+         nicht ins VSIX kopieren. -->
+    <Reference Include="Microsoft.VisualStudio.Language.CallHierarchy">
+      <HintPath>$(NavVsIdeDir)CommonExtensions\Microsoft\CallHierarchy\Microsoft.VisualStudio.Language.CallHierarchy.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.CallHierarchy.Package.Definitions">
+      <HintPath>$(NavVsIdeDir)Microsoft.VisualStudio.CallHierarchy.Package.Definitions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
@@ -152,6 +179,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Resources\Icons\ModalContinuation.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Icons\GoToContinuation.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Themes\Generic.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -192,7 +227,6 @@
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  <Import Project="..\JetBrains.Annotations\JetBrains.Annotations.projitems" Label="Shared" />
   <Import Project="..\Nav.Language.ExtensionShared\Nav.Language.ExtensionShared.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />

@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Threading;
@@ -19,7 +19,7 @@ namespace Pharmatechnik.Nav.Language.Lsp;
 sealed class ReferenceCollector: IFindReferencesContext {
 
     readonly bool                  _includeDeclaration;
-    readonly HashSet<(string, int)> _seen      = new();
+    readonly HashSet<(string?, int)> _seen      = new();
     readonly List<Location>         _locations = new();
 
     public ReferenceCollector(bool includeDeclaration, CancellationToken cancellationToken) {
@@ -36,14 +36,14 @@ sealed class ReferenceCollector: IFindReferencesContext {
 
     public Task OnDefinitionFoundAsync(DefinitionItem definitionItem) {
         if (_includeDeclaration) {
-            Add(definitionItem?.Location);
+            Add(definitionItem.Location);
         }
 
         return Task.CompletedTask;
     }
 
     public Task OnReferenceFoundAsync(ReferenceItem referenceItem) {
-        Add(referenceItem?.Location);
+        Add(referenceItem.Location);
         return Task.CompletedTask;
     }
 

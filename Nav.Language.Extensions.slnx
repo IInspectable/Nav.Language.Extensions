@@ -1,27 +1,155 @@
-<Solution>
+﻿<Solution>
   <Configurations>
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="LICENSE" />
     <File Path="README.md" />
-    <File Path="Version.props" />
-    <File Path="Tools/Commands/README.md" />
-    <File Path="_build/GobalAssemblyInfo.cs" />
-    <File Path="_build/WriteThisAssemblyFile.targets" />
   </Folder>
-  <Project Path="JetBrains.Annotations/JetBrains.Annotations.shproj" />
+  <Folder Name="/Tools/Commands/">
+    <File Path="Tools/Commands/Import-NavCommands.ps1" />
+    <File Path="Tools/Commands/README.md" />
+  </Folder>
+  <Folder Name="/Tools/Commands/Functions/">
+    <File Path="Tools/Commands/Functions/Export-Grammar.ps1" />
+    <File Path="Tools/Commands/Functions/Get-NavCommandInfo.ps1" />
+    <File Path="Tools/Commands/Functions/Get-ProductVersion.ps1" />
+    <File Path="Tools/Commands/Functions/Get-Worktree.ps1" />
+    <File Path="Tools/Commands/Functions/Install-Extension.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Build.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Clean.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-CodeGenParity.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Demo.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Deploy.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-GenerateErrors.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-IncreaseMajor.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-IncreaseMinor.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-NavCommand.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Publish.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Snapshot.ps1" />
+    <File Path="Tools/Commands/Functions/Invoke-Test.ps1" />
+    <File Path="Tools/Commands/Functions/Navigation.ps1" />
+    <File Path="Tools/Commands/Functions/New-Branch.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-Cli.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-Mcp.ps1" />
+    <File Path="Tools/Commands/Functions/Publish-VsCode.ps1" />
+    <File Path="Tools/Commands/Functions/Remove-Branch.ps1" />
+    <File Path="Tools/Commands/Functions/Resolve-MsBuild.ps1" />
+    <File Path="Tools/Commands/Functions/Resolve-Root.ps1" />
+    <File Path="Tools/Commands/Functions/Show-Commands.ps1" />
+    <File Path="Tools/Commands/Functions/Set-VersionTag.ps1" />
+    <File Path="Tools/Commands/Functions/Show-SelectionMenu.ps1" />
+  </Folder>
+  <Folder Name="/Build/">
+    <File Path="Build/GobalAssemblyInfo.cs" />
+    <File Path="Build/Version.targets" />
+    <File Path="Directory.Build.targets" />
+  </Folder>
+  <Folder Name="/Build/Shared/">
+    <Project Path="Build/Shared/Nav.CodeAnalysis.Shared/Nav.CodeAnalysis.Shared.shproj" />
+  </Folder>
+  <Folder Name="/Build/SourceGenerators/">
+    <File Path="Build/SourceGenerators/SourceGenerator.props" />
+    <File Path="Build/SourceGenerators/SourceGenerator.targets" />
+    <Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator/Nav.Analyzer.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Analyzer.SourceGenerator.Tests/Nav.Analyzer.SourceGenerator.Tests.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.AssemblyInfo.SourceGenerator/Nav.AssemblyInfo.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator/Nav.Grammar.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Grammar.SourceGenerator.Tests/Nav.Grammar.SourceGenerator.Tests.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator/Nav.Visitor.SourceGenerator.csproj" />
+    <Project Path="Build/SourceGenerators/Nav.Visitor.SourceGenerator.Tests/Nav.Visitor.SourceGenerator.Tests.csproj" />
+  </Folder>
+  <Folder Name="/doc/">
+    <File Path="doc/Development.md" />
+    <File Path="doc/Errors.md" />
+    <File Path="doc/Features.md" />
+    <File Path="doc/Formatter-DeepDive.md" />
+    <File Path="doc/Formatter.md" />
+    <File Path="doc/Glossar.md" />
+    <File Path="doc/Parser-DeepDive.md" />
+    <File Path="doc/WFS-Spracherweiterung — Framework-Verifikation.md" />
+    <File Path="doc/nav-backlog.md" />
+    <File Path="doc/nav-broken-source-robustness.md" />
+    <File Path="doc/nav-codeanalysis-navigation-review.md" />
+    <File Path="doc/nav-codegen-v2-choice-navigation-status.md" />
+    <File Path="doc/nav-codegen-v2-concat-design.md" />
+    <File Path="doc/nav-codegen-v2-status.md" />
+    <File Path="doc/nav-codegen-versioning.md" />
+    <File Path="doc/nav-completion-status.md" />
+    <File Path="doc/nav-diagram-status.md" />
+    <File Path="doc/nav-directive-subparser.md" />
+    <File Path="doc/nav-feature-usage-census.md" />
+    <File Path="doc/nav-formatter-review-todo.md" />
+    <File Path="doc/nav-formatter-status.md" />
+    <File Path="doc/nav-grammar-status.md" />
+    <File Path="doc/nav-kolibri.md" />
+    <File Path="doc/nav-lsp-status.md" />
+    <File Path="doc/nav-mcp-agent-gap-analysis.md" />
+    <File Path="doc/nav-mcp-status.md" />
+    <File Path="doc/nav-mcp-tests-status.md" />
+    <File Path="doc/nav-mcp-trimming-status.md" />
+    <File Path="doc/nav-nre-analysis-prompt.md" />
+    <File Path="doc/nav-nullable-status.md" />
+    <File Path="doc/nav-parser-recovery-status.md" />
+    <File Path="doc/nav-perf-optimization-status.md" />
+    <File Path="doc/nav-pragmas-versioning-status.md" />
+    <File Path="doc/nav-syntax-tree-visualizer.md" />
+    <File Path="doc/nav-version-codefixes-status.md" />
+    <File Path="doc/nav-versioning-status.md" />
+    <File Path="doc/nav-vs-lsp-migration.md" />
+  </Folder>
+  <!-- Abgeschlossene Kampagnen-/Handoff-Docs: fertig und aus dem aktiven /doc/ herausgenommen,
+       aber im Repo (und in der git-Historie) erhalten. -->
+  <Folder Name="/doc/archive/">
+    <File Path="doc/archive/nav-buildtasks-xmldoc-status.md" />
+    <File Path="doc/archive/nav-cli-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codeanalysis-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codefixes-xmldoc-status.md" />
+    <File Path="doc/archive/nav-codegen-step4-handoff.md" />
+    <File Path="doc/archive/nav-codegen-xmldoc-status.md" />
+    <File Path="doc/archive/nav-diagnostic-xmldoc-status.md" />
+    <File Path="doc/archive/nav-extension-xmldoc-status.md" />
+    <File Path="doc/archive/nav-features-xmldoc-status.md" />
+    <File Path="doc/archive/nav-parser-test-plan.md" />
+    <File Path="doc/archive/nav-semantic-model-cache-plan.md" />
+    <File Path="doc/archive/nav-semanticanalyzer-xmldoc-status.md" />
+    <File Path="doc/archive/nav-semanticmodel-xmldoc-status.md" />
+    <File Path="doc/archive/nav-skiped-tokens-as-trivia.md" />
+    <File Path="doc/archive/nav-sourcetext-review-todo.md" />
+    <File Path="doc/archive/nav-syntax-xmldoc-status.md" />
+    <File Path="doc/archive/nav-text-xmldoc-status.md" />
+    <File Path="doc/archive/nav-weg-b-structured-trivia.md" />
+    <File Path="doc/archive/vs-call-hierarchy-plan.md" />
+  </Folder>
+  <!-- Demo bewusst NUR als Dateien, NICHT als <Project>: sie hat eine eigene Solution
+       (Demos/NavV2NavigationDemo/NavV2NavigationDemo.slnx), baut nur mit MSBuild.exe und setzt ein
+       vorheriges `nav publish` voraus — als echtes Projekt würde sie `nav build` (Solution-Build)
+       vor dem Publish brechen (Henne-Ei). Gebaut wird sie über `nav demo` bzw. den Smoke-Test in
+       `nav publish`. -->
+  <Folder Name="/Demos/">
+    <File Path="Demos/NavV2NavigationDemo/README.md" />
+    <File Path="Demos/NavV2NavigationDemo/Demo.nav" />
+    <File Path="Demos/NavV2NavigationDemo/WFL/ContinuationFlowWFS.cs" />
+    <File Path="Demos/NavV2NavigationDemo/build.ps1" />
+  </Folder>
   <Project Path="Nav.Cli/Nav.Cli.csproj" />
   <Project Path="Nav.Language.BuildTasks/Nav.Language.BuildTasks.csproj" />
+  <Project Path="Nav.Language.BuildTasks.Tests/Nav.Language.BuildTasks.Tests.csproj" />
   <Project Path="Nav.Language.CodeAnalysis/Nav.Language.CodeAnalysis.csproj" />
+  <Project Path="Nav.Language.CodeAnalysis.Tests/Nav.Language.CodeAnalysis.Tests.csproj" />
   <Project Path="Nav.Language.Extension.Tests/Nav.Language.Extension.Tests.csproj" />
   <Project Path="Nav.Language.Extension2026/Nav.Language.Extension2026.csproj" Id="f9bd82fb-2abb-41b6-afa0-24013754a9c8" />
   <Project Path="Nav.Language.ExtensionShared/Nav.Language.ExtensionShared.shproj" />
   <Project Path="Nav.Language.Lsp/Nav.Language.Lsp.csproj" />
   <Project Path="Nav.Language.Mcp/Nav.Language.Mcp.csproj" />
+  <Project Path="Nav.Language.Mcp.Tests/Nav.Language.Mcp.Tests.csproj" />
   <Project Path="Nav.Language.Tests/Nav.Language.Tests.csproj" />
   <Project Path="Nav.Language/Nav.Language.csproj" />
   <Project Path="Nav.Utilities/Nav.Utilities.csproj" />

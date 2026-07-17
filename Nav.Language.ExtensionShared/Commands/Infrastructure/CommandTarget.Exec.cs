@@ -14,6 +14,12 @@ namespace Pharmatechnik.Nav.Language.Extension.Commands;
 
 partial class CommandTarget: IOleCommandTarget {
 
+    /// <summary>
+    /// <see cref="IOleCommandTarget"/>-Einsprungpunkt zum Ausführen eines Kommandos. Ermittelt den
+    /// Puffer unter dem Cursor und verzweigt anhand der Kommando-Gruppe an
+    /// <see cref="ExecuteVisualStudio97"/> bzw. <see cref="ExecuteVisualStudio2000"/>; ohne passenden
+    /// Puffer oder Gruppe geht das Kommando an <see cref="NextCommandTarget"/>. Läuft auf dem UI-Thread.
+    /// </summary>
     public virtual int Exec(ref Guid pguidCmdGroup, uint commandId, uint executeInformation, IntPtr pvaIn, IntPtr pvaOut) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -37,6 +43,11 @@ partial class CommandTarget: IOleCommandTarget {
         return NextCommandTarget.Exec(ref pguidCmdGroup, commandId, executeInformation, pvaIn, pvaOut);
     }
 
+    /// <summary>
+    /// Führt Kommandos der VS-97-Standard-Kommandogruppe aus. Aktuell wird nur <c>ViewCode</c>
+    /// behandelt (über <see cref="ExecuteViewCode"/>); alle übrigen gehen an
+    /// <see cref="NextCommandTarget"/>.
+    /// </summary>
     private int ExecuteVisualStudio97(ref Guid pguidCmdGroup, uint commandId, uint executeInformation, IntPtr pvaIn, IntPtr pvaOut, ITextBuffer subjectBuffer, IContentType contentType) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -60,6 +71,11 @@ partial class CommandTarget: IOleCommandTarget {
         }
     }
 
+    /// <summary>
+    /// Führt Kommandos der VS-2000-Standard-Kommandogruppe (<c>VSStd2K</c>) aus. Die Basis-Implementierung
+    /// behandelt keines und reicht alle an <see cref="NextCommandTarget"/> weiter; überschreibbar, um
+    /// weitere Kommandos dieser Gruppe zu bedienen.
+    /// </summary>
     protected virtual int ExecuteVisualStudio2000(ref Guid pguidCmdGroup, uint commandId, uint executeInformation, IntPtr pvaIn, IntPtr pvaOut, ITextBuffer subjectBuffer, IContentType contentType) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -82,6 +98,13 @@ partial class CommandTarget: IOleCommandTarget {
         }
     }
 
+    /// <summary>
+    /// Verteilt das „View Code"-Kommando über den <see cref="HandlerService"/> an die zuständigen
+    /// Handler; als Rückfall (kein Handler springt) dient <paramref name="executeNextCommandTarget"/>.
+    /// </summary>
+    /// <param name="subjectBuffer">Der Puffer unter dem Cursor.</param>
+    /// <param name="contentType">Der Content-Type des Puffers.</param>
+    /// <param name="executeNextCommandTarget">Rückfall-Aktion, die an <see cref="NextCommandTarget"/> weiterreicht.</param>
     protected void ExecuteViewCode(ITextBuffer subjectBuffer, IContentType contentType, Action executeNextCommandTarget) {
         HandlerService.Execute(
             args: new ViewCodeCommandArgs(WpfTextView, subjectBuffer),

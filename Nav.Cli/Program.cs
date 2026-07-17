@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Collections.Generic;
 
@@ -12,8 +13,25 @@ using Pharmatechnik.Nav.Language.Generator;
 
 namespace Pharmatechnik.Nav.Language; 
 
+/// <summary>
+/// Der Einstiegspunkt des CLI-Hosts (<c>nav.exe</c>). <see cref="Main"/> löst zunächst ein etwaiges
+/// Response-File (<c>@datei</c>) auf, bedient dann das Subcommand <c>nav grammar</c>
+/// (<see cref="GrammarCommand"/>) und parst andernfalls die Kommandozeile zu einem
+/// <see cref="CommandLine"/>. Aus dessen <see cref="CommandLine.Analyze"/>-Weiche ergibt sich, ob der
+/// Analyse-Pfad (<see cref="SyntaxAnalyzerProgram"/>) oder der Standard-Codegenerator
+/// (<see cref="NavCodeGenerator"/>) läuft.
+/// </summary>
 static class Program  {
 
+    /// <summary>
+    /// Der Prozess-Einstiegspunkt. Reihenfolge: UTF-8-Konsolenkodierung setzen, Response-File auflösen,
+    /// <c>grammar</c>-Subcommand abfangen, Kommandozeile parsen und je nach <see cref="CommandLine.Analyze"/>
+    /// an den Analyzer bzw. Codegenerator delegieren.
+    /// </summary>
+    /// <param name="args">Die rohen Kommandozeilenargumente. Ein einzelnes Argument der Form <c>@datei</c>
+    /// wird als Response-File interpretiert und über <see cref="LoadArgs"/> expandiert.</param>
+    /// <returns>Der Prozess-Exit-Code: <c>0</c> bei Erfolg, <c>-1</c> bei ungültiger Kommandozeile, sonst
+    /// der Rückgabewert des ausgeführten Pfads.</returns>
     static int Main(string[] args) {
 
         Console.OutputEncoding = Encoding.UTF8;
@@ -25,8 +43,13 @@ static class Program  {
             var fileName = args[0].Substring(1);
             cmdArgs = LoadArgs(fileName);
         }
-            
-        var cl = CommandLine.Parse(cmdArgs);            
+
+        // Subcommand: nav grammar [--rule X] — druckt die EBNF-Grammatik nach stdout.
+        if (cmdArgs.Length >= 1 && string.Equals(cmdArgs[0], "grammar", StringComparison.OrdinalIgnoreCase)) {
+            return GrammarCommand.Run(cmdArgs.Skip(1).ToArray());
+        }
+
+        var cl = CommandLine.Parse(cmdArgs);
         if (cl == null) {
             return -1;
         }
@@ -40,6 +63,13 @@ static class Program  {
         }                      
     }
 
+    /// <summary>
+    /// Liest die Argumente eines Response-Files zeilenweise ein und zerlegt sie an Leerzeichen in einzelne
+    /// Argumente. In einfache oder doppelte Anführungszeichen gefasste Abschnitte werden zusammengehalten,
+    /// sodass Argumente mit Leerzeichen (z.B. Pfade) erhalten bleiben.
+    /// </summary>
+    /// <param name="file">Der Pfad des Response-Files (der Teil nach dem <c>@</c>).</param>
+    /// <returns>Die expandierten Argumente.</returns>
     // TODO in Utility Klasse
     static string[] LoadArgs(string file) {
 

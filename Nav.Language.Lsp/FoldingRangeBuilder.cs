@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -55,7 +55,7 @@ static class FoldingRangeBuilder {
         }
 
         void AddNode(SyntaxNode node, Protocol.FoldingRangeKind? kind) {
-            if (node != null && !node.Extent.IsEmptyOrMissing) {
+            if (!node.Extent.IsEmptyOrMissing) {
                 Add(node.Extent.Start, node.Extent.End, kind);
             }
         }
@@ -79,7 +79,8 @@ static class FoldingRangeBuilder {
             AddNode(block, Protocol.FoldingRangeKind.Region);
         }
 
-        foreach (var comment in syntaxTree.Tokens.OfType(SyntaxTokenType.MultiLineComment)) {
+        // Mehrzeilige Kommentare aus der angehängten Trivia (Roslyn-Modell), nicht mehr aus dem flachen Strom.
+        foreach (var comment in syntaxTree.DescendantTrivia().Where(t => t.Type == SyntaxTokenType.MultiLineComment)) {
             if (!comment.Extent.IsEmptyOrMissing) {
                 Add(comment.Extent.Start, comment.Extent.End, Protocol.FoldingRangeKind.Comment);
             }

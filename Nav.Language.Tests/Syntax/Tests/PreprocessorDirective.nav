@@ -1,0 +1,8 @@
+﻿#if DEBUG
+task A
+{
+    init I1;
+    exit e1;
+    I1 --> e1;
+}
+#endif

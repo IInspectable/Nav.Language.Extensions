@@ -1,0 +1,12 @@
+# Die .tokens-, .tree- und .diag-Golden in diesem Ordner enthalten ABSOLUTE Byte-Offsets (bzw. daraus
+# abgeleitete Zeilen/Spalten) in die zugehörige .nav.
+# Würde git die Zeilenenden umschreiben (CRLF <-> LF), verschöben sich sämtliche Offsets und die
+# Golden wären ungültig — und zwar lautlos beim nächsten Checkout auf einer anderen Umgebung.
+#
+# Deshalb wird das Zeilenende hier exakt eingefroren: "-text" unterbindet JEDE EOL-Normalisierung
+# beim Ein- und Auschecken (Working-Tree-Bytes == committete Bytes, auf jedem System), bleibt aber
+# voll diffbar (kein "binary"-Flag). Das überschreibt das repo-weite "* text=auto eol=crlf".
+*.nav    -text
+*.tokens -text
+*.tree   -text
+*.diag   -text

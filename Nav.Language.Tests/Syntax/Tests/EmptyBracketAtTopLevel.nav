@@ -1,0 +1,11 @@
+﻿[namespaceprefix Pharmatechnik.Test]
+[using Pharmatechnik.Test.Foo]
+[]
+
+task Preisermittlung
+{
+    init;
+    exit Exit;
+
+    init --> Exit;
+}

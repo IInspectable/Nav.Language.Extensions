@@ -1,0 +1,6 @@
+﻿// C# → C#
+// Rücksprung von AfterSubLogic auf die C#-Aufrufstelle next.BeginSub() des Begin-Wrappers
+// (klassenweit, inkl. partial) — der Golden pinnt den Aufrufer-Span.
+
+<UserCode.cs> (4,18)-(4,26)  "BeginSub"
+    next.BeginSub();

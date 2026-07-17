@@ -1,0 +1,5 @@
+﻿// C# → Nav
+// Rücksprung aus der HelperWFS landet auf der eigenen `task Helper`-Deklaration.
+
+<nav> (21,6)-(21,12)  "Helper"
+    task Helper [base StandardWFS : IWFServiceBase]

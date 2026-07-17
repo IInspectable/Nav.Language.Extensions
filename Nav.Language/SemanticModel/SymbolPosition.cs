@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +21,7 @@ static class SymbolPosition {
     /// </summary>
     public static IEnumerable<ISymbol> SymbolsAt(CodeGenerationUnit unit, int position) {
         return unit.Symbols
-                   .Where(s => s.Location != null && s.Start <= position && position <= s.End)
+                   .Where(s => s.Start <= position && position <= s.End)
                    .OrderBy(s => s.End - s.Start);
     }
 

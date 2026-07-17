@@ -1,29 +1,28 @@
 ﻿#region Using Directives
 
 using System;
-using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 
-using Antlr4.Runtime;
-using Antlr4.Runtime.Tree;
-
-using JetBrains.Annotations;
-
 using Pharmatechnik.Nav.Language.Text;
-using Pharmatechnik.Nav.Language.Internal;
-using Pharmatechnik.Nav.Language.Generated;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Das unveränderliche Ergebnis eines Parse-Laufs — nach dem Roslyn-Vorbild des <c>SyntaxTree</c>: der
+/// Wurzelknoten (<see cref="Root"/>), der flache Strom der signifikanten Token (<see cref="Tokens"/>), der
+/// zugrunde liegende Quelltext (<see cref="SourceText"/>) und die syntaktischen Diagnosen
+/// (<see cref="Diagnostics"/>). Erzeugt über <see cref="ParseText"/>.
+/// </summary>
 public class SyntaxTree {
 
-    internal SyntaxTree(SourceText sourceText,
+    internal SyntaxTree(SourceText? sourceText,
                         SyntaxNode root,
-                        SyntaxTokenList tokens,
+                        SyntaxTokenList? tokens,
                         ImmutableArray<Diagnostic> diagnostics) {
 
         Root        = root       ?? throw new ArgumentNullException(nameof(root));
@@ -32,224 +31,120 @@ public class SyntaxTree {
         Diagnostics = diagnostics;
     }
 
-    [NotNull]
+    /// <summary>
+    /// Der Wurzelknoten des Baums — für eine ganze Datei (<see cref="ParseText"/>) die
+    /// <see cref="CodeGenerationUnitSyntax"/>; die Snippet-Einstiege der Klasse <see cref="Syntax"/> liefern
+    /// Bäume mit dem jeweiligen Regel-Knoten als Wurzel.
+    /// </summary>
     public SyntaxNode Root { get; }
 
-    [NotNull]
+    /// <summary>Der zugrunde liegende Quelltext; nie <c>null</c> (<see cref="SourceText.Empty"/> als Rückfall).</summary>
     public SourceText SourceText { get; }
 
-    [NotNull]
+    /// <summary>
+    /// Der flache Strom der signifikanten Token in Quelltext-Reihenfolge. Trivia steht nicht darin (sie
+    /// hängt an den Token, siehe <see cref="SyntaxToken.LeadingTrivia"/>/<see cref="SyntaxToken.TrailingTrivia"/>);
+    /// ebenso wenig die Präprozessor-Token der Direktiven und die vom Parser übersprungenen Token — beide
+    /// liegen lokal an ihren strukturierten Trivia-Knoten (siehe <see cref="Directives"/> bzw.
+    /// <see cref="SkippedTokens"/>).
+    /// </summary>
     public SyntaxTokenList Tokens { get; }
 
+    /// <summary>Die beim Lexen/Parsen (inklusive Recovery und Direktiven-Vorlauf) gemeldeten syntaktischen Diagnosen.</summary>
     public ImmutableArray<Diagnostic> Diagnostics { get; }
 
-    public static SyntaxTree ParseText(string text, string filePath = null, CancellationToken cancellationToken = default) {
-
-        return ParseText(text: text,
-                         treeCreator: parser => parser.codeGenerationUnit(),
-                         filePath: filePath,
-                         cancellationToken: cancellationToken);
-    }
-
-    internal static SyntaxTree ParseText(string text,
-                                         Func<NavGrammar, IParseTree> treeCreator,
-                                         string filePath,
-                                         Encoding encoding = null,
-                                         CancellationToken cancellationToken = default) {
-
-        text ??= String.Empty;
-
-        var sourceText  = SourceText.From(text, filePath);
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-            
-            
-        // Setup Lexer
-        var stream             = sourceText.ToCharStream();
-        var lexer              = new NavTokens(stream);
-        var lexerErrorListener = new NavLexerErrorListener(sourceText, diagnostics);
-        lexer.RemoveErrorListeners();
-        lexer.AddErrorListener(lexerErrorListener);
-
-        // Setup Parser
-        var cts                 = new NavCommonTokenStream(lexer);
-        var parser              = new NavGrammar(cts);
-        var parserErrorListener = new NavParserErrorListener(sourceText, diagnostics);
-        parser.RemoveErrorListeners();
-        parser.AddErrorListener(parserErrorListener);
-
-        var tree    = treeCreator(parser);
-        var visitor = new NavGrammarVisitor(expectedTokenCount: cts.AllTokens.Count);
-        var syntax  = visitor.Visit(tree);
-        var tokens  = PostprocessTokens(sourceText, visitor.Tokens, cts, syntax, diagnostics, filePath, cancellationToken);
-
-        var syntaxTree = new SyntaxTree(sourceText: sourceText,
-                                        root: syntax,
-                                        tokens: tokens,
-                                        diagnostics: diagnostics.ToImmutable());
-
-        syntax.FinalConstruct(syntaxTree, null);
-
-        return syntaxTree;
-    }
-
-    static SyntaxTokenList PostprocessTokens(
-        SourceText sourceText,
-        List<SyntaxToken> tokens,
-        NavCommonTokenStream cts,
-        SyntaxNode syntax,
-        ImmutableArray<Diagnostic>.Builder diagnostics,
-        string filePath,
-        CancellationToken cancellationToken) {
-
-        var finalTokens = new List<SyntaxToken>(cts.AllTokens.Count);
-        tokens.Sort(SyntaxTokenComparer.Default);
-
-        // Wir haben bereits die signifikanten Token (T) im GrammarVisitor erstellt.
-        // Wir können nicht alle Tokens hier ermitteln, da der Visitor viel mehr Kontextinformationen
-        // hat. Somit wird aus einem "Identifier" z.B. je nach Kontext ein Keyword, oder Symbol (=> Classification).
-        // Was uns hier jedoch noch fehlt sind vor allem die Whitespaces (w) und "unbekannten" (u),
-        // die der Parser nie zu Gesicht bekommt. Der TokenStream liefert uns alle Token
-        // (candidates = c):
-        // -T---TTT---T----T-- <= bereits im Visitor erfasste Token
-        // ccccccccccccccccccc <= alle Tokens (candidates)
-        // wTwwwTTTwwwTwwwwTuu <= die Tokens, wie wir sie hier haben wollen
-        var index = 0;
-        foreach (var candidate in cts.AllTokens) {
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (index < tokens.Count) {
-                var existing = tokens[index];
-                // Das Token wurde bereits im Visitor erfasst (T)
-                if (existing.Start == candidate.StartIndex) {
-                    finalTokens.Add(existing);
-                    index++;
-                    continue;
-                }
+    /// <summary>
+    /// Alle an die <see cref="SyntaxToken"/> angehängten Trivia (Whitespace, Zeilenenden, Kommentare) der
+    /// gesamten Datei in Quelltext-Reihenfolge — das echte Roslyn-Modell. Jede Trivia hängt als Leading-
+    /// oder Trailing-Trivia an genau einem Token und erscheint hier daher genau einmal.
+    /// </summary>
+    public IEnumerable<SyntaxTrivia> DescendantTrivia() {
+        foreach (var token in Tokens) {
+            foreach (var trivia in token.LeadingTrivia) {
+                yield return trivia;
             }
 
-            // Das Token existiert noch nicht, da es der Parser/Visitor offensichtlich nicht "erwischt hat" (t, u)
-            TextClassification classification;
-            switch (candidate.Channel) {
-                case NavTokens.TriviaChannel:
-                    switch (candidate.Type) {
-                        case NavTokens.NewLine:
-                            classification = TextClassification.Whitespace;
-                            break;
-                        case NavTokens.Whitespace:
-                            classification = TextClassification.Whitespace;
-                            break;
-                        case NavTokens.SingleLineComment:
-                            classification = TextClassification.Comment;
-                            break;
-                        case NavTokens.MultiLineComment:
-                            classification = TextClassification.Comment;
-                            break;
-                        case NavTokens.Unknown:
-                            classification = TextClassification.Skiped;
-                            break;
-                        default:
-                            // Wir haben sonst eigentlich nix im Trivia Channel
-                            throw new ArgumentException();
-                    }
-
-                    break;
-                case NavTokens.DefaultTokenChannel:
-                    classification = TextClassification.Skiped;
-                    break;
-                case NavTokens.PreprocessorChannel:
-                    switch (candidate.Type) {
-                        case NavTokens.HashToken:
-                        case NavTokens.PreprocessorKeyword:
-                            classification = TextClassification.PreprocessorKeyword;
-                            break;
-                        default:
-                            classification = TextClassification.PreprocessorText;
-                            break;
-                    }
-
-                    break;
-                default:
-                    throw new ArgumentException();
+            foreach (var trivia in token.TrailingTrivia) {
+                yield return trivia;
             }
-
-            // TODO: hier evtl. den "echten" Parent herausfinden...
-            SyntaxNode parent = syntax;
-
-            // Fix Für Single Line Comments, da diese leider immer auch das EOL beinhalten
-            if (candidate.Type == NavGrammar.SingleLineComment) {
-                foreach (var token in SplitSingleLineCommenTokens(candidate, parent)) {
-                    finalTokens.Add(token);
-                }
-            } else {
-
-                finalTokens.Add(SyntaxTokenFactory.CreateToken(candidate, classification, parent));
-
-                if (candidate.Type == NavTokens.Unknown) {
-                    diagnostics.Add(
-                        new Diagnostic(candidate.GetLocation(filePath),
-                                       DiagnosticDescriptors.Syntax.Nav0000UnexpectedCharacter,
-                                       candidate.Text));
-                }
-
-                // TODO Nur vorübergehend hier?
-                if (candidate.Type == NavTokens.HashToken ||
-                    candidate.Type == NavTokens.PreprocessorKeyword) {
-                        
-                    var location = candidate.GetLocation(filePath);
-
-                    if (candidate.Type == NavTokens.HashToken) {
-                        var span = sourceText.SliceFromLineStartToPosition(candidate.StartIndex);
-                        if (!span.IsWhiteSpace()) {
-                            diagnostics.Add(
-                                new Diagnostic(location, 
-                                               DiagnosticDescriptors.Syntax.Nav3001PreprocessorDirectiveMustAppearOnFirstNonWhitespacePosition));
-                        }
-                    }
-                        
-                    // TODO werden derzeit nicht unterstützt
-                    diagnostics.Add(
-                        new Diagnostic(location,
-                                       DiagnosticDescriptors.Syntax.Nav3000InvalidPreprocessorDirective,
-                                       candidate.Text));
-
-                }
-
-            }
-
-        }
-
-        return SyntaxTokenList.AttachSortedTokens(finalTokens);
-    }
-
-    static IEnumerable<SyntaxToken> SplitSingleLineCommenTokens(IToken candidate, SyntaxNode parent) {
-        int newLineIndex = FindNewLineIndexInSingleLineComment(candidate.Text);
-        if (newLineIndex > 0) {
-            var tokenExtent   = TextExtent.FromBounds(candidate.StartIndex, candidate.StartIndex + newLineIndex);
-            var newLineExtent = TextExtent.FromBounds(candidate.StartIndex                       + newLineIndex, candidate.StopIndex + 1);
-
-            yield return SyntaxTokenFactory.CreateToken(tokenExtent,   SyntaxTokenType.SingleLineComment, TextClassification.Comment,    parent);
-            yield return SyntaxTokenFactory.CreateToken(newLineExtent, SyntaxTokenType.NewLine,           TextClassification.Whitespace, parent);
-        } else {
-            yield return SyntaxTokenFactory.CreateToken(candidate, TextClassification.Comment, parent);
         }
     }
 
-    static int FindNewLineIndexInSingleLineComment(string text) {
+    /// <summary>
+    /// Alle Kommentar-Trivia der Datei (ein- und mehrzeilig) in Quelltext-Reihenfolge — die einzige
+    /// semantisch tragende Trivia-Art. Filtert <see cref="DescendantTrivia"/> auf <see cref="SyntaxTrivia.IsComment"/>.
+    /// </summary>
+    public IEnumerable<SyntaxTrivia> Comments() {
+        return DescendantTrivia().Where(trivia => trivia.IsComment);
+    }
 
-        char c1 = text[text.Length - 2];
-        char c2 = text[text.Length - 1];
+    /// <summary>
+    /// Die strukturiert erkannten Präprozessor-Direktiven (<c>#…</c>) der Datei in Quelltext-Reihenfolge —
+    /// die wirksame <see cref="VersionDirectiveSyntax"/> ebenso wie jede
+    /// <see cref="BadDirectiveTriviaSyntax"/> (unbekannte, deplatzierte oder wiederholte Direktive). Direktiven
+    /// sind strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und keine Kindknoten der Wurzel; sie
+    /// werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
+    /// </summary>
+    public IEnumerable<DirectiveTriviaSyntax> Directives() {
+        return DescendantTrivia().Where(trivia => trivia.HasStructure)
+                                 .Select(trivia => trivia.GetStructure())
+                                 .OfType<DirectiveTriviaSyntax>();
+    }
 
-        if (c2 == '\n' || c2 == '\r') {
+    /// <summary>
+    /// Die vom Parser übersprungenen Läufe (Panic-Mode-Recovery, unbekannte Zeichen) der Datei in
+    /// Quelltext-Reihenfolge — je Lauf ein <see cref="SkippedTokensTriviaSyntax"/>, der seine Token lokal
+    /// trägt (Klassifikation <see cref="TextClassification.Skiped"/>). Wie die Direktiven sind sie
+    /// strukturierte Trivia (<see cref="SyntaxTokenType.SkippedTokensTrivia"/>) und keine Kindknoten der
+    /// Wurzel; sie werden daher über die angehängte Trivia erreicht (<see cref="SyntaxTrivia.GetStructure"/>).
+    /// </summary>
+    public IEnumerable<SkippedTokensTriviaSyntax> SkippedTokens() {
+        return DescendantTrivia().Where(trivia => trivia.HasStructure)
+                                 .Select(trivia => trivia.GetStructure())
+                                 .OfType<SkippedTokensTriviaSyntax>();
+    }
 
-            if (c1 == '\n') {
-                return text.Length - 2;
-            }
-
-            return text.Length - 1;
+    /// <summary>
+    /// Die Trivia, die die angegebene <paramref name="position"/> abdeckt — Halbintervall
+    /// <c>[Start, End)</c>, also dieselbe Regel wie <see cref="SyntaxNode.FindToken"/> bei den Token —, oder
+    /// <c>default</c>, wenn an der Position keine Trivia liegt.
+    /// </summary>
+    public SyntaxTrivia FindTrivia(int position) {
+        if (position < 0) {
+            return default;
         }
 
-        return -1;
+        foreach (var trivia in DescendantTrivia()) {
+            if (trivia.Start > position) {
+                break; // Trivia kommen aufsteigend — ab hier liegt nichts mehr an oder vor der Position.
+            }
+
+            if (trivia.Start <= position && trivia.End > position) {
+                return trivia;
+            }
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// Ob die angegebene <paramref name="position"/> innerhalb einer Kommentar-Trivia liegt — gedacht, um
+    /// (z.B. in der Vervollständigung) das Auslösen innerhalb von Kommentaren zu unterdrücken.
+    /// </summary>
+    public bool IsPositionInComment(int position) {
+        return FindTrivia(position).IsComment;
+    }
+
+    /// <summary>
+    /// Parst den Nav-Quelltext <paramref name="text"/> zu einem <see cref="SyntaxTree"/> — der öffentliche
+    /// Einstiegspunkt (delegiert an <see cref="NavParser.Parse"/>).
+    /// </summary>
+    /// <param name="text">Der Quelltext; <c>null</c> zählt wie leerer Text.</param>
+    /// <param name="filePath">Der Dateipfad für <see cref="Location"/>-Angaben, oder <c>null</c>.</param>
+    /// <param name="cancellationToken">Bricht den Parse-Lauf ab.</param>
+    /// <returns>Der Syntaxbaum; nie <c>null</c> — Fehler landen in <see cref="Diagnostics"/>.</returns>
+    public static SyntaxTree ParseText(string? text, string? filePath = null, CancellationToken cancellationToken = default) {
+        return NavParser.Parse(text, filePath, cancellationToken);
     }
 
 }

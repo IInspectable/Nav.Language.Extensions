@@ -25,6 +25,13 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation; 
 
+/// <summary>
+/// MEF-exportierter Dienst, der ein Sprungziel („Go To…") auflöst und dem Nutzer präsentiert. Er sammelt
+/// die Location(s) aus einer Menge von <see cref="ILocationInfoProvider"/> ein und entscheidet anhand der
+/// Trefferzahl: genau ein gültiges Ziel → direkter Sprung in den Vorschau-Tab; ein einzelnes ungültiges
+/// Ziel → Fehlermeldung; mehrere Ziele → Auswahlmenü (<see cref="VsContextMenu"/>). Der eigentliche Sprung
+/// läuft über <see cref="NavLanguagePackage.GoToLocationInPreviewTab"/>.
+/// </summary>
 [Export]
 sealed class GoToLocationService {
 
@@ -37,11 +44,26 @@ sealed class GoToLocationService {
 
     readonly IWaitIndicator _waitIndicator;
 
+    /// <summary>
+    /// MEF-Konstruktor. <paramref name="waitIndicator"/> liefert den Warte-Indikator, unter dem das
+    /// (abbrechbare) Auflösen der Location und das anschließende Öffnen der Datei laufen.
+    /// </summary>
     [ImportingConstructor]
     public GoToLocationService(IWaitIndicator waitIndicator) {
         _waitIndicator = waitIndicator;
     }
 
+    /// <summary>
+    /// Löst die Sprungziele aller <paramref name="provider"/> auf und navigiert dorthin bzw. bietet sie
+    /// zur Auswahl an. Bei genau einem gültigen Ziel wird — noch unter demselben Warte-Indikator — direkt in
+    /// den Vorschau-Tab gesprungen. Ist genau ein Ziel vorhanden, aber ungültig, erscheint dessen
+    /// Fehlermeldung. Bei mehreren Zielen wird ein Kontextmenü (<see cref="VsContextMenu"/>) an
+    /// <paramref name="placementRectangle"/> relativ zum <paramref name="originatingTextView"/> geöffnet.
+    /// Ergibt sich kein Ziel, passiert nichts.
+    /// </summary>
+    /// <param name="originatingTextView">Die Ansicht, an der das Auswahlmenü verankert wird.</param>
+    /// <param name="placementRectangle">Der Bereich, an dem das Auswahlmenü platziert wird.</param>
+    /// <param name="provider">Die Location-Provider, deren Ergebnisse zusammengeführt werden.</param>
     public async Task GoToLocationInPreviewTabAsync(IWpfTextView originatingTextView, Rect placementRectangle, IEnumerable<ILocationInfoProvider> provider) {
             
         List<LocationInfo> locationInfos;
@@ -122,6 +144,10 @@ sealed class GoToLocationService {
         }
     }
 
+    /// <summary>
+    /// Fragt alle <paramref name="providers"/> nebenläufig ab und führt deren
+    /// <see cref="LocationInfo"/>-Ergebnisse zu einer flachen Menge zusammen.
+    /// </summary>
     static async Task<IEnumerable<LocationInfo>> GetLocationInfosAsync(IEnumerable<ILocationInfoProvider> providers, CancellationToken cancellationToken = default) {
         using(Logger.LogBlock(nameof(GetLocationInfosAsync))) {
 
@@ -131,6 +157,10 @@ sealed class GoToLocationService {
         }
     }
 
+    /// <summary>
+    /// Springt zu einer bereits ausgewählten <paramref name="locationInfo"/> im Vorschau-Tab. Ist sie
+    /// ungültig, wird stattdessen ihre Fehlermeldung angezeigt. Muss auf dem UI-Thread laufen.
+    /// </summary>
     void GoToLocationInPreviewTab(LocationInfo locationInfo) {
             
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -145,6 +175,9 @@ sealed class GoToLocationService {
         }
     }
 
+    /// <summary>
+    /// Zeigt die <see cref="LocationInfo.ErrorMessage"/> der übergebenen Location als Fehlerdialog an.
+    /// </summary>
     void ShowLocationErrorMessage(LocationInfo locationInfo) {
         ThreadHelper.ThrowIfNotOnUIThread();
         ShellUtil.ShowErrorMessage(locationInfo.ErrorMessage);

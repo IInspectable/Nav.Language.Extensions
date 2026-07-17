@@ -1,0 +1,5 @@
+﻿// Nav → C#
+// F12 auf den zweiten Trigger `on OnClose` springt zielgenau auf dessen eigene OnCloseLogic.
+
+<TriggerFlowWFS.cs> (21,54)-(21,66)  "OnCloseLogic"
+    protected override OnCloseCallContext.Result OnCloseLogic(DetailTO to,

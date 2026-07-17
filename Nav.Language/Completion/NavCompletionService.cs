@@ -1,12 +1,9 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Utilities.IO;
@@ -16,165 +13,528 @@ using Pharmatechnik.Nav.Utilities.IO;
 namespace Pharmatechnik.Nav.Language.Completion;
 
 /// <summary>
-/// VS-freier Vervollständigungs-Service auf Engine-Ebene — Grundlage für LSP <c>textDocument/completion</c>.
-/// Vereint die Logik der VS-Quellen <c>NavCompletionSource</c> und <c>EdgeCompletionSource</c> (die VS als
-/// getrennte Quellen mischt): nach <c>task</c> die deklarierten Tasks, nach <c>knoten:</c> die
-/// Exit-Connection-Points, innerhalb einer Task-Definition die Knoten (unreferenzierte zuerst), die
-/// Nav-Keywords (ohne versteckte/Edge-Keywords) sowie — wenn vor der (angefangenen) Edge ein Whitespace
-/// bzw. Zeilenanfang steht — die Edge-Keywords. Keine Vorschläge in Kommentaren, in Zeichenketten
-/// (<c>"…"</c>) oder in Code-Blöcken (<c>[ … ]</c>).
+/// VS-freier Vervollständigungs-Service auf Engine-Ebene — Grundlage für LSP <c>textDocument/completion</c>
+/// und (über dieselbe Logik) die VS-Quellen. Die grammatische Situation an der Cursor-Position wird über den
+/// recovery-festen Syntaxbaum bestimmt (<see cref="NavCompletionContext"/>) statt über einen zeilenbegrenzten
+/// Text-Rückwärtsscan; je nach Situation werden nur die dort tatsächlich sinnvollen Kategorien angeboten:
+/// auf Member-Ebene <c>task</c>/<c>taskref</c>; hinter <c>task</c> die deklarierten Tasks; am Satzanfang im
+/// Body die Knoten-Deklarations-Keywords samt vorhandenen Knoten; hinter einem Quellknoten die Edge-Keywords;
+/// hinter einer Edge die Zielknoten (plus <c>end</c>); hinter <c>knoten:</c> die Exit-Connection-Points; hinter
+/// einem Ziel die je nach Quellknoten zulässigen Folge-Klauseln (GUI-Quelle <c>on</c>/<c>do</c>, init/choice
+/// <c>if</c>/<c>else</c>/<c>do</c>, Exit-Transition <c>if</c>/<c>do</c>) — nie eine Klausel, die sofort einen
+/// Analyzer-Fehler auslöste; im Schlüsselwort-Slot eines Code-Blocks
+/// (direkt hinter <c>[</c>) die Code-Block-Keywords. Keine Vorschläge in Kommentaren, Zeichenketten
+/// (<c>"…"</c>), im C#-Inhalt eines Code-Blocks oder im Wert-Slot hinter <c>do</c> (freier C#-Aufruf); innerhalb
+/// von <c>taskref "…"</c> die Pfad-Vervollständigung.
 /// </summary>
 public static class NavCompletionService {
+
+    /// <summary>
+    /// Die kanonische Menge der Trigger-Zeichen (Trigger-Chars) der Completion — die Vereinigung aller
+    /// Situationen, in denen ein einzelnes Sonderzeichen (also KEIN Bezeichner-Zeichen) automatisch eine
+    /// Vervollständigung eröffnen soll. Einzige Autorität für beide Hosts: der LSP-Server speist damit
+    /// <c>CompletionOptions.TriggerCharacters</c>, die VS-Quellen leiten daraus ihr Auslöse-Verhalten ab.
+    /// Buchstaben lösen zusätzlich immer aus (Client- bzw. <c>char.IsLetter</c>-seitig) und sind hier daher
+    /// bewusst NICHT enthalten. Die Pfadtrenner <c>/</c> und <c>\</c> sind bewusst KEINE Trigger-Zeichen: das
+    /// Öffnen der Pfad-Liste in <c>taskref "…"</c> tragen bereits <c>"</c> und die Buchstaben, während ein
+    /// auslösendes <c>/</c> außerhalb einer Zeichenkette (etwa am Beginn eines <c>//</c>-Kommentars) eine
+    /// unangebrachte Vorschlagsliste eröffnete.
+    /// </summary>
+    public static readonly IReadOnlyList<char> TriggerCharacters = new[] {
+        SyntaxFacts.Hash,          // '#'  — Direktiven (#version)
+        SyntaxFacts.Colon,         // ':'  — Exit-Connection-Points hinter `knoten:`
+        '-',                       // '-'  — Beginn einer Edge (-->)
+        SyntaxFacts.OpenBracket,   // '['  — Code-Block-Keywords (do [ … ])
+        '"'                        // '"'  — Beginn einer Zeichenkette (Pfad in taskref "…")
+    };
+
+    /// <summary>Ob <paramref name="c"/> ein kanonisches Trigger-Zeichen der Completion ist (siehe <see cref="TriggerCharacters"/>).</summary>
+    public static bool IsTriggerCharacter(char c) {
+        // Kleine, feste Menge — lineare Suche ist billiger als ein Set-Aufbau.
+        for (var i = 0; i < TriggerCharacters.Count; i++) {
+            if (TriggerCharacters[i] == c) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Die kanonische Menge der Abschluss-Zeichen (Commit-Chars): Zeichen, deren Eingabe bei offener
+    /// Vorschlagsliste den markierten Vorschlag übernimmt und dann selbst eingefügt wird. Bewusst nur die
+    /// Zeichen, die in der Nav-Grammatik ein Bezeichner-/Keyword-Token beenden oder trennen — Trenner
+    /// (<c>, ;</c>), der Connection-Point-Doppelpunkt (<c>knoten:exit</c>) und die Zeichenketten-/Code-Block-
+    /// Begrenzer (<c>" [ ]</c>). Der Punkt ist bewusst NICHT dabei — er ist in Nav ein gültiges
+    /// Bezeichner-Zeichen (siehe <see cref="SyntaxFacts.IsIdentifierCharacter"/>), ein Commit darauf würde
+    /// qualifizierte Namen zerreißen. Auch die Pfadtrenner <c>/</c> und <c>\</c> gehören bewusst NICHT dazu:
+    /// Die Pfad-Vervollständigung ersetzt ohnehin den gesamten String-Inhalt (kein Segment-für-Segment-Commit),
+    /// ein Commit auf <c>/</c> hängte den Trenner nur an den bereits eingefügten Pfad an — und außerhalb einer
+    /// Zeichenkette zerlegte er einen gerade getippten <c>//</c>-Kommentar (das zweite <c>/</c> übernähme den
+    /// vorselektierten Vorschlag). Einzige Autorität für beide Hosts: VS speist damit
+    /// <c>IAsyncCompletionCommitManager.PotentialCommitCharacters</c>, der LSP-Server
+    /// <c>CompletionOptions.AllCommitCharacters</c>.
+    /// </summary>
+    public static readonly IReadOnlyList<char> CommitCharacters = new[] {
+        ' ',                        // Leerzeichen — Wort-/Bezeichner-Ende
+        SyntaxFacts.Comma,          // ','  — Trennzeichen
+        SyntaxFacts.Semicolon,      // ';'  — Anweisungs-Ende
+        SyntaxFacts.Colon,          // ':'  — Connection-Point-Trenner (knoten:exit)
+        '"',                        // '"'  — Zeichenketten-Begrenzer (taskref "…")
+        SyntaxFacts.OpenBracket,    // '['  — Code-Block-Beginn
+        SyntaxFacts.CloseBracket    // ']'  — Code-Block-Ende
+    };
 
     /// <summary>
     /// Liefert die Vervollständigungs-Vorschläge zur angegebenen Zeichen-Position (0-basierter Offset)
     /// in der Reihenfolge, in der sie dem Nutzer angeboten werden sollen — oder eine leere Liste, wenn
     /// an der Position nichts vorgeschlagen werden soll.
     /// </summary>
-    [NotNull]
-    public static IReadOnlyList<NavCompletionItem> GetCompletions([NotNull] CodeGenerationUnit unit, int position, [CanBeNull] NavSolution solution = null) {
+    public static IReadOnlyList<NavCompletionItem> GetCompletions(CodeGenerationUnit unit, int position, NavSolution? solution = null) {
 
         var source = unit.Syntax.SyntaxTree.SourceText;
 
         // Pfad-Vervollständigung läuft INNERHALB von "…" nach `taskref` — die normale Unterdrückung in
         // Zeichenketten greift hier also bewusst nicht. Liefert null, wenn kein taskref-String-Kontext.
+        // Pfad-Items tragen ihren Ersetzungsbereich (String-Inhalt) selbst und laufen daher an der
+        // zentralen Operator-Normalisierung vorbei.
         var pathItems = GetPathCompletions(source, position, solution);
         if (pathItems != null) {
             return pathItems;
         }
 
-        if (!ShouldProvideCompletions(unit, source, position)) {
-            return Array.Empty<NavCompletionItem>();
+        var context = NavCompletionContext.Classify(unit, position);
+        var items   = BuildItems(context, unit);
+
+        // Einzige Stelle, an der die Operator-Invariante durchgesetzt wird: operator-artige Vorschläge
+        // (Edge-/Continuation-Keywords) bekommen ihren Ersetzungsbereich kategorie-übergreifend hier.
+        return WithOperatorReplacements(items, unit.Syntax.SyntaxTree, position);
+    }
+
+    // Die zur grammatischen Situation passende Vorschlagsmenge — noch OHNE die operator-spezifischen
+    // Ersetzungsbereiche (die hängt WithOperatorReplacements zentral an, damit keine Kategorie sie vergessen kann).
+    static IReadOnlyList<NavCompletionItem> BuildItems(NavCompletionContext context, CodeGenerationUnit unit) {
+
+        switch (context.Kind) {
+
+            case NavCompletionContextKind.Suppress:
+                return Array.Empty<NavCompletionItem>();
+
+            // Direkt hinter `#`: das einzige derzeit sinnvolle Direktiv-Schlüsselwort. `pragma` wird bewusst
+            // NICHT angeboten (es gibt kein bekanntes Pragma; siehe doc/nav-completion-status.md).
+            case NavCompletionContextKind.DirectiveKeyword:
+                return KeywordItems(SyntaxFacts.VersionDirectiveKeyword);
+
+            // Hinter `#version `: die gültigen Sprach-Versionsnummern — aus derselben Autorität, die Nav5001
+            // validiert (kein hartkodierter Wert).
+            case NavCompletionContextKind.DirectiveVersionValue:
+                return VersionValueItems();
+
+            // Im Schlüsselwort-Slot eines Code-Blocks (`[ … ]`): die im jeweiligen Host zulässigen Code-Keywords.
+            case NavCompletionContextKind.CodeBlock:
+                return CodeBlockKeywordItems(context, unit.LanguageVersion);
+
+            case NavCompletionContextKind.MemberLevel:
+                return KeywordItems(SyntaxFacts.TaskKeyword, SyntaxFacts.TaskrefKeyword);
+
+            // Im Body einer taskref-Deklaration: nur die Connection-Point-Deklarations-Keywords.
+            case NavCompletionContextKind.ConnectionPointDeclaration:
+                return KeywordItems(SyntaxFacts.InitKeyword, SyntaxFacts.ExitKeyword, SyntaxFacts.EndKeyword);
+
+            case NavCompletionContextKind.TaskNodeName:
+                return TaskDeclarationItems(unit);
+
+            case NavCompletionContextKind.ExitConnectionPoint:
+                return ExitConnectionPointItems(context);
+
+            case NavCompletionContextKind.EdgeSlot:
+                return VisibleEdgeKeywordItems();
+
+            case NavCompletionContextKind.TargetSlot:
+                return TargetItems(context);
+
+            case NavCompletionContextKind.ContinuationTargetSlot:
+                return ContinuationTargetItems(context);
+
+            case NavCompletionContextKind.StatementStart:
+                return StatementStartItems(context);
+
+            case NavCompletionContextKind.TransitionStart:
+                return TransitionStartItems(context);
+
+            case NavCompletionContextKind.AfterTarget:
+                return AfterTargetItems(context, unit.LanguageVersion);
+
+            // Wie AfterTarget, aber ohne die Continuation-Kanten: eine Continuation ist nicht verkettbar.
+            case NavCompletionContextKind.AfterContinuationTarget:
+                return KeywordItems(SyntaxFacts.OnKeyword, SyntaxFacts.IfKeyword,
+                                    SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
+
+            case NavCompletionContextKind.AfterTrigger:
+                return AfterTriggerItems(context);
+
+            case NavCompletionContextKind.AfterCondition:
+                return KeywordItems(SyntaxFacts.DoKeyword);
+
+            // Im Tail einer init-Knoten-Deklaration folgt grammatisch nur noch die optionale `do`-Klausel.
+            case NavCompletionContextKind.InitNodeTail:
+                return KeywordItems(SyntaxFacts.DoKeyword);
+
+            default:
+                return FallbackItems(context);
+        }
+    }
+
+    // Die Operator-Invariante: Ein Vorschlag, dessen Einfügetext NICHT rein aus Bezeichner-Zeichen besteht
+    // (die Edge-/Continuation-Keywords `-->`, `o->`, `--^`, `o-^` …), kann vom wort-basierten Ersetzungsbereich
+    // des Hosts nicht abgedeckt werden — der reicht nur über Bezeichner-Zeichen. Ohne eigenen Bereich bliebe
+    // ein bereits getipptes Operator-Zeichen beim Commit stehen (`-` + `--^` → `---^`). Deshalb bekommt hier
+    // JEDES solche Item — kategorie-übergreifend und damit unvergesslich — den Operator-Ersetzungsbereich,
+    // sofern es nicht schon einen eigenen trägt. Reine Wort-Items (Keywords, Namen, Versionswerte) verlassen
+    // sich unverändert auf den Host-Wortersatz.
+    static IReadOnlyList<NavCompletionItem> WithOperatorReplacements(IReadOnlyList<NavCompletionItem> items, SyntaxTree tree, int position) {
+
+        if (items.Count == 0) {
+            return items;
         }
 
-        var line      = source.GetTextLineAtPosition(position);
-        var lineStart = line.Start;
+        // Der Ersetzungsbereich hängt nur an Baum + Position (nicht am einzelnen Item) und ist für alle
+        // Operator-Items derselbe — einmal berechnen und an jeden Treffer anhängen.
+        var extent = OperatorReplacementExtent(tree, position);
 
-        var items = GetSymbolAndKeywordCompletions(unit, source, lineStart, position);
+        return items.ReplaceIf(
+            item => item.ReplacementExtent == null && IsOperatorInsertText(item.InsertText),
+            item => item.WithReplacementExtent(extent));
+    }
 
-        // Edge-Keywords (VS-Quelle EdgeCompletionSource): nur anbieten, wenn vor der (evtl. bereits
-        // angefangenen) Edge ein Whitespace oder der Zeilenanfang steht — sonst keine Edge-Mitten.
-        if (IsEdgeContext(source, lineStart, position)) {
+    // Ein „operator-artiger" Einfügetext — Spiegelbild von NavCompletionContext.IsWordToken: nicht-leer und
+    // NICHT vollständig aus Bezeichner-Zeichen. Erfasst `o->`/`o-^` korrekt (beginnen mit dem Bezeichner-Zeichen
+    // `o`, sind aber keine Wörter) und lässt reine Wörter (`on`, `end`, Knotennamen, Versionswerte wie `2`) außen vor.
+    static bool IsOperatorInsertText(string text) {
+        return text.Length > 0 && !text.All(SyntaxFacts.IsIdentifierCharacter);
+    }
 
-            foreach (var keyword in SyntaxFacts.EdgeKeywords
-                                               .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
-                                               .OrderBy(k => k, StringComparer.Ordinal)) {
-                items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
-            }
+    #region Kategorien
+
+    // Knoten-Deklarations-Keywords (beginnen eine Knoten-Deklaration und taugen zugleich als Transitions-Quelle).
+    // `Init`/InitKeywordAlt gehört bewusst NICHT dazu — das ist der Symbol-Name des Init-Knotens, kein
+    // Lexer-Keyword (der Knoten wird über AddNodeReferences mit seinem echten Namen angeboten); als Keyword
+    // eröffnet ausschließlich das kleingeschriebene `init` eine Init-Deklaration/-Transition.
+    static readonly string[] NodeDeclarationKeywords = {
+        SyntaxFacts.InitKeyword,
+        SyntaxFacts.EndKeyword,
+        SyntaxFacts.ExitKeyword,
+        SyntaxFacts.ChoiceKeyword,
+        SyntaxFacts.DialogKeyword,
+        SyntaxFacts.ViewKeyword,
+        SyntaxFacts.TaskKeyword
+    };
+
+    static List<NavCompletionItem> TaskDeclarationItems(CodeGenerationUnit unit) {
+        var items = new List<NavCompletionItem>();
+        foreach (var decl in unit.TaskDeclarations) {
+            items.Add(FromSymbol(decl));
         }
 
         return items;
     }
 
-    static List<NavCompletionItem> GetSymbolAndKeywordCompletions(CodeGenerationUnit unit, SourceText source, int lineStart, int position) {
-
-        var startOfIdentifier     = GetStartOfIdentifier(source, lineStart, position);
-        var previousNonWhitespace = PreviousNonWhitespaceChar(source, lineStart, startOfIdentifier);
-        var previousIdentifier    = GetPreviousIdentifier(source, lineStart, startOfIdentifier);
+    static List<NavCompletionItem> ExitConnectionPointItems(NavCompletionContext context) {
 
         var items = new List<NavCompletionItem>();
 
-        // Task-Knoten: nach dem Schlüsselwort `task` die deklarierten Tasks anbieten.
-        if (previousIdentifier == SyntaxFacts.TaskKeyword) {
-
-            foreach (var decl in unit.TaskDeclarations) {
-                items.Add(FromSymbol(decl));
-            }
-
-            if (items.Count > 0) {
-                return items;
-            }
+        if (string.IsNullOrEmpty(context.ExitNodeName)) {
+            return items;
         }
 
-        var caret          = TextExtent.FromBounds(position, position);
-        var taskDefinition = unit.TaskDefinitions.FirstOrDefault(td => td.Syntax.Extent.IntersectsWith(caret))
-                          ?? unit.TaskDefinitions.LastOrDefault(td => caret.Start > td.Syntax.Start);
-
-        if (taskDefinition != null) {
-
-            // Exit-Connection-Points: nach `knoten:` die Exits des referenzierten Task-Knotens.
-            if (previousNonWhitespace == SyntaxFacts.Colon) {
-
-                var exitNodeEnd = startOfIdentifier - 1;
-                var nodeName    = GetPreviousIdentifier(source, lineStart, exitNodeEnd);
-
-                if (!string.IsNullOrEmpty(nodeName)) {
-
-                    var exitNode = taskDefinition.TryFindNode(nodeName) as ITaskNodeSymbol;
-
-                    if (exitNode?.Declaration != null) {
-                        // Erst die noch nicht verbundenen Exits, dann die bereits verbundenen.
-                        foreach (var cp in exitNode.GetUnconnectedExits()) {
-                            items.Add(FromSymbol(cp));
-                        }
-
-                        foreach (var cp in exitNode.GetConnectedExits()) {
-                            items.Add(FromSymbol(cp));
-                        }
-                    }
-
-                    if (items.Count > 0) {
-                        return items;
-                    }
-                }
+        if (context.Task.TryFindNode(context.ExitNodeName) is ITaskNodeSymbol { Declaration: not null } exitNode) {
+            // Erst die noch nicht verbundenen Exits, dann die bereits verbundenen.
+            foreach (var cp in exitNode.GetUnconnectedExits()) {
+                items.Add(FromSymbol(cp));
             }
 
-            // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch.
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count == 0)
-                                               .OrderBy(n => n.Name, StringComparer.Ordinal)) {
-                items.Add(FromSymbol(node));
+            foreach (var cp in exitNode.GetConnectedExits()) {
+                items.Add(FromSymbol(cp));
             }
-
-            foreach (var node in taskDefinition.NodeDeclarations
-                                               .Where(n => n.References.Count != 0)
-                                               .OrderBy(n => n.Name, StringComparer.Ordinal)) {
-                items.Add(FromSymbol(node));
-            }
-        }
-
-        // Nav-Keywords (ohne versteckte und ohne Edge-Keywords — letztere kommen aus dem Edge-Zweig).
-        foreach (var keyword in SyntaxFacts.NavKeywords
-                                           .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
-                                           .OrderBy(k => k, StringComparer.Ordinal)) {
-            items.Add(new NavCompletionItem(keyword, NavCompletionItemKind.Keyword));
         }
 
         return items;
     }
 
-    static bool ShouldProvideCompletions(CodeGenerationUnit unit, SourceText source, int position) {
+    // Hinter einer Edge: die Knoten, die als ZIEL taugen (ITargetNodeSymbol — also NICHT `init`), unreferenzierte
+    // zuerst — plus das Ziel-Keyword `end`. End-Knoten werden bewusst NICHT als benannte Referenz mit angeboten:
+    // ihr Name IST `end` (aus dem `end`-Schlüsselwort gebildet), und ein End-Ziel schreibt man ausschließlich über
+    // dieses Schlüsselwort. Ohne den Ausschluss stünde `end` doppelt in der Liste (End-Knoten-Symbol + Keyword) —
+    // bei mehreren `end`-Deklarationen sogar mehrfach.
+    static List<NavCompletionItem> TargetItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ITargetNodeSymbol and not IEndNodeSymbol);
+        items.Add(KeywordItem(SyntaxFacts.EndKeyword));
+        return items;
+    }
 
-        if (position < 0 || position > source.Length) {
-            return false;
+    // Hinter einer Continuation-Kante (o-^/--^): das Ziel MUSS ein Task-Knoten sein (Analyzer Nav0121) —
+    // daher nur ITaskNodeSymbol, weder die übrigen Zielknoten noch das `end`-Keyword. Würde hier ein
+    // Nicht-Task angeboten, schlüge auf dem Commit sofort Nav0121 zu (dieselbe „nichts anbieten, was sofort
+    // einen Fehler wirft"-Philosophie wie beim Versions-Gate der Continuation-Keywords).
+    static List<NavCompletionItem> ContinuationTargetItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ITaskNodeSymbol);
+        return items;
+    }
+
+    // Das `init`-Schlüsselwort — das einzige Keyword, das im Transitions-Block eine Anweisung eröffnen kann
+    // (`init --> …`, die Init-Transition). Alle übrigen Deklarations-Keywords gehören in den Deklarations-Block.
+    // (`Init`/InitKeywordAlt gehört bewusst NICHT dazu: das ist der Symbol-Name des Init-Knotens, kein Keyword —
+    // der Init-Knoten selbst wird über AddNodeReferences mit seinem echten Namen angeboten.)
+    static readonly string[] TransitionSourceKeywords = {
+        SyntaxFacts.InitKeyword
+    };
+
+    // Satzanfang im Deklarations-Block: die vorhandenen Knoten, die als QUELLE einer (ersten) Transition taugen
+    // (ISourceNodeSymbol — also NICHT `end`/`exit`), plus die Knoten-Deklarations-Keywords.
+    static List<NavCompletionItem> StatementStartItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ISourceNodeSymbol);
+
+        foreach (var keyword in NodeDeclarationKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(KeywordItem(keyword));
         }
 
-        var triggerToken = unit.Syntax.FindToken(position);
+        return items;
+    }
 
-        // Keine Vervollständigung in Kommentaren.
-        if (triggerToken.Type is SyntaxTokenType.SingleLineComment or SyntaxTokenType.MultiLineComment) {
-            return false;
+    // Satzanfang im Transitions-Block: nur was eine Transition eröffnen kann — die quellfähigen Knoten
+    // (ISourceNodeSymbol) plus die `init`-Schlüsselwörter (Init-Transition). KEINE Deklarations-Keywords, der
+    // Deklarations-Block ist an dieser Stelle bereits abgeschlossen.
+    static List<NavCompletionItem> TransitionStartItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task, n => n is ISourceNodeSymbol);
+
+        foreach (var keyword in TransitionSourceKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(KeywordItem(keyword));
         }
 
-        var line         = source.GetTextLineAtPosition(position);
-        var lineText      = source.Substring(line.ExtentWithoutLineEndings);
-        var linePosition = position - line.Start;
+        return items;
+    }
 
-        // Keine Vervollständigung in Zeichenketten ("…").
-        if (lineText.IsInQuotation(linePosition)) {
-            return false;
+    // Konservatives Alt-Verhalten für nicht eindeutig klassifizierbare Stellen: vorhandene Knoten +
+    // sichtbare Nav-Keywords (ohne Edge-Keywords) + sichtbare Edge-Keywords. So wird nie weniger angeboten.
+    // Den Ersetzungsbereich der Edge-Keywords hängt WithOperatorReplacements zentral an.
+    static List<NavCompletionItem> FallbackItems(NavCompletionContext context) {
+        var items = new List<NavCompletionItem>();
+        AddNodeReferences(items, context.Task);
+
+        foreach (var keyword in SyntaxFacts.NavKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k) && !SyntaxFacts.IsEdgeKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(KeywordItem(keyword));
         }
 
-        // Keine Vervollständigung in Code-Blöcken ([ … ]); betrachtet (wie in VS) nur die aktuelle Zeile.
-        if (lineText.IsInTextBlock(linePosition, SyntaxFacts.OpenBracket, SyntaxFacts.CloseBracket)) {
-            return false;
+        items.AddRange(VisibleEdgeKeywordItems());
+        return items;
+    }
+
+    // Die im jeweiligen Host noch anbietbaren, sichtbaren Code-Block-Keywords (siehe CodeBlockFacts) — die
+    // gemeinsame Autorität mit der Parser-Recovery, hier alphabetisch für die Anzeige sortiert. Der Host
+    // entscheidet, WELCHE Deklarationen die Grammatik dort erlaubt: Datei-Kopf nur `using`/`namespaceprefix`,
+    // ein task-Kopf `code`/`base`/…, ein init-Knoten `abstractmethod`/`params` usw. — statt pauschal aller
+    // Code-Keywords. Am Host bereits vorhandene Singletons (alle Deklarationen außer dem wiederholbaren
+    // `using`) werden zusätzlich herausgefiltert (context.PresentCodeKeywords).
+    static List<NavCompletionItem> CodeBlockKeywordItems(NavCompletionContext context, NavLanguageVersion version) {
+        var items = new List<NavCompletionItem>();
+        foreach (var keyword in CodeBlockFacts.AvailableDeclarationKeywords(context.Host, context.PresentCodeKeywords)
+                                              .Where(keyword => IsCodeKeywordAvailable(context.Host, keyword, version))
+                                              .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(KeywordItem(keyword, context.Host));
+        }
+
+        return items;
+    }
+
+    // Die choice-`[params]`-Klausel ist ein Version-2-Feature (dieselbe Nav5000-Gate-Autorität): `params` wird
+    // im choice-Knoten erst ab #version 2 angeboten — sonst böte die Completion einen Vorschlag an, der sofort
+    // Nav5000 würfe. Alle übrigen Code-Block-Keywords (auch das versionsunabhängige `params` am init-Knoten und
+    // an der Task-Definition) sind versionsneutral.
+    static bool IsCodeKeywordAvailable(CodeBlockHost host, string keyword, NavLanguageVersion version) {
+        if (host == CodeBlockHost.ChoiceNode && keyword == SyntaxFacts.ParamsKeyword) {
+            return NavLanguageFeatures.IsAvailable(NavLanguageFeature.ChoiceParameters, version);
         }
 
         return true;
     }
 
+    // Hinter einem vollständigen Ziel: die je nach Quellknoten zulässigen Folge-Klauseln (siehe
+    // FollowupClauseKeywords) — und ab Sprachversion 2 zusätzlich die Continuation-Kanten o-^/--^
+    // (`… --> View o-^ Task`), sofern das Feature unter der effektiven #version verfügbar ist (dieselbe
+    // Autorität wie das Nav5000-Gate). Die Continuation-Keywords liegen bewusst hier und NICHT in
+    // VisibleEdgeKeywordItems: eine Continuation leitet keine neue Transition ein (sie hängt hinter dem
+    // Zielknoten), sie sind daher — wie schon in SyntaxFacts — von den regulären Edge-Keywords getrennt. Sie
+    // hängen am Ziel, nicht am Quellknoten, und bleiben daher vom SourceKind-Pruning unberührt.
+    static IReadOnlyList<NavCompletionItem> AfterTargetItems(NavCompletionContext context, NavLanguageVersion version) {
+
+        var keywords = FollowupClauseKeywords(context.SourceKind);
+
+        if (NavLanguageFeatures.IsAvailable(NavLanguageFeature.Continuation, version)) {
+            keywords.AddRange(SyntaxFacts.ContinuationEdgeKeywords);
+        }
+
+        return KeywordItems(keywords.ToArray());
+    }
+
+    // Hinter einem bereits gesetzten Trigger (`on Signal` / `spontaneous`): grammatisch folgt nur noch eine
+    // Bedingung und/oder `do`. Bei einer GUI-Quelle IST die Transition eine Trigger-Transition → Bedingungen
+    // sind dort unzulässig (Nav0220), es bleibt nur `do`; bei jeder anderen Quelle (init mit spontaneous)
+    // bleiben if/else/do. `on` entfällt hier immer — ein zweiter Trigger ist nie zulässig.
+    static IReadOnlyList<NavCompletionItem> AfterTriggerItems(NavCompletionContext context) {
+        return context.SourceKind == TransitionSourceKind.Gui
+                   ? KeywordItems(SyntaxFacts.DoKeyword)
+                   : KeywordItems(SyntaxFacts.IfKeyword, SyntaxFacts.ElseKeyword, SyntaxFacts.DoKeyword);
+    }
+
+    // Die hinter einem Ziel zulässigen Folge-Klauseln, abgeleitet aus dem Quellknoten der Transition — so
+    // bietet die Completion keine Klausel an, die sofort einen Analyzer-Fehler auslöste:
+    //   • GUI-Quelle (view/dialog) → Trigger-Transition: `on` zulässig, `if`/`else` nicht (Nav0220).
+    //   • init-Quelle → Signal-Trigger `on` unzulässig (Nav0200); Bedingungen zulässig.
+    //   • choice-Quelle → jeder Trigger unzulässig (Nav0203); Bedingungen zulässig.
+    //   • Exit-Transition → kein Trigger (Grammatik), nur `if` (Nav0221).
+    //   • Quelle unbekannt → konservativ die volle Menge (nie weniger anbieten als nötig).
+    // `do` (die Aktions-Klausel) ist überall zulässig und wird stets angehängt.
+    static List<string> FollowupClauseKeywords(TransitionSourceKind sourceKind) {
+
+        var keywords = new List<string>();
+
+        switch (sourceKind) {
+            case TransitionSourceKind.Gui:
+                keywords.Add(SyntaxFacts.OnKeyword);
+                break;
+            case TransitionSourceKind.Init:
+            case TransitionSourceKind.Choice:
+                keywords.Add(SyntaxFacts.IfKeyword);
+                keywords.Add(SyntaxFacts.ElseKeyword);
+                break;
+            case TransitionSourceKind.Exit:
+                keywords.Add(SyntaxFacts.IfKeyword);
+                break;
+            default:
+                keywords.Add(SyntaxFacts.OnKeyword);
+                keywords.Add(SyntaxFacts.IfKeyword);
+                keywords.Add(SyntaxFacts.ElseKeyword);
+                break;
+        }
+
+        keywords.Add(SyntaxFacts.DoKeyword);
+
+        return keywords;
+    }
+
+    // Die sichtbaren Edge-Keywords (`-->`, `o->`, …). Den Ersetzungsbereich (bereits getippte Edge-Zeichen)
+    // hängt WithOperatorReplacements zentral an — hier werden nur die reinen Keyword-Items erzeugt.
+    static List<NavCompletionItem> VisibleEdgeKeywordItems() {
+        var items = new List<NavCompletionItem>();
+        foreach (var keyword in SyntaxFacts.EdgeKeywords
+                                .Where(k => !SyntaxFacts.IsHiddenKeyword(k))
+                                .OrderBy(k => k, StringComparer.Ordinal)) {
+            items.Add(KeywordItem(keyword));
+        }
+
+        return items;
+    }
+
+    // Der Ersetzungsbereich eines edge-artigen Operators (reguläre Edge ODER Continuation-Kante) um die
+    // Cursor-Position — er umfasst zwei Anteile:
+    //
+    //  • Rückwärts: der Lauf über die bereits getippten Edge-Zeichen bis zum Zeilenanfang (Port des
+    //    VS-`GetStartOfEdge`) — deckt die gerade von links getippte (Teil-)Edge ab, damit ihr Commit die
+    //    Zeichen ersetzt statt zu verdoppeln (`i o|` → `o->` statt `oo->`; `V -|` → `--^` statt `---^`).
+    //
+    //  • Vorwärts: NUR ein bereits VOLLSTÄNDIGES Edge-/Continuation-Keyword (Lexer-Token), das der Cursor
+    //    berührt. Das behebt den Fall, dass der Cursor VOR einer vorhandenen Kante steht (`i |--> Sub`): ohne
+    //    diesen Anteil fügte der Commit eine zweite Kante ein (`i -->--> Sub`); mit ihm wird die vorhandene
+    //    ersetzt. Bewusst KEIN roher Zeichen-Vorlauf wie beim Rückwärtslauf: `o`/`*`/`=`/`-` können auch einen
+    //    Zielknoten beginnen (`-->order`), ein Zeichen-Vorlauf fräse ins Ziel. Die Token-Grenze des Lexers
+    //    (`-->` ist ein Token, `order` das nächste) ist hier die einzige verlässliche Autorität.
+    //
+    // Berührt der Cursor keine Kante, ist der Bereich leer (Start == End == position) → reines Einfügen.
+    static TextExtent OperatorReplacementExtent(SyntaxTree tree, int position) {
+        var source = tree.SourceText;
+        var line   = source.GetTextLineAtPosition(position);
+
+        var start = position;
+        while (start > line.Start && SyntaxFacts.IsEdgeCharacter(source[start - 1])) {
+            start--;
+        }
+
+        var end   = position;
+        var token = tree.Tokens.FindAtPosition(position);
+        if (SyntaxFacts.IsEdgeKeyword(token.Type) || SyntaxFacts.IsContinuationEdgeKeyword(token.Type)) {
+            end = token.End;
+        }
+
+        return TextExtent.FromBounds(start, end);
+    }
+
+    // Die gültigen Sprach-Versionsnummern (heute nur `1`) — Label ist der numerische Wert. Single Source of
+    // Truth ist NavLanguageVersion.SupportedVersions, dieselbe Tabelle, die Nav5001 validiert.
+    static IReadOnlyList<NavCompletionItem> VersionValueItems() {
+        return NavLanguageVersion.SupportedVersions
+                                 .OrderBy(v => v.Value)
+                                 .Select(v => new NavCompletionItem(v.ToString(), NavCompletionItemKind.Keyword))
+                                 .ToList();
+    }
+
+    static IReadOnlyList<NavCompletionItem> KeywordItems(params string[] keywords) {
+        return keywords.OrderBy(k => k, StringComparer.Ordinal)
+                       .Select(k => KeywordItem(k))
+                       .ToList();
+    }
+
+    // Ein Keyword-Vorschlag samt seiner Bedeutung (die einzige Autorität ist SyntaxFacts; auch die
+    // Edge-Operatoren sind dort hinterlegt). Der Code-Block-Host — sofern bekannt — wählt die kontextgenaue
+    // Bedeutung host-abhängiger Keywords (`params`/`result`); ohne Host gilt die host-neutrale Fassung. Eine
+    // fehlende Beschreibung wird zu null normalisiert, damit der Host das Doku-Panel gar nicht erst befüllt.
+    static NavCompletionItem KeywordItem(string keyword, CodeBlockHost? host = null) {
+        var description = host is { } h
+                              ? SyntaxFacts.GetKeywordDescription(keyword, h)
+                              : SyntaxFacts.GetKeywordDescription(keyword);
+        return new NavCompletionItem(keyword, NavCompletionItemKind.Keyword,
+                                     description: description.Length == 0 ? null : description);
+    }
+
+    // Erst alle Knoten ohne Referenzen, dann die übrigen — je alphabetisch. Über <paramref name="roleFilter"/>
+    // wird auf die im jeweiligen Slot grammatisch mögliche Rolle eingegrenzt (Quelle bzw. Ziel einer Transition);
+    // ohne Filter (Fallback) werden alle Knoten angeboten.
+    static void AddNodeReferences(List<NavCompletionItem> items, ITaskDefinitionSymbol? task, Func<INodeSymbol, bool>? roleFilter = null) {
+
+        if (task == null) {
+            return;
+        }
+
+        var nodes = roleFilter == null
+                        ? (IReadOnlyList<INodeSymbol>) task.NodeDeclarations
+                        : task.NodeDeclarations.Where(roleFilter).ToList();
+
+        foreach (var node in nodes
+                             .Where(n => n.References.Count == 0)
+                             .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+            items.Add(FromSymbol(node));
+        }
+
+        foreach (var node in nodes
+                             .Where(n => n.References.Count != 0)
+                             .OrderBy(n => n.Name, StringComparer.Ordinal)) {
+            items.Add(FromSymbol(node));
+        }
+    }
+
+    #endregion
+
     static NavCompletionItem FromSymbol(ISymbol symbol) {
-        return new NavCompletionItem(symbol.Name, KindOf(symbol));
+        return new NavCompletionItem(symbol.Name, KindOf(symbol), symbol: symbol);
     }
 
     static NavCompletionItemKind KindOf(ISymbol symbol) => symbol switch {
@@ -196,7 +556,7 @@ public static class NavCompletionService {
     /// wird clientseitig über den <em>Dateinamen</em> (so findet „Messageb" auch ein tief verschachteltes
     /// „MessageBoxes.nav"); eingefügt wird der zum aktuellen Nav-File <em>relative</em> Pfad.
     /// </summary>
-    static IReadOnlyList<NavCompletionItem> GetPathCompletions(SourceText source, int position, NavSolution solution) {
+    static IReadOnlyList<NavCompletionItem>? GetPathCompletions(SourceText source, int position, NavSolution? solution) {
 
         if (position < 0 || position > source.Length) {
             return null;
@@ -248,73 +608,6 @@ public static class NavCompletionService {
 
         return items;
     }
-
-    #endregion
-
-    #region Zeilen-Helfer (faithful port der VS-TextSnaphotLineExtensions, offset-basiert)
-
-    // Startindex des Identifiers, der bei position endet — zeilenbegrenzt rückwärts laufend.
-    static int GetStartOfIdentifier(SourceText source, int lineStart, int position) {
-        while (position > lineStart && SyntaxFacts.IsIdentifierCharacter(source[position - 1])) {
-            position -= 1;
-        }
-
-        return position;
-    }
-
-    // Index des vorigen Nicht-Whitespace-Zeichens (oder null), zeilenbegrenzt.
-    static int? PreviousNonWhitespace(SourceText source, int lineStart, int position) {
-
-        if (position <= lineStart) {
-            return null;
-        }
-
-        do {
-            position -= 1;
-        } while (position > lineStart && char.IsWhiteSpace(source[position]));
-
-        return position;
-    }
-
-    static char? PreviousNonWhitespaceChar(SourceText source, int lineStart, int position) {
-        var index = PreviousNonWhitespace(source, lineStart, position);
-        return index.HasValue ? source[index.Value] : null;
-    }
-
-    // Der Identifier-Text, der vor position liegt (oder ""), zeilenbegrenzt.
-    static string GetPreviousIdentifier(SourceText source, int lineStart, int position) {
-
-        var wordEnd = PreviousNonWhitespace(source, lineStart, position);
-        if (wordEnd == null) {
-            return string.Empty;
-        }
-
-        var wordStart = GetStartOfIdentifier(source, lineStart, wordEnd.Value);
-        if (wordEnd.Value + 1 <= wordStart) {
-            return string.Empty;
-        }
-
-        return source.Substring(TextExtent.FromBounds(wordStart, wordEnd.Value + 1));
-    }
-
-    // Startindex der (evtl. angefangenen) Edge, die bei position endet — zeilenbegrenzt über Edge-Zeichen.
-    static int GetStartOfEdge(SourceText source, int lineStart, int position) {
-        while (position > lineStart && IsEdgeChar(source[position - 1])) {
-            position -= 1;
-        }
-
-        return position;
-    }
-
-    // Vor einer Edge muss Whitespace oder der Zeilenanfang stehen (sonst ist es keine Edge-Position).
-    static bool IsEdgeContext(SourceText source, int lineStart, int position) {
-        var start = GetStartOfEdge(source, lineStart, position);
-        return start == lineStart || char.IsWhiteSpace(source[start - 1]);
-    }
-
-    static readonly ImmutableHashSet<char> EdgeChars = SyntaxFacts.EdgeKeywords.SelectMany(k => k).ToImmutableHashSet();
-
-    static bool IsEdgeChar(char c) => EdgeChars.Contains(c);
 
     #endregion
 

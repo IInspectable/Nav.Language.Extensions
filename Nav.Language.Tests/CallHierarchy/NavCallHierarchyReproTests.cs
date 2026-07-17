@@ -1,7 +1,6 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,21 +59,13 @@ public class NavCallHierarchyReproTests {
             }
 
             Assert.That(task, Is.Not.Null, "task T nicht gefunden");
-            TestContext.WriteLine($"AsTaskDeclaration null? {task!.AsTaskDeclaration == null}");
-            TestContext.WriteLine($"target decl location: {task.AsTaskDeclaration?.Location}");
 
             // ReferenceFinder (das, was CodeLens nutzt)
             var collector = new CountingContext();
-            await ReferenceFinder.FindReferencesAsync(new FindReferencesArgs(task, defUnit, solution, collector));
-            TestContext.WriteLine($"ReferenceFinder references: {collector.ReferenceCount}");
+            await ReferenceFinder.FindReferencesAsync(new FindReferencesArgs(task!, defUnit, solution, collector));
 
             // Mein Service
             var incoming = await NavCallHierarchyService.GetIncomingCallsAsync(task, solution, CancellationToken.None);
-            var callSites = 0;
-            foreach (var c in incoming) {
-                callSites += c.CallSites.Count;
-                TestContext.WriteLine($"incoming caller: {c.Caller.Name} ({c.CallSites.Count})");
-            }
 
             Assert.That(incoming.Count, Is.GreaterThan(0), "Incoming leer trotz erwarteter Aufrufer!");
         } finally {
@@ -83,11 +74,9 @@ public class NavCallHierarchyReproTests {
     }
 
     sealed class CountingContext: IFindReferencesContext {
-        public int ReferenceCount;
         public CancellationToken CancellationToken => CancellationToken.None;
         public Task OnDefinitionFoundAsync(DefinitionItem definition) => Task.CompletedTask;
-        public Task OnReferenceFoundAsync(ReferenceItem reference) { ReferenceCount++; return Task.CompletedTask; }
-        public Task ReportProgressAsync(int current, int maximum) => Task.CompletedTask;
+        public Task OnReferenceFoundAsync(ReferenceItem reference) => Task.CompletedTask;
         public Task ReportMessageAsync(string message) => Task.CompletedTask;
         public Task SetSearchTitleAsync(string title) => Task.CompletedTask;
     }

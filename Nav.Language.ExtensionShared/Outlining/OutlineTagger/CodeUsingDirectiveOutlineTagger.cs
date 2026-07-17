@@ -1,12 +1,22 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der einen zusammenhängenden Block von <c>using</c>-Deklarationen zu einer
+/// aufklappbaren Region zusammenfasst. Aufgerufen vom <see cref="OutliningTagger"/>.
+/// </summary>
 class CodeUsingDirectiveOutlineTagger {
 
+    /// <summary>
+    /// Liefert eine Region über die <c>using</c>-Deklarationen ab dem ersten <c>using</c>-Schlüsselwort.
+    /// Erst ab zwei <c>using</c>-Deklarationen entsteht eine Region.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable< ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         var usingDirectives = syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<CodeUsingDeclarationSyntax>().ToList();

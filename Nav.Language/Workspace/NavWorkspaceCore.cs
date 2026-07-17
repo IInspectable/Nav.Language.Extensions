@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -12,15 +12,13 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 #endregion
 
-#nullable enable
-
 namespace Pharmatechnik.Nav.Language;
 
 /// <summary>
 /// VS-/LSP-freier Kern der Workspace-Verwaltung: hält die geladene <see cref="NavSolution"/> (alle <c>*.nav</c>
 /// unterhalb der Wurzel) samt overlay-fähigem Syntax-Provider und liefert Syntaxbaum, semantisches Modell und
-/// Diagnostics overlay-bewusst. Gemeinsame „eine Engine"-Host-Schicht: die LSP-Server-Schale (Push-Modell,
-/// Overlays für ungespeicherte Editor-Puffer, Abhängigkeits-Re-Diagnose, <c>.navignore</c>) und die MCP-Schale
+/// Diagnostics overlay-bewusst. Gemeinsame „eine Engine"-Host-Schicht: der LSP-Server-Host (Push-Modell,
+/// Overlays für ungespeicherte Editor-Puffer, Abhängigkeits-Re-Diagnose, <c>.navignore</c>) und der MCP-Host
 /// (request/response gegen den Stand auf Platte) bauen beide darauf auf.
 /// </summary>
 public sealed class NavWorkspaceCore {
@@ -30,14 +28,24 @@ public sealed class NavWorkspaceCore {
 
     NavSolution _solution = NavSolution.Empty;
 
+    /// <summary>
+    /// Baut die Provider-Kette auf: einen overlay-fähigen <see cref="OverlaySyntaxProvider"/> (Tier-1-Syntax-Cache)
+    /// und darüber einen <see cref="CachedSemanticModelProvider"/> (Tier-2-Semantik-Cache). Der Semantik-Cache
+    /// sitzt bewusst nur in dieser Host-Schicht (LSP + MCP); die CLI bleibt ungecacht.
+    /// </summary>
     public NavWorkspaceCore() {
-        _syntaxProvider        = new OverlaySyntaxProvider();
-        _semanticModelProvider = new SemanticModelProvider(_syntaxProvider);
+        _syntaxProvider = new OverlaySyntaxProvider();
+        // Tier-2-Semantik-Cache über dem Syntax-Cache des OverlaySyntaxProviders (Tier 1): Wiederhol-Scans
+        // solution-weiter Features (Diagnostics-Sweep, Referenzen, Call Hierarchy) liefern gecachte Units,
+        // solange weder die Datei selbst noch eines ihrer direkten Includes eine neue Syntax-Instanz hat.
+        // Bewusst nur hier in der Host-Schicht (LSP + MCP) — die CLI (NavSolution-Default) bleibt ungecacht.
+        _semanticModelProvider = new CachedSemanticModelProvider(new SemanticModelProvider(_syntaxProvider), _syntaxProvider);
     }
 
     /// <summary>Die geladene Solution (alle <c>*.nav</c>) — Grundlage für solution-weite Features.</summary>
     public NavSolution Solution => _solution;
 
+    /// <summary>Anzahl der <c>*.nav</c>-Dateien in der geladenen Solution.</summary>
     public int FileCount => _solution.SolutionFiles.Length;
 
     /// <summary>Wurzelverzeichnis der geladenen Solution (oder <c>null</c>, wenn nichts geladen ist).</summary>
@@ -96,7 +104,7 @@ public sealed class NavWorkspaceCore {
     public IEnumerable<string> OpenDocuments => _syntaxProvider.OpenDocuments;
 
     /// <summary>
-    /// Invalidiert den Platten-Syntax-Cache einer Datei (das Overlay bleibt unberührt) — der nächste Zugriff
+    /// Invalidiert den Disk-Syntax-Cache einer Datei (das Overlay bleibt unberührt) — der nächste Zugriff
     /// liest sie frisch von Platte.
     /// </summary>
     public void InvalidateCache(string normalizedPath) => _syntaxProvider.InvalidateCache(normalizedPath);
@@ -126,7 +134,7 @@ public sealed class NavWorkspaceCore {
         _solution = new NavSolution(_solution.SolutionDirectory, files, _syntaxProvider, _semanticModelProvider);
     }
 
-    /// <summary>Entfernt eine gelöschte Datei aus der Solution (Graph-Kanten verwaltet die aufrufende Schale).</summary>
+    /// <summary>Entfernt eine gelöschte Datei aus der Solution (Graph-Kanten verwaltet der aufrufende Host).</summary>
     public void RemoveSolutionFile(string normalizedPath) {
 
         if (_solution.SolutionDirectory == null) {

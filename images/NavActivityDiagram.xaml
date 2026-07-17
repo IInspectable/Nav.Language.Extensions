@@ -1,0 +1,19 @@
+﻿<!--
+  Nav-Icon (Vektor-Master) — Basis: Visual-Studio-KnownMoniker "ActivityDiagram"
+  (extrahiert aus Microsoft.VisualStudio.ImageCatalog.dll) mit Nav-Farbakzenten.
+  Farben: unterer linker Knoten #FFC000, unterer rechter Knoten #0097B6, Strichgrafik #202020;
+  Kreis und Raute innen weiß. Auf 16px-Raster autoriert → skaliert verlustfrei.
+  Reine Vektorquelle; die PNG-Icons für die VS- und VS-Code-Extension werden hieraus
+  gerendert (siehe Render-NavIcon.ps1).
+-->
+<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+  <Canvas Background="#00FFFFFF" Width="16" Height="16">
+    <!-- Farb-/Weißflächen hinter der schwarzen Strichgrafik (Innen-Geometrie exakt aus dem VS-Moniker) -->
+    <Path Fill="#FFFFFFFF" Data="M6.5,3C6.5,2.449 6.948,2 7.5,2 8.052,2 8.5,2.449 8.5,3 8.5,3.551 8.052,4 7.5,4 6.948,4 6.5,3.551 6.5,3z" />
+    <Path Fill="#FFFFFFFF" Data="M7.5,9.793L6.207,8.5 7.5,7.207 8.793,8.5 7.5,9.793z" />
+    <Path Fill="#FFFFC000" Data="M4,12.5C4,12.776,3.775,13,3.5,13L1.5,13C1.225,13 1,12.776 1,12.5 1,12.224 1.225,12 1.5,12L3.5,12C3.775,12,4,12.224,4,12.5z" />
+    <Path Fill="#FF0097B6" Data="M13.5,13L11.5,13C11.225,13 11,12.776 11,12.5 11,12.224 11.225,12 11.5,12L13.5,12C13.775,12 14,12.224 14,12.5 14,12.776 13.775,13 13.5,13z" />
+    <!-- Schwarze Strichgrafik (unveränderter ActivityDiagram-Moniker; EvenOdd stanzt die Innenflächen frei) -->
+    <Path Fill="#FF202020" Data="M13,11L13,9.5C13,8.673,12.327,8,11.5,8L9.707,8 8,6.293 8,4.929C8.86,4.705 9.5,3.929 9.5,3 9.5,1.897 8.603,1 7.5,1 6.397,1 5.5,1.897 5.5,3 5.5,3.929 6.14,4.705 7,4.929L7,6.293 5.293,8 3.5,8C2.673,8,2,8.673,2,9.5L2,11 1.5,11C0.673,11 0,11.673 0,12.5 0,13.327 0.673,14 1.5,14L3.5,14C4.327,14 5,13.327 5,12.5 5,11.673 4.327,11 3.5,11L3,11 3,9.5C3,9.224,3.225,9,3.5,9L5.293,9 7.147,10.854C7.245,10.952 7.373,11 7.501,11 7.629,11 7.757,10.951 7.855,10.854L9.709,9 11.502,9C11.777,9,12.002,9.224,12.002,9.5L12.002,11 11.502,11C10.675,11 10.002,11.673 10.002,12.5 10.002,13.327 10.675,14 11.502,14L13.502,14C14.329,14 15.002,13.327 15.002,12.5 15.002,11.673 14.329,11 13.502,11L13,11z M4,12.5C4,12.776,3.775,13,3.5,13L1.5,13C1.225,13 1,12.776 1,12.5 1,12.224 1.225,12 1.5,12L3.5,12C3.775,12,4,12.224,4,12.5z M6.5,3C6.5,2.449 6.948,2 7.5,2 8.052,2 8.5,2.449 8.5,3 8.5,3.551 8.052,4 7.5,4 6.948,4 6.5,3.551 6.5,3z M7.5,9.793L6.207,8.5 7.5,7.207 8.793,8.5 7.5,9.793z M13.5,13L11.5,13C11.225,13 11,12.776 11,12.5 11,12.224 11.225,12 11.5,12L13.5,12C13.775,12 14,12.224 14,12.5 14,12.776 13.775,13 13.5,13z" />
+  </Canvas>
+</Viewbox>

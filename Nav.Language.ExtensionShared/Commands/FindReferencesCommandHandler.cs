@@ -24,6 +24,13 @@ using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
 
 namespace Pharmatechnik.Nav.Language.Extension.Commands; 
 
+/// <summary>
+/// Command-Handler für „Find All References" (Shift+F12) in Nav-Dateien. Ermittelt das Symbol unter dem
+/// Cursor und sucht dessen Referenzen sowohl innerhalb der Nav-Quellen (Engine-Kern
+/// <see cref="ReferenceFinder"/>) als auch im generierten C#-Code über die Roslyn-Brücke
+/// (<see cref="WfsReferenceFinder"/>). Die Treffer laufen als Live-Stream über den
+/// <see cref="FindReferencesPresenter"/> in das VS-Werkzeugfenster „Find All References".
+/// </summary>
 [Export(typeof(ICommandHandler))]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 [Name(CommandHandlerNames.FindReferencesCommandHandler)]
@@ -37,12 +44,19 @@ class FindReferencesCommandHandler: ICommandHandler<FindReferencesCommandArgs> {
 
     }
 
+    /// <summary>Im Command-System angezeigter Name des Befehls.</summary>
     public string DisplayName => "Find All References";
 
+    /// <summary>Verfügbar nur für einen <see cref="IWpfTextView"/>, sonst <see cref="CommandState.Unavailable"/>.</summary>
     public CommandState GetCommandState(FindReferencesCommandArgs args) {
         return args.TextView is IWpfTextView ? CommandState.Available : CommandState.Unavailable;
     }
 
+    /// <summary>
+    /// Startet die Referenzsuche: öffnet einen Präsentations-Kontext und stößt die asynchrone Suche
+    /// (<see cref="FindAllReferencesAsync"/>) im Hintergrund an. Gibt <see langword="false"/> zurück, damit
+    /// die Standard-Behandlung nicht unterdrückt wird.
+    /// </summary>
     public bool ExecuteCommand(FindReferencesCommandArgs args, CommandExecutionContext executionContext) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -56,6 +70,13 @@ class FindReferencesCommandHandler: ICommandHandler<FindReferencesCommandArgs> {
 
     }
 
+    /// <summary>
+    /// Sucht auf einem Hintergrund-Thread alle Referenzen des Symbols unter dem Cursor. Bricht ergebnislos
+    /// ab, wenn dort kein Symbol liegt; andernfalls werden Nav-interne Referenzen
+    /// (<see cref="ReferenceFinder.FindReferencesAsync"/>) und C#-seitige Referenzen
+    /// (<see cref="WfsReferenceFinder.FindReferencesAsync"/>) ermittelt und in den
+    /// <paramref name="context"/> gemeldet.
+    /// </summary>
     async Task FindAllReferencesAsync(FindReferencesCommandArgs args, CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot, FindReferencesContext context) {
 
         var originatingSymbol = args.TextView.TryFindSymbolUnderCaret(codeGenerationUnitAndSnapshot);
@@ -83,6 +104,10 @@ class FindReferencesCommandHandler: ICommandHandler<FindReferencesCommandArgs> {
 
     }
 
+    /// <summary>
+    /// Liefert das aktuelle, mit dem Snapshot synchronisierte Semantikmodell
+    /// (<see cref="CodeGenerationUnitAndSnapshot"/>) des Puffers über den <see cref="SemanticModelService"/>.
+    /// </summary>
     static CodeGenerationUnitAndSnapshot GetCodeGenerationUnit(ITextBuffer textBuffer) {
 
         ThreadHelper.ThrowIfNotOnUIThread();

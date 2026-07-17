@@ -13,8 +13,13 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einer <c>NavTask</c>-Annotation im generierten C#-Code zur zugehörigen Task-Definition in der
+/// <c>.nav</c>-Quelle. Angezeigt wird der Task-Name mit dem TaskDefinition-Icon.
+/// </summary>
 class NavTaskAnnotationLocationInfoProvider: NavAnnotationLocationInfoProvider<NavTaskAnnotation> {
 
+    /// <summary>Bindet den Provider an die <paramref name="annotation"/> der Task-Definition.</summary>
     public NavTaskAnnotationLocationInfoProvider(NavTaskAnnotation annotation) : base(annotation) {
     }
 

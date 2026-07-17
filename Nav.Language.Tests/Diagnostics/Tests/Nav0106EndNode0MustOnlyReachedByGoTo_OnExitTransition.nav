@@ -14,4 +14,4 @@ task A
     I1   --> C;
     C:e1 o-> end;
 }
-//==>>[Semantic](15,10,15,13): error Nav0106: End node 'end' must only be reached by -->
+//==>>[Semantic](15,10,15,13): error Nav0106: End node 'end' can only be reached by a goto edge (-->)

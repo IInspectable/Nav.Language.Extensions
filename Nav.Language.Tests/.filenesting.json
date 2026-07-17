@@ -1,0 +1,15 @@
+﻿{
+  "help": "https://go.microsoft.com/fwlink/?linkid=866610",
+  "dependentFileProviders": {
+    "add": {
+      "addedExtension": {
+        "add": {
+          ".tokens": [ ".nav" ],
+          ".tree":   [ ".nav" ],
+          ".trivia": [ ".nav" ],
+          ".diag":   [ ".nav" ]
+        }
+      }
+    }
+  }
+}

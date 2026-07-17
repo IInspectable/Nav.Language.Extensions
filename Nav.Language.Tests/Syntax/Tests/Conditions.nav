@@ -1,0 +1,14 @@
+﻿task T
+{
+    init I1;
+    exit E1;
+    end;
+    choice C1;
+    view V1;
+    view V2;
+
+    I1 --> C1;
+    C1 --> V1 if "X";
+    C1 --> V2 else if "Y";
+    C1 ==> end else;
+}

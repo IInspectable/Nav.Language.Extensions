@@ -9,6 +9,12 @@ using Pharmatechnik.Nav.Language.Text;
 
 namespace Pharmatechnik.Nav.Language.CodeFixes.Refactoring; 
 
+/// <summary>
+/// Führt vor dem Ziel einer Transition eine neue Choice ein: Der Fix schaltet einen frisch deklarierten
+/// Choice-Knoten zwischen die Quelle und das bisherige Ziel, indem er die vorhandene Ziel-Referenz auf
+/// die Choice umbiegt und eine neue Transition von der Choice zum ursprünglichen Ziel ergänzt. Angeboten
+/// an einer Ziel-Knotenreferenz (siehe <see cref="CanApplyFix"/>).
+/// </summary>
 public class IntroduceChoiceCodeFix: RefactoringCodeFix {
 
     internal IntroduceChoiceCodeFix(INodeReferenceSymbol nodeReference, CodeFixContext context)
@@ -16,14 +22,25 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
         NodeReference = nodeReference ?? throw new ArgumentNullException(nameof(nodeReference));
     }
 
-    public INodeReferenceSymbol  NodeReference  { get; }
-    public ITaskDefinitionSymbol ContainingTask => NodeReference.Declaration?.ContainingTask;
+    /// <summary>Die Knotenreferenz (das Transitionsziel), vor der die Choice eingeführt wird.</summary>
+    public INodeReferenceSymbol   NodeReference  { get; }
+    /// <summary>Die Task-Definition, in der die neue Choice angelegt wird, oder <c>null</c>, wenn die Referenz unaufgelöst ist.</summary>
+    public ITaskDefinitionSymbol? ContainingTask => NodeReference.Declaration?.ContainingTask;
 
+    /// <summary>Der Anzeigename des Fixes: „Introduce Choice".</summary>
     public override string        Name         => "Introduce Choice";
+    /// <summary>Immer <see cref="CodeFixImpact.None"/> — eine Choice bleibt Nav-intern.</summary>
     public override CodeFixImpact Impact       => CodeFixImpact.None;
+    /// <summary>Der Bereich, an dem der Fix angeboten wird — die Location der <see cref="NodeReference"/>.</summary>
     public override TextExtent?   ApplicableTo => NodeReference.Location.Extent;
+    /// <summary>Priorität <see cref="CodeFixPrio.Medium"/>.</summary>
     public override CodeFixPrio   Prio         => CodeFixPrio.Medium;
 
+    /// <summary>
+    /// Schlägt einen im umgebenden Task noch freien Choice-Namen vor: ausgehend von
+    /// <c>Choice_&lt;Zielname&gt;</c> wird bei Kollision eine laufende Nummer angehängt, bis
+    /// <see cref="ValidateChoiceName"/> keinen Fehler mehr meldet.
+    /// </summary>
     public string SuggestChoiceName() {
         string baseName   = $"Choice_{NodeReference.Name}";
         string choiceName = baseName;
@@ -35,6 +52,11 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
         return choiceName;
     }
 
+    /// <summary>
+    /// Ob der Fix anwendbar ist: nur an einem Transitionsziel
+    /// (<see cref="NodeReferenceType.Target"/>) mit aufgelöster Deklaration und einer Quelle sowie einem
+    /// Kantenmodus an der Edge — nur dann lässt sich die Choice sinnvoll dazwischenschalten.
+    /// </summary>
     internal bool CanApplyFix() {
 
         return NodeReference.NodeReferenceType    == NodeReferenceType.Target &&
@@ -43,17 +65,29 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
                NodeReference.Edge.EdgeMode        != null;
     }
 
-    public string ValidateChoiceName(string choiceName) {
+    /// <summary>
+    /// Prüft <paramref name="choiceName"/> als neuen Choice-Namen gegen den umgebenden Task und liefert
+    /// eine Fehlermeldung bei Unzulässigkeit (etwa Namenskollision), sonst <c>null</c>.
+    /// </summary>
+    public string? ValidateChoiceName(string? choiceName) {
         return ContainingTask.ValidateNewNodeName(choiceName);
     }
 
-    public IList<TextChange> GetTextChanges(string choiceName) {
+    /// <summary>
+    /// Berechnet die Textänderungen zum Einführen der Choice mit dem Namen <paramref name="choiceName"/>:
+    /// eine neue <c>choice</c>-Deklaration bei der Ziel-Knotendeklaration, das Umbiegen der vorhandenen
+    /// Ziel-Referenz auf die Choice, das Angleichen des Kantenmodus auf <c>--&gt;</c> und eine neue
+    /// Transition von der Choice zum bisherigen Ziel. Wirft eine <see cref="InvalidOperationException"/>,
+    /// wenn <see cref="CanApplyFix"/> nicht erfüllt ist, bzw. eine <see cref="ArgumentException"/> bei
+    /// unzulässigem <paramref name="choiceName"/>.
+    /// </summary>
+    public IList<TextChange> GetTextChanges(string? choiceName) {
 
         if (!CanApplyFix()) {
             throw new InvalidOperationException();
         }
 
-        choiceName = choiceName?.Trim();
+        choiceName = choiceName?.Trim() ?? String.Empty;
 
         var validationMessage = ValidateChoiceName(choiceName);
         if (!String.IsNullOrEmpty(validationMessage)) {
@@ -62,9 +96,9 @@ public class IntroduceChoiceCodeFix: RefactoringCodeFix {
 
         var edge       = NodeReference.Edge;
         var edgeMode   = edge.EdgeMode;
-        var nodeSymbol = NodeReference.Declaration;
+        // CanApplyFix (oben geprüft) garantiert NodeReference.Declaration != null.
+        var nodeSymbol = NodeReference.Declaration!;
 
-        // ReSharper disable once PossibleNullReferenceException Check ist schon in CanApplyFix passiert
         var nodeDeclarationLine = SyntaxTree.SourceText.GetTextLineAtPosition(nodeSymbol.Start);
         var nodeTransitionLine  = SyntaxTree.SourceText.GetTextLineAtPosition(NodeReference.End);
 

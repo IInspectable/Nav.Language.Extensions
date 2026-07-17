@@ -1,0 +1,4 @@
+﻿# Lokale Build-Ausgaben dieses Testprojekts (bewusst projekt-lokal gehalten,
+# damit sich das Projekt ohne Eingriff in die Wurzel-.gitignore verschieben lässt).
+/bin/
+/obj/

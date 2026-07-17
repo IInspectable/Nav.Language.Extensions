@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Löscht einen Branch vollständig: lokaler Branch, zugehöriger Worktree-Ordner und
     Remote-Branch.

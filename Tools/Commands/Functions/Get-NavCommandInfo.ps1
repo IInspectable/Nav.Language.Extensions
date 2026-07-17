@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Ermittelt die Nav-Commands generisch aus den Functions-Dateien.
 

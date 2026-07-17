@@ -1,0 +1,218 @@
+﻿#region Using Directives
+
+using System.Linq;
+using System.Threading;
+
+using NUnit.Framework;
+
+using Pharmatechnik.Nav.Language.CodeAnalysis.Annotation;
+using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
+
+#endregion
+
+namespace Nav.Language.CodeAnalysis.Tests.Init;
+
+/// <summary>
+/// Nav → C# und C# → C# rund um den <c>init</c>-Knoten:
+/// <list type="bullet">
+///   <item>Nav → C#: vom eigenen <c>init X</c>-Knoten auf die generierte <c>{Begin}Logic</c>
+///         (<see cref="LocationFinder.FindTaskBeginDeclarationLocationAsync"/>);</item>
+///   <item>C# → C#: von der Aufrufstelle <c>next.Begin{Child}()</c> eines geöffneten Sub-Tasks auf dessen
+///         <c>{Child}</c>-<c>BeginLogic</c>
+///         (<see cref="LocationFinder.FindCallBeginLogicDeclarationLocationsAsync"/>);</item>
+///   <item>C# → C#: von derselben Aufrufstelle auf die zugehörige <c>After{Child}</c>-Rücksprungmethode
+///         (<see cref="LocationFinder.FindInitCallAfterLocation"/>).</item>
+/// </list>
+/// </summary>
+[TestFixture]
+public class InitGoToCSharpTests {
+
+    [Test]
+    public void GeneratedStage_ResolvesWfsBaseWithBeginLogic() {
+
+        // Absicherung der Bühne: Die generierte {Task}WFSBase muss die {Begin}Logic tragen — daran hängt
+        // der Nav→C#-Sprung. Ein vollständig fehlerfreier Compile ist hier bewusst NICHT die Messlatte.
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow);
+
+        var initInfo = ctx.InitInfo("Init1");
+        var wfsBase  = ctx.ResolveGeneratedType(initInfo.ContainingTask.FullyQualifiedWfsBaseName);
+
+        Assert.That(wfsBase,                                        Is.Not.Null);
+        Assert.That(wfsBase.GetMembers(initInfo.BeginLogicMethodName), Is.Not.Empty);
+    }
+
+    [Test]
+    public void InitNode_JumpsToBeginLogic() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow);
+
+        var location = LocationFinder.FindTaskBeginDeclarationLocationAsync(
+                                          ctx.Project, ctx.InitInfo("Init1"), CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitNode_JumpsToBeginLogic),
+                           NavigationDirection.NavToCSharp,
+                           """
+                           F12 auf `init Init1` landet auf der zugehörigen BeginLogic (via <NavInit>Init1) im konkreten
+                           WFS — der Golden pinnt Datei + exakten Span, nicht bloß irgendein BeginLogic-Overload.
+                           """);
+    }
+
+    [Test]
+    public void SecondInitNode_JumpsToItsOwnBeginLogic() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow);
+
+        // Symmetrie zu SecondTaskDeclaration_*/SecondTrigger_*: der zweite init-Knoten (init Begin im
+        // Sub-Task Child) muss zielgenau auf die BeginLogic der ChildWFS landen — nicht auf die des
+        // umgebenden InitFlow.
+        var location = LocationFinder.FindTaskBeginDeclarationLocationAsync(
+                                          ctx.Project, ctx.InitInfo("Begin"), CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(SecondInitNode_JumpsToItsOwnBeginLogic),
+                           NavigationDirection.NavToCSharp,
+                           "F12 auf den zweiten `init Begin`-Knoten springt zielgenau auf die BeginLogic der ChildWFS (nicht InitFlowWFS).");
+    }
+
+    [Test]
+    public void InitCallSite_JumpsToChildBeginLogic() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);
+
+        // Annotationsgetriebener Pfad: von der Aufrufstelle next.BeginChild() über die IBeginChildWFS-
+        // Schnittstelle auf die BeginLogic der lokal definierten ChildWFS.
+        // Versions-Annahme: dieser Pfad kennt keine Sprach-Version und sucht die BeginLogic der
+        // Default-Generation; grün gegen die #version-2-Fixture nur, weil V2 == V1 in diesen Namen — als
+        // ausführbare Invariante gepinnt in CallSiteVersionAssumptionTests.
+        var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
+                                          ctx.Project, ctx.InitCallAnnotation("IBeginChildWFS"), CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_JumpsToChildBeginLogic),
+                           NavigationDirection.CSharpToCSharp,
+                           "Von der Aufrufstelle next.BeginChild() auf die BeginLogic der geöffneten ChildWFS (lokal definierter Sub-Task).");
+    }
+
+    [Test]
+    public void InitCallSite_JumpsToAfterMethod() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);
+
+        // Zweites Ziel der Aufrufstelle next.BeginChild(): die zugehörige After{Node}-Rücksprungmethode.
+        // Der Begin-Prefix wird abgestreift (BeginChild → Child) und die <NavExit>-Annotation mit
+        // passendem ExitTaskName + Task/Datei-Verankerung gesucht — VS-freie Suchlogik im LocationFinder,
+        // dieselbe, die der NavInitCallLocationInfoProvider (VS) für sein zweites Ziel nutzt.
+        var location = LocationFinder.FindInitCallAfterLocation(
+            ctx.InitCallAnnotation("IBeginChildWFS"),
+            ctx.ReadAnnotations().OfType<NavExitAnnotation>());
+
+        Assert.That(location, Is.Not.Null);
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_JumpsToAfterMethod),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle next.BeginChild() auf die zugehörige After{Node}-Rücksprungmethode —
+                           der Golden pinnt Datei + exakten Span (Anzeigename = Methoden-Bezeichner).
+                           """);
+    }
+
+    [Test]
+    public void InitCallSite_NoMatchingExit_ReturnsNull() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode);
+
+        // Ohne passende Exit-Annotation gibt es kein zweites Ziel: FindInitCallAfterLocation liefert null
+        // (der Host bietet dann nur das BeginLogic-Ziel an) — bewusst KEINE LocationNotFoundException.
+        var location = LocationFinder.FindInitCallAfterLocation(
+            ctx.InitCallAnnotation("IBeginChildWFS"),
+            Enumerable.Empty<NavExitAnnotation>());
+
+        Assert.That(location, Is.Null);
+    }
+
+    [Test]
+    public void InitCallSite_ResolvesBeginLogicOverloadByParameters() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.OverloadFlow, InitFixtures.OverloadFlowUserCode);
+
+        // Overload-Auflösung (V1): Der Sub-Task OverChild hat zwei parametrische init-Knoten → zwei
+        // BeginLogic-Overloads (BeginLogic(string) / BeginLogic(string, bool)). Die Aufrufstelle
+        // BeginOverChild(wfs, "hi", true) trägt drei Parameter; der Finder streift den führenden
+        // IBegin-Parameter ab (Skip(1) → [string, bool]) und muss den passenden BeginLogic-Overload wählen.
+        // Das übt FindBestBeginLogicOverload/GetParameterMatchCount ECHT aus (in V2 fiele der Match trivial
+        // aus, weil der Wrapper dort keinen führenden IBegin-Parameter trägt): der 2-Parameter-Overload
+        // BeginLogic(string) wird als zu kurz per MatchCount -1 verworfen, BeginLogic(string, bool) gewinnt
+        // mit MatchCount 2.
+        var callWithFlag = ctx.ReadAnnotations()
+                              .OfType<NavInitCallAnnotation>()
+                              .Single(a => a.Parameter.Count == 3);
+
+        var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
+                                          ctx.Project, callWithFlag, CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_ResolvesBeginLogicOverloadByParameters),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle BeginOverChild(wfs, "hi", true) auf den passenden Overload
+                           BeginLogic(string, bool) — der Golden pinnt den Span des ZWEI-Parameter-Overloads,
+                           nicht des einparametrigen BeginLogic(string).
+                           """);
+    }
+
+    [Test]
+    public void InitCallSite_AmbiguousOverload_PicksFewestParameters() {
+
+        var ctx = CodeAnalysisTestContext.FromNav(InitFixtures.OverloadFlow, InitFixtures.OverloadFlowUserCode);
+
+        // Tiebreak-Zweig der Overload-Auflösung: Die Aufrufstelle BeginOverChild(wfs, "hi") hat nach dem
+        // Abstreifen des IBegin-Parameters nur [string]. Damit passen BEIDE BeginLogic-Overloads mit
+        // demselben MatchCount 1 (BeginLogic(string) exakt, BeginLogic(string, bool) im gemeinsamen Präfix).
+        // Der Tiebreak .ThenBy(ParameterCount) muss dann den kürzeren Overload BeginLogic(string) wählen.
+        var callTextOnly = ctx.ReadAnnotations()
+                              .OfType<NavInitCallAnnotation>()
+                              .Single(a => a.Parameter.Count == 2);
+
+        var location = LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(
+                                          ctx.Project, callTextOnly, CancellationToken.None)
+                                     .GetAwaiter().GetResult();
+
+        GoldenAssert.Match(location, ctx, nameof(InitCallSite_AmbiguousOverload_PicksFewestParameters),
+                           NavigationDirection.CSharpToCSharp,
+                           """
+                           Von der Aufrufstelle BeginOverChild(wfs, "hi") auf den kürzeren Overload
+                           BeginLogic(string) — bei gleichem MatchCount entscheidet der ParameterCount-Tiebreak.
+                           """);
+    }
+
+    [Test]
+    public void MissingWfs_ThrowsLocationNotFound() {
+
+        // Negativpfad: Der Init-Anker stammt aus InitFlow, die Roslyn-Bühne aber aus einem fremden Task
+        // OHNE dessen {Task}WFSBase. Der LocationFinder muss die fehlende Zielklasse als
+        // LocationNotFoundException melden, statt still null bzw. eine falsche Stelle zu liefern.
+        var initInfo       = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow).InitInfo("Init1");
+        var foreignProject = CodeAnalysisTestContext.ForeignProject();
+
+        Assert.That(
+            () => LocationFinder.FindTaskBeginDeclarationLocationAsync(foreignProject, initInfo, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
+    }
+
+    [Test]
+    public void MissingCallBeginLogic_ThrowsLocationNotFound() {
+
+        // Negativpfad des annotationsgetriebenen C#→C#-Sprungs: die <NavInitCall>-Aufrufstelle stammt aus
+        // InitFlow, die Roslyn-Bühne aber aus einem fremden Task OHNE das Ziel-Interface IBeginChildWFS. Der
+        // LocationFinder muss das fehlende Begin-Interface als LocationNotFoundException melden.
+        var initCall       = CodeAnalysisTestContext.FromNav(InitFixtures.InitFlow, InitFixtures.InitFlowUserCode)
+                                                    .InitCallAnnotation("IBeginChildWFS");
+        var foreignProject = CodeAnalysisTestContext.ForeignProject();
+
+        Assert.That(
+            () => LocationFinder.FindCallBeginLogicDeclarationLocationsAsync(foreignProject, initCall, CancellationToken.None)
+                                .GetAwaiter().GetResult(),
+            Throws.TypeOf<LocationNotFoundException>());
+    }
+}

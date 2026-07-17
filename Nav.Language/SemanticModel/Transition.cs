@@ -1,27 +1,38 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Gemeinsame Basis der Semantic-Model-Umsetzungen von <see cref="ITransition"/>
+/// (<see cref="InitTransition"/>, <see cref="ChoiceTransition"/>, <see cref="TriggerTransition"/>).
+/// Die Quellknoten-Fallunterscheidung trifft der <see cref="TaskDefinitionSymbolBuilder"/>;
+/// <see cref="ExitTransition"/> steht bewusst außerhalb dieser Hierarchie (eigene Syntax, kein
+/// <see cref="ITransition"/>).
+/// </summary>
 abstract class Transition: ITransition {
 
+    /// <summary>
+    /// Erzeugt die Transition und verankert sich als <c>Edge</c> ihrer nicht-null Referenzen
+    /// (Quelle, Kantenmodus, Ziel).
+    /// </summary>
     internal Transition(TransitionDefinitionSyntax syntax,
                         ITaskDefinitionSymbol containingTask,
-                        NodeReferenceSymbol sourceReference,
-                        EdgeModeSymbol edgeMode,
-                        NodeReferenceSymbol targetReference) {
+                        NodeReferenceSymbol? sourceReference,
+                        EdgeModeSymbol? edgeMode,
+                        NodeReferenceSymbol? targetReference,
+                        ContinuationTransition? continuationTransition) {
 
-        ContainingTask  = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
-        Syntax          = syntax         ?? throw new ArgumentNullException(nameof(syntax));
-        SourceReference = sourceReference;
-        EdgeMode        = edgeMode;
-        TargetReference = targetReference;
+        ContainingTask         = containingTask ?? throw new ArgumentNullException(nameof(containingTask));
+        Syntax                 = syntax         ?? throw new ArgumentNullException(nameof(syntax));
+        SourceReference        = sourceReference;
+        EdgeMode               = edgeMode;
+        TargetReference        = targetReference;
+        ContinuationTransition = continuationTransition;
 
         if (sourceReference != null) {
             sourceReference.Edge = this;
@@ -37,25 +48,24 @@ abstract class Transition: ITransition {
 
     }
 
-    [NotNull]
     public ITaskDefinitionSymbol ContainingTask { get; }
 
-    [NotNull]
     public Location Location => Syntax.GetLocation();
 
-    [NotNull]
     public TransitionDefinitionSyntax Syntax { get; }
 
-    [CanBeNull]
-    public INodeReferenceSymbol SourceReference { get; }
+    public INodeReferenceSymbol? SourceReference { get; }
 
-    [CanBeNull]
-    public IEdgeModeSymbol EdgeMode { get; }
+    public IEdgeModeSymbol? EdgeMode { get; }
 
-    [CanBeNull]
-    public INodeReferenceSymbol TargetReference { get; }
+    public INodeReferenceSymbol? TargetReference { get; }
 
-    [NotNull]
+    public IContinuationTransition? ContinuationTransition { get; }
+
+    /// <summary>
+    /// Liefert die zur Transition gehörenden Teil-Symbole (Quelle, Kantenmodus, Ziel), soweit
+    /// vorhanden — die Symbole eines Continuation-Anhangs eingeschlossen.
+    /// </summary>
     public virtual IEnumerable<ISymbol> Symbols() {
 
         if (SourceReference != null) {
@@ -68,6 +78,12 @@ abstract class Transition: ITransition {
 
         if (TargetReference != null) {
             yield return TargetReference;
+        }
+
+        if (ContinuationTransition != null) {
+            foreach (var symbol in ContinuationTransition.Symbols()) {
+                yield return symbol;
+            }
         }
     }
 

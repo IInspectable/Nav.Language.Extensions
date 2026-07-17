@@ -18,23 +18,41 @@ namespace Pharmatechnik.Nav.Language.Extension.Classification;
 
 // ReSharper disable UnassignedField.Local
 #pragma warning disable 0169
+/// <summary>
+/// MEF-Registrierung sämtlicher Nav-eigener Klassifizierungstypen samt ihrer Darstellung. Für jeden
+/// Namen aus <see cref="ClassificationTypeNames"/> wird hier ein
+/// <see cref="Microsoft.VisualStudio.Text.Classification.ClassificationTypeDefinition"/> exportiert
+/// (mit Basis-Klassifizierung via <c>[BaseDefinition]</c>) und eine
+/// <see cref="Microsoft.VisualStudio.Text.Classification.ClassificationFormatDefinition"/> für Farbe,
+/// Schriftschnitt und Priorität. Zusätzlich liefert
+/// <see cref="GetSyntaxTokenClassificationMap"/> die Zuordnung der lexikalischen
+/// <see cref="TextClassification"/>-Kategorien auf die registrierten Klassifizierungstypen, die die
+/// Tagger zum Einfärben nutzen.
+/// </summary>
 static class ClassificationTypeDefinitions {
 
     //======================================
     //      Die Farben sollen derzeit nicht 
     //      anpassbar sein.
     //======================================
+    /// <summary>
+    /// Schaltet die Sichtbarkeit der Nav-Formatdefinitionen im Optionsdialog „Schriftarten und Farben".
+    /// Bewusst <c>false</c>, da die Nav-Farben derzeit nicht anpassbar sein sollen.
+    /// </summary>
     static class Is {
 
+        /// <summary>Steuert das <c>[UserVisible]</c>-Attribut der Formatdefinitionen (aktuell <c>false</c>).</summary>
         public const bool UserVisible = false;
 
     }
 
     #region Keyword
 
+    /// <summary>Klassifizierungstyp für Nav-Schlüsselwörter (<see cref="ClassificationTypeNames.Keyword"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Keyword)] [BaseDefinition(PredefinedClassificationTypeNames.Keyword)]
     public static ClassificationTypeDefinition Keyword;
 
+    /// <summary>Darstellung (Anzeigename) der Schlüsselwort-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Keyword)]
     [UserVisible(Is.UserVisible)]
@@ -51,11 +69,13 @@ static class ClassificationTypeDefinitions {
 
     #region ControlKeyword
 
+    /// <summary>Klassifizierungstyp für Steuerfluss-Schlüsselwörter (<see cref="ClassificationTypeNames.ControlKeyword"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] 
     [Name(ClassificationTypeNames.ControlKeyword)] 
     [BaseDefinition(CSharpClassificationTypeNames.ControlKeyword)]
     public static ClassificationTypeDefinition ControlKeyword;
 
+    /// <summary>Darstellung (Anzeigename) der Steuerfluss-Schlüsselwort-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.ControlKeyword)]
     [UserVisible(Is.UserVisible)]
@@ -72,9 +92,11 @@ static class ClassificationTypeDefinitions {
 
     #region Comment
 
+    /// <summary>Klassifizierungstyp für Kommentare (<see cref="ClassificationTypeNames.Comment"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Comment)] [BaseDefinition(PredefinedClassificationTypeNames.Comment)]
     public static ClassificationTypeDefinition Comment;
 
+    /// <summary>Darstellung (Anzeigename) der Kommentar-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Comment)]
     [UserVisible(Is.UserVisible)] // This should be visible to the end user
@@ -92,9 +114,11 @@ static class ClassificationTypeDefinitions {
 
     #region Identifier
 
+    /// <summary>Klassifizierungstyp für allgemeine Bezeichner (<see cref="ClassificationTypeNames.Identifier"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Identifier)] [BaseDefinition(PredefinedClassificationTypeNames.Identifier)]
     public static ClassificationTypeDefinition Identifier;
 
+    /// <summary>Darstellung (Anzeigename) der Bezeichner-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Identifier)]
     [UserVisible(Is.UserVisible)]
@@ -111,9 +135,11 @@ static class ClassificationTypeDefinitions {
 
     #region String
 
+    /// <summary>Klassifizierungstyp für String-Literale (<see cref="ClassificationTypeNames.StringLiteral"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.StringLiteral)] [BaseDefinition(PredefinedClassificationTypeNames.String)]
     public static ClassificationTypeDefinition String;
 
+    /// <summary>Darstellung (Anzeigename) der String-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.StringLiteral)]
     [UserVisible(Is.UserVisible)]
@@ -130,9 +156,11 @@ static class ClassificationTypeDefinitions {
 
     #region FormName
 
+    /// <summary>Klassifizierungstyp für GUI-Knoten (View-/Dialog-Knoten, <see cref="ClassificationTypeNames.GuiNode"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.GuiNode)] [BaseDefinition(CSharpClassificationTypeNames.LocalName)]
     public static ClassificationTypeDefinition Type;
 
+    /// <summary>Darstellung (Anzeigename) der GUI-Knoten-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.GuiNode)]
     [UserVisible(Is.UserVisible)]
@@ -149,9 +177,11 @@ static class ClassificationTypeDefinitions {
 
     #region TaskName
 
+    /// <summary>Klassifizierungstyp für Task-Namen (<see cref="ClassificationTypeNames.TaskName"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.TaskName)] [BaseDefinition(CSharpClassificationTypeNames.ClassName)]
     public static ClassificationTypeDefinition TaskName;
 
+    /// <summary>Darstellung (Anzeigename) der Task-Namen-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.TaskName)]
     [UserVisible(Is.UserVisible)]
@@ -168,9 +198,11 @@ static class ClassificationTypeDefinitions {
 
     #region TypeName
 
+    /// <summary>Klassifizierungstyp für Typnamen (<see cref="ClassificationTypeNames.TypeName"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.TypeName)] [BaseDefinition(CSharpClassificationTypeNames.ClassName)]
     public static ClassificationTypeDefinition TypeName;
 
+    /// <summary>Darstellung (Anzeigename) der Typnamen-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.TypeName)]
     [UserVisible(Is.UserVisible)]
@@ -187,9 +219,11 @@ static class ClassificationTypeDefinitions {
 
     #region Punctuation
 
+    /// <summary>Klassifizierungstyp für Satzzeichen (<see cref="ClassificationTypeNames.Punctuation"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Punctuation)] [BaseDefinition(CSharpClassificationTypeNames.Punctuation)]
     public static ClassificationTypeDefinition Punctuation;
 
+    /// <summary>Darstellung (Anzeigename) der Satzzeichen-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Punctuation)]
     [UserVisible(Is.UserVisible)]
@@ -206,9 +240,14 @@ static class ClassificationTypeDefinitions {
 
     #region Unknown
 
+    /// <summary>
+    /// Klassifizierungstyp für unbekannte/fehlerhafte Token (<see cref="ClassificationTypeNames.Unknown"/>);
+    /// erbt von der VS-Basis-Klassifizierung „Syntax Error".
+    /// </summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Unknown)] [BaseDefinition("Syntax Error")]
     public static ClassificationTypeDefinition Unknown;
 
+    /// <summary>Darstellung (Anzeigename) der Unbekannt-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Unknown)]
     [UserVisible(Is.UserVisible)]
@@ -225,9 +264,11 @@ static class ClassificationTypeDefinitions {
 
     #region DeadCode
 
+    /// <summary>Klassifizierungstyp für toten Code (<see cref="ClassificationTypeNames.DeadCode"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.DeadCode)] [BaseDefinition(PredefinedClassificationTypeNames.FormalLanguage)]
     public static ClassificationTypeDefinition DeadCode;
 
+    /// <summary>Darstellung des toten Codes: halbtransparent (<c>ForegroundOpacity = 0.5</c>).</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.DeadCode)]
     [UserVisible(Is.UserVisible)]
@@ -245,9 +286,11 @@ static class ClassificationTypeDefinitions {
 
     #region ChoiceNode
 
+    /// <summary>Klassifizierungstyp für Choice-Knoten (<see cref="ClassificationTypeNames.ChoiceNode"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.ChoiceNode)] [BaseDefinition(CSharpClassificationTypeNames.MethodName)]
     public static ClassificationTypeDefinition ChoiceNode;
 
+    /// <summary>Darstellung der Choice-Knoten: kursiv.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.ChoiceNode)]
     [UserVisible(Is.UserVisible)]
@@ -264,9 +307,11 @@ static class ClassificationTypeDefinitions {
 
     #region ConnectionPoint
 
+    /// <summary>Klassifizierungstyp für ConnectionPoints (Init-/Exit-Knoten, <see cref="ClassificationTypeNames.ConnectionPoint"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.ConnectionPoint)] [BaseDefinition(ClassificationTypeNames.Identifier)]
     public static ClassificationTypeDefinition ConnectionPoint;
 
+    /// <summary>Darstellung der ConnectionPoints: fett.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.ConnectionPoint)]
     [UserVisible(Is.UserVisible)]
@@ -284,9 +329,11 @@ static class ClassificationTypeDefinitions {
 
     #region Underline
 
+    /// <summary>Klassifizierungstyp für Unterstreichungen (<see cref="ClassificationTypeNames.Underline"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.Underline)] [BaseDefinition(PredefinedClassificationTypeNames.FormalLanguage)]
     public static ClassificationTypeDefinition Underline;
 
+    /// <summary>Darstellung der Unterstreichung: fügt eine an die Schriftgröße angepasste Unterstreichungs-Dekoration hinzu.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.Underline)]
     [UserVisible(Is.UserVisible)]
@@ -311,11 +358,13 @@ static class ClassificationTypeDefinitions {
 
     #region ParameterName
 
+    /// <summary>Klassifizierungstyp für Parameternamen (<see cref="ClassificationTypeNames.ParameterName"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] 
     [Name(ClassificationTypeNames.ParameterName)] 
     [BaseDefinition(CSharpClassificationTypeNames.ParameterName)]
     public static ClassificationTypeDefinition Parameter;
 
+    /// <summary>Darstellung (Anzeigename) der Parameternamen-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.ParameterName)]
     [UserVisible(Is.UserVisible)]
@@ -332,9 +381,11 @@ static class ClassificationTypeDefinitions {
 
     #region PreprocessorKeyword
 
+    /// <summary>Klassifizierungstyp für Präprozessor-Schlüsselwörter (<see cref="ClassificationTypeNames.PreprocessorKeyword"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.PreprocessorKeyword)] [BaseDefinition(CSharpClassificationTypeNames.PreprocessorKeyword)]
     public static ClassificationTypeDefinition PreprocessorKeyword;
 
+    /// <summary>Darstellung (Anzeigename) der Präprozessor-Schlüsselwort-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.PreprocessorKeyword)]
     [UserVisible(Is.UserVisible)]
@@ -351,9 +402,11 @@ static class ClassificationTypeDefinitions {
 
     #region PreprocessorText
 
+    /// <summary>Klassifizierungstyp für den Text von Präprozessor-Direktiven (<see cref="ClassificationTypeNames.PreprocessorText"/>).</summary>
     [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.PreprocessorText)] [BaseDefinition(CSharpClassificationTypeNames.PreprocessorText)]
     public static ClassificationTypeDefinition PreprocessorText;
 
+    /// <summary>Darstellung (Anzeigename) der Präprozessor-Text-Klassifizierung.</summary>
     [Export(typeof(EditorFormatDefinition))]
     [Name(ClassificationTypeNames.PreprocessorText)]
     [UserVisible(Is.UserVisible)]
@@ -368,6 +421,35 @@ static class ClassificationTypeDefinitions {
 
     #endregion
 
+    #region NumberLiteral
+
+    /// <summary>Klassifizierungstyp für Zahlenliterale (<see cref="ClassificationTypeNames.NumberLiteral"/>).</summary>
+    [Export(typeof(ClassificationTypeDefinition))] [Name(ClassificationTypeNames.NumberLiteral)] [BaseDefinition(CSharpClassificationTypeNames.NumericLiteral)]
+    public static ClassificationTypeDefinition NumberLiteral;
+
+    /// <summary>Darstellung (Anzeigename) der Zahlenliteral-Klassifizierung.</summary>
+    [Export(typeof(EditorFormatDefinition))]
+    [Name(ClassificationTypeNames.NumberLiteral)]
+    [UserVisible(Is.UserVisible)]
+    [Order(Before = Priority.Default)]
+    public sealed class NumberLiteralClassificationFormatDefinition: ClassificationFormatDefinition {
+
+        public NumberLiteralClassificationFormatDefinition() {
+            DisplayName = "Nav Number";
+        }
+
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Bildet die lexikalischen <see cref="TextClassification"/>-Kategorien des Nav-Lexers auf die in VS
+    /// registrierten <see cref="IClassificationType"/>-Instanzen ab. Der syntaktische Tagger
+    /// (<see cref="SyntacticClassificationTagger"/>) nutzt diese Zuordnung, um jedem Token seinen
+    /// Klassifizierungstyp und damit seine Einfärbung zuzuweisen.
+    /// </summary>
+    /// <param name="registry">Registrierungsdienst, über den die benannten Klassifizierungstypen aufgelöst werden.</param>
+    /// <returns>Unveränderliche Zuordnung von <see cref="TextClassification"/> auf <see cref="IClassificationType"/>.</returns>
     public static ImmutableDictionary<TextClassification, IClassificationType> GetSyntaxTokenClassificationMap(IClassificationTypeRegistryService registry) {
 
         var classificationMap = new Dictionary<TextClassification, IClassificationType> {
@@ -388,6 +470,7 @@ static class ClassificationTypeDefinitions {
             {TextClassification.ParameterName      , registry.GetClassificationType(ClassificationTypeNames.ParameterName)},
             {TextClassification.PreprocessorKeyword, registry.GetClassificationType(ClassificationTypeNames.PreprocessorKeyword)},
             {TextClassification.PreprocessorText   , registry.GetClassificationType(ClassificationTypeNames.PreprocessorText)},
+            {TextClassification.NumberLiteral      , registry.GetClassificationType(ClassificationTypeNames.NumberLiteral)},
         };
 
         return classificationMap.ToImmutableDictionary();

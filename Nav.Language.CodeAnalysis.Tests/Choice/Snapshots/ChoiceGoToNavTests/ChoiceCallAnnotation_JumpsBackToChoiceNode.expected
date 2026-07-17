@@ -1,0 +1,5 @@
+﻿// C# → Nav
+// GoTo direkt auf next.Choice_Retry(…) landet ebenfalls auf dem `choice Choice_Retry`-Knoten.
+
+<nav> (34,12)-(34,24)  "Choice_Retry"
+    choice Choice_Retry    [params string reason];

@@ -4,84 +4,113 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-
-using JetBrains.Annotations;
 
 #endregion
 
 namespace Pharmatechnik.Nav.Language.CodeGen; 
 
+/// <summary>
+/// Factory für einen <see cref="IFileGenerator"/> — das Gegenstück zu
+/// <see cref="ICodeGeneratorProvider"/> für die dateisystem-schreibende Stufe der Pipeline.
+/// </summary>
 public interface IFileGeneratorProvider {
 
+    /// <summary>Erzeugt einen <see cref="IFileGenerator"/> mit den gegebenen <paramref name="options"/>.</summary>
     IFileGenerator Create(GenerationOptions options);
 
 }
 
+/// <summary>
+/// Die dateisystem-schreibende Stufe der Codegen-Pipeline: nimmt die von einem
+/// <see cref="ICodeGenerator"/> erzeugten Specs eines <see cref="CodeGenerationResult"/> entgegen
+/// und materialisiert sie auf der Platte. <see cref="IDisposable"/> aus Symmetrie zum
+/// <see cref="ICodeGenerator"/> und für künftige Ressourcen der Schreibstufe.
+/// </summary>
 public interface IFileGenerator: IDisposable {
 
+    /// <summary>
+    /// Schreibt die Artefakte eines <see cref="CodeGenerationResult"/> gemäß der jeweiligen
+    /// <see cref="CodeGenerationSpec.OverwritePolicy"/> auf die Platte und liefert je Datei ein
+    /// <see cref="FileGeneratorResult"/>.
+    /// </summary>
     ImmutableArray<FileGeneratorResult> Generate(CodeGenerationResult codeGenerationResult);
 
 }
 
+/// <summary>Die Standard-Factory für den <see cref="FileGenerator"/> (zustandsloser Singleton, siehe <see cref="Default"/>).</summary>
 public sealed class FileGeneratorProvider: IFileGeneratorProvider {
 
     FileGeneratorProvider() {
 
     }
 
+    /// <summary>Der prozessweit geteilte Standard-Provider.</summary>
     public static readonly IFileGeneratorProvider Default = new FileGeneratorProvider();
 
+    /// <summary>Erzeugt einen <see cref="FileGenerator"/> mit den gegebenen <paramref name="options"/>.</summary>
     public IFileGenerator Create(GenerationOptions options) {
         return new FileGenerator(options);
     }
 
 }
 
+/// <summary>
+/// Schreibt die Artefakte eines <see cref="CodeGenerationResult"/> gemäß ihrer
+/// <see cref="CodeGenerationSpec.OverwritePolicy"/> auf die Platte. Die Stufe ist bewusst
+/// versionsfrei: welche und wie viele Artefakte entstehen, entscheidet allein der
+/// <see cref="ICodeGenerator"/>; hier wird jeder Spec nur noch anhand seiner Policy und des
+/// Ist-Zustands der Zieldatei geschrieben oder übersprungen.
+/// </summary>
 public class FileGenerator: Generator, IFileGenerator {
 
+    /// <summary>Erzeugt den Schreib-Generator mit den gegebenen <paramref name="options"/> (z.B. <see cref="GenerationOptions.Force"/>, <see cref="GenerationOptions.Encoding"/>).</summary>
     public FileGenerator(GenerationOptions options): base(options) {
     }
 
+    /// <summary>
+    /// Schreibt alle Specs des <paramref name="codeGenerationResult"/> und liefert je Spec ein
+    /// <see cref="FileGeneratorResult"/> (auch bei <see cref="FileGeneratorAction.Skiped"/>). Der
+    /// abschließende <c>WhereNotNull</c> ist rein defensiv — <see cref="WriteFile"/> liefert im
+    /// Normalfall stets ein Ergebnis.
+    /// </summary>
     public ImmutableArray<FileGeneratorResult> Generate(CodeGenerationResult codeGenerationResult) {
 
         if (codeGenerationResult == null) {
             throw new ArgumentNullException(nameof(codeGenerationResult));
         }
 
-        var results = new List<FileGeneratorResult> {
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IWfsCodeSpec,      OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.IBeginWfsCodeSpec, OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.WfsBaseCodeSpec,   OverwritePolicy.WhenChanged),
-            WriteFile(codeGenerationResult.TaskDefinition, codeGenerationResult.WfsCodeSpec,       OverwritePolicy.Never)
-        };
+        // Die Weiche über die Artefakt-Menge liegt vollständig im Generator: hier wird jeder Spec
+        // schlicht gemäß seiner eigenen OverwritePolicy geschrieben — versionsfrei.
+        var results = new List<FileGeneratorResult?>();
 
-        foreach (var toCodeSpec in codeGenerationResult.ToCodeSpecs) {
-            results.Add(WriteFile(codeGenerationResult.TaskDefinition, toCodeSpec, OverwritePolicy.Never));
+        foreach (var spec in codeGenerationResult.Specs) {
+            results.Add(WriteFile(codeGenerationResult.TaskDefinition, spec));
         }
 
-        return results.Where(result => result != null)
+        return results.WhereNotNull()
                       .ToImmutableArray();
     }
 
-    [CanBeNull]
-    FileGeneratorResult WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
+    /// <summary>
+    /// Schreibt einen einzelnen Spec — mit bis zu drei Versuchen (<see cref="Resilience"/>), um
+    /// kurzzeitige Schreibkonflikte (etwa ein noch geöffnetes Handle) zu überbrücken. Legt bei
+    /// Bedarf das Zielverzeichnis an, schreibt die Datei nur wenn <see cref="ShouldWrite"/> es
+    /// erlaubt, und meldet das Ergebnis als <see cref="FileGeneratorAction.Updated"/> bzw.
+    /// <see cref="FileGeneratorAction.Skiped"/>.
+    /// </summary>
+    FileGeneratorResult? WriteFile(ITaskDefinitionSymbol taskDefinition, CodeGenerationSpec codeGenerationSpec) {
 
         return Resilience.Execute(WriteFileImpl,
                                  maxAttempts: 3,
                                  retryDelay: TimeSpan.FromMilliseconds(10));
 
-        FileGeneratorResult WriteFileImpl() {
-
-            if (codeGenerationSpec.IsEmpty) {
-                return null;
-            }
+        FileGeneratorResult? WriteFileImpl() {
 
             EnsureDirectory(codeGenerationSpec.FilePath);
 
             var action = FileGeneratorAction.Skiped;
 
-            if (ShouldWrite(codeGenerationSpec, overwritePolicy)) {
+            if (ShouldWrite(codeGenerationSpec)) {
                 File.WriteAllText(codeGenerationSpec.FilePath, codeGenerationSpec.Content, Options.Encoding);
                 action = FileGeneratorAction.Updated;
             }
@@ -90,21 +119,29 @@ public class FileGenerator: Generator, IFileGenerator {
         }
     }
 
+    /// <summary>Stellt sicher, dass das Zielverzeichnis der Datei <paramref name="fileName"/> existiert.</summary>
     static void EnsureDirectory(string fileName) {
         var dir = Path.GetDirectoryName(fileName);
         // ReSharper disable once AssignNullToNotNullAttribute Lass krachen
         Directory.CreateDirectory(dir);
     }
 
-    bool ShouldWrite(CodeGenerationSpec codeGenerationSpec, OverwritePolicy overwritePolicy) {
+    /// <summary>
+    /// Entscheidet, ob der Spec tatsächlich auf die Platte geschrieben wird. Eine fehlende (oder de
+    /// facto leere, ≤ 4 Byte) Datei wird stets geschrieben; bei
+    /// <see cref="OverwritePolicy.Never"/> bleibt eine vorhandene Datei sonst unangetastet; bei
+    /// <see cref="OverwritePolicy.WhenChanged"/> wird nur bei tatsächlich geändertem Inhalt (oder
+    /// erzwungen per <see cref="GenerationOptions.Force"/>) neu geschrieben.
+    /// </summary>
+    bool ShouldWrite(CodeGenerationSpec codeGenerationSpec) {
 
         // Wenn die Datei nicht existiert, wird sie neu geschrieben
         if (!File.Exists(codeGenerationSpec.FilePath)) {
             return true;
         }
 
-        // Eine Datei mit der Größe 0 gilt als nicht existent, und wird neu geschrieben 
-        if (overwritePolicy == OverwritePolicy.Never) {
+        // Eine Datei mit der Größe 0 gilt als nicht existent, und wird neu geschrieben
+        if (codeGenerationSpec.OverwritePolicy == OverwritePolicy.Never) {
 
             var fileInfo = new FileInfo(codeGenerationSpec.FilePath);
             // Wenn z.B. in Visual Studio der Inhalt einer Datei gelöscht wird, dann hat die Datei auf Grund der 
@@ -126,13 +163,6 @@ public class FileGenerator: Generator, IFileGenerator {
         var fileContent = File.ReadAllText(codeGenerationSpec.FilePath);
 
         return !String.Equals(fileContent, codeGenerationSpec.Content, StringComparison.Ordinal);
-    }
-
-    enum OverwritePolicy {
-
-        Never,
-        WhenChanged
-
     }
 
 }

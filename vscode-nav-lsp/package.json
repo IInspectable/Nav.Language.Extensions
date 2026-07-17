@@ -1,12 +1,13 @@
 {
   "name": "nav-language",
   "displayName": "Nav Language",
-  "description": "VS-Code-Client für den Nav-LSP-Server",
+  "description": "Editor-Unterstützung für die Nav-Workflow-Sprache: Syntaxhervorhebung, semantische Analyse, IntelliSense, Navigation (Gehe zu / Referenzen / Aufrufhierarchie), Umbenennen und Code-Fixes.",
   "version": "0.0.0",
-  "publisher": "pharmatechnik",
+  "publisher": "Pharmatechnik",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Pharmatechnik/Nav.Language.Extensions.git"
+    "url": "https://github.com/IInspectable/Nav.Language.Extensions.git"
   },
   "engines": {
     "vscode": "^1.82.0"
@@ -16,6 +17,9 @@
   ],
   "activationEvents": [
     "onLanguage:nav"
+  ],
+  "extensionDependencies": [
+    "EditorConfig.EditorConfig"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -44,6 +48,11 @@
         "path": "./syntaxes/nav.tmLanguage.json"
       }
     ],
+    "configurationDefaults": {
+      "[nav]": {
+        "editor.detectIndentation": false
+      }
+    },
     "configuration": {
       "title": "Nav Language Server",
       "properties": {

@@ -17,6 +17,14 @@ using ThreadHelper = Microsoft.VisualStudio.Shell.ThreadHelper;
 
 namespace Pharmatechnik.Nav.Language.Extension; 
 
+/// <summary>
+/// Puffer-gebundener Dienst, der aus dem <see cref="SyntaxTreeAndSnapshot"/> des <see cref="ParserService"/>
+/// das Semantikmodell (<see cref="CodeGenerationUnitAndSnapshot"/>) berechnet und bei Änderungen im
+/// Hintergrund neu aufbaut. Host-Adapter über dem Engine-Kern <see cref="CodeGenerationUnit"/>: Als
+/// <see cref="ParserServiceDependent"/> reagiert er auf Parse-Ergebnisse; Konsumenten hängen sich über
+/// <see cref="SemanticModelChanging"/>/<see cref="SemanticModelChanged"/> ein. Pro Puffer existiert genau
+/// eine Instanz (siehe <see cref="GetOrCreateSingelton"/>).
+/// </summary>
 sealed class SemanticModelService: ParserServiceDependent {
 
     static readonly Logger Logger = Logger.Create<SemanticModelService>();
@@ -25,6 +33,11 @@ sealed class SemanticModelService: ParserServiceDependent {
     CodeGenerationUnitAndSnapshot _codeGenerationUnitAndSnapshot;
     bool                          _waitingForAnalysis;
 
+    /// <summary>
+    /// Baut die Reaktive-Extensions-Pipeline auf, die auf <see cref="RebuildTriggered"/> reagiert, im
+    /// Hintergrund das Semantikmodell berechnet und das jüngste Ergebnis auf dem UI-Thread übernimmt. Nicht
+    /// direkt aufrufen — den Puffer-Singleton über <see cref="GetOrCreateSingelton"/> beziehen.
+    /// </summary>
     SemanticModelService(ITextBuffer textBuffer): base(textBuffer) {
 
         _observable = Observable.FromEventPattern<EventArgs>(
@@ -44,6 +57,10 @@ sealed class SemanticModelService: ParserServiceDependent {
         _waitingForAnalysis = true;
     }
 
+    /// <summary>
+    /// Liefert die eindeutige, an <paramref name="textBuffer"/> gebundene <see cref="SemanticModelService"/>-Instanz
+    /// und legt sie beim ersten Aufruf an.
+    /// </summary>
     public static SemanticModelService GetOrCreateSingelton(ITextBuffer textBuffer)
     {
         return textBuffer.Properties.GetOrCreateSingletonProperty(
@@ -51,20 +68,41 @@ sealed class SemanticModelService: ParserServiceDependent {
             () => new SemanticModelService(textBuffer));
     }
 
+    /// <summary>
+    /// Meldet die <see cref="ParserService"/>-Events ab (Basis) und beendet die eigene Semantik-Pipeline.
+    /// </summary>
     public override void Dispose() {
         base.Dispose();
         _observable?.Dispose();
     }
 
+    /// <summary>
+    /// Wird ausgelöst, sobald das vorhandene <see cref="CodeGenerationUnitAndSnapshot"/> veraltet und ein
+    /// Neuaufbau ansteht.
+    /// </summary>
     public event EventHandler<EventArgs>             SemanticModelChanging;
+    /// <summary>
+    /// Wird ausgelöst, sobald ein neues, zum aktuellen Puffer passendes <see cref="CodeGenerationUnitAndSnapshot"/>
+    /// bereitsteht.
+    /// </summary>
     public event EventHandler<SnapshotSpanEventArgs> SemanticModelChanged;
     // Dieses Event feuern wir u.a. um den Observer zu "füttern".
+    /// <summary>
+    /// Internes Signal, das die Reaktive-Extensions-Pipeline zum Neuaufbau des Semantikmodells anstößt.
+    /// </summary>
     event EventHandler<EventArgs> RebuildTriggered;
 
+    /// <summary>
+    /// <see langword="true"/>, solange ein angestoßener Neuaufbau des Semantikmodells noch aussteht.
+    /// </summary>
     public bool WaitingForAnalysis {
         get { return _waitingForAnalysis; }
     }
 
+    /// <summary>
+    /// Das zuletzt berechnete <see cref="CodeGenerationUnitAndSnapshot"/> oder <see langword="null"/>, solange
+    /// noch keines vorliegt.
+    /// </summary>
     [CanBeNull]
     public CodeGenerationUnitAndSnapshot CodeGenerationUnitAndSnapshot {
         get { return _codeGenerationUnitAndSnapshot; }
@@ -72,17 +110,31 @@ sealed class SemanticModelService: ParserServiceDependent {
         
     
         
+    /// <summary>
+    /// Liefert die an <paramref name="textBuffer"/> gebundene <see cref="SemanticModelService"/>-Instanz oder
+    /// <see langword="null"/>, falls für diesen Puffer noch keine angelegt wurde.
+    /// </summary>
     [CanBeNull]
     public static SemanticModelService TryGet(ITextBuffer textBuffer) {
         textBuffer.Properties.TryGetProperty<SemanticModelService>(typeof(SemanticModelService), out var semanticModelService);
         return semanticModelService;
     }
 
+    /// <summary>
+    /// Verwirft das vorhandene Semantikmodell (<see cref="SemanticModelChanging"/>) und stößt einen erneuten
+    /// Aufbau an.
+    /// </summary>
     public void Invalidate() {
         OnSemanticModelChanging(EventArgs.Empty);
         OnRebuildTriggered(EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Erzwingt — unter Umgehung der asynchronen Pipeline — sofort ein aktuelles
+    /// <see cref="CodeGenerationUnitAndSnapshot"/> und liefert es zurück. Muss auf dem UI-Thread laufen (die
+    /// Ergebnis-Events werden dort gefeuert). Ist das gecachte Modell bereits aktuell, wird es unverändert
+    /// zurückgegeben; andernfalls wird — nach einem synchronen Parse-Update — neu berechnet.
+    /// </summary>
     public CodeGenerationUnitAndSnapshot UpdateSynchronously(CancellationToken cancellationToken = default) {
 
         // Muss im UI Thread sein, da sonst die Events nicht ind er UI gefeuert werden, und TrySetResult muss um UI Thrtead ausgeführt werden.
@@ -101,10 +153,17 @@ sealed class SemanticModelService: ParserServiceDependent {
         return codeGenerationUnitAndSnapshot;
     }
 
+    /// <summary>
+    /// Reicht ein anstehendes Parse-Update als <see cref="SemanticModelChanging"/> weiter — das bisherige
+    /// Semantikmodell gilt damit als veraltet.
+    /// </summary>
     protected override void OnParseResultChanging(object sender, EventArgs e) {
         OnSemanticModelChanging(EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Stößt nach einem neuen Parse-Ergebnis den Neuaufbau des Semantikmodells an.
+    /// </summary>
     protected override void OnParseResultChanged(object sender, SnapshotSpanEventArgs e) {
         Invalidate();
     }
@@ -123,6 +182,9 @@ sealed class SemanticModelService: ParserServiceDependent {
         SemanticModelChanged?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Berechnet das Semantikmodell im Hintergrund-Thread (siehe <see cref="BuildSynchronously"/>).
+    /// </summary>
     static async Task<CodeGenerationUnitAndSnapshot> BuildAsync(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, CancellationToken cancellationToken) {
         return await Task.Run(() => {
             using(Logger.LogBlock(nameof(BuildAsync))) {
@@ -131,6 +193,11 @@ sealed class SemanticModelService: ParserServiceDependent {
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Baut aus dem <paramref name="syntaxTreeAndSnapshot"/> die <see cref="CodeGenerationUnit"/> auf und
+    /// bündelt sie mit dem Snapshot. Liefert <see langword="null"/>, wenn kein Parse-Ergebnis vorliegt oder
+    /// die Wurzel keine <see cref="CodeGenerationUnitSyntax"/> ist.
+    /// </summary>
     static CodeGenerationUnitAndSnapshot BuildSynchronously(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, CancellationToken cancellationToken) {
 
         if(syntaxTreeAndSnapshot == null) {
@@ -151,6 +218,11 @@ sealed class SemanticModelService: ParserServiceDependent {
         return new CodeGenerationUnitAndSnapshot(codeGenerationUnit, snapshot);
     }
 
+    /// <summary>
+    /// Übernimmt ein frisch berechnetes <paramref name="codeGenerationUnitAndSnapshot"/> als aktuelles Modell
+    /// und löst <see cref="SemanticModelChanged"/> aus — sofern es nicht <see langword="null"/> ist und noch
+    /// zum Puffer passt (andernfalls verworfen). Muss auf dem UI-Thread laufen.
+    /// </summary>
     void TrySetResult(CodeGenerationUnitAndSnapshot codeGenerationUnitAndSnapshot) {
 
         ThreadHelper.ThrowIfNotOnUIThread();

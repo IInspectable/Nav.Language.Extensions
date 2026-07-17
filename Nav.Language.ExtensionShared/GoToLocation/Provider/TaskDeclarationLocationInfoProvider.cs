@@ -18,10 +18,16 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einer Nav-Task-Deklaration zur generierten WFS-Klasse im C#-Code (Richtung Nav→C#). Aus dem
+/// <see cref="TaskCodeInfo"/> löst die Roslyn-Brücke die — ggf. mehreren partiellen — Klassen-Deklarationen
+/// auf; angezeigt wird der zum Projekt relative Dateipfad, nach Anzeigename sortiert.
+/// </summary>
 class TaskDeclarationLocationInfoProvider: CodeAnalysisLocationInfoProvider {
 
     readonly TaskCodeInfo _taskCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="taskCodeInfo"/> der Task.</summary>
     public TaskDeclarationLocationInfoProvider(ITextBuffer sourceBuffer, TaskCodeInfo taskCodeInfo): base(sourceBuffer) {
         _taskCodeInfo = taskCodeInfo;
     }

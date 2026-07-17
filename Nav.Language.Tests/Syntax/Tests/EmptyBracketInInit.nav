@@ -1,0 +1,12 @@
+﻿task Preisermittlung
+{
+    init []
+
+    view    AbgabedatumProVerordnungDialog;
+    choice  Choice_EingabenValide;
+    task    Preisermittlung Preisermittlung;
+    exit    Exit;
+
+    init --> AbgabedatumProVerordnungDialog;
+    init --> Exit;
+}

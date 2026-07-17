@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace Pharmatechnik.Nav.Language.Text; 
+namespace Pharmatechnik.Nav.Language.Text;
 
 static class SourceTextExtensions {
 
@@ -24,7 +24,13 @@ static class SourceTextExtensions {
         return sourceText.Slice(startIndex: fromPosition, length: line.End - fromPosition);
     }
 
-    public static int ColumnsBetweenLocations(this SourceText sourceText, Location location1, Location location2, TextEditorSettings textEditorSettings) {
+    /// <summary>
+    /// Liefert die Anzahl der Spalten zwischen zwei <see cref="Location"/>s (unter Berücksichtigung von
+    /// Tabulatoren gemäß <paramref name="textEditorSettings"/>). Liegen die Locations in unterschiedlichen
+    /// Zeilen, zählt die Startspalte der zweiten Location; in derselben Zeile der Abstand zwischen dem Ende
+    /// der ersten und dem Anfang der zweiten. Das Ergebnis ist stets mindestens 1; bei fehlender Location 0.
+    /// </summary>
+    public static int ColumnsBetweenLocations(this SourceText sourceText, Location? location1, Location? location2, TextEditorSettings textEditorSettings) {
 
         if (location1 == null || location2 == null) {
             return 0;
@@ -46,6 +52,9 @@ static class SourceTextExtensions {
         return Math.Max(1, spaceCount);
     }
 
+    /// <summary>
+    /// Liefert die Spalte (unter Berücksichtigung von Tabulatoren) am Ende der angegebenen <paramref name="location"/>.
+    /// </summary>
     public static int GetEndColumn(this SourceText sourceText, Location location, TextEditorSettings textEditorSettings) {
 
         var endLineExtent = sourceText.GetTextLineAtPosition(location.End);
@@ -55,6 +64,9 @@ static class SourceTextExtensions {
         return column;
     }
 
+    /// <summary>
+    /// Liefert die Spalte (unter Berücksichtigung von Tabulatoren) am Anfang der angegebenen <paramref name="location"/>.
+    /// </summary>
     public static int GetStartColumn(this SourceText sourceText, Location location, TextEditorSettings textEditorSettings) {
 
         var startLineExtent = sourceText.GetTextLineAtPosition(location.Start);

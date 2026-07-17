@@ -320,6 +320,177 @@ task C
         Assert.That(a3.IsReachable(), Is.False);
     }
 
+    [Test]
+    public void TestCodeUsingsAfterIncompleteUsingAreCollected() {
+
+        var nav = @"
+[namespaceprefix N]
+[using A.B]
+[using]
+[using C.D]
+
+task T
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+        ";
+
+        var model = ParseModel(nav);
+
+        // Ein unvollständiges [using] darf das Einsammeln der nachfolgenden Usings nicht abbrechen
+        Assert.That(model.CodeUsings, Is.EquivalentTo(new[] { "A.B", "C.D" }));
+    }
+
+    [Test]
+    public void TestFoldExitsCallComparerHashCodeContract() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+task C
+{
+    init I1;
+    task A;
+
+    exit e1;
+    exit e2;
+    choice C1;
+
+    I1   --> C1;
+    C1   --> A;
+    C1   --> e1;
+    C1   --> e2;
+
+    A:e1 --> e1;
+}
+        ";
+
+        var model = ParseModel(nav);
+
+        var taskC     = model.TryFindTaskDefinition("C");
+        var initTrans = taskC.TryFindNode<IInitNodeSymbol>("I1")?.Outgoings.Single();
+        var calls     = initTrans.GetReachableCalls().ToList();
+
+        var taskCall  = calls.Single(call => call.Node is ITaskNodeSymbol);
+        var exitCalls = calls.Where(call => call.Node is IExitNodeSymbol).ToList();
+
+        Assert.That(exitCalls, Has.Count.EqualTo(2));
+
+        // Nicht-Exit-Calls hashen wie der Default-Comparer (kein konstanter Instanz-Hash)
+        Assert.That(CallComparer.FoldExits.GetHashCode(taskCall),
+                    Is.EqualTo(CallComparer.Default.GetHashCode(taskCall)));
+
+        // Gleichheits-Kontrakt: gefaltete Exits sind gleich und hashen gleich
+        Assert.That(CallComparer.FoldExits.Equals(exitCalls[0], exitCalls[1]), Is.True);
+        Assert.That(CallComparer.FoldExits.GetHashCode(exitCalls[0]),
+                    Is.EqualTo(CallComparer.FoldExits.GetHashCode(exitCalls[1])));
+
+        // Exits falten sich auf einen Call zusammen
+        Assert.That(calls.Distinct(CallComparer.FoldExits).Count(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TestTaskDefinitionWithMissingIdentifierDoesNotThrow() {
+
+        var nav = @"
+task
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+        ";
+
+        // Namenlose Taskdefinition (Syntaxfehler) darf den Semantic-Model-Aufbau nicht crashen
+        Assert.That(() => ParseModel(nav), Throws.Nothing);
+    }
+
+    [Test]
+    public void TestOutgoingCallsOverMultipleEdges() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    exit e1;
+
+    I1  --> e1;
+}
+task C
+{
+    init I1;
+    task A;
+
+    choice C1;
+    choice C2;
+    choice C3;
+    exit e1;
+
+    I1  --> C1;
+    C1  --> C2;
+    C1  --> C3;
+    C2  --> A;
+    C3  --> A;
+
+    A:e1 --> e1;
+}
+        ";
+
+        var model  = ParseModel(nav);
+        var taskC  = model.TryFindTaskDefinition("C");
+        var choice = taskC.TryFindNode<IChoiceNodeSymbol>("C1");
+
+        var calls = choice.Outgoings.GetReachableCalls();
+
+        // Der über beide Ausgangskanten erreichbare Call 'A' erscheint nur einmal
+        // (geteiltes Seen-Set über alle Kanten der Überladung für Kanten-Mengen)
+        Assert.That(calls.Select(call => call.Node.Name), Is.EqualTo(new[] { "A" }));
+
+        // Wiederholte Enumeration liefert dasselbe Ergebnis — das Seen-Set muss pro
+        // Enumeration frisch sein, sonst wäre der zweite Durchlauf leer gefiltert
+        Assert.That(calls.Select(call => call.Node.Name), Is.EqualTo(new[] { "A" }));
+    }
+
+    [Test]
+    public void TestTaskDeclarationConnectionPointFilters() {
+
+        var nav = @"
+task A
+{
+    init I1;
+    init I2;
+    exit e1;
+    exit e2;
+    end;
+
+    I1  --> e1;
+    I2  --> e2;
+}
+        ";
+
+        var model = ParseModel(nav);
+        var taskA = model.TryFindTaskDefinition("A")?.AsTaskDeclaration;
+
+        Assert.That(taskA, Is.Not.Null);
+
+        Assert.That(taskA.Inits().Select(cp => cp.Name), Is.EquivalentTo(new[] { "I1", "I2" }));
+        Assert.That(taskA.Exits().Select(cp => cp.Name), Is.EquivalentTo(new[] { "e1", "e2" }));
+        Assert.That(taskA.Ends().Select(cp => cp.Name),  Is.EquivalentTo(new[] { "end" }));
+
+        // Die Filter sind disjunkt und decken zusammen alle ConnectionPoints ab
+        Assert.That(taskA.Inits().Count() + taskA.Exits().Count() + taskA.Ends().Count(),
+                    Is.EqualTo(taskA.ConnectionPoints.Count));
+    }
+
     CodeGenerationUnit ParseModel(string source) {
         var syntax =Syntax.ParseCodeGenerationUnit(source);
         var model  = CodeGenerationUnit.FromCodeGenerationUnitSyntax(syntax);

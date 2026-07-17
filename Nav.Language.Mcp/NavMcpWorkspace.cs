@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 using System.IO;
@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Mcp.Tools;
 using Pharmatechnik.Nav.Utilities.IO;
 
@@ -28,6 +27,11 @@ public sealed class NavMcpWorkspace {
     // lazy + thread-safe einmalig ausgeführt — per-File-Tools (Validate, Outline) brauchen sie nicht.
     readonly SemaphoreSlim _loadGate = new(1, 1);
     bool                   _solutionLoaded;
+
+    // Hierarchische .navignore-Treffer: ignorierte Dateien bleiben in der Solution (weiterhin als Include-Ziel
+    // auflösbar und navigierbar), werden aber beim workspace-weiten Diagnostics-Sweep (nav_diagnostics)
+    // übersprungen — das Pull-Äquivalent zur LSP-Stummschaltung. Beim Solution-Load einmalig befüllt.
+    NavIgnore _ignore = NavIgnore.Empty;
 
     public NavMcpWorkspace(string root) {
         Root = root;
@@ -62,11 +66,24 @@ public sealed class NavMcpWorkspace {
             }
 
             await _core.LoadAsync(Root, cancellationToken);
+
+            _ignore = _core.SolutionDirectory == null
+                ? NavIgnore.Empty
+                : NavIgnore.Load(_core.SolutionDirectory.FullName);
+
             _solutionLoaded = true;
         } finally {
             _loadGate.Release();
         }
     }
+
+    /// <summary>
+    /// Ist die Datei durch eine <c>.navignore</c>-Regel vom workspace-weiten Diagnostics-Sweep ausgenommen?
+    /// Die Datei bleibt in der Solution (als Include-Ziel auflösbar/navigierbar) — nur <c>nav_diagnostics</c>
+    /// überspringt sie, analog zur LSP-Stummschaltung. Vor <see cref="EnsureSolutionLoadedAsync"/> stets
+    /// <c>false</c> (dann ist noch keine <c>.navignore</c> geladen).
+    /// </summary>
+    public bool IsIgnored(string filePath) => _ignore.IsIgnored(filePath);
 
     /// <summary>
     /// Liefert das frisch von Platte gelesene semantische Modell einer Datei (der Cache der Datei wird vorher
@@ -80,6 +97,20 @@ public sealed class NavMcpWorkspace {
         _core.InvalidateCache(normalizedPath);
 
         return _core.GetCodeGenerationUnit(normalizedPath);
+    }
+
+    /// <summary>
+    /// Liefert den frisch von Platte gelesenen <see cref="SyntaxTree"/> einer Datei (Cache-Invalidierung wie
+    /// bei <see cref="GetFreshUnit"/>) samt normalisiertem Pfad — für rein syntaktische Features wie den
+    /// Formatter, die kein Semantik-Modell brauchen. <c>null</c>, wenn die Datei nicht gefunden wird.
+    /// </summary>
+    public SyntaxTree? GetFreshSyntaxTree(string path, out string normalizedPath) {
+
+        normalizedPath = PathHelper.NormalizePath(path) ?? path;
+
+        _core.InvalidateCache(normalizedPath);
+
+        return _core.GetSyntaxTree(normalizedPath);
     }
 
     /// <summary>
@@ -115,4 +146,5 @@ public sealed class NavMcpWorkspace {
                                   .Select(diagnostic => NavDiagnosticDto.From(diagnostic, normalizedPath))
                                   .ToList();
     }
+
 }

@@ -1,0 +1,6 @@
+﻿// Nav → C#
+// F12 auf einen Exit-Punkt von Sub (Sub:E1 / Sub:E2) landet auf der gemeinsamen AfterSubLogic
+// im konkreten WFS — der Golden pinnt Datei + exakten Span.
+
+<ExitFlowWFS.cs> (16,55)-(16,68)  "AfterSubLogic"
+    protected override AfterSubCallContext.Result AfterSubLogic(SubResult result,

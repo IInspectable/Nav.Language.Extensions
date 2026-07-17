@@ -1,4 +1,4 @@
-namespace Pharmatechnik.Nav.Language; 
+﻿namespace Pharmatechnik.Nav.Language;
 
 static class DiagnosticId {
 
@@ -40,15 +40,24 @@ static class DiagnosticId {
     public const string Nav0115 = nameof(Nav0115);
     public const string Nav0116 = nameof(Nav0116);
     public const string Nav0117 = nameof(Nav0117);
+    public const string Nav0118 = nameof(Nav0118);
+    public const string Nav0119 = nameof(Nav0119);
+    public const string Nav0120 = nameof(Nav0120);
+    public const string Nav0121 = nameof(Nav0121);
+    public const string Nav0122 = nameof(Nav0122);
+    // Nav0123 bewusst unbelegt (toter Zwischenstand des V2-Designs).
+    public const string Nav0124 = nameof(Nav0124);
 
     public const string Nav0200 = nameof(Nav0200);
     public const string Nav0201 = nameof(Nav0201);
+    // Reserviert, aktuell ungenutzt: kein Descriptor und kein Analyzer löst diese ID aus.
     public const string Nav0202 = nameof(Nav0202);
     public const string Nav0203 = nameof(Nav0203);
     public const string Nav0220 = nameof(Nav0220);
     public const string Nav0221 = nameof(Nav0221);
     public const string Nav0222 = nameof(Nav0222);
 
+    // Reserviert, aktuell ungenutzt: kein Descriptor und kein Analyzer löst diese ID aus.
     public const string Nav0300 = nameof(Nav0300);
 
     public const string Nav1001 = nameof(Nav1001);
@@ -77,5 +86,11 @@ static class DiagnosticId {
 
     public const string Nav3000 = nameof(Nav3000);
     public const string Nav3001 = nameof(Nav3001);
+    public const string Nav3002 = nameof(Nav3002);
+    public const string Nav3003 = nameof(Nav3003);
+    public const string Nav3004 = nameof(Nav3004);
+
+    public const string Nav5000 = nameof(Nav5000);
+    public const string Nav5001 = nameof(Nav5001);
 
 }

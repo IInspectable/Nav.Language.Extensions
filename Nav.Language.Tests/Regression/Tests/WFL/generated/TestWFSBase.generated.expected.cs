@@ -189,9 +189,9 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnEnd(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnEndLogic(to);    
+            var body = OnEndLogic(to);
             switch(body) {
-                case END _: 
+                case END _:
                     return EndNonModal();
                 case CANCEL cancel:
                     return cancel;
@@ -210,7 +210,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnContinue(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnContinueLogic(to, _messageboxConinue);    
+            var body = OnContinueLogic(to, _messageboxConinue);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == MsgContinueNodeName:
                     return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgContinue);
@@ -232,7 +232,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnExitClick(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnExitClickLogic(to, _messageboxOk);    
+            var body = OnExitClickLogic(to, _messageboxOk);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == MsgExitNodeName:
                     return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgExit);
@@ -254,7 +254,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnDoSomething(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnDoSomethingLogic(to);    
+            var body = OnDoSomethingLogic(to);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == DoSomethingNodeName:
                     return OpenModalTask<bool>(taskCall.BeginWrapper, AfterDoSomething);
@@ -275,7 +275,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnMsgAbstract(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnMsgAbstractLogic(to, _messageboxConinue);    
+            var body = OnMsgAbstractLogic(to, _messageboxConinue);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == MsgAbstractNodeName:
                     return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgAbstract);
@@ -297,7 +297,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnMsgNonModal(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnMsgNonModalLogic(to, _messageboxConinue);    
+            var body = OnMsgNonModalLogic(to, _messageboxConinue);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == MsgNonModalNodeName:
                     return StartNonModalTask(taskCall.BeginWrapper, AfterMsgNonModal);
@@ -319,7 +319,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnReloadClick(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnReloadClickLogic(to);    
+            var body = OnReloadClickLogic(to);
             switch(body) {
                 case ViewTO viewTO:
                     return GotoGUI(viewTO);
@@ -340,7 +340,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnShowMeModal(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnShowMeModalLogic(to);    
+            var body = OnShowMeModalLogic(to);
             switch(body) {
                 case ViewTO viewTO:
                     return OpenModalGUI(viewTO);
@@ -361,7 +361,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnShowMeNonModal(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnShowMeNonModalLogic(to);    
+            var body = OnShowMeNonModalLogic(to);
             switch(body) {
                 case ViewTO viewTO:
                     return StartNonModalGUI(viewTO);
@@ -382,7 +382,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnNonNotImplemented(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnNonNotImplementedLogic(to);    
+            var body = OnNonNotImplementedLogic(to);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == FooNodeName:
                     throw new NotImplementedException("Task Foo is specified as [notimplemented]");
@@ -404,7 +404,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnGoToNotImplemented(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnGoToNotImplementedLogic(to);    
+            var body = OnGoToNotImplementedLogic(to);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == FooNodeName:
                     throw new NotImplementedException("Task Foo is specified as [notimplemented]");
@@ -426,7 +426,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         #endregion
         public virtual INavCommand OnModalNotImplemented(ViewTO to) {
             to = BeforeTriggerLogic(to);
-            var body = OnModalNotImplementedLogic(to);    
+            var body = OnModalNotImplementedLogic(to);
             switch(body) {
                 case TaskCall taskCall when taskCall.NodeName == FooNodeName:
                     throw new NotImplementedException("Task Foo is specified as [notimplemented]");

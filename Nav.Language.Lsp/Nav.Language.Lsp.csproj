@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -12,10 +12,27 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <!-- Self-contained Single-File-Publish-Ziel; RID/SelfContained/PublishSingleFile/SatelliteResourceLanguages
-         werden beim Publish per Kommandozeile gesetzt (siehe `n publish` → eine nav.lsp.exe, eingebettet in die VS-Code-Extension).
-         Bewusst KEIN PublishTrimmed: Newtonsoft + StreamJsonRpc + LSP-DTOs sind reflection-lastig (Trimming
-         würde die Serialisierung brechen). Single-File ist nur Bündelung (kein Trimming) und damit unkritisch. -->
+         werden beim Publish per Kommandozeile gesetzt (siehe `n publish` → eine nav.lsp.exe, eingebettet in die VS-Code-Extension). -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Getrimmt ausliefern (~37 → ~15 MB). WICHTIG: TrimMode=partial (NICHT full). Die Serialisierung
+         ist reflection-lastig (Newtonsoft-JsonMessageFormatter + StreamJsonRpc, LSP-DTOs aus
+         Microsoft.VisualStudio.LanguageServer.Protocol) und hätte KEINEN Source-Gen-Pfad wie der MCP
+         (System.Text.Json + JsonSerializerContext). Partial trimmt aber NUR als trimmbar markierte
+         Assemblies (im Wesentlichen das Framework/BCL) und lässt die Serialisierungs-Assemblies samt
+         DTO-Membern GANZ — deshalb bleibt die Reflektion intakt. Empirisch abgesichert: stdio-Smoke über
+         initialize/documentSymbol/hover/definition/references/completion/foldingRange/semanticTokens/
+         documentHighlight/formatting/rangeFormatting/rename/codeAction/codeLens/prepareCallHierarchy
+         liefert getrimmt BYTE-IDENTISCHE Antworten zur ungetrimmten exe. PublishTrimmed gehört
+         AUSSCHLIESSLICH hierher (nie als globale CLI-Property — sonst erbt es an die netstandard2.0-
+         Referenzen und bricht mit NETSDK1124). Auf full darf NICHT umgestellt werden, ohne Newtonsoft
+         zuvor durch einen source-gen-fähigen Serializer zu ersetzen. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!-- Verbleibende IL2104-Rollups (Newtonsoft.Json, StreamJsonRpc, MessagePack, Microsoft.VisualStudio.
+         Threading, Microsoft.VisualStudio.LanguageServer.Protocol, NLog/NLog.Targets.Network) bleiben
+         BEWUSST sichtbar (kein NoWarn). Sie zeigen nur an, dass der Trimmer in diesen Assemblies Reflektion
+         nicht statisch auflösen kann; unter TrimMode=partial werden ihre Member NICHT entfernt (siehe der
+         byte-identische Smoke oben). Analog zur MCP-Entscheidung: sichtbar lassen statt zu kaschieren. -->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

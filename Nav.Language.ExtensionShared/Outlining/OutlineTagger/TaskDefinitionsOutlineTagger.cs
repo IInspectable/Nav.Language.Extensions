@@ -1,12 +1,22 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der jede Task-Definition (<see cref="TaskDefinitionSyntax"/>) zu einer
+/// aufklappbaren Region macht. Aufgerufen vom <see cref="OutliningTagger"/>.
+/// </summary>
 class TaskDefinitionsOutlineTagger {
 
+    /// <summary>
+    /// Liefert je Task-Definition eine Region, die unmittelbar hinter dem Task-Namen beginnt, sodass der
+    /// Name als Kopf der eingeklappten Region sichtbar bleibt. Task-Definitionen ohne Namen werden
+    /// übersprungen.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable<ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         foreach (var taskDef in syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<TaskDefinitionSyntax>()) {
@@ -18,12 +28,9 @@ class TaskDefinitionsOutlineTagger {
                 continue;
             }
 
-            var rgnStartToken = nameToken.NextToken();
-            if (rgnStartToken.IsMissing) {
-                continue;
-            }
-
-            var start  = Math.Min(nameToken.End + 1, rgnStartToken.Start);
+            // Die Region beginnt unmittelbar hinter dem Namen (dessen Trailing-Trivia eingeschlossen) und reicht
+            // bis zum Knotenende — so bleibt der Name als Kopf der eingeklappten Region sichtbar.
+            int start  = nameToken.End;
             int length = extent.End - start;
 
             if (length <= 0) {

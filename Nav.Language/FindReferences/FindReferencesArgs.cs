@@ -2,14 +2,26 @@
 
 using System;
 
-using JetBrains.Annotations;
-
 #endregion
 
-namespace Pharmatechnik.Nav.Language.FindReferences; 
+namespace Pharmatechnik.Nav.Language.FindReferences;
 
+/// <summary>
+/// Die Anfrage einer Referenzsuche — bündelt das Symbol, von dem aus gesucht wird
+/// (<see cref="OriginatingSymbol"/>), dessen Herkunftsdatei (<see cref="OriginatingCodeGenerationUnit"/>),
+/// die zu durchsuchende <see cref="Solution"/> und den <see cref="Context"/>, an den Fortschritt und
+/// Ergebnisse gemeldet werden. Wird an <see cref="ReferenceFinder.FindReferencesAsync"/> übergeben.
+/// </summary>
 public class FindReferencesArgs {
 
+    /// <summary>
+    /// Erzeugt eine Suchanfrage.
+    /// </summary>
+    /// <param name="originatingSymbol">Das Symbol, dessen Referenzen gesucht werden.</param>
+    /// <param name="originatingCodeGenerationUnit">Die Datei, in der das Ausgangssymbol steht.</param>
+    /// <param name="solution">Die zu durchsuchende Solution.</param>
+    /// <param name="context">Die Senke für Fortschritt und Ergebnisse.</param>
+    /// <exception cref="ArgumentNullException">Ein Argument ist <c>null</c>.</exception>
     public FindReferencesArgs(ISymbol originatingSymbol,
                               CodeGenerationUnit originatingCodeGenerationUnit,
                               NavSolution solution,
@@ -22,16 +34,16 @@ public class FindReferencesArgs {
 
     }
 
-    [NotNull]
+    /// <summary>Das Symbol, dessen Referenzen gesucht werden.</summary>
     public ISymbol OriginatingSymbol { get; }
 
-    [NotNull]
+    /// <summary>Die Datei (Codegenerierungs-Einheit), in der das <see cref="OriginatingSymbol"/> steht.</summary>
     public CodeGenerationUnit OriginatingCodeGenerationUnit { get; }
 
-    [NotNull]
+    /// <summary>Die zu durchsuchende Solution.</summary>
     public NavSolution Solution { get; }
 
-    [NotNull]
+    /// <summary>Die Senke, an die Fortschritt und Ergebnisse gemeldet werden.</summary>
     public IFindReferencesContext Context { get; }
 
 }

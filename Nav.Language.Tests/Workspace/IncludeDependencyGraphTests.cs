@@ -1,6 +1,5 @@
-#region Using Directives
+﻿#region Using Directives
 
-using System.Linq;
 
 using NUnit.Framework;
 

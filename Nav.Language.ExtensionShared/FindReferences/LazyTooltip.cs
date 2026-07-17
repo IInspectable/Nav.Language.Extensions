@@ -8,6 +8,12 @@ using System.Windows.Controls;
 
 namespace Pharmatechnik.Nav.Language.Extension.FindReferences; 
 
+/// <summary>
+/// Hängt einen erst bei Bedarf erzeugten Tooltip an ein WPF-Element: Statt eines fertigen Tooltips wird
+/// zunächst dieses Objekt gesetzt; beim <c>ToolTipOpening</c> tauscht es sich gegen den real erzeugten
+/// Tooltip aus und gibt ihn beim Schließen wieder frei. So bleiben die (teuren) Tooltip-Inhalte der
+/// „Find All References"-Zeilen ungebaut, bis sie tatsächlich angezeigt werden.
+/// </summary>
 class LazyTooltip {
 
     readonly FrameworkElement _element;
@@ -31,6 +37,7 @@ class LazyTooltip {
 
     }
 
+    /// <summary>Verknüpft mit <paramref name="element"/> einen lazy erzeugten Tooltip (via <paramref name="createToolTip"/>).</summary>
     public static void AttachTo(FrameworkElement element, Func<ToolTip> createToolTip) {
         var _ = new LazyTooltip(element, createToolTip);
     }

@@ -18,6 +18,13 @@ using Pharmatechnik.Nav.Utilities.IO;
 
 namespace Pharmatechnik.Nav.Language.Extension.Commands; 
 
+/// <summary>
+/// Fügt einen Verweis auf eine <c>.nav</c>-Datei als taskref-Statement in den Editor ein. Zeigt der
+/// eingefügte bzw. abgelegte Inhalt (Zwischenablage oder Drag-and-Drop) auf eine <c>.nav</c>-Datei, wird deren
+/// Pfad relativ zur aktuell bearbeiteten Datei berechnet und an der Cursor-Position ein
+/// <c>taskref "…";</c>-Statement (<see cref="SyntaxFacts.TaskrefKeyword"/>) eingefügt. Wird vom
+/// <see cref="PasteCommandHandler"/> und den Drop-Handlern genutzt.
+/// </summary>
 class PasteNavFileCommand {
 
     readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
@@ -28,8 +35,15 @@ class PasteNavFileCommand {
 
     }
 
+    /// <summary>Die Ziel-<see cref="ITextView"/>, in die eingefügt wird.</summary>
     public ITextView TextView { get; }
 
+    /// <summary>
+    /// Fügt für einen auf eine <c>.nav</c>-Datei verweisenden <paramref name="dataObject"/> ein
+    /// taskref-Statement an der Cursor-Position ein. Bricht ab (<see langword="false"/>), wenn keine
+    /// <c>.nav</c>-Datei bzw. kein Zielverzeichnis ermittelbar ist oder der Cursor innerhalb eines
+    /// String-Literals steht.
+    /// </summary>
     public bool Execute(IDataObject dataObject) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -62,6 +76,7 @@ class PasteNavFileCommand {
         return true;
     }
 
+    /// <summary>Prüft, ob <paramref name="dataObject"/> auf eine <c>.nav</c>-Datei verweist und der Befehl damit ausführbar wäre.</summary>
     public bool CanExecute(IDataObject dataObject) {
 
         bool canExecute = TryGetNavFile(dataObject) != null;
@@ -69,6 +84,7 @@ class PasteNavFileCommand {
         return canExecute;
     }
 
+    /// <summary>Liefert die referenzierte Datei nur dann, wenn sie die <c>.nav</c>-Endung trägt, sonst <see langword="null"/>.</summary>
     [CanBeNull]
     static FileInfo TryGetNavFile(IDataObject dataObject) {
 
@@ -77,6 +93,11 @@ class PasteNavFileCommand {
         return fileInfo?.Extension == NavLanguageContentDefinitions.FileExtension ? fileInfo : null;
     }
 
+    /// <summary>
+    /// Extrahiert einen einzelnen Dateipfad aus dem <paramref name="dataObject"/> — je nach Herkunft aus einem
+    /// Datei-Drop (Dateisystem), aus VS-Projektelementen (Projektmappen-Explorer) oder einem einfachen
+    /// String — und gibt ihn als <see cref="FileInfo"/> zurück (oder <see langword="null"/>).
+    /// </summary>
     [CanBeNull]
     static FileInfo TryGetFile(IDataObject dataObject) {
 
@@ -100,6 +121,7 @@ class PasteNavFileCommand {
         return TryGetFileInfo(fileName);
     }
 
+    /// <summary>Liefert die aktuelle <see cref="CodeGenerationUnit"/> des Puffers über den <see cref="SemanticModelService"/>.</summary>
     CodeGenerationUnit GetCodeGenerationUnit() {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -112,12 +134,14 @@ class PasteNavFileCommand {
         return codeGenerationUnit;
     }
 
+    /// <summary>Ermittelt das Verzeichnis der aktuell bearbeiteten <c>.nav</c>-Datei — Basis für den relativen taskref-Pfad.</summary>
     [CanBeNull]
     DirectoryInfo TryGetDirectory() {
         ThreadHelper.ThrowIfNotOnUIThread();
         return GetCodeGenerationUnit()?.Syntax.SyntaxTree.SourceText.FileInfo?.Directory;
     }
 
+    /// <summary>Wandelt einen Pfad-Kandidaten in eine <see cref="FileInfo"/> um, sofern er ein gültiger Pfad ist.</summary>
     [CanBeNull]
     static FileInfo TryGetFileInfo(string candidate) {
 

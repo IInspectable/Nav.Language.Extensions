@@ -1,9 +1,8 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -30,7 +29,8 @@ static class SemanticTokensBuilder {
         "operator",   //  7
         "macro",      //  8
         "enumMember", //  9
-        "property"    // 10
+        "property",   // 10
+        "number"      // 11
     };
 
     public static readonly string[] TokenModifiers = Array.Empty<string>();
@@ -53,6 +53,7 @@ static class SemanticTokensBuilder {
         TextClassification.ChoiceNode          => 9,
         TextClassification.GuiNode             => 9,
         TextClassification.ConnectionPoint     => 10,
+        TextClassification.NumberLiteral       => 11,
         _                                      => None // Whitespace, Skiped, Unknown, Text, DeadCode
     };
 
@@ -63,7 +64,41 @@ static class SemanticTokensBuilder {
         var previousLine      = 0;
         var previousCharacter = 0;
 
+        foreach (var span in CollectSpans(syntaxTree)) {
+
+            foreach (var segment in SplitIntoLineSegments(span)) {
+
+                var deltaLine      = segment.Line - previousLine;
+                var deltaCharacter = deltaLine == 0 ? segment.Character - previousCharacter : segment.Character;
+
+                data.Add(deltaLine);
+                data.Add(deltaCharacter);
+                data.Add(segment.Length);
+                data.Add(span.TokenType);
+                data.Add(0); // keine Modifier
+
+                previousLine      = segment.Line;
+                previousCharacter = segment.Character;
+            }
+        }
+
+        return data.ToArray();
+    }
+
+    // Sammelt die zu kodierenden, klassifizierten Spans in Quelltext-Reihenfolge: die signifikanten Token aus
+    // dem flachen Strom (Trivia übersprungen) plus die Kommentare aus der angehängten Trivia (Roslyn-Modell).
+    // Whitespace/Zeilenenden tragen keine Klassifizierung und entfallen ersatzlos. Das Delta-Encoding verlangt
+    // aufsteigende Positionen — daher abschließend nach Start-Offset sortieren.
+    static List<ClassifiedSpan> CollectSpans(SyntaxTree syntaxTree) {
+
+        var source = syntaxTree.SourceText;
+        var spans  = new List<ClassifiedSpan>();
+
         foreach (var token in syntaxTree.Tokens) {
+
+            if (SyntaxFacts.IsTrivia(token.Classification)) {
+                continue;
+            }
 
             var tokenType = MapTokenType(token.Classification);
             if (tokenType == None || token.IsMissing || token.Length <= 0) {
@@ -75,23 +110,63 @@ static class SemanticTokensBuilder {
                 continue;
             }
 
-            foreach (var segment in SplitIntoLineSegments(token, location)) {
+            spans.Add(new ClassifiedSpan(token.Start, token.ToString(), token.Length, tokenType, location));
+        }
 
-                var deltaLine      = segment.Line - previousLine;
-                var deltaCharacter = deltaLine == 0 ? segment.Character - previousCharacter : segment.Character;
+        var commentType = MapTokenType(TextClassification.Comment);
+        foreach (var comment in syntaxTree.Comments()) {
 
-                data.Add(deltaLine);
-                data.Add(deltaCharacter);
-                data.Add(segment.Length);
-                data.Add(tokenType);
-                data.Add(0); // keine Modifier
+            if (comment.Length <= 0) {
+                continue;
+            }
 
-                previousLine      = segment.Line;
-                previousCharacter = segment.Character;
+            var location = source.GetLocation(comment.Extent);
+            
+            spans.Add(new ClassifiedSpan(comment.Start, comment.ToString(source), comment.Length, commentType, location));
+        }
+
+        // Präprozessor-Direktiven (#version …) liegen als strukturierte Trivia vor, nicht im flachen
+        // Strom. Ihre Token (PreprocessorKeyword/NumberLiteral/…) tragen bereits die richtige Klassifizierung —
+        // hier ebenso einfärben wie die Strom-Token.
+        foreach (var directive in syntaxTree.Directives()) {
+            foreach (var token in directive.ChildTokens()) {
+
+                var tokenType = MapTokenType(token.Classification);
+                if (tokenType == None || token.IsMissing || token.Length <= 0) {
+                    continue;
+                }
+
+                var location = token.GetLocation();
+                if (location == null) {
+                    continue;
+                }
+
+                spans.Add(new ClassifiedSpan(token.Start, token.ToString(), token.Length, tokenType, location));
             }
         }
 
-        return data.ToArray();
+        spans.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+        return spans;
+    }
+
+    // Ein bereits klassifizierter Quelltext-Ausschnitt (signifikantes Token oder Kommentar-Trivia), aus dem die
+    // Zeilen-Segmente und das Delta-Encoding erzeugt werden.
+    readonly struct ClassifiedSpan {
+
+        public ClassifiedSpan(int start, string text, int length, int tokenType, Location location) {
+            Start     = start;
+            Text      = text;
+            Length    = length;
+            TokenType = tokenType;
+            Location  = location;
+        }
+
+        public int      Start     { get; }
+        public string   Text      { get; }
+        public int      Length    { get; }
+        public int      TokenType { get; }
+        public Location Location  { get; }
     }
 
     readonly struct LineSegment {
@@ -107,16 +182,18 @@ static class SemanticTokensBuilder {
         public int Length     { get; }
     }
 
-    // LSP-Clients melden i.d.R. multilineTokenSupport=false — mehrzeilige Tokens (z.B. Blockkommentare)
+    // LSP-Clients melden i.d.R. multilineTokenSupport=false — mehrzeilige Spans (z.B. Blockkommentare)
     // daher pro Zeile in Segmente aufteilen.
-    static IEnumerable<LineSegment> SplitIntoLineSegments(SyntaxToken token, Location location) {
+    static IEnumerable<LineSegment> SplitIntoLineSegments(ClassifiedSpan span) {
+
+        var location = span.Location;
 
         if (location.StartLine == location.EndLine) {
-            yield return new LineSegment(location.StartLine, location.StartCharacter, token.Length);
+            yield return new LineSegment(location.StartLine, location.StartCharacter, span.Length);
             yield break;
         }
 
-        var lines = token.ToString().Split('\n');
+        var lines = span.Text.Split('\n');
 
         for (var i = 0; i < lines.Length; i++) {
 

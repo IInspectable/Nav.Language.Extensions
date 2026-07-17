@@ -27,7 +27,40 @@ public class SyntaxTreeTests {
 
         // Die Anzahl kann/darf sich über die Zeit auch ändern.
         // Blöd wäre nur, wenn hier keine Syntaxen gefunden würden ;-)
-        Assert.That(nodeTypes.Count, Is.EqualTo(46));
+        Assert.That(nodeTypes.Count, Is.EqualTo(52));
+
+        // Direktiven und übersprungene Läufe sind strukturierte Trivia (keine Kindknoten) und werden daher
+        // über die Trivia erreicht: AllRules trägt die wirksame #version (VersionDirectiveSyntax); eine
+        // unbekannte Direktive (BadDirectiveTriviaSyntax) und ein Skip-Lauf (SkippedTokensTriviaSyntax)
+        // kommen aus eigenen Schnipseln, da AllRules bewusst fehlerfrei bleibt.
+        var presentTypes = new HashSet<Type>(cgu.DescendantNodesAndSelf().Select(node => node.GetType()));
+        presentTypes.UnionWith(cgu.SyntaxTree.Directives().Select(directive => directive.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   #unknown
+                                   task A{}
+                                   """).Directives().Select(directive => directive.GetType()));
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   task A
+                                   {
+                                       init [];
+                                   }
+                                   """).SkippedTokens().Select(skipped => skipped.GetType()));
+        // Die Continuation-Konstrukte (ContinuationTransitionSyntax samt beider Continuation-Kanten) sind ab
+        // Sprachversion 2 gültig; AllRules bleibt bewusst Version 1, daher aus einem eigenen Schnipsel.
+        presentTypes.UnionWith(SyntaxTree.ParseText(
+                                   """
+                                   #version 2
+                                   task A
+                                   {
+                                       view V;
+                                       task T;
+                                       V --> V o-^ T;
+                                       V --> V --^ T;
+                                   }
+                                   """)
+                                         .Root.DescendantNodesAndSelf().Select(node => node.GetType()));
 
         foreach (var nodeType in nodeTypes) {
 
@@ -37,7 +70,7 @@ public class SyntaxTreeTests {
                 message += $" Beispiel: '{sample}'";
             }
             Assert.That(
-                cgu.DescendantNodesAndSelf().Any(t => t.GetType() == nodeType),
+                presentTypes.Contains(nodeType),
                 Is.True, message);
         }
     }
@@ -68,12 +101,14 @@ public class SyntaxTreeTests {
     public void TestCommentTokens() {
         var syntaxTree = SyntaxTree.ParseText(Resources.AllRules);
 
-        Assert.That(syntaxTree.Tokens.OfClassification(TextClassification.Comment).Count(), Is.EqualTo(2));
+        // Kommentare liegen seit Schritt 5.4 nicht mehr im flachen Token-Strom, sondern als angehängte
+        // Trivia — Zugriff über die Trivia-Sicht am Baum.
+        var comments = syntaxTree.Comments().ToList();
+        Assert.That(comments.Count, Is.EqualTo(2));
 
-        var firstComment = syntaxTree.Tokens.OfClassification(TextClassification.Comment).First();
-        Assert.That(firstComment.Parent,         Is.EqualTo(syntaxTree.Root));
-        Assert.That(firstComment.Type,           Is.EqualTo(SyntaxTokenType.SingleLineComment));
-        Assert.That(firstComment.Classification, Is.EqualTo(TextClassification.Comment));
+        var firstComment = comments.First();
+        Assert.That(firstComment.Type,      Is.EqualTo(SyntaxTokenType.SingleLineComment));
+        Assert.That(firstComment.IsComment, Is.True);
     }
         
     [Test]

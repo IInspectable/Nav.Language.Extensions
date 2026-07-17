@@ -35,7 +35,7 @@
                                               Style="{DynamicResource {ComponentResourceKey TypeInTargetAssembly={x:Type FrameworkElement}, ResourceId=MenuScrollViewer}}">
                                     <Grid x:Uid="Grid_2"
                                           Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
-                                          RenderOptions.BitmapScalingMode="{x:Static platformUi:DpiHelper.BitmapScalingMode}"
+                                          RenderOptions.BitmapScalingMode="HighQuality"
                                           RenderOptions.ClearTypeHint="Enabled">
                                         
                                         <imaging:ImageThemingUtilities.ImageBackgroundColor>

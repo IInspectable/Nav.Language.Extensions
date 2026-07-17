@@ -1,0 +1,41 @@
+﻿#version 2
+
+[namespaceprefix Nav.Language.Tests.Regression.V2.DoNotInject]
+
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+[using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+// Golden-INPUT: [donotinject] als isolierte Sonderform (§3.4).
+//
+// Der Ziel-Task-Wrapper wird NICHT injiziert (kein _wfs._x-Feld) — fachlich eine Familie
+// konkreter, laufzeit-selektierter Implementierungen. Also nimmt Begin{Node} den Wrapper als
+// expliziten ERSTEN Parameter (IBegin{Task}WFS wfs) entgegen und ruft wfs.Begin(...); die
+// Init-Parameter folgen dahinter. Rücksprung/After{Node} bleibt regulär (anders als
+// [notimplemented] wird der Knoten NICHT aus den Exit-Transitionen gefiltert).
+// Bewusst OHNE Choice/Continuation — der Diff bleibt auf das eine Konzept fokussiert.
+
+taskref Editor [namespaceprefix NS.V2.DoNotInject]
+               [result EditorResult r] {
+
+    init [params int id];
+    exit Closed;
+}
+
+task DoNotInjectFlow [base StandardWFS : IWFServiceBase]
+    [params]
+    [result bool]
+{
+
+    init Init1;
+    exit Exit;
+    task Editor Edit [donotinject];
+    view Home;
+
+    Init1 --> Home;
+
+    // o-> auf einen [donotinject]-Task: BeginEdit(IBeginEditorWFS wfs, int id) — expliziter Wrapper.
+    Home o-> Edit on OnEdit;
+    Home --> Exit on OnClose;
+
+    Edit:Closed --> Home;
+}

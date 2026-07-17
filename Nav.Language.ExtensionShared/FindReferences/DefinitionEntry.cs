@@ -16,6 +16,12 @@ using Pharmatechnik.Nav.Language.FindReferences;
 
 namespace Pharmatechnik.Nav.Language.Extension.FindReferences; 
 
+/// <summary>
+/// Der Definitionsknoten (Gruppierungs-Bucket) im „Find All References"-Fenster: Unter ihm sammeln sich
+/// die <see cref="ReferenceEntry"/>s einer gefundenen Definition. Als <c>DefinitionBucket</c> liefert er
+/// Anzeigename, Icon (aus dem Symbol oder einer Override) und die per <see cref="GetValue"/> abgefragten
+/// Zellwerte; Definitionen werden per <see cref="DefinitionItem"/>-Identität zusammengeführt.
+/// </summary>
 class DefinitionEntry: DefinitionBucket {
 
     readonly ImageMoniker? _imageMonikerOverride;
@@ -38,15 +44,19 @@ class DefinitionEntry: DefinitionBucket {
         _imageMonikerOverride = imageMoniker;
     }
 
+    /// <summary>Factory für einen Definitionsknoten (optional mit erzwungenem Icon statt Symbol-Icon).</summary>
     public static DefinitionEntry Create(FindReferencesPresenter presenter,
                                          DefinitionItem definitionItem,
                                          ImageMoniker? imageMoniker = null) {
         return new DefinitionEntry(presenter, definitionItem, imageMoniker);
     }
 
+    /// <summary>Der Presenter mit den WPF-Darstellungshilfen.</summary>
     public FindReferencesPresenter Presenter      { get; }
+    /// <summary>Die zugrunde liegende Engine-Definition (Symbol, Location, Anzeigeteile).</summary>
     public DefinitionItem          DefinitionItem { get; }
 
+    /// <summary>Icon des Knotens: die Override, sonst aus dem Symbol abgeleitet, sonst keins.</summary>
     public ImageMoniker? ImageMoniker {
         get {
             if (_imageMonikerOverride != null) {
@@ -61,11 +71,13 @@ class DefinitionEntry: DefinitionBucket {
         }
     }
 
+    /// <summary>VS-Tabellen-Abfrage eines Zellwerts; liefert <c>false</c>, wenn der Schlüssel keinen Wert hat.</summary>
     public override bool TryGetValue(string key, out object content) {
         content = GetValue(key);
         return content != null;
     }
 
+    /// <summary>Liefert den Zellwert des Definitionsknotens für einen VS-Tabellenspalten-Schlüssel.</summary>
     public object GetValue(string key) {
         switch (key) {
             case StandardTableKeyNames.Text:

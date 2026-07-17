@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Baut die Solution per Full-Framework-MSBuild (Restore + Build).
 
@@ -51,6 +51,11 @@ function Invoke-Build {
 
     & $msbuild $solution -t:restore -m
     if ($LASTEXITCODE) { throw "Restore fehlgeschlagen (Exit $LASTEXITCODE)." }
+
+    # Version nur zur Anzeige lesen — berechnet wird sie im Build selbst (MSBuild-Target
+    # ComputeGitVersion, die einzige Autorität). Bewusst kein -p-Durchreichen.
+    $pv = Get-ProductVersion -Root $root
+    Write-Host "  Produktversion: $($pv.Version)  ($($pv.Informational))" -ForegroundColor DarkGray
 
     & $msbuild $solution -p:Configuration=$Configuration -v:n -m @RemainingArgs
     if ($LASTEXITCODE) { throw "Build fehlgeschlagen (Exit $LASTEXITCODE)." }

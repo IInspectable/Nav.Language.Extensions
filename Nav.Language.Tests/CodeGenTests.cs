@@ -1,5 +1,6 @@
 ﻿#region Using Directives
 
+using System;
 using System.IO;
 using System.Text;
 using System.Linq;
@@ -37,7 +38,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default;
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -45,15 +46,13 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Not.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Not.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Not.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Not.Empty);
+        // Default-Optionen erzeugen für TaskA die vier WFL-/IWFL-Artefakte.
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.True);
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.False);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.False);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.False);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.False);
+        Assert.That(codeGenResult.Specs.All(spec => !String.IsNullOrEmpty(spec.Content)), Is.True);
     }
 
     [Test]
@@ -64,9 +63,9 @@ public class CodeGenTests {
         // Default: aus → keine '#nullable'-Direktive in der generierten Datei. Dadurch erbt sie
         // den Nullable-Kontext des Consumer-Projekts (in der Praxis aus), statt non-nullable
         // Referenztyp-Annotationen in Consumer-Builds zu propagieren (CS8604/CS8625).
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable"));
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Not.Contain("#nullable"));
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsIBeginWfs).Content, Does.Not.Contain("#nullable"));
+        Assert.That(codeGenResult.Specs.Single(IsIWfs).Content,      Does.Not.Contain("#nullable"));
     }
 
     [Test]
@@ -74,10 +73,10 @@ public class CodeGenTests {
 
         var codeGenResult = GenerateTaskA(GenerationOptions.Default with { NullableContext = true });
 
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Contain("#nullable enable"));
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Does.Not.Contain("#nullable disable"));
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Does.Contain("#nullable enable"));
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsWfsBase).Content,   Does.Not.Contain("#nullable disable"));
+        Assert.That(codeGenResult.Specs.Single(IsIBeginWfs).Content, Does.Contain("#nullable enable"));
+        Assert.That(codeGenResult.Specs.Single(IsIWfs).Content,      Does.Contain("#nullable enable"));
     }
 
     static CodeGenerationResult GenerateTaskA(GenerationOptions options) {
@@ -85,7 +84,7 @@ public class CodeGenTests {
         var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
         var results       = codeGenerator.Generate(codeGenerationUnit);
 
         Assert.That(results.Length, Is.EqualTo(1));
@@ -100,7 +99,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default with { GenerateWflClasses = false };
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -108,15 +107,11 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Not.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Empty);
-
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.True);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.False);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.True);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.True);
+        // Ohne WFL-Klassen bleibt nur das IWFS-Interface übrig.
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.False);
     }
 
     [Test]
@@ -126,7 +121,7 @@ public class CodeGenTests {
         var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
 
         var options       = GenerationOptions.Default with { GenerateIwflClasses = false };
-        var codeGenerator = new CodeGenerator(options);
+        var codeGenerator = new CodeGeneratorV1(options);
 
         var results = codeGenerator.Generate(codeGenerationUnit);
 
@@ -134,15 +129,110 @@ public class CodeGenTests {
 
         var codeGenResult = results[0];
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.Content, Is.Not.Empty);
-        Assert.That(codeGenResult.IWfsCodeSpec.Content,      Is.Empty);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.Content,   Is.Not.Empty);
-        Assert.That(codeGenResult.WfsCodeSpec.Content,       Is.Not.Empty);
+        // Ohne IWFL-Klassen fehlt nur das IWFS-Interface; IBeginWFS/WFSBase/WFS bleiben.
+        Assert.That(codeGenResult.Specs.Any(IsIBeginWfs), Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsIWfs),      Is.False);
+        Assert.That(codeGenResult.Specs.Any(IsWfsBase),   Is.True);
+        Assert.That(codeGenResult.Specs.Any(IsWfs),       Is.True);
+    }
 
-        Assert.That(codeGenResult.IBeginWfsCodeSpec.IsEmpty, Is.False);
-        Assert.That(codeGenResult.IWfsCodeSpec.IsEmpty,      Is.True);
-        Assert.That(codeGenResult.WfsBaseCodeSpec.IsEmpty,   Is.False);
-        Assert.That(codeGenResult.WfsCodeSpec.IsEmpty,       Is.False);
+    [Test]
+    public void ToClassesAreOptInAndOffByDefault() {
+
+        // Die TO-Erzeugung ist bewusst opt-in (GenerationOptions.Default.GenerateToClasses == false):
+        // Default-Codegen liefert kein TO-Artefakt.
+        var codeGenResult = GenerateToGenTask(GenerationOptions.Default);
+
+        Assert.That(codeGenResult.Specs.Any(IsTo), Is.False);
+    }
+
+    [Test]
+    public void ToClassOptInEmitsWriteOnceStub() {
+
+        var codeGenResult = GenerateToGenTask(GenerationOptions.Default with { GenerateToClasses = true });
+
+        var toSpecs = codeGenResult.Specs.Where(IsTo).ToList();
+        Assert.That(toSpecs.Count, Is.EqualTo(1));
+
+        var toSpec = toSpecs[0];
+
+        // TO-Stub: nur einmalig anlegen; den Inhalt pflegt der externe GUI-Generator.
+        Assert.That(toSpec.OverwritePolicy, Is.EqualTo(OverwritePolicy.Never));
+        Assert.That(FileNameOf(toSpec),     Is.EqualTo("HomeTO.generated.cs"));
+
+        // Kein <auto-generated>-Kopf, sondern der "only generated once"-Hinweis der ehemaligen TO.stg.
+        Assert.That(toSpec.Content, Does.Not.Contain("<auto-generated>"));
+
+        var expected = """
+                       //------------------------------------------------------------------------------
+                       //     This code was generated by a tool.
+                       //
+                       //     This file is only generated once.
+                       //     It can be overwritten manually or by the GUI generator safely!
+                       //------------------------------------------------------------------------------
+                       #region Using Directives
+                       using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
+                       #endregion
+
+                       namespace Nav.Language.Tests.ToGen.IWFL {
+                           public partial class HomeTO : TO {
+                               // Full TO code is generated by the GUI generator which will overwrite this file!
+                           }
+                       }
+                       """;
+
+        Assert.That(NormalizeNewLines(toSpec.Content), Is.EqualTo(NormalizeNewLines(expected)));
+    }
+
+    static string NormalizeNewLines(string s) => s.Replace("\r\n", "\n");
+
+    static CodeGenerationResult GenerateToGenTask(GenerationOptions options) {
+
+        const string nav = """
+                           [namespaceprefix Nav.Language.Tests.ToGen]
+
+                           task ToGen {
+                               init Init1;
+                               view Home;
+                               exit Ok;
+
+                               Init1 --> Home;
+                               Home  --> Ok on OnClose;
+                           }
+                           """;
+
+        var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(nav, filePath: MkFilename("ToGen.nav"));
+        var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
+
+        var codeGenerator = new CodeGeneratorV1(options);
+        var results       = codeGenerator.Generate(codeGenerationUnit);
+
+        Assert.That(results.Length, Is.EqualTo(1));
+
+        return results[0];
+    }
+
+    [Test]
+    public void DispatcherRoutesVersion1ToCodeGeneratorV1() {
+
+        var codeGenerationUnitSyntax = Syntax.ParseCodeGenerationUnit(Resources.TaskA, filePath: MkFilename("TaskA.nav"));
+        var codeGenerationUnit       = CodeGenerationUnit.FromCodeGenerationUnitSyntax(codeGenerationUnitSyntax);
+
+        // TaskA trägt kein #version ⇒ Version 1. Die Weiche (CodeGeneratorProvider.Default) muss für
+        // sie exakt dasselbe erzeugen wie der direkt instanziierte V1-Generator.
+        Assert.That(codeGenerationUnit.LanguageVersion, Is.EqualTo(NavLanguageVersion.Version1));
+
+        var options = GenerationOptions.Default;
+
+        using var dispatcher = CodeGeneratorProvider.Default.Create(options, PathProviderFactory.Default);
+        var       viaSwitch  = dispatcher.Generate(codeGenerationUnit);
+
+        var viaV1 = new CodeGeneratorV1(options).Generate(codeGenerationUnit);
+
+        var switchContents = viaSwitch.SelectMany(r => r.Specs).Select(s => s.Content).ToList();
+        var v1Contents     = viaV1.SelectMany(r => r.Specs).Select(s => s.Content).ToList();
+
+        Assert.That(switchContents, Is.EqualTo(v1Contents));
     }
 
     public static TestCaseData[] CompileTestCases = {
@@ -263,6 +353,207 @@ public class CodeGenTests {
             }
         }) {
             TestName = "Complex Task w/o namespaceprefix"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("ContinuationCompile.nav"),
+                    // V2-Continuation: deckt BEIDE Modi ab — o-^ (→ OpenModalTask) und --^ (→ GotoTask).
+                    // Der generierte Code muss gegen die erweiterte .Concat-Typfläche der Stubs
+                    // kompilieren (kein Laufzeit-Test, §3.8/⑥). Self-contained: der Folge-Task Msg ist
+                    // lokal definiert und [result bool] (kein externer Result-Typ nötig).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.ContinuationCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              task Msg [result bool] {
+                                  init I [params string text];
+                                  exit Done;
+                                  I --> Done;
+                              }
+
+                              task ContinuationCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  view Home;
+                                  task Msg Warn;
+                                  task Msg Drill;
+                                  exit Ok;
+
+                                  Init1 --> Home;
+
+                                  // o-^ : Home zeigen, dann modal Warn obendrauf → GotoGUI(to).Concat(OpenModalTask(...))
+                                  Home --> Home o-^ Warn on OnShowWarn;
+
+                                  // --^ : Home zeigen, per Goto in Drill → GotoGUI(to).Concat(GotoTask(...))
+                                  Home --> Home --^ Drill on OnDrillDown;
+
+                                  Warn:Done  --> Home;
+                                  Drill:Done --> Home;
+                                  Home --> Ok on OnClose;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 Continuation (o-^ and --^) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("ChoiceCompile.nav"),
+                    // V2-Choices in C#: der durchgängige Fall (§3.1/§3.5). Deckt ab: 3 Quellen an dieselbe
+                    // Choice (Init/Trigger/Exit forwarden), Union pro Ziel (Home plain UND o-^ Msg),
+                    // Choice→Choice (Choice_Retry --> Choice_Escalate, rekursives Forwarding) und Multi-Exit
+                    // (Choice_Escalate --> Done/Esc → EINE Exit()-Fabrik). Self-contained: die Folge-Tasks A
+                    // und Msg sind lokal [result bool] (kein externer Result-Typ nötig). Kompiliert gegen die
+                    // Stubs (kein Laufzeit-Test) und belegt zugleich die Init-Legalität (alles aus Init1 über
+                    // Choice_Retry Erreichbare liegt in der IINIT_TASK-Menge).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.ChoiceCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              task A [result bool] {
+                                  init;
+                                  exit E1;
+                                  exit E2;
+                                  init --> E1;
+                                  init --> E2;
+                              }
+
+                              task Msg [result bool] {
+                                  init I [params string text];
+                                  exit Ok;
+                                  I --> Ok;
+                              }
+
+                              task ChoiceCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1 [params string message];
+                                  exit Done;
+                                  exit Esc;
+                                  task A;
+                                  task Msg;
+                                  view Home;
+                                  choice Choice_Retry    [params string reason];
+                                  choice Choice_Escalate [params int level];
+
+                                  Init1 --> Choice_Retry;
+                                  Home  --> Choice_Retry on OnRetry;
+                                  A:E1  --> Choice_Retry;
+
+                                  Home  o-> A on OnStartA;
+                                  A:E2  --> Home;
+
+                                  Choice_Retry --> Home;
+                                  Choice_Retry --> Home o-^ Msg if "Fehler";
+                                  Choice_Retry --> Choice_Escalate if "Fatal";
+
+                                  Choice_Escalate --> Done;
+                                  Choice_Escalate --> Esc;
+
+                                  Msg:Ok --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 Choices in C# (3 sources, union, choice->choice, multi-exit) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("NotImplementedCompile.nav"),
+                    // V2-Sonderform [notimplemented] (§3.4): Begin{Node} existiert weiter (inkl.
+                    // Init-Parameter), sein Thunk ist aber ein reiner throw-Ausdruck — es wird KEINE
+                    // After{Node}-Maschinerie erzeugt. Der throw-Thunk muss als Func<INavCommand> gegen die
+                    // Stubs kompilieren. Self-contained: der [notimplemented]-Task ist ein taskref [result bool]
+                    // (kein externer Result-Typ nötig, sein Wrapper wird nie referenziert).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.NotImplementedCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              taskref Stub [namespaceprefix NS.NI]
+                                           [notimplemented]
+                                           [result bool r] {
+                                  init [params string text];
+                                  exit Done;
+                              }
+
+                              task NotImplementedCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  exit Ok;
+                                  task Stub Warn;
+                                  view Home;
+
+                                  Init1 --> Home;
+                                  Home o-> Warn on OnWarn;
+                                  Home --> Ok on OnClose;
+                                  Warn:Done --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 [notimplemented] (throw-thunk) should compile against stubs"
+        },
+        new(new TestCase {
+            NavFiles = {
+                new TestCaseFile {
+                    FilePath = MkFilename("DoNotInjectCompile.nav"),
+                    // V2-Sonderform [donotinject] (§3.4): der Ziel-Task-Wrapper wird nicht injiziert, also nimmt
+                    // Begin{Node} ihn als expliziten ERSTEN Parameter (IBegin{Task}WFS wfs) entgegen und ruft
+                    // wfs.Begin(...); die Init-Parameter folgen dahinter. Das muss gegen die generierte
+                    // IBegin{Task}WFS-Fläche kompilieren. Self-contained: der Sub-Task Editor ist lokal
+                    // [result bool] (seine IBeginEditorWFS-Schnittstelle entsteht lokal, wfs.Begin(id) löst auf).
+                    Content = """
+                              #version 2
+
+                              [namespaceprefix Nav.Language.Tests.V2.DoNotInjectCompile]
+
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.WFL]
+                              [using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL]
+
+                              task Editor [result bool] {
+                                  init I [params int id];
+                                  exit Closed;
+                                  I --> Closed;
+                              }
+
+                              task DoNotInjectCompile [base StandardWFS : IWFServiceBase]
+                                  [result bool]
+                              {
+                                  init Init1;
+                                  exit Ok;
+                                  task Editor Edit [donotinject];
+                                  view Home;
+
+                                  Init1 --> Home;
+                                  Home o-> Edit on OnEdit;
+                                  Home --> Ok on OnClose;
+                                  Edit:Closed --> Home;
+                              }
+                              """
+                }
+            }
+        }) {
+            TestName = "V2 [donotinject] (explicit wrapper parameter) should compile against stubs"
         }
     };
 
@@ -290,23 +581,26 @@ public class CodeGenTests {
             var codeGenerationUnit = semenaticModelProvider.GetSemanticModel(codeGenerationUnitSyntax);
             AssertNoDiagnosticErrors(codeGenerationUnit.Diagnostics, codeGenerationUnitSyntax.SyntaxTree.SourceText);
 
-            var options       = GenerationOptions.Default;
-            var codeGenerator = new CodeGenerator(options);
+            var options = GenerationOptions.Default;
 
-            // 3. Code aus Semantic Model erstellen
-            var codeGenerationResults = codeGenerator.Generate(codeGenerationUnit);
+            // 3. Code aus Semantic Model erstellen — versionsbewusst (V2-Units über den CallContext-Codegen,
+            //    sonst V1). Entspricht der Dispatcher-Weiche, ohne den internen Dispatcher zu benötigen.
+            var codeGenerationResults = codeGenerationUnit.LanguageVersion == NavLanguageVersion.Version2
+                ? new CodeGeneratorV2(options).Generate(codeGenerationUnit)
+                : new CodeGeneratorV1(options).Generate(codeGenerationUnit);
 
             foreach (var codeGenerationResult in codeGenerationResults) {
 
                 // 4. C#-Syntaxbäume des generierten Codes mittels Roslyn erstellen
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.IBeginWfsCodeSpec.Content, path: codeGenerationResult.IBeginWfsCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.IWfsCodeSpec.Content,      path: codeGenerationResult.IWfsCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.WfsBaseCodeSpec.Content,   path: codeGenerationResult.WfsBaseCodeSpec.FilePath));
-                syntaxTrees.Add(CSharpSyntaxTree.ParseText(codeGenerationResult.WfsCodeSpec.Content,       path: codeGenerationResult.WfsCodeSpec.FilePath));
-                foreach (var toCodeSpec in codeGenerationResult.ToCodeSpecs) {
-                    syntaxTrees.Add(CSharpSyntaxTree.ParseText(toCodeSpec.Content, path: toCodeSpec.FilePath));
+                foreach (var spec in codeGenerationResult.Specs) {
+                    syntaxTrees.Add(CSharpSyntaxTree.ParseText(spec.Content, path: spec.FilePath));
                 }
             }
+
+            // Die TO-Typen sind kein Generator-Artefakt mehr — in Produktion liefert sie der externe
+            // GUI-Generator. Für die In-Memory-Kompilierung des generierten Codes werden sie hier als
+            // Stubs bereitgestellt (analog zum Framework-Stub).
+            syntaxTrees.Add(GetToStubCode(codeGenerationUnit));
         }
 
         // Pseudo Framework Code hinzufügen
@@ -346,6 +640,41 @@ public class CodeGenTests {
         return CSharpSyntaxTree.ParseText(Resources.FrameworkStubsCode, path: MkFilename("FrameworkStubCode.cs"));
     }
 
+    // Erzeugt je View-Knoten eine 'partial class {View}TO : TO' im IWFL-Namespace des Tasks — die
+    // Typen, die die generierten I{Task}WFS-/WFSBase-Signaturen referenzieren. nav.exe legt diese
+    // Stubs nicht mehr an (der GUI-Generator besitzt den TO-Inhalt); für die Kompilierung des
+    // generierten Codes werden sie hier bereitgestellt (dieselbe Knoten-Auswahl wie einst TOCodeModel).
+    static RoslynSyntaxTree GetToStubCode(CodeGenerationUnit codeGenerationUnit) {
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"using {CodeGenFacts.NavigationEngineIwflNamespace};");
+
+        foreach (var task in codeGenerationUnit.TaskDefinitions) {
+
+            var iwflNamespace = TaskCodeInfo.FromTaskDefinition(task).IwflNamespace;
+
+            var toClassNames = task.NodeDeclarations
+                                   .OfType<IGuiNodeSymbol>()
+                                   .Where(guiNode => guiNode.References.Any())
+                                   .Select(guiNode => $"{guiNode.Name.ToPascalcase()}{CodeGenInvariants.ToClassNameSuffix}")
+                                   .Distinct()
+                                   .ToList();
+
+            if (toClassNames.Count == 0) {
+                continue;
+            }
+
+            sb.AppendLine($"namespace {iwflNamespace} {{");
+            foreach (var toClassName in toClassNames) {
+                sb.AppendLine($"    public partial class {toClassName} : TO {{ }}");
+            }
+
+            sb.AppendLine("}");
+        }
+
+        return CSharpSyntaxTree.ParseText(sb.ToString(), path: MkFilename("ToStubCode.cs"));
+    }
+
     void AssertNoDiagnosticErrors(IEnumerable<RoslynDiagnostic> diagnostics) {
         var errors = diagnostics.Where(d => d.IsWarningAsError || d.Severity == RoslynDiagnosticSeverity.Error).ToList();
         Assert.That(errors.Any(), Is.False, FormatDiagnostics(errors) + errors.FirstOrDefault()?.Location.SourceTree);
@@ -375,6 +704,18 @@ public class CodeGenTests {
     static string MkFilename(string fileName) {
         return Path.Combine(@"n:\av", fileName);
     }
+
+    // Die Produktions-Specs sind bewusst namenlos (nur Content/FilePath/OverwritePolicy) — die
+    // Artefakt-Menge ist eine Sache des Generators, nicht des Konvergenzpunkts. Die Tests sind die
+    // einzige Stelle, die ein bestimmtes Artefakt adressieren muss; sie tun das über den Dateinamen.
+    static string FileNameOf(CodeGenerationSpec spec) => Path.GetFileName(spec.FilePath);
+
+    static bool IsIBeginWfs(CodeGenerationSpec spec) => FileNameOf(spec).StartsWith("IBegin", StringComparison.Ordinal);
+    static bool IsIWfs(CodeGenerationSpec spec)      => FileNameOf(spec).StartsWith("I",      StringComparison.Ordinal) && !IsIBeginWfs(spec);
+    static bool IsWfsBase(CodeGenerationSpec spec)   => FileNameOf(spec).EndsWith("WFSBase.generated.cs", StringComparison.Ordinal);
+    static bool IsWfs(CodeGenerationSpec spec)       => FileNameOf(spec).EndsWith("WFS.cs", StringComparison.Ordinal) &&
+                                                        !FileNameOf(spec).EndsWith(".generated.cs", StringComparison.Ordinal);
+    static bool IsTo(CodeGenerationSpec spec)        => FileNameOf(spec).EndsWith("TO.generated.cs", StringComparison.Ordinal);
 
     public class TestCase {
 

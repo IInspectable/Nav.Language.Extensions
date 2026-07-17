@@ -1,0 +1,6 @@
+﻿// C# → Nav
+// Rücksprung aus der TaskFlowWFS landet auf der `task TaskFlow`-Deklaration im .nav —
+// der Golden pinnt den exakten Span, nicht bloß irgendein TaskFlow-Vorkommen.
+
+<nav> (8,6)-(8,14)  "TaskFlow"
+    task TaskFlow [base StandardWFS : IWFServiceBase]

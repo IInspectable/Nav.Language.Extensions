@@ -1,0 +1,6 @@
+﻿taskref TR [params T1 p1, T2<T3, T4<T5>> p2]
+{
+    init I1;
+    exit E1;
+    end;
+}

@@ -1,0 +1,5 @@
+﻿// C# → Nav
+// Rücksprung von der BeginLogic des Sub-Tasks landet auf dessen eigenem `init Begin`-Knoten.
+
+<nav> (13,5)-(13,9)  "init"
+    init Begin;

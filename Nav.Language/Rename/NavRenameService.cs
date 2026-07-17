@@ -1,8 +1,6 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 using Pharmatechnik.Nav.Language.CodeFixes;
@@ -31,9 +29,8 @@ public static class NavRenameService {
     /// (0-basierter Offset) — oder <c>null</c>, wenn dort kein umbenennbares Symbol liegt. Caret-Auflösung
     /// über <c>SymbolPosition.SymbolsAt</c> (striktes Enthaltensein), konsistent zu GoTo/References/Hover.
     /// </summary>
-    [CanBeNull]
-    public static RenameCodeFix GetRenameFix([NotNull] CodeGenerationUnit unit, int position,
-                                             [NotNull] TextEditorSettings settings) {
+    public static RenameCodeFix? GetRenameFix(CodeGenerationUnit unit, int position,
+                                              TextEditorSettings settings) {
 
         var symbol = SymbolPosition.SymbolsAt(unit, position).FirstOrDefault();
         if (symbol == null) {

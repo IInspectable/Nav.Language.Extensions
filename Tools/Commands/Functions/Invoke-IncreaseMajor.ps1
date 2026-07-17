@@ -1,23 +1,31 @@
-<#
+﻿<#
 .SYNOPSIS
-    Erhöht die Major-Version: X.Y.Z → (X+1).0.0.
+    Erhöht die Major-Version: setzt das Tag v(X+1).0.0 auf HEAD.
 
 .DESCRIPTION
-    Bumpt die Produktversion in Version.props und vscode-nav-lsp\package.json synchron
-    (siehe Update-Version). Der Repo-Root wird zur Aufruf-Zeit aufgelöst (Resolve-Root).
+    Die Version wird git-abgeleitet (siehe Get-ProductVersion): Major/Minor werden über Tags
+    gesteuert, der Patch zählt automatisch die Commits seit dem letzten Tag. incmajor legt das
+    nächste Major-Tag auf HEAD an — mit Clean-Tree-Check, Monotonie-Absicherung, Bestätigung und
+    optionalem Push (siehe Set-VersionTag). Der Repo-Root wird zur Aufruf-Zeit aufgelöst.
+
+.PARAMETER Push
+    Das neue Tag direkt nach origin pushen.
+
+.PARAMETER Force
+    Bestätigung vor dem Taggen überspringen.
 
 .FUNCTIONALITY
     incmajor
 #>
 function Invoke-IncreaseMajor {
     [CmdletBinding()]
-    param()
+    param(
+        [switch] $Push,
+        [switch] $Force
+    )
 
     $root = Resolve-Root
     if (-not $root) { return }
 
-    [void](Update-Version -Root $root -Update {
-        param([Version] $old)
-        New-Object System.Version -ArgumentList ($old.Major + 1), 0, 0
-    })
+    Set-VersionTag -Root $root -Part Major -Push:$Push -Force:$Force
 }

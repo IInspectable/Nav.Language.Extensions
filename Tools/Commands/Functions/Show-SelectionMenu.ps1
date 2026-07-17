@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Generisches interaktives Pfeiltasten-Menü über eine beliebige Item-Liste.
 

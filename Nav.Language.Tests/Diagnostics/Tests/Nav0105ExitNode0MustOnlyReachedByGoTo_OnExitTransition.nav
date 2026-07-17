@@ -7,4 +7,4 @@
     I1   --> A;
     A:e1 o-> e1;
 }
-//==>>[Semantic](8,10,8,13): error Nav0105: Exit node 'e1' must only be reached by -->
+//==>>[Semantic](8,10,8,13): error Nav0105: Exit node 'e1' can only be reached by a goto edge (-->)

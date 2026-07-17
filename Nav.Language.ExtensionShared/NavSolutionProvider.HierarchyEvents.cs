@@ -14,35 +14,43 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
 
     private uint _hierarchyEventsCookie;
 
+    /// <summary>Gibt an, ob die Hierarchie-Events aktuell abonniert sind.</summary>
     bool AreHierarchyEventsConnected => _hierarchyEventsCookie != 0;
 
+    /// <summary>
+    /// Abonniert die <see cref="IVsHierarchyEvents"/> der Solution-Hierarchie (idempotent).
+    /// </summary>
     void ConnectHierarchyEvents() {
 
         ThreadHelper.ThrowIfNotOnUIThread();
 
         if (!AreHierarchyEventsConnected) {
 
-            GetSolutionHierachy()?.AdviseHierarchyEvents(this, out _hierarchyEventsCookie);
+            GetSolutionHierarchy()?.AdviseHierarchyEvents(this, out _hierarchyEventsCookie);
         }
 
     }
 
-    IVsHierarchy GetSolutionHierachy() {
+    /// <summary>Liefert die <see cref="IVsHierarchy"/> der aktuellen Solution.</summary>
+    IVsHierarchy GetSolutionHierarchy() {
         ThreadHelper.ThrowIfNotOnUIThread();
 
-        var vsSolution1 = (IVsSolution) ServiceProvider.GetService(typeof(SVsSolution)) ?? throw new InvalidOperationException();
+        var vsSolution = (IVsSolution) ServiceProvider.GetService(typeof(SVsSolution)) ?? throw new InvalidOperationException();
 
         // ReSharper disable once SuspiciousTypeConversion.Global
-        return vsSolution1 as IVsHierarchy;
+        return vsSolution as IVsHierarchy;
     }
 
+    /// <summary>
+    /// Beendet das Abonnement der Hierarchie-Events (Gegenstück zu <see cref="ConnectHierarchyEvents"/>).
+    /// </summary>
     // TODO DisconnectHierarchyEvents beim Beenden von Studio
     // ReSharper disable once UnusedMember.Local
     void DisconnectHierarchyEvents() {
         ThreadHelper.ThrowIfNotOnUIThread();
 
         if (AreHierarchyEventsConnected) {
-            GetSolutionHierachy().UnadviseHierarchyEvents(_hierarchyEventsCookie);
+            GetSolutionHierarchy().UnadviseHierarchyEvents(_hierarchyEventsCookie);
             _hierarchyEventsCookie = 0;
         }
     }
@@ -59,15 +67,16 @@ partial class NavSolutionProvider: IVsHierarchyEvents {
         return VSConstants.S_OK;
     }
 
+    /// <summary>
+    /// Invalidiert den Snapshot, wenn sich der Projektname der Solution-Wurzel ändert (etwa beim Umbenennen
+    /// der Solution); andere Property-Änderungen werden ignoriert.
+    /// </summary>
     int IVsHierarchyEvents.OnPropertyChanged(uint itemid, int propid, uint flags) {
-           
+
         if (propid == (int) __VSHPROPID.VSHPROPID_ProjectName &&
             itemid == (uint) VSConstants.VSITEMID.Root) {
 
             Invalidate();
-
-            // ReSharper disable once DuplicatedStatements
-            return VSConstants.S_OK;
         }
 
         return VSConstants.S_OK;

@@ -1,0 +1,9 @@
+﻿task A
+{
+    init [params BORef
+
+    view V;
+    exit Exit;
+
+    init --> V;
+}

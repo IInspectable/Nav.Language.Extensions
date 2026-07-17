@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.ComponentModel;
@@ -18,7 +18,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// MCP-Tool <c>nav_workspace</c>: listet alle <c>.nav</c>-Dateien der Solution.
 /// </summary>
 [McpServerToolType]
-public static class NavWorkspaceTool {
+public sealed class NavWorkspaceTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;

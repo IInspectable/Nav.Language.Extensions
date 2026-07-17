@@ -16,4 +16,5 @@ task A
 
     I1  --> e1;
 }
+//==>>[Semantic](4,10,4,12): error Nav0119: The init node 'I2' has the same parameter signature as init node 'I1'
 //==>>[DeadCode](15,5,15,14): warning Nav1009: The choice node 'C' is not required by the code and can be safely removed

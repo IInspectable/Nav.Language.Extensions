@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Collections.Generic;
 
@@ -9,8 +9,18 @@ using Microsoft.VisualStudio.Text.Tagging;
 
 namespace Pharmatechnik.Nav.Language.Extension.Outlining; 
 
+/// <summary>
+/// Teil-Tagger für Outlining, der jeden Transitionsblock (<see cref="TransitionDefinitionBlockSyntax"/>)
+/// zu einer aufklappbaren Region macht (eingeklappte Darstellung „Transitions"). Aufgerufen vom
+/// <see cref="OutliningTagger"/>.
+/// </summary>
 class TransitionDefinitionBlockOutlineTagger {
 
+    /// <summary>
+    /// Liefert je mehrzeiligem Transitionsblock eine Region. Einzeilige Blöcke werden übersprungen.
+    /// </summary>
+    /// <param name="syntaxTreeAndSnapshot">Syntaxbaum samt zugehörigem <see cref="ITextSnapshot"/>.</param>
+    /// <param name="tagCreator">Fabrik für die <see cref="IOutliningRegionTag"/>-Instanzen.</param>
     public static IEnumerable<ITagSpan<IOutliningRegionTag>> GetTags(SyntaxTreeAndSnapshot syntaxTreeAndSnapshot, IOutliningRegionTagCreator tagCreator) {
 
         var transitionBlocks = syntaxTreeAndSnapshot.SyntaxTree.Root.DescendantNodes<TransitionDefinitionBlockSyntax>();

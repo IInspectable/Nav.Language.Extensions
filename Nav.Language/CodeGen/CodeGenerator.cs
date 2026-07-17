@@ -1,215 +1,70 @@
 ﻿#region Using Directives
 
 using System;
-using System.Linq;
-using System.Threading;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Text;
-
-using Antlr4.StringTemplate;
-
-using JetBrains.Annotations;
-
-using Pharmatechnik.Nav.Language.CodeGen.Templates;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language.CodeGen; 
+namespace Pharmatechnik.Nav.Language.CodeGen;
 
+/// <summary>
+/// Factory für einen <see cref="ICodeGenerator"/>. Entkoppelt die Codegen-Pipeline
+/// (<c>NavCodeGeneratorPipeline</c>) von der konkreten Generator-Implementierung und erlaubt so,
+/// den Generator in Tests auszutauschen; im Produktivpfad liefert
+/// <see cref="CodeGeneratorProvider.Default"/> stets die Versions-Weiche
+/// <see cref="VersionDispatchingCodeGenerator"/>.
+/// </summary>
 public interface ICodeGeneratorProvider {
 
+    /// <summary>
+    /// Erzeugt einen <see cref="ICodeGenerator"/> für die gegebenen <paramref name="options"/> und
+    /// die Pfad-Factory <paramref name="pathProviderFactory"/> (letztere bestimmt die Zielpfade der
+    /// erzeugten Artefakte).
+    /// </summary>
     ICodeGenerator Create(GenerationOptions options, IPathProviderFactory pathProviderFactory);
 
 }
 
+/// <summary>
+/// Die Standard-Factory für den Codegenerator. Als zustandsloser Singleton
+/// (<see cref="Default"/>) ausgelegt; jeder <see cref="Create"/>-Aufruf liefert einen frischen,
+/// versions-dispatchenden Generator.
+/// </summary>
 public sealed class CodeGeneratorProvider: ICodeGeneratorProvider {
 
     CodeGeneratorProvider() {
 
     }
 
+    /// <summary>Der prozessweit geteilte Standard-Provider.</summary>
     public static readonly ICodeGeneratorProvider Default = new CodeGeneratorProvider();
 
+    /// <summary>
+    /// Erzeugt den produktiven Generator: die Versions-Weiche
+    /// <see cref="VersionDispatchingCodeGenerator"/>, die je <see cref="CodeGenerationUnit"/> an den
+    /// Generator ihrer Sprach-Generation delegiert.
+    /// </summary>
     public ICodeGenerator Create(GenerationOptions options, IPathProviderFactory pathProviderFactory) {
-        return new CodeGenerator(options, pathProviderFactory);
+        // Die Weiche zwischen den Sprach-Generationen liegt hinter dieser Factory: der Dispatcher wählt
+        // je CodeGenerationUnit den Generator ihrer Version.
+        return new VersionDispatchingCodeGenerator(options, pathProviderFactory);
     }
 
 }
 
+/// <summary>
+/// Der versionsübergreifende Vertrag der Codegenerierung: übersetzt eine bereits geparste und
+/// semantisch modellierte <see cref="CodeGenerationUnit"/> in die zu schreibenden C#-Artefakte,
+/// ohne dass der Aufrufer die konkrete Sprach-Generation kennt. <see cref="IDisposable"/>, weil
+/// Implementierungen (z.B. StringTemplate-Gruppen) native Ressourcen halten können.
+/// </summary>
 public interface ICodeGenerator: IDisposable {
 
+    /// <summary>
+    /// Generiert für jede Task-Definition der <paramref name="codeGenerationUnit"/> deren
+    /// Artefakte als <see cref="CodeGenerationResult"/> (je eine Spec-Liste). Die Weiche zwischen
+    /// den Sprach-Generationen liegt hinter dieser Schnittstelle.
+    /// </summary>
     ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit);
-
-}
-
-// ReSharper disable InconsistentNaming
-public class CodeGenerator: Generator, ICodeGenerator {
-
-    const string TemplateBeginName    = "Begin";
-    const string ModelAttributeName   = "model";
-    const string ContextAttributeName = "context";
-
-    public CodeGenerator(GenerationOptions options = null, IPathProviderFactory pathProviderFactory = null): base(options) {
-        PathProviderFactory = pathProviderFactory ?? Language.PathProviderFactory.Default;
-    }
-
-    [NotNull]
-    public IPathProviderFactory PathProviderFactory { get; }
-
-    public ImmutableArray<CodeGenerationResult> Generate(CodeGenerationUnit codeGenerationUnit) {
-
-        if (codeGenerationUnit == null) {
-            throw new ArgumentNullException(nameof(codeGenerationUnit));
-        }
-
-        if (codeGenerationUnit.Syntax.SyntaxTree.Diagnostics.HasErrors()) {
-            throw new ArgumentException($"The CodeGenerationUnit has syntax errors:\r\n{FormatDiagnostics(codeGenerationUnit.Syntax.SyntaxTree.Diagnostics.Errors())}");
-        }
-
-        if (codeGenerationUnit.Diagnostics.HasErrors()) {
-            throw new ArgumentException($"The CodeGenerationUnit has semantic errors:\r\n{FormatDiagnostics(codeGenerationUnit.Diagnostics.Errors())}");
-        }
-
-        if (codeGenerationUnit.Includes.Any(i => i.Diagnostics.HasErrors())) {
-            throw new ArgumentException($"An included file has syntax or semantic errors:\r\n{FormatDiagnostics(codeGenerationUnit.Includes.SelectMany(i => i.Diagnostics).Errors())}");
-        }
-
-        return codeGenerationUnit.TaskDefinitions
-                                 .Select(GenerateCodeModel)
-                                 .Select(GenerateCode)
-                                 .ToImmutableArray();
-
-        string FormatDiagnostics(IEnumerable<Diagnostic> diagnostics) {
-            return diagnostics.Aggregate(new StringBuilder(), (sb, d) => sb.AppendLine(FormatDiagnostic(d)), sb => sb.ToString());
-        }
-
-        string FormatDiagnostic(Diagnostic diagnostic) {
-            return $"{diagnostic.Descriptor.Id}: {diagnostic.Location} {diagnostic.Message}";
-        }
-    }
-
-    CodeModelResult GenerateCodeModel(ITaskDefinitionSymbol taskDefinition) {
-
-        var pathProvider = PathProviderFactory.CreatePathProvider(taskDefinition, Options);
-
-        var codeModelResult = new CodeModelResult(
-            taskDefinition   : taskDefinition,
-            beginWfsCodeModel: Options.GenerateWflClasses ? IBeginWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options) : null,
-            iwfsCodeModel    : Options.GenerateIwflClasses ? IWfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)     : null,
-            wfsBaseCodeModel : Options.GenerateWflClasses ? WfsBaseCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)   : null,
-            wfsCodeModel     : Options.GenerateWflClasses ? WfsCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)       : null,
-            toCodeModels     : Options.GenerateToClasses ? TOCodeModel.FromTaskDefinition(taskDefinition, pathProvider, Options)         : null
-        );
-
-        return codeModelResult;
-    }
-
-    CodeGenerationResult GenerateCode(CodeModelResult codeModelResult) {
-
-        var context = new CodeGeneratorContext(this);
-
-        var codeGenerationResult = new CodeGenerationResult(
-            taskDefinition   : codeModelResult.TaskDefinition,
-            iBeginWfsCodeSpec: GenerateIBeginWfsCodeSpec(codeModelResult.IBeginWfsCodeModel, context),
-            iWfsCodeSpec     : GenerateIWfsCodeSpec(codeModelResult.IWfsCodeModel, context),
-            wfsBaseCodeSpec  : GenerateWfsBaseCodeSpec(codeModelResult.WfsBaseCodeModel, context),
-            wfsCodeSpec      : GenerateWfsCodeSpec(codeModelResult.WfsCodeModel, context),
-            toCodeSpecs      : GenerateToCodeSpecs(codeModelResult.TOCodeModels, context));
-
-        return codeGenerationResult;
-    }
-
-    static readonly ThreadLocal<TemplateGroup> IBeginWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IBeginWfsTemplate));
-
-    static CodeGenerationSpec GenerateIBeginWfsCodeSpec([CanBeNull] IBeginWfsCodeModel model, CodeGeneratorContext context) {
-
-        if (model == null) {
-            return CodeGenerationSpec.Empty;
-        }
-
-        var template = GetTemplate(IBeginWfsTemplateGroup.Value, model, context);
-        var content  = template.Render();
-
-        return new CodeGenerationSpec(content, model.FilePath);
-    }
-
-    static readonly ThreadLocal<TemplateGroup> IWfsTemplateGroup = new(() => LoadTemplateGroup(Resources.IWfsTemplate));
-
-    static CodeGenerationSpec GenerateIWfsCodeSpec([CanBeNull] IWfsCodeModel model, CodeGeneratorContext context) {
-
-        if (model == null) {
-            return CodeGenerationSpec.Empty;
-        }
-
-        var template = GetTemplate(IWfsTemplateGroup.Value, model, context);
-        var content  = template.Render();
-
-        return new CodeGenerationSpec(content, model.FilePath);
-    }
-
-    static readonly ThreadLocal<TemplateGroup> WfsBaseTemplateGroup = new(() => LoadTemplateGroup(Resources.WfsBaseTemplate));
-
-    static CodeGenerationSpec GenerateWfsBaseCodeSpec([CanBeNull] WfsBaseCodeModel model, CodeGeneratorContext context) {
-
-        if (model == null) {
-            return CodeGenerationSpec.Empty;
-        }
-
-        var template = GetTemplate(WfsBaseTemplateGroup.Value, model, context);
-        var content  = template.Render();
-
-        return new CodeGenerationSpec(content, model.FilePath);
-    }
-
-    static readonly ThreadLocal<TemplateGroup> WfsTemplateGroup = new(() => LoadTemplateGroup(Resources.WFSOneShotTemplate));
-
-    static CodeGenerationSpec GenerateWfsCodeSpec([CanBeNull] WfsCodeModel model, CodeGeneratorContext context) {
-
-        if (model == null) {
-            return CodeGenerationSpec.Empty;
-        }
-
-        var template = GetTemplate(WfsTemplateGroup.Value, model, context);
-        var content  = template.Render();
-
-        return new CodeGenerationSpec(content, model.FilePath);
-    }
-
-    static readonly ThreadLocal<TemplateGroup> ToTemplateGroup = new(() => LoadTemplateGroup(Resources.TOTemplate));
-
-    static IEnumerable<CodeGenerationSpec> GenerateToCodeSpecs(IEnumerable<TOCodeModel> models, CodeGeneratorContext context) {
-        return models.Select(model => GenerateToCodeSpec(model, context));
-
-        static CodeGenerationSpec GenerateToCodeSpec(TOCodeModel model, CodeGeneratorContext context) {
-
-            var template = GetTemplate(ToTemplateGroup.Value, model, context);
-            var content  = template.Render();
-
-            return new CodeGenerationSpec(content, model.FilePath);
-        }
-    }
-
-    static TemplateGroup LoadTemplateGroup(string resourceName) {
-
-        var codeGenFacts   = new TemplateGroupString(Resources.CodeGenFacts);
-        var commonTemplate = new TemplateGroupString(Resources.CommonTemplate);
-        var templateGroup  = new TemplateGroupString(resourceName);
-
-        templateGroup.ImportTemplates(codeGenFacts);
-        templateGroup.ImportTemplates(commonTemplate);
-
-        return templateGroup;
-    }
-
-    static Template GetTemplate(TemplateGroup templateGroup, CodeModel model, CodeGeneratorContext context) {
-
-        var st = templateGroup.GetInstanceOf(TemplateBeginName);
-
-        st.Add(ModelAttributeName,   model);
-        st.Add(ContextAttributeName, context);
-
-        return st;
-    }
 
 }

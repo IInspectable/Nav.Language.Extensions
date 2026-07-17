@@ -1,18 +1,25 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-using JetBrains.Annotations;
+namespace Pharmatechnik.Nav.Language;
 
-namespace Pharmatechnik.Nav.Language; 
-
+/// <summary>
+/// Semantic-Model-Umsetzung von <see cref="ITriggerTransition"/> — die Transition mit GUI-Knoten
+/// (View/Dialog) als Quelle, ausgelöst von Triggern, z.B. <c>View --&gt; Ziel on Speichern;</c>.
+/// </summary>
 sealed class TriggerTransition: Transition, ITriggerTransition {
 
+    /// <summary>
+    /// Erzeugt die Trigger-Transition (Verankerung der Referenzen siehe Basis-Konstruktor) und setzt
+    /// sich als <see cref="TriggerSymbol.Transition"/> an jedem ihrer <see cref="Triggers"/>.
+    /// </summary>
     public TriggerTransition(TransitionDefinitionSyntax syntax,
                              ITaskDefinitionSymbol containingTask,
-                             GuiNodeReferenceSymbol sourceReference,
-                             EdgeModeSymbol edgeMode,
-                             NodeReferenceSymbol targetReference,
-                             SymbolCollection<TriggerSymbol> triggers)
-        : base(syntax, containingTask, sourceReference, edgeMode, targetReference) {
+                             GuiNodeReferenceSymbol? sourceReference,
+                             EdgeModeSymbol? edgeMode,
+                             NodeReferenceSymbol? targetReference,
+                             ContinuationTransition? continuationTransition,
+                             SymbolCollection<TriggerSymbol>? triggers)
+        : base(syntax, containingTask, sourceReference, edgeMode, targetReference, continuationTransition) {
 
         Triggers = triggers ?? new SymbolCollection<TriggerSymbol>();
 
@@ -21,14 +28,21 @@ sealed class TriggerTransition: Transition, ITriggerTransition {
         }
     }
 
-    public IGuiNodeReferenceSymbol GuiNodeSourceReference => (IGuiNodeReferenceSymbol) SourceReference;
+    /// <inheritdoc/>
+    public IGuiNodeReferenceSymbol? GuiNodeSourceReference => (IGuiNodeReferenceSymbol?) SourceReference;
 
     IReadOnlySymbolCollection<ITriggerSymbol> ITriggerTransition.Triggers => Triggers;
 
-    [NotNull]
+    /// <summary>
+    /// Die Trigger dieser Transition als konkrete Symbol-Collection — nie <c>null</c>
+    /// (ohne Trigger im Quelltext eine leere Collection).
+    /// </summary>
     public SymbolCollection<TriggerSymbol> Triggers { get; }
 
-    [NotNull]
+    /// <summary>
+    /// Liefert die Teil-Symbole der Basis (Quelle, Kantenmodus, Ziel, Continuation) und zusätzlich
+    /// die <see cref="Triggers"/>.
+    /// </summary>
     public override IEnumerable<ISymbol> Symbols() {
 
         foreach (var symbol in base.Symbols()) {

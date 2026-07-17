@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System.Linq;
 using System.Threading;
@@ -13,8 +13,13 @@ using Pharmatechnik.Nav.Language.Extension.Images;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Springt von einer <c>NavTrigger</c>-Annotation im generierten C#-Code zum zugehörigen Trigger in der
+/// <c>.nav</c>-Quelle. Angezeigt wird der Trigger-Name mit dem SignalTrigger-Icon.
+/// </summary>
 class NavTriggerAnnotationLocationInfoProvider : NavAnnotationLocationInfoProvider<NavTriggerAnnotation> {
 
+    /// <summary>Bindet den Provider an die <paramref name="annotation"/> des Triggers.</summary>
     public NavTriggerAnnotationLocationInfoProvider(NavTriggerAnnotation annotation) : base(annotation) {
     }
 

@@ -1,0 +1,5 @@
+﻿// C# → Nav
+// Rücksprung von OnCloseLogic landet auf dem eigenen Trigger `on OnClose`.
+
+<nav> (20,26)-(20,33)  "OnClose"
+    Detail --> Done   on OnClose;

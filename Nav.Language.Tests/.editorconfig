@@ -1,0 +1,11 @@
+[*.cs]
+# Testcode nimmt Service-/Parser-Ergebnisse bewusst als non-null an (Asserts, gezieltes `null!`, Zugriff auf
+# garantiert vorhandene Elemente). ReSharpers Heuristiken zu möglichen NullReferenceExceptions bzw. null-
+# Zuweisungen an non-null-Ziele sind hier Dauerrauschen ohne Aussagekraft und werden fürs Testprojekt still
+# gestellt (Roslyn-NRT bleibt unberührt).
+resharper_possible_null_reference_exception_highlighting = none
+resharper_assign_null_to_not_null_attribute_highlighting = none
+# Best-effort-Aufräum-`catch {}` (z.B. Directory.Delete im finally) und Mehrfach-Enumeration sind in Tests
+# unkritisch und hier ebenfalls nur Rauschen.
+resharper_empty_general_catch_clause_highlighting = none
+resharper_possible_multiple_enumeration_highlighting = none

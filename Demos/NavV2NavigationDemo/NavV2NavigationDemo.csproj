@@ -1,0 +1,72 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Demo: V2-Nav-Codegen + Begin↔After-GoTo-Navigation.
+
+    WICHTIG: Dieses Projekt MUSS mit der Full-Framework-MSBuild.exe gebaut werden (Visual Studio,
+    build.ps1 oder `nav demo`) — NICHT mit `dotnet build`. Der Nav-Build-Task ist net472 und läuft
+    im MSBuild-Prozess; er startet die self-contained nav.exe als externen Prozess.
+
+    Die Build Tools (Task-DLL + Targets + nav.exe) werden NICHT eingecheckt, sondern frisch aus dem
+    Engine-Repo bezogen: $(NavRepoRoot)deploy\Build Tools. Dieses Verzeichnis füllt `nav publish`
+    (der Solution-Build legt Task-DLL + Targets ab, Publish-Cli ergänzt die self-contained nav.exe).
+    Fehlen die Build Tools, schlägt der Import unten mit einer klaren Meldung fehl (Guard).
+    NavRepoRoot kommt aus dem begleitenden Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NavV2Demo</RootNamespace>
+    <AssemblyName>NavV2NavigationDemo</AssemblyName>
+
+    <!-- Der generierte Code steht in **\generated\ und wird UNTEN nach der Codegen-Ausführung
+         explizit als <Compile> aufgenommen. Aus dem Default-Glob ausschließen, damit er nicht
+         doppelt (Default + explizit) referenziert wird. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);**\generated\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Nav-Codegen-Steuerung. Bewusst NICHT-inkrementell und ohne Force: der handgeschriebene
+       WFL\ContinuationFlowWFS.cs wird als Nicht-generierte Datei NIE überschrieben, die
+       **\generated\*.generated.cs jedes Mal frisch erzeugt. -->
+  <PropertyGroup>
+    <NavProjectRootDirectory>$(MSBuildProjectDirectory)</NavProjectRootDirectory>
+    <NavNullableContext>true</NavNullableContext>
+    <NavForce>false</NavForce>
+    <NavIncremental>false</NavIncremental>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Eingabe des Nav-Codegens. -->
+    <GenerateNavCode Include="Demo.nav" />
+  </ItemGroup>
+
+  <!-- Guard: verständliche Meldung, wenn die Build Tools noch nicht publiziert wurden. Der Import
+       darunter würde sonst mit einem nichtssagenden "imported project not found" scheitern. -->
+  <Target Name="_NavCheckBuildTools" BeforeTargets="Restore;CollectPackageReferences;BeforeCompile">
+    <Error Condition="!Exists('$(NavRepoRoot)deploy\Build Tools\nav.exe')"
+           Text="Nav Build Tools nicht gefunden unter '$(NavRepoRoot)deploy\Build Tools'. Bitte zuerst im Engine-Repo 'nav publish' ausführen (oder die Demo über 'nav demo' bauen — der Command prüft das ebenfalls)." />
+  </Target>
+
+  <!-- Den Nav-Build-Task + die self-contained nav.exe einbinden. Sie liegen co-lokalisiert in
+       deploy\Build Tools; der net472-Task findet nav.exe fest neben seiner eigenen DLL. -->
+  <Import Project="$(NavRepoRoot)deploy\Build Tools\Pharmatechnik.Nav.Language.targets"
+          Condition="Exists('$(NavRepoRoot)deploy\Build Tools\Pharmatechnik.Nav.Language.targets')" />
+
+  <!--
+    Codegen VOR dem Compiler laufen lassen und die frisch erzeugten Dateien einsammeln. Läuft in
+    Voll- UND Design-Time-Builds (BeforeCompile), damit auch IntelliSense/GoTo in VS den generierten
+    Code sehen. DependsOnTargets zieht das GenerateNavCode-Target aus den importierten .targets.
+  -->
+  <Target Name="_NavGenerateAndCollect"
+          BeforeTargets="BeforeCompile;CoreCompile"
+          DependsOnTargets="GenerateNavCode">
+    <ItemGroup>
+      <Compile Include="$(MSBuildProjectDirectory)\WFL\generated\**\*.cs" />
+      <Compile Include="$(MSBuildProjectDirectory)\IWFL\generated\**\*.cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>

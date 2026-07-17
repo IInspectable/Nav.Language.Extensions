@@ -9,7 +9,7 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.WFL {	
+namespace Nav.Language.Tests.Regression.Test1.WFL {
     public partial class TestWFS {
         protected override INavCommandBody BeginLogic(TestInitParams p1,
                                                       int? nullableParam,
@@ -22,19 +22,19 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         }
 
         protected override INavCommandBody AfterMsgExitLogic(MessageboxOkResult result) {
-             throw new NotImplementedException();
+            throw new NotImplementedException();
         }
 
         protected override INavCommandBody AfterNoResultsLogic(MessageboxOkResult result) {
-             throw new NotImplementedException();
+            throw new NotImplementedException();
         }
 
         protected override INavCommandBody AfterMsgNonModalLogic(MessageboxOkResult result) {
-             throw new NotImplementedException();
+            throw new NotImplementedException();
         }
 
         protected override INavCommandBody AfterMsgContinueLogic(MessageboxOkResult result) {
-             throw new NotImplementedException();
+            throw new NotImplementedException();
         }
 
         protected override INavCommand AfterMsgAbstract(MessageboxOkResult result) {
@@ -42,7 +42,7 @@ namespace Nav.Language.Tests.Regression.Test1.WFL {
         }
 
         protected override INavCommandBody AfterDoSomethingLogic(bool result) {
-             throw new NotImplementedException();
+            throw new NotImplementedException();
         }
 
         protected override INavCommandBody OnEndLogic(ViewTO to) {

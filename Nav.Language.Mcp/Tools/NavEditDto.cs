@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 
-using Pharmatechnik.Nav.Language;
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
@@ -36,6 +35,27 @@ public sealed class NavLocationDto {
         EndLine       = location.EndLine        + 1,
         EndColumn     = location.EndCharacter   + 1,
         IsDeclaration = isDeclaration
+    };
+
+}
+
+/// <summary>
+/// Eine kompakte Quell-Position (nur 1-basierte Zeile/Spalte, ohne Dateipfad) für Fälle, in denen die Datei
+/// bereits aus dem umgebenden Kontext eindeutig ist — etwa die Call-Sites in <c>nav_call_hierarchy</c>, die
+/// stets in der Datei der AUFRUFENDEN Task liegen. Spart die andernfalls je Position wiederholte (absolute)
+/// Pfadangabe und damit einen Großteil der Antwortgröße bei stark genutzten Tasks.
+/// </summary>
+public sealed class NavPositionDto {
+
+    /// <summary>1-basierte Startzeile.</summary>
+    public int Line { get; set; }
+
+    /// <summary>1-basierte Startspalte.</summary>
+    public int Column { get; set; }
+
+    public static NavPositionDto From(Location location) => new() {
+        Line   = location.StartLine      + 1,
+        Column = location.StartCharacter + 1
     };
 
 }
@@ -117,9 +137,9 @@ public sealed class NavSymbolRef {
     public int Column { get; set; }
 
     public static NavSymbolRef From(ISymbol symbol) => new() {
-        Name   = symbol.Name ?? "",
+        Name   = symbol.Name,
         Kind   = NavSymbolKind.Of(symbol),
-        Task   = (symbol as INodeSymbol)?.ContainingTask?.Name,
+        Task   = (symbol as INodeSymbol)?.ContainingTask.Name,
         File   = symbol.Location.FilePath ?? "",
         Line   = symbol.Location.StartLine      + 1,
         Column = symbol.Location.StartCharacter + 1

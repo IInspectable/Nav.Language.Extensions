@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- net472-only: Nav.Language.CodeAnalysis (die getestete Roslyn-Brücke) zielt selbst nur auf
+         net472 und lässt sich daher nur aus einem net472-Projekt referenzieren. Der Lauf erfolgt
+         über den gebündelten NUnit-Console-Runner (`nav test`), nicht über `dotnet test`. -->
+    <TargetFramework>net472</TargetFramework>
+    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): die
+         Fixtures nutzen Raw String Literals für gut lesbare, mehrzeilige .nav-Quellen. -->
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Nav.Language.CodeAnalysis.Tests</RootNamespace>
+    <AssemblyName>Nav.Language.CodeAnalysis.Tests</AssemblyName>
+    <!-- Flach in bin\Debug\ (kein TFM-Unterordner), damit der NUnit-Console-Runner die DLL unter
+         dem erwarteten Pfad findet (siehe Tools\Commands\Functions\Invoke-Test.ps1). -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Der redirect-lose NUnit-Console-Runner lädt die Tests mit der .dll.config dieses Projekts.
+         Roslyns Workspaces/SymbolFinder (Checksum → System.IO.Hashing → System.Buffers) verlangt exakte
+         Assembly-Versionen; MSBuild soll den vollständigen Redirect-Satz aus dem Abhängigkeitsgraph
+         berechnen (GenerateBindingRedirectsOutputType=true erzwingt das auch für ein Library-Output). -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <NoWarn>1701;1702;AD0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Der Framework-Stub wird aus Nav.Language.Tests wiederverwendet (keine Kopie): dieselbe
+         Pseudo-Framework-Quelle, gegen die der generierte Code in-memory kompiliert. Der Link-Pfad
+         bestimmt den Manifest-Ressourcennamen ({RootNamespace}.Resources.FrameworkStubs.cs). -->
+    <EmbeddedResource Include="..\Nav.Language.Tests\Resources\FrameworkStubs.cs" Link="Resources\FrameworkStubs.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nav.Language\Nav.Language.csproj" />
+    <ProjectReference Include="..\Nav.Language.CodeAnalysis\Nav.Language.CodeAnalysis.csproj" />
+    <ProjectReference Include="..\Nav.Utilities\Nav.Utilities.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="Microsoft.CodeAnalysis" />
+  </ItemGroup>
+
+</Project>

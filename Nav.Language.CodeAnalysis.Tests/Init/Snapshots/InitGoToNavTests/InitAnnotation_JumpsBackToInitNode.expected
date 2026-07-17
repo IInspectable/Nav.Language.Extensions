@@ -1,0 +1,6 @@
+﻿// C# → Nav
+// Rücksprung von der BeginLogic landet auf dem `init Init1`-Knoten im .nav —
+// der Golden pinnt den exakten Span, nicht bloß irgendein Init1-Vorkommen.
+
+<nav> (26,5)-(26,9)  "init"
+    init Init1 [params string message];

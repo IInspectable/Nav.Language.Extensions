@@ -1,3 +1,4 @@
+ï»¿#version 1
 [namespaceprefix NS.1]
 
 [using U1]
@@ -21,7 +22,7 @@ task T1 [code "code1"]
 		[params P1 p1, P2 p2]
 		[result R1 r1]
 {
-	// Node Declaration (init, exit, end sind bereits in der obigen TaskDeclaration vollständig abgefrüstückt. Daher hier nur die Kurzform)
+	// Node Declaration (init, exit, end sind bereits in der obigen TaskDeclaration vollstÃ¤ndig abgefrÃ¼stÃ¼ckt. Daher hier nur die Kurzform)
 	init I3;
 	exit E2;
 	end;

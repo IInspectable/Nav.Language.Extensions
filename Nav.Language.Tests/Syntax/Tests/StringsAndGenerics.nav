@@ -1,0 +1,13 @@
+﻿taskref TR
+{
+    init I1 [params T1 p1, T2<T3, T4<T5>> p2, T6[][] p3, T7<T8<T9>, T10[]> p4, Sys.Collections.Generic.List<int> items] do "";
+    exit E1;
+    end;
+}
+
+task A [code "code mit Leerzeichen?"] [generateto "out/Pfad mit Leerzeichen.cs"]
+{
+    init I1;
+    exit e1;
+    I1 --> e1 if "x gleich y";
+}

@@ -15,12 +15,22 @@ using Pharmatechnik.Nav.Language.Extension.Common;
 
 namespace Pharmatechnik.Nav.Language.Extension.BraceMatching; 
 
+/// <summary>
+/// Hebt beim Bewegen des Caret die zusammengehörigen Klammern hervor: steht der Caret an einer
+/// öffnenden oder schließenden Klammer (bzw. an einem Anführungszeichen eines String-Literals), werden
+/// beide Enden des Paars mit einem <see cref="TextMarkerTag"/>
+/// (<see cref="BraceMatchingTypeNames.BraceMatching"/>) markiert. Als <see cref="ParserServiceDependent"/>
+/// arbeitet er auf dem aktuellen Syntaxbaum; Caret- und Layout-Änderungen werden — wie im C#-Editor —
+/// gedrosselt (<see cref="ServiceProperties.BraceMatchingThrottleTime"/>). Instanziiert über
+/// <see cref="BraceMatchingTaggerProvider"/>.
+/// </summary>
 sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag> {
 
     static readonly List<BracePair<SyntaxTokenType>> BracePairs;
 
     readonly IDisposable _observable;
 
+    /// <summary>Legt die unterstützten Klammerpaare fest: <c>[]</c>, <c>{}</c>, <c>()</c> und <c>&lt;&gt;</c>.</summary>
     static BraceMatchingTagger() {
         BracePairs = new List<BracePair<SyntaxTokenType>> {
             BracePair.Create(SyntaxTokenType.OpenBracket, SyntaxTokenType.CloseBracket),
@@ -30,6 +40,10 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
         };
     }
 
+    /// <summary>
+    /// Bindet den Tagger an die <see cref="ITextView"/>, abonniert Caret- und Layout-Änderungen und
+    /// richtet die gedrosselte Neuberechnung der Hervorhebung ein.
+    /// </summary>
     public BraceMatchingTagger(ITextView view, ITextBuffer textBuffer) : base(textBuffer) {
 
         View = view;
@@ -47,6 +61,7 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
                                 .Subscribe(_=> OnTagsChanged());            
     }
         
+    /// <summary>Meldet die Ereignis-Abonnements ab und gibt die gedrosselte Beobachtung frei.</summary>
     public override void Dispose() {
         base.Dispose();
 
@@ -56,24 +71,31 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
         View.LayoutChanged         -= OnViewLayoutChanged;
     }
        
+    /// <summary>Die Text-Ansicht, deren Caret die Klammer-Hervorhebung steuert.</summary>
     public ITextView View { get; }
 
+    /// <summary>Stößt bei Layout-Änderungen der View eine (gedrosselte) Neuberechnung an.</summary>
     void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs e) {
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Stößt bei geändertem Parse-Ergebnis eine (gedrosselte) Neuberechnung an.</summary>
     protected override void OnParseResultChanged(object sender, SnapshotSpanEventArgs e) {
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Stößt bei Caret-Bewegung eine (gedrosselte) Neuberechnung an.</summary>
     void OnCaretPositionChanged(object sender, CaretPositionChangedEventArgs e) {
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
         
+    /// <summary>Internes Signal, dass die Hervorhebung neu berechnet werden muss (gedrosselt, siehe Konstruktor).</summary>
     event EventHandler<EventArgs> Invalidated;
 
+    /// <summary>Wird ausgelöst, wenn sich die Klammer-Hervorhebung geändert hat (VS fordert dann neue Tags an).</summary>
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+    /// <summary>Meldet nach der Drosselung den gesamten Snapshot als geändert, sodass VS die Tags neu anfragt.</summary>
     void OnTagsChanged() {
         var syntaxTreeAndSnapshot = ParserService.SyntaxTreeAndSnapshot;
         if(syntaxTreeAndSnapshot ==null) {
@@ -86,6 +108,14 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(snapshotSpan));
     }
         
+    /// <summary>
+    /// Ermittelt zum aktuellen Caret die hervorzuhebenden Klammern: Steht der Caret an einer öffnenden
+    /// Klammer, wird die passende schließende gesucht (und umgekehrt); an den Grenzen eines
+    /// String-Literals werden dessen Anführungszeichen markiert. Liefert je Fund zwei
+    /// <see cref="TextMarkerTag"/>-Spannen (beide Enden), sonst nichts.
+    /// </summary>
+    /// <param name="spans">Die vom Editor angefragten Bereiche (nur zur Snapshot-Ausrichtung genutzt).</param>
+    /// <returns>Die Marker-Tags der beiden zusammengehörigen Klammern bzw. eine leere Folge.</returns>
     public IEnumerable<ITagSpan<TextMarkerTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         if (spans.Count == 0) {
@@ -113,6 +143,11 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
             yield break;
         }
 
+        // Bewusst der EXAKTE Lookup (FindAtPosition), nicht das owning FindToken: gesucht ist das Zeichen
+        // direkt unter/vor dem Caret, nicht das umgebende Konstrukt. An einer Trivia-Position liefert
+        // FindAtPosition kein Token (Missing) — sobald die Trivia nicht mehr im flachen Token-Strom liegt. Ein
+        // Missing-Token ist weder Klammer noch StringLiteral, daher fallen alle Zweige unten durch (kein
+        // Brace-Highlight) — gewünscht.
         var openToken  = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(currentChar.Position);
         var closeToken = syntaxTreeAndSnapshot.SyntaxTree.Tokens.FindAtPosition(currentChar.Position - 1);
 
@@ -149,20 +184,24 @@ sealed class BraceMatchingTagger : ParserServiceDependent, ITagger<TextMarkerTag
         }
     }
 
+    /// <summary>Prüft, ob der Token-Typ eine öffnende Klammer eines bekannten Paars ist.</summary>
     static bool IsOpenBrace(SyntaxTokenType tokenType) {
         return BracePairs.Any(t => t.OpenBrace == tokenType);
     }
 
+    /// <summary>Liefert zur öffnenden Klammer den Typ der zugehörigen schließenden Klammer.</summary>
     static SyntaxTokenType GetCloseBraceType(SyntaxTokenType openBraceType) {
         return BracePairs.Where(bracePair => bracePair.OpenBrace == openBraceType)
                          .Select(bracePair => bracePair.CloseBrace)
                          .FirstOrDefault();
     }
 
+    /// <summary>Prüft, ob der Token-Typ eine schließende Klammer eines bekannten Paars ist.</summary>
     static bool IsCloseBrace(SyntaxTokenType tokentype) {
         return BracePairs.Any(t => t.CloseBrace == tokentype);
     }
 
+    /// <summary>Liefert zur schließenden Klammer den Typ der zugehörigen öffnenden Klammer.</summary>
     static SyntaxTokenType GetOpenBraceType(SyntaxTokenType closeBraceType) {
         return BracePairs.Where(bracePair => bracePair.CloseBrace == closeBraceType)
                          .Select(bracePair => bracePair.OpenBrace)

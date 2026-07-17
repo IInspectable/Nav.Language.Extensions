@@ -43,7 +43,9 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
 
     Dictionary<SnapshotSpan, TAdornment> _adornmentCache = new();
 
+    /// <summary>Der Editor, in den die Adornments eingestreut werden.</summary>
     protected readonly IWpfTextView  TextView;
+    /// <summary>Der Snapshot, mit dem dieser Tagger aktuell konsistent ist (siehe Klassen-<c>remarks</c>).</summary>
     protected          ITextSnapshot Snapshot { get; private set; }
 
     protected IntraTextAdornmentTagger(IWpfTextView textView)
@@ -60,14 +62,17 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
 
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+    /// <summary>Erzeugt das Adornment zu den gegebenen Daten (darf <c>null</c> liefern).</summary>
     /// <param name="data"></param>
     /// <param name="span">The span of text that this adornment will elide.</param>
     /// <returns>Adornment corresponding to given data. May be null.</returns>
     protected abstract TAdornment CreateAdornment(TData data, SnapshotSpan span);
 
+    /// <summary>Aktualisiert ein wiederverwendetes Adornment mit neuen Daten.</summary>
     /// <returns>True if the adornment was updated and should be kept. False to have the adornment removed from the view.</returns>
     protected abstract bool UpdateAdornment(TAdornment adornment, TData data);
 
+    /// <summary>Liefert die Adornment-Daten für die angefragten Spans (Datenschicht, ohne UI).</summary>
     /// <param name="spans">Spans to provide adornment data for. These spans do not necessarily correspond to text lines.</param>
     /// <remarks>
     /// If adornments need to be updated, call <see cref="RaiseTagsChanged"/> or <see cref="InvalidateSpans"/>.
@@ -142,6 +147,7 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
         RaiseTagsChanged(new SnapshotSpan(start, end));
     }
 
+    /// <summary>Meldet dem Editor, dass sich die Adornments im angegebenen Bereich geändert haben.</summary>
     protected void RaiseTagsChanged(SnapshotSpan span) {
         TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(span));
     }
@@ -163,6 +169,10 @@ abstract class IntraTextAdornmentTagger<TData, TAdornment>: IDisposable, ITagger
     }
 
     // Produces tags on the snapshot that the tag consumer asked for.
+    /// <summary>
+    /// Liefert die <see cref="IntraTextAdornmentTag"/>s für die angefragten Spans, übersetzt zwischen dem
+    /// Snapshot des Konsumenten und dem, mit dem dieser Tagger aktuell konsistent ist.
+    /// </summary>
     public virtual IEnumerable<ITagSpan<IntraTextAdornmentTag>> GetTags(NormalizedSnapshotSpanCollection spans) {
 
         if (spans == null || spans.Count == 0) {

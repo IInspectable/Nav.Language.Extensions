@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ namespace Pharmatechnik.Nav.Language.Mcp.Tools;
 /// (<see cref="NavMcpWorkspace.GetFileDiagnostics"/> → <c>DiagnosticsComputer.FromUnit</c>), fresh pro Datei.
 /// </summary>
 [McpServerToolType]
-public static class NavDiagnosticsTool {
+public sealed class NavDiagnosticsTool {
 
     /// <summary>Voreinstellung für die Seitengröße, falls der Aufrufer keine angibt.</summary>
     const int DefaultLimit = 100;
@@ -40,7 +40,9 @@ public static class NavDiagnosticsTool {
                  "and 'count' the total number of diagnostics (both BEFORE paging). Large result sets are paged: " +
                  "at most 'limit' diagnostics are returned (default 100, max 200); 'truncated' = true means there " +
                  "are more — narrow via 'filter'/'severity' or page with 'offset'. Without 'filter' this scans the " +
-                 "whole workspace and is deliberately expensive; prefer narrowing to a module. Line/column are 1-based.")]
+                 "whole workspace and is deliberately expensive; prefer narrowing to a module. Files excluded by a " +
+                 ".navignore rule are skipped (e.g. intentionally-broken test fixtures) — they stay resolvable for " +
+                 "other tools, only this sweep ignores them. Line/column are 1-based.")]
     public static async Task<NavDiagnosticsResult> Diagnostics(
         NavMcpWorkspace workspace,
         [Description("Optional case-insensitive substring matched against each file's relative path; only matching " +
@@ -59,7 +61,11 @@ public static class NavDiagnosticsTool {
         var root = workspace.SolutionDirectory?.FullName;
 
         // 1. Dateimenge nach filter bestimmen (Muster aus NavWorkspaceTool: relativer Pfad + Substring).
+        //    Per .navignore ausgenommene Dateien werden übersprungen — sie bleiben in der Solution (als
+        //    Include-Ziel auflösbar/navigierbar), sollen aber nicht immer wieder als Fehlerquelle auftauchen
+        //    (z.B. absichtlich kaputte Test-Fixtures). Das ist das Pull-Äquivalent zur LSP-Stummschaltung.
         var files = workspace.Solution.SolutionFiles
+                             .Where(file => !workspace.IsIgnored(file.FullName))
                              .Select(file => new {
                                   File = file,
                                   Rel  = root != null ? PathHelper.GetRelativePath(root, file.FullName) : file.FullName

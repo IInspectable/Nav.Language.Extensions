@@ -17,10 +17,16 @@ using Pharmatechnik.Nav.Language.CodeAnalysis.FindSymbols;
 
 namespace Pharmatechnik.Nav.Language.Extension.GoToLocation.Provider; 
 
+/// <summary>
+/// Variante von <see cref="TaskIBeginInterfaceDeclarationLocationInfoProvider"/>, die nicht zur
+/// Interface-Deklaration, sondern nur zur enthaltenden C#-Datei springt (die Location wird auf den reinen
+/// Dateipfad reduziert). Angezeigt wird der voll qualifizierte Begin-Interface-Name mit dem CSharpFile-Icon.
+/// </summary>
 class TaskIBeginInterfaceDeclarationCodeFileLocationInfoProvider : CodeAnalysisLocationInfoProvider {
 
     readonly TaskDeclarationCodeInfo _taskDeclarationCodeInfo;
 
+    /// <summary>Bindet den Provider an <paramref name="sourceBuffer"/> und die Codegen-Info <paramref name="taskDeclarationCodeInfo"/> der Task-Deklaration.</summary>
     public TaskIBeginInterfaceDeclarationCodeFileLocationInfoProvider(ITextBuffer sourceBuffer, TaskDeclarationCodeInfo taskDeclarationCodeInfo) : base(sourceBuffer) {
         _taskDeclarationCodeInfo = taskDeclarationCodeInfo;
     }

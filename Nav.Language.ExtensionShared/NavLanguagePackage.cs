@@ -40,6 +40,16 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Pharmatechnik.Nav.Language.Extension; 
 
+/// <summary>
+/// Das Visual-Studio-Package der Nav Language — der Einstiegspunkt der Extension. Als
+/// <see cref="AsyncPackage"/> registriert es den <see cref="NavLanguageService"/> (samt Editor-Optionen
+/// via <see cref="ProvideLanguageServiceAttribute"/>), wärmt beim Laden den
+/// <see cref="NavSolutionProvider"/>-Cache vor und stellt eine statische Service-Locator-Fassade bereit
+/// (Zugriff auf DTE, Roslyn-<see cref="VisualStudioWorkspace"/>, den aktiven <see cref="IWpfTextView"/>,
+/// die Nav-<see cref="NavSolution"/> u.a.) sowie die package-weite <see cref="Jtf"/>. Über die partielle
+/// Aufteilung kommen die Options-Registrierung (<c>NavLanguagePackage.AdvancedOptions.cs</c>) und die
+/// GUID-Konstanten (<c>NavLanguagePackage.Guids.cs</c>) hinzu.
+/// </summary>
 [ProvideLanguageService(typeof(NavLanguageService),
                         NavLanguageContentDefinitions.LanguageName,
                         101,
@@ -67,6 +77,9 @@ sealed partial class NavLanguagePackage: AsyncPackage {
 
     static readonly Logger Logger = Logger.Create<NavLanguagePackage>();
 
+    /// <summary>
+    /// Erzeugt das Package und initialisiert das Logging in das Temp-Verzeichnis.
+    /// </summary>
     public NavLanguagePackage() {
         LoggerConfig.Initialize(Path.GetTempPath(), "Nav.Language.Extension");
     }
@@ -75,13 +88,18 @@ sealed partial class NavLanguagePackage: AsyncPackage {
 
     /// <summary>
     /// Die <see cref="JoinableTaskFactory"/> dieses Package. Im Gegensatz zu
-    /// <see cref="ThreadHelper.JoinableTaskFactory"/> werden hierüber gestartete Tasks beim
+    /// <c>ThreadHelper.JoinableTaskFactory</c> werden hierüber gestartete Tasks beim
     /// Herunterfahren der IDE sauber abgewartet bzw. abgebrochen (siehe VSSDK007). Wird für
     /// Fire-and-forget-Aufrufe (RunAsync) verwendet. Solange das Package noch nicht geladen ist,
-    /// wird auf <see cref="ThreadHelper.JoinableTaskFactory"/> zurückgegriffen.
+    /// wird auf <c>ThreadHelper.JoinableTaskFactory</c> zurückgegriffen.
     /// </summary>
     internal static JoinableTaskFactory Jtf => _jtf ?? ThreadHelper.JoinableTaskFactory;
 
+    /// <summary>
+    /// Initialisiert das Package: hinterlegt die <see cref="Jtf"/>, registriert
+    /// <see cref="NavLanguageService"/> und Package als asynchron abfragbare Dienste und wärmt den
+    /// <see cref="NavSolutionProvider"/>-Cache vor.
+    /// </summary>
     protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress) {
 
         _jtf = JoinableTaskFactory;
@@ -119,6 +137,7 @@ sealed partial class NavLanguagePackage: AsyncPackage {
 
     }
 
+    /// <summary>Das automationsseitige <c>_DTE</c>-Objekt der laufenden Visual-Studio-Instanz.</summary>
     public static _DTE DTE {
         get {
             _DTE dte = GetGlobalService<_DTE, _DTE>();
@@ -126,21 +145,39 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Löst den globalen VS-Dienst zum Service-Typ <typeparamref name="TService"/> auf.
+    /// </summary>
+    /// <typeparam name="TService">Der Service-Typ (VS-Service-Schlüssel).</typeparam>
+    /// <returns>Die Dienstinstanz oder <c>null</c>.</returns>
     public static object GetGlobalService<TService>() where TService : class {
         return GetGlobalService(typeof(TService));
     }
 
+    /// <summary>
+    /// Löst den globalen VS-Dienst zum Service-Typ <typeparamref name="TService"/> auf und castet ihn
+    /// auf <typeparamref name="TInterface"/>.
+    /// </summary>
+    /// <typeparam name="TService">Der Service-Typ (VS-Service-Schlüssel).</typeparam>
+    /// <typeparam name="TInterface">Die erwartete Schnittstelle.</typeparam>
+    /// <returns>Die Dienstinstanz als <typeparamref name="TInterface"/> oder <c>null</c>.</returns>
     public static TInterface GetGlobalService<TService, TInterface>() where TInterface : class {
         return GetGlobalService(typeof(TService)) as TInterface;
     }
 
+    /// <summary>
+    /// Liefert den <see cref="IServiceProvider"/> des Package selbst (Service-Locator-Wurzel für die
+    /// MEF-Dienstauflösung).
+    /// </summary>
     static IServiceProvider GetServiceProvider() {
         var serviceProvider = GetGlobalService<NavLanguagePackage, IServiceProvider>();
         return serviceProvider;
     }
 
+    /// <summary>Der registrierte <see cref="NavLanguageService"/> dieses Package.</summary>
     public static NavLanguageService Language => GetGlobalService<NavLanguageService, NavLanguageService>();
 
+    /// <summary>Der Roslyn-<see cref="VisualStudioWorkspace"/> der laufenden VS-Instanz.</summary>
     public static VisualStudioWorkspace Workspace {
         get {
             var componentModel = GetGlobalService<SComponentModel, IComponentModel>();
@@ -149,8 +186,14 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>Der globale <see cref="IServiceProvider"/> von Visual Studio.</summary>
     public static IServiceProvider ServiceProvider => GetGlobalService<IServiceProvider, IServiceProvider>();
 
+    /// <summary>
+    /// Führt den durch <paramref name="commandId"/> bezeichneten Befehl über den globalen
+    /// <see cref="IMenuCommandService"/> aus (nur auf dem UI-Thread).
+    /// </summary>
+    /// <param name="commandId">Die auszuführende <see cref="CommandID"/>.</param>
     public static void InvokeCommand(CommandID commandId) {
 
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -161,10 +204,12 @@ sealed partial class NavLanguagePackage: AsyncPackage {
     }
 
     /// <summary>
-    /// 1. Moves the caret to the specified index in the current snapshot.  
-    /// 2. Updates the viewport so that the caret will be centered.
-    /// 3. Moves focus to the text view to ensure the user can continue typing.
+    /// Setzt den Cursor im aktuellen <see cref="ITextSnapshot"/> auf <paramref name="location"/>, zentriert
+    /// die Ansicht auf diese Position und übergibt den Fokus an die <see cref="ITextView"/>, damit der
+    /// Nutzer sofort weitertippen kann.
     /// </summary>
+    /// <param name="textView">Die Ziel-<see cref="ITextView"/>.</param>
+    /// <param name="location">Der Zeichenindex im aktuellen Snapshot.</param>
     public static void NavigateToLocation(ITextView textView, int location) {
 
         var bufferPosition = new SnapshotPoint(textView.TextBuffer.CurrentSnapshot, location);
@@ -176,6 +221,14 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         (textView as Control)?.Focus();
     }
 
+    /// <summary>
+    /// Öffnet die Datei der <paramref name="location"/> im Vorschau-Tab und selektiert die durch die
+    /// <see cref="Location"/> beschriebene Spanne.
+    /// </summary>
+    /// <param name="location">Das Sprungziel (Datei + Spanne); <c>null</c> wird toleriert.</param>
+    /// <returns>
+    /// Die geöffnete <see cref="IWpfTextView"/> oder <c>null</c>, wenn keine Datei geöffnet werden konnte.
+    /// </returns>
     [CanBeNull]
     public static IWpfTextView GoToLocationInPreviewTab(Location location) {
 
@@ -211,6 +264,12 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Öffnet <paramref name="file"/> als Dokument in Visual Studio und liefert dessen
+    /// <see cref="IWpfTextView"/>.
+    /// </summary>
+    /// <param name="file">Der Pfad der zu öffnenden Datei.</param>
+    /// <returns>Die <see cref="IWpfTextView"/> des Dokuments oder <c>null</c>.</returns>
     [CanBeNull]
     public static IWpfTextView OpenFile(string file) {
 
@@ -227,6 +286,12 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Öffnet <paramref name="file"/> im Vorschau-Tab (provisorisches Dokument) und liefert dessen
+    /// <see cref="IWpfTextView"/>.
+    /// </summary>
+    /// <param name="file">Der Pfad der zu öffnenden Datei.</param>
+    /// <returns>Die <see cref="IWpfTextView"/> des Vorschau-Dokuments oder <c>null</c>.</returns>
     [CanBeNull]
     public static IWpfTextView OpenFileInPreviewTab(string file) {
 
@@ -241,6 +306,11 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Liefert den <see cref="ITextBuffer"/> zu einer bereits in Visual Studio geöffneten Datei.
+    /// </summary>
+    /// <param name="filePath">Der Pfad der Datei.</param>
+    /// <returns>Der <see cref="ITextBuffer"/> oder <c>null</c>, wenn die Datei nicht geöffnet ist.</returns>
     [CanBeNull]
     public static ITextBuffer GetOpenTextBufferForFile(string filePath) {
 
@@ -269,6 +339,12 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Ermittelt das Roslyn-<see cref="Project"/>, das die Datei <paramref name="filePath"/> enthält —
+    /// über den DTE-Solution-Baum aufgelöst und im aktuellen Roslyn-Solution-Modell nachgeschlagen.
+    /// </summary>
+    /// <param name="filePath">Der Pfad der enthaltenen Datei.</param>
+    /// <returns>Das enthaltende <see cref="Project"/> oder <c>null</c>, wenn keines gefunden wird.</returns>
     public static Project GetContainingProject(string filePath) {
 
         Dispatcher.CurrentDispatcher.VerifyAccess();
@@ -319,9 +395,9 @@ sealed partial class NavLanguagePackage: AsyncPackage {
     }
 
     /// <summary>
-    /// Gets the current IWpfTextView that is the active document.
+    /// Liefert die <see cref="IWpfTextView"/> des aktuell aktiven Dokuments.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>Die aktive <see cref="IWpfTextView"/> oder <c>null</c>, wenn keine ermittelbar ist.</returns>
     [CanBeNull]
     public static IWpfTextView GetActiveTextView() {
 
@@ -348,6 +424,12 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Ermittelt die <see cref="IWpfTextView"/> zu einem <see cref="IVsWindowFrame"/> über den
+    /// <see cref="IVsEditorAdaptersFactoryService"/>.
+    /// </summary>
+    /// <param name="frame">Der Fensterrahmen des Dokuments.</param>
+    /// <returns>Die zugehörige <see cref="IWpfTextView"/> oder <c>null</c>.</returns>
     [CanBeNull]
     static IWpfTextView GetWpfTextViewFromFrame(IVsWindowFrame frame) {
 
@@ -369,6 +451,11 @@ sealed partial class NavLanguagePackage: AsyncPackage {
         }
     }
 
+    /// <summary>
+    /// Liefert die aktuelle Nav-<see cref="NavSolution"/> über den <see cref="NavSolutionProvider"/>.
+    /// </summary>
+    /// <param name="cancellationToken">Token zum Abbrechen der Ermittlung.</param>
+    /// <returns>Die aktuelle <see cref="NavSolution"/> des Workspace.</returns>
     public static async Task<NavSolution> GetSolutionAsync(CancellationToken cancellationToken) {
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();

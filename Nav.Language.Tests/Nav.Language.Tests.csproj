@@ -5,7 +5,13 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net472;net10.0</TargetFrameworks>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): Der
+         Test-Code nutzt neben Raw String Literals (C# 11, für gut lesbare, mehrzeilige .nav-Quellen
+         mit eingebetteten Positions-Markern; siehe NavMarkup) auch Collection Expressions (C# 12) in
+         den Fixtures — beides reine Compiler-Features ohne BCL-Abhängigkeit, tragen daher auch auf
+         net472. `init`/`record` werden für net472 über den lokalen IsExternalInit-Polyfill abgedeckt;
+         runtime-abhängige Features (z.B. `required`) werden bewusst gemieden. -->
+    <LangVersion>latest</LangVersion>
     <RootNamespace>Nav.Language.Tests</RootNamespace>
     <AssemblyName>Nav.Language.Tests</AssemblyName>
     <!-- net472 bleibt flach in bin\Debug\ (bestehender NUnit-Console-Runner-Flow via `n test`
@@ -24,8 +30,8 @@
        Der net472-Lauf bleibt unangetastet (laeuft weiter ueber den gebuendelten NUnit-Console-Runner). -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <!-- Beim Bau via full-framework MSBuild.exe werden die .NET-Core-Run-Artefakte sonst nicht
-         erzeugt: runtimeconfig.json erzwingen und alle transitiven NuGet-DLLs (Antlr3/4, StringTemplate,
-         testhost ...) ins Output kopieren, damit `dotnet test` ohne Cache-Probing laeuft. -->
+         erzeugt: runtimeconfig.json erzwingen und alle transitiven NuGet-DLLs (testhost ...) ins
+         Output kopieren, damit `dotnet test` ohne Cache-Probing laeuft. -->
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
@@ -53,6 +59,8 @@
     <NoCompile Include="Resources\FrameworkStubsWithoutNS.cs" />
     <NoCompile Include="Regression\Tests\IWFL\**\*" />
     <NoCompile Include="Regression\Tests\WFL\**\*" />
+    <NoCompile Include="Regression\Tests\V2\IWFL\**\*" />
+    <NoCompile Include="Regression\Tests\V2\WFL\**\*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -62,10 +70,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Generated Tests\TokenPropertyNameTests.tt" />
-    <None Include="Generated Tests\ParseEmptyStringTests.tt" />
-    <None Include="Generated Tests\SyntaxWalkerTests.tt" />
-    <None Include="Generated Tests\SyntaxTest.tt" />
+    <!-- Syntax-Golden-Korpus: kuratierte .nav plus erzeugte .tokens-, .tree-, .diag- und .trivia-Golden.
+         Werden nicht ins Output kopiert; die Tests lösen sie via TestDataDirectory.Resolve aus dem
+         Projektverzeichnis auf (wie Diagnostics\Tests / Regression\Tests). -->
+    <Content Include="Syntax\Tests\**\*.nav" />
+    <Content Include="Syntax\Tests\**\*.tokens" />
+    <Content Include="Syntax\Tests\**\*.tree" />
+    <Content Include="Syntax\Tests\**\*.diag" />
+    <Content Include="Syntax\Tests\**\*.trivia" />
   </ItemGroup>
 
   <ItemGroup>
@@ -143,6 +155,11 @@
     <Content Include="Diagnostics\Tests\ATaskWithoutErrors.nav" />
     <Content Include="Regression\Tests\Test.nav" />
     <Content Include="Regression\Tests\SimpleTask.nav" />
+    <Content Include="Regression\Tests\V2\BasicFlow.nav" />
+    <Content Include="Regression\Tests\V2\ContinuationFlow.nav" />
+    <Content Include="Regression\Tests\V2\ChoiceFlow.nav" />
+    <Content Include="Regression\Tests\V2\NotImplementedFlow.nav" />
+    <Content Include="Regression\Tests\V2\DoNotInjectFlow.nav" />
   </ItemGroup>
 
   <ItemGroup>
@@ -151,15 +168,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Antlr4">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
-
     <PackageReference Include="System.Collections.Immutable" />
-
-    <PackageReference Include="Antlr4.Runtime" />
-    <PackageReference Include="Antlr4.CodeGenerator" />
 
     <PackageReference Include="NUnit" />
 

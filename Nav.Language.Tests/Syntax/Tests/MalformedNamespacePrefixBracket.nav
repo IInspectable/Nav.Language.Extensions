@@ -1,0 +1,12 @@
+﻿[namespace Company.Product]
+
+[using System.Text]
+[using System.Collections]
+
+task A
+{
+    init;
+    exit End;
+
+    init --> End;
+}

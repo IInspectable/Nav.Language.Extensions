@@ -3,5 +3,4 @@
   <PropertyGroup>
     <ProductName>Nav Cli</ProductName>
   </PropertyGroup>
-  <Import Project="..\_build\WriteThisAssemblyFile.targets" />
 </Project>

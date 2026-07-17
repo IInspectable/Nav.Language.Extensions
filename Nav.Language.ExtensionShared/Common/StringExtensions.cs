@@ -8,6 +8,10 @@ using System;
 
 namespace Pharmatechnik.Nav.Language.Extension.Common;
 
+/// <summary>
+/// Zeichenketten-Erweiterungen zur Umrechnung zwischen Zeichen-Offset und (tabulatorbewusster)
+/// Spalte innerhalb einer Zeile — Grundlage der Einrückungs- und Ausrichtungsberechnung im Editor.
+/// </summary>
 static class StringExtensions {
 
     /// <summary>

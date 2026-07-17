@@ -20,6 +20,15 @@ using Pharmatechnik.Nav.Language.FindReferences;
 
 namespace Pharmatechnik.Nav.Language.Extension.FindReferences; 
 
+/// <summary>
+/// Die Brücke zwischen der Engine-Referenzsuche und dem VS-Ergebnisfenster für eine einzelne Suche.
+/// Als <see cref="IFindReferencesContext"/> nimmt der Kontext die von der Engine gemeldeten Definitionen
+/// (<see cref="OnDefinitionFoundAsync"/>) und Fundstellen (<see cref="OnReferenceFoundAsync"/>) entgegen,
+/// wandelt sie in <see cref="DefinitionEntry"/>/<see cref="ReferenceEntry"/> und stellt sie als
+/// <see cref="ITableDataSource"/>/<see cref="ITableEntriesSnapshotFactory"/> versioniert der
+/// VS-Tabellensteuerung bereit. Fehlt am Ende jede Fundstelle zu einer Definition bzw. gibt es gar kein
+/// Ergebnis, werden Ersatzeinträge nachgetragen.
+/// </summary>
 class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEntriesSnapshotFactory {
 
     readonly object _gate = new();
@@ -55,6 +64,7 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
     public FindReferencesPresenter Presenter { get; }
     public string                  Message   { get; private set; }
 
+    /// <summary>Wird beim Schließen des Ergebnisfensters ausgelöst und bricht die laufende Suche ab.</summary>
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
     public Task ReportMessageAsync(string message) {
@@ -62,6 +72,7 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         return Task.CompletedTask;
     }
 
+    /// <summary>Engine-Callback: legt (idempotent) den Definitionsknoten für die gefundene Definition an.</summary>
     public Task OnDefinitionFoundAsync(DefinitionItem definitionItem) {
 
         EnsureDefinitionEntry(definitionItem);
@@ -69,6 +80,7 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         return Task.CompletedTask;
     }
 
+    /// <summary>Liefert den Definitionsknoten zu <paramref name="definitionItem"/> und legt ihn bei Bedarf an.</summary>
     DefinitionEntry EnsureDefinitionEntry(DefinitionItem definitionItem, ImageMoniker? imageMoniker = null) {
 
         lock (_gate) {
@@ -84,6 +96,10 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         }
     }
 
+    /// <summary>
+    /// Engine-Callback: legt zu einer gefundenen Fundstelle einen <see cref="ReferenceEntry"/> unter dem
+    /// zugehörigen Definitionsknoten an (samt Projektzuordnung für Spalten/Filter).
+    /// </summary>
     public Task OnReferenceFoundAsync(ReferenceItem referenceItem) {
 
         var projectInfo     = _projectMapper.GetProjectInfo(referenceItem.Location.FilePath);
@@ -104,6 +120,11 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Engine-Callback am Suchende: trägt Ersatzeinträge nach („Keine Referenzen gefunden" je Definition
+    /// ohne Fundstelle bzw. „Search found no results" ohne jede Definition) und markiert die Datenquelle
+    /// als stabil.
+    /// </summary>
     public async Task OnCompletedAsync() {
 
         await CreateMissingReferenceEntriesIfNecessaryAsync().ConfigureAwait(false);
@@ -159,6 +180,10 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         //TableControl.GroupingsChanged -= OnTableControlGroupingsChanged;
     }
 
+    /// <summary>
+    /// VS abonniert diese Datenquelle: merkt sich die <see cref="ITableDataSink"/>, registriert sich als
+    /// Snapshot-Factory und meldet zunächst „noch nicht stabil". Rückgabe ist das Abo-Handle.
+    /// </summary>
     public IDisposable Subscribe(ITableDataSink sink) {
         //Presenter.AssertIsForeground();
 
@@ -182,6 +207,10 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         _findReferencesWindow.Manager.RemoveSource(this);
     }
 
+    /// <summary>
+    /// Liefert den aktuellen (bei Bedarf neu gebauten) <see cref="TableEntriesSnapshot"/> der bisher
+    /// gesammelten Einträge — die Sicht, die die VS-Tabellensteuerung darstellt.
+    /// </summary>
     public ITableEntriesSnapshot GetCurrentSnapshot() {
 
         lock (_gate) {
@@ -205,6 +234,10 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         }
     }
 
+    /// <summary>
+    /// Liefert den Snapshot der angegebenen Version, sofern (noch) vorhanden; sonst wird die Tabelle über
+    /// <see cref="NotifyChange"/> zur Neuabfrage aufgefordert und <c>null</c> zurückgegeben.
+    /// </summary>
     public ITableEntriesSnapshot GetSnapshot(int versionNumber) {
         lock (_gate) {
             if (_lastSnapshot?.VersionNumber == versionNumber) {
@@ -222,6 +255,7 @@ class FindReferencesContext: IFindReferencesContext, ITableDataSource, ITableEnt
         return null;
     }
 
+    /// <summary>Monoton wachsende Versionsnummer der Einträge — invalidiert den zwischengespeicherten Snapshot.</summary>
     public int CurrentVersionNumber { get; protected set; }
 
     private void CancelSearch() {

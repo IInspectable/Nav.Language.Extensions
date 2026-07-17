@@ -1,4 +1,4 @@
-# NavCommands
+﻿# NavCommands
 
 Deklaratives PowerShell-Command-System für `Nav.Language.Extensions` — ein Dispatcher mit
 Alias **`nav`**, der seine Sub-Commands generisch aus den Dateien in `Functions/` ableitet.
@@ -34,9 +34,8 @@ nav build -Configuration Release   # benannte Parameter/Switches werden durchger
 |------------------|------------------------|----------------------------------------------------------------------|
 | `build`          | Invoke-Build           | Solution per MSBuild bauen (Restore + Build).                        |
 | `test`           | Invoke-Test            | Tests über den NUnit-Console-Runner ausführen.                      |
-| `incbuild`       | Invoke-IncreaseBuild   | Build-Nummer hochzählen (X.Y.Z → X.Y.Z+1).                          |
-| `incminor`       | Invoke-IncreaseMinor   | Minor-Version hochzählen (X.Y.Z → X.Y+1.0).                         |
-| `incmajor`       | Invoke-IncreaseMajor   | Major-Version hochzählen (X.Y.Z → X+1.0.0).                         |
+| `incminor`       | Invoke-IncreaseMinor   | Minor-Tag `vX.(Y+1).0` auf HEAD anlegen (`-Push`/`-Force`).         |
+| `incmajor`       | Invoke-IncreaseMajor   | Major-Tag `v(X+1).0.0` auf HEAD anlegen (`-Push`/`-Force`).         |
 | `publish`        | Invoke-Publish         | Solution (Debug) bauen und alles unter `deploy\` bereitstellen: Build Tools, VS-Code-Extension (mit LSP), MCP-Single-File. |
 | `install`        | Install-Extension      | VS-2026-Extension (VSIX) in Visual Studio installieren.              |
 | `deploy`         | Invoke-Deploy          | Bauen und Build Tools ins XTplus-Verzeichnis kopieren.              |
@@ -60,10 +59,16 @@ Eigenständige Shortcut-Funktionen (kein `nav`-Dispatcher, kein Token):
 
 ## Versionierung
 
-`Version.props` (`<ProductVersion>`) ist die **einzige Quelle der Wahrheit**. `incbuild`/`incminor`/`incmajor`
-ändern ausschließlich diese Datei. Die `version` in `vscode-nav-lsp\package.json` ist nur ein Platzhalter
-(`0.0.0`) und wird **nicht** gepflegt: Das VSIX bekommt seine Version beim Paketieren ohnehin aus
-`Version.props` — `publish` ruft `vsce package <version> --no-update-package-json`.
+Die Version wird **git-abgeleitet** (`git describe`) — kein `Version.props` mehr. Der 3-teilige Kern
+ist `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor werden über Tags
+gesteuert: `incminor`/`incmajor` legen das nächste `vX.Y.0`-Tag auf HEAD an (Clean-Tree-Check,
+Monotonie-Absicherung, Bestätigung, optional `-Push`); der Patch zählt automatisch — ein `incbuild`
+gibt es nicht mehr. Berechnet wird die Version an genau einer Stelle: im MSBuild-Target
+`ComputeGitVersion` (`Build\Version.targets`, via `Directory.Build.props` in jedem Build-Pfad
+aktiv). `build`/`publish` reichen **nichts** durch — der Build rechnet selbst; `Get-ProductVersion`
+**liest** die Werte nur per `dotnet msbuild … -getProperty`. Die `version` in
+`vscode-nav-lsp\package.json` bleibt Platzhalter (`0.0.0`): `publish` ruft
+`vsce package <version> --no-update-package-json` mit der gelesenen Version.
 
 ## Branching (Worktree-basiert)
 
@@ -81,5 +86,5 @@ Aufruf aus dem zu löschenden Worktree werden hart abgewiesen.
 3. Root via `Resolve-Root` auflösen. Fertig — Übersicht und Tab-Completion ziehen automatisch nach.
 
 Funktionen **ohne** `.FUNCTIONALITY` mit Bindestrich-Namen (Verb-Noun) gelten als interne Helper
-(z. B. `Resolve-Root`, `Resolve-MsBuild`, `Get-Worktree`, `Update-Version`) und tauchen nicht als
-Command auf.
+(z. B. `Resolve-Root`, `Resolve-MsBuild`, `Get-Worktree`, `Get-ProductVersion`, `Set-VersionTag`) und
+tauchen nicht als Command auf.

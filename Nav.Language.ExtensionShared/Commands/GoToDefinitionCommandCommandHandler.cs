@@ -16,6 +16,12 @@ using Pharmatechnik.Nav.Language.Extension.GoToLocation;
 
 namespace Pharmatechnik.Nav.Language.Extension.Commands; 
 
+/// <summary>
+/// Command-Handler für „Go To Definition" (F12) in Nav-Dateien. Bestimmt über einen
+/// <see cref="GoToTag"/>-Tag-Aggregator das Sprungziel unter dem Cursor und navigiert mittels des
+/// <see cref="GoToLocationService"/> dorthin — bevorzugt in einen Vorschau-Tab. Liegt kein navigierbares
+/// Symbol unter dem Cursor, wird eine Hinweismeldung angezeigt.
+/// </summary>
 [Export(typeof(ICommandHandler))]
 [ContentType(NavLanguageContentDefinitions.ContentType)]
 [Name(CommandHandlerNames.GoToDefinitionCommandCommandHandler)]
@@ -30,12 +36,19 @@ class GoToDefinitionCommandCommandHandler: ICommandHandler<GoToDefinitionCommand
         _viewTagAggregatorFactoryService = viewTagAggregatorFactoryService;
     }
 
+    /// <summary>Im Command-System angezeigter Name des Befehls.</summary>
     public string DisplayName => "Go To Definition";
 
+    /// <summary>Verfügbar nur für einen <see cref="IWpfTextView"/>, sonst <see cref="CommandState.Unavailable"/>.</summary>
     public CommandState GetCommandState(GoToDefinitionCommandArgs args) {
         return args.TextView is IWpfTextView ? CommandState.Available : CommandState.Unavailable;
     }
 
+    /// <summary>
+    /// Navigiert asynchron zum <see cref="GoToTag"/> unter dem Cursor: aggregiert die Sprungziel-Tags,
+    /// wechselt auf den UI-Thread und öffnet über <see cref="GoToLocationService.GoToLocationInPreviewTabAsync"/>
+    /// das Ziel im Vorschau-Tab; ohne Ziel wird eine Info-Meldung ausgegeben.
+    /// </summary>
     public bool ExecuteCommand(GoToDefinitionCommandArgs args, CommandExecutionContext executionContext) {
 
         NavLanguagePackage.Jtf.RunAsync(async () => {

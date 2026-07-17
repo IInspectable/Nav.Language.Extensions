@@ -1,4 +1,4 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 
@@ -42,7 +42,7 @@ static class LspMapper {
     /// </summary>
     public static Protocol.Location? ToLocation(Location location) {
 
-        if (string.IsNullOrEmpty(location?.FilePath)) {
+        if (string.IsNullOrEmpty(location.FilePath)) {
             return null;
         }
 
@@ -75,7 +75,7 @@ static class LspMapper {
     static Protocol.DiagnosticSeverity ToLsp(NavSeverity severity) => severity switch {
         NavSeverity.Error      => Protocol.DiagnosticSeverity.Error,
         NavSeverity.Warning    => Protocol.DiagnosticSeverity.Warning,
-        NavSeverity.Suggestion => Protocol.DiagnosticSeverity.Information,
+        NavSeverity.Suggestion => Protocol.DiagnosticSeverity.Hint,
         _                      => Protocol.DiagnosticSeverity.Information
     };
 }

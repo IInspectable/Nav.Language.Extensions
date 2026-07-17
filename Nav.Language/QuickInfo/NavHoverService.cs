@@ -1,11 +1,9 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-
-using JetBrains.Annotations;
 
 using Pharmatechnik.Nav.Language.Text;
 
@@ -27,8 +25,7 @@ public static class NavHoverService {
     /// Signatur liegt. Es wird vom spezifischsten Symbol unter dem Caret ausgegangen und das erste mit
     /// nicht-leeren Anzeige-Bestandteilen verwendet.
     /// </summary>
-    [CanBeNull]
-    public static NavHoverInfo GetHover([NotNull] CodeGenerationUnit unit, int position) {
+    public static NavHoverInfo? GetHover(CodeGenerationUnit unit, int position) {
 
         foreach (var symbol in SymbolPosition.SymbolsAt(unit, position)) {
 
@@ -39,24 +36,45 @@ public static class NavHoverService {
                 continue;
             }
 
-            var parts = GetDisplayParts(symbol);
-            var calls = GetReachableCalls(symbol);
+            var parts         = GetDisplayParts(symbol);
+            var calls         = GetReachableCalls(symbol);
+            var documentation = NavSymbolDocumentation.GetDocumentation(symbol);
 
-            if (!parts.IsDefaultOrEmpty || calls.Count > 0) {
-                return new NavHoverInfo(parts, symbol.Location, calls);
+            if (!parts.IsDefaultOrEmpty || calls.Count > 0 || !String.IsNullOrEmpty(documentation)) {
+                return new NavHoverInfo(parts, symbol.Location, calls, documentation);
             }
         }
 
-        return null;
+        // Kein Symbol unter dem Caret — steht dort ein Keyword-Token, erklärt der Hover dessen Bedeutung.
+        // Kanten tragen als IEdgeModeSymbol bereits oben ein Symbol; hierher fallen die reinen Wort-Keywords
+        // (task/init/if/do/…) und — mangels tragender Kante — vereinzelt ein blanker Edge-Operator.
+        return GetKeywordHover(unit, position);
+    }
+
+    /// <summary>
+    /// Hover für ein Keyword-Token unter dem Caret: seine Bedeutung aus <see cref="SyntaxFacts"/> (die
+    /// einzige Autorität). <c>null</c>, wenn dort kein Keyword-Token steht bzw. keine Beschreibung
+    /// hinterlegt ist. Die Klassifikations-Prüfung grenzt echte Keyword-Token von gleichnamigen
+    /// Bezeichnern ab (die Direktiv-Keywords <c>version</c>/<c>pragma</c> sind nicht reserviert).
+    /// </summary>
+    static NavHoverInfo? GetKeywordHover(CodeGenerationUnit unit, int position) {
+
+        var token = unit.Syntax.SyntaxTree.Tokens.FindAtPosition(position);
+        if (token.IsMissing || !SyntaxFacts.IsKeywordClassification(token.Classification)) {
+            return null;
+        }
+
+        var description = SyntaxFacts.GetKeywordDescription(token);
+        if (description.Length == 0) {
+            return null;
+        }
+
+        var parts = ImmutableArray.Create(new ClassifiedText(token.ToString(), token.Classification));
+
+        return new NavHoverInfo(parts, token.GetLocation(), Array.Empty<Call>(), description);
     }
 
     static ImmutableArray<ClassifiedText> GetDisplayParts(ISymbol symbol) {
-
-        // Beim Edge-Mode (Pfeil/Verb) zeigt auch die VS-QuickInfo keine eigene Signatur, sondern nur
-        // die Liste der erreichbaren Knoten (siehe Calls).
-        if (symbol is IEdgeModeSymbol) {
-            return ImmutableArray<ClassifiedText>.Empty;
-        }
 
         // Eine Choice-Referenz selbst hat keine eigene Signatur — wie in VS zeigen wir die ihrer Deklaration.
         if (symbol is IChoiceNodeReferenceSymbol { Declaration: { } choiceDecl }) {
@@ -67,17 +85,17 @@ public static class NavHoverService {
     }
 
     /// <summary>
-    /// Die von der Position aus erreichbaren Knoten — wie die VS-QuickInfo sie für Choices und Edges
-    /// anzeigt: Choices werden transitiv aufgelöst, sodass nur die tatsächlich erreichbaren Zielknoten
-    /// (mit ihrem Edge-Mode) erscheinen. Für alle anderen Symbole leer. Sortiert nach Knotennamen (wie VS).
+    /// Die von der Position aus erreichbaren Knoten — nur an einer <b>Choice</b> anzeigbar: die Choice wird
+    /// transitiv aufgelöst, sodass ihr Fan-out auf die tatsächlich erreichbaren Zielknoten (mit ihrem
+    /// Edge-Mode) sichtbar wird. Für alle anderen Symbole — insbesondere gewöhnliche Kanten — leer: dort
+    /// steht das Ziel bereits sichtbar neben dem Pfeil, die Kante selbst erklärt statt dessen ihre Bedeutung
+    /// (siehe <see cref="NavSymbolDocumentation"/>). Sortiert nach Knotennamen (wie VS).
     /// </summary>
-    [NotNull]
     static IReadOnlyList<Call> GetReachableCalls(ISymbol symbol) {
 
         var calls = symbol switch {
             IChoiceNodeSymbol choiceNode                         => choiceNode.ExpandCalls(),
             IChoiceNodeReferenceSymbol { Declaration: { } decl } => decl.ExpandCalls(),
-            IEdgeModeSymbol edgeMode                             => edgeMode.Edge.GetReachableCalls(),
             _                                                    => Enumerable.Empty<Call>()
         };
 
@@ -92,25 +110,35 @@ public static class NavHoverService {
 /// </summary>
 public sealed class NavHoverInfo {
 
-    public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, [CanBeNull] Location location,
-                        [NotNull] IReadOnlyList<Call> calls) {
-        DisplayParts = displayParts;
-        Location     = location;
-        Calls        = calls;
+    /// <summary>Erzeugt die Hover-Information.</summary>
+    /// <param name="displayParts">Die klassifizierten Signatur-Bestandteile (<see cref="DisplayParts"/>).</param>
+    /// <param name="location">Der Namens-Bereich des Symbols unter dem Caret (<see cref="Location"/>).</param>
+    /// <param name="calls">Die von hier aus erreichbaren Knoten (<see cref="Calls"/>).</param>
+    /// <param name="documentation">Der Kommentartext über der Deklaration (<see cref="Documentation"/>); <c>null</c>, wenn keiner vorliegt.</param>
+    public NavHoverInfo(ImmutableArray<ClassifiedText> displayParts, Location? location,
+                        IReadOnlyList<Call> calls, string? documentation = null) {
+        DisplayParts  = displayParts;
+        Location      = location;
+        Calls         = calls;
+        Documentation = documentation;
     }
 
     /// <summary>Die klassifizierten Signatur-Bestandteile (z.B. <c>task</c> + <c> </c> + <c>Foo</c>).</summary>
     public ImmutableArray<ClassifiedText> DisplayParts { get; }
 
     /// <summary>Der Namens-Bereich des Symbols unter dem Caret; kann <c>null</c> sein.</summary>
-    [CanBeNull]
-    public Location Location { get; }
+    public Location? Location { get; }
+
+    /// <summary>
+    /// Der aufbereitete Kommentartext direkt über der Deklaration des Symbols (siehe
+    /// <see cref="NavSymbolDocumentation"/>); <c>null</c>, wenn dort kein Kommentar steht.
+    /// </summary>
+    public string? Documentation { get; }
 
     /// <summary>
     /// Die von hier aus erreichbaren Knoten (Choices/Edges); leer für gewöhnliche Symbole. Jeder
     /// <see cref="Call"/> trägt Zielknoten und Edge-Mode für eine Zeile „Verb Zielsignatur".
     /// </summary>
-    [NotNull]
     public IReadOnlyList<Call> Calls { get; }
 
 }

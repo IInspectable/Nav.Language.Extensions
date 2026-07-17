@@ -1,0 +1,42 @@
+﻿    0 TaskKeyword
+    T Whitespace        [4-5]         " "
+    5 Identifier
+    T NewLine           [6-7]         "\n"
+    7 OpenBrace
+    T NewLine           [8-9]         "\n"
+    L Whitespace        [9-13]        "    "
+   13 InitKeyword
+    T Whitespace        [17-18]       " "
+   20 Semicolon
+    T NewLine           [21-22]       "\n"
+    L Whitespace        [22-26]       "    "
+   26 ExitKeyword
+    T Whitespace        [30-31]       " "
+   33 Semicolon
+    T NewLine           [34-35]       "\n"
+    L Whitespace        [35-39]       "    "
+   39 ViewKeyword
+    T Whitespace        [43-44]       " "
+   46 Semicolon
+    T NewLine           [47-48]       "\n"
+    L NewLine           [48-49]       "\n"
+    L Whitespace        [49-53]       "    "
+   53 InitKeyword
+    T Whitespace        [57-58]       " "
+   58 GoToEdgeKeyword
+    T Whitespace        [61-62]       " "
+   64 Semicolon
+    T NewLine           [65-66]       "\n"
+    L Whitespace        [66-70]       "    "
+   70 Identifier
+    T Whitespace        [72-73]       " "
+   73 GoToEdgeKeyword
+    T Whitespace        [76-77]       " "
+   77 Identifier
+    T Whitespace        [79-80]       " "
+   80 SpontKeyword
+    T Whitespace        [85-86]       " "
+    T SkippedTokensTrivia[86-98]       "spontaneous;"
+    T NewLine           [98-99]       "\n"
+   99 CloseBrace
+    T NewLine           [100-101]     "\n"

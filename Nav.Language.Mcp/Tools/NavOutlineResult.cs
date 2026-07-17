@@ -3,7 +3,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using Pharmatechnik.Nav.Language;
 
 #endregion
 
@@ -20,6 +19,19 @@ public sealed class NavOutlineResult {
     /// <summary>Gesetzt, wenn die Datei nicht gefunden/nicht parsebar ist (dann keine Tasks).</summary>
     public string? Error { get; set; }
 
+    /// <summary>
+    /// Die effektive Nav-Sprachversion der Datei (numerisch: <c>1</c>, <c>2</c> …). Stammt aus der
+    /// <c>#version</c>-Direktive im Dateikopf oder — fehlt sie — aus <see cref="NavLanguageVersion.Default"/>;
+    /// <see cref="HasVersionDirective"/> unterscheidet beide Fälle.
+    /// </summary>
+    public int LanguageVersion { get; set; }
+
+    /// <summary>
+    /// <c>true</c>, wenn die Version aus einer expliziten <c>#version</c>-Direktive stammt; <c>false</c>, wenn
+    /// mangels Direktive der Default gilt.
+    /// </summary>
+    public bool HasVersionDirective { get; set; }
+
     public List<NavTaskOutline> Tasks { get; set; } = new();
 
     public static NavOutlineResult NotFound(string path) => new() {
@@ -28,8 +40,10 @@ public sealed class NavOutlineResult {
     };
 
     public static NavOutlineResult From(string path, CodeGenerationUnit unit) => new() {
-        Path  = path,
-        Tasks = unit.TaskDefinitions.Select(NavTaskOutline.From).ToList()
+        Path                = path,
+        LanguageVersion     = unit.LanguageVersion.Value,
+        HasVersionDirective = unit.Syntax.LanguageVersionDirective != null,
+        Tasks               = unit.TaskDefinitions.Select(NavTaskOutline.From).ToList()
     };
 
 }

@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="NavLanguageExtensions.IUnknown.679d829b-0b59-49b0-9984-16975abb7f9e" Version="6.0.0" Language="en-US" Publisher="Dipl.-Ing. Maximilian Hänel" />
+    <Identity Id="NavLanguageExtensions.IUnknown.679d829b-0b59-49b0-9984-16975abb7f9e" Version="0.0.0" Language="en-US" Publisher="Dipl.-Ing. Maximilian Hänel" />
     <DisplayName>Nav Language Extensions 2026</DisplayName>
-    <Description xml:space="preserve">Support for the Pharmatechnik Nav language like syntax highlighting and semantic analysis.</Description>
+    <Description xml:space="preserve">Editor-Unterstützung für die Nav-Workflow-Sprache: Syntaxhervorhebung, semantische Analyse, IntelliSense, Navigation (Gehe zu / Referenzen / Aufrufhierarchie), Umbenennen und Code-Fixes.</Description>
     <MoreInfo>https://github.com/IInspectable/Nav.Language.Extensions</MoreInfo>
-    <Icon>Resources\ActivityDiagram_32x.png</Icon>
+    <Icon>Resources\Icon.png</Icon>
     <PreviewImage>Resources\Preview.png</PreviewImage>
   </Metadata>
   <Installation>
@@ -17,6 +17,7 @@
     <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
     <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
     <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="File" Path="Icons.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.ImageManifest" d:Source="File" Path="Icons.imagemanifest" />
   </Assets>
   <Prerequisites>
     <Prerequisite Id="Microsoft.VisualStudio.Component.Roslyn.Compiler" Version="[17.0,)" DisplayName="C# and Visual Basic Roslyn compilers" />

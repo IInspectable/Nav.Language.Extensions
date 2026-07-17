@@ -1,31 +1,49 @@
-#region Using Directives
+﻿#region Using Directives
 
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
-
-using JetBrains.Annotations;
+using System.Diagnostics.CodeAnalysis;
 
 using Pharmatechnik.Nav.Language.Text;
 
 #endregion
 
-namespace Pharmatechnik.Nav.Language; 
+namespace Pharmatechnik.Nav.Language;
 
+/// <summary>
+/// Der abstrakte Basistyp aller Knoten des Nav-Syntaxbaums. Jeder Knoten deckt einen zusammenhängenden
+/// <see cref="Extent"/> im Quelltext ab und ist Teil eines unveränderlichen Baums: Er kennt seinen
+/// <see cref="Parent"/>, seine <see cref="ChildNodes"/> und die ihm direkt zugeordneten
+/// <see cref="ChildTokens"/>. Der Baum wird in zwei Phasen aufgebaut — erst die Knoten samt Kindern, dann
+/// das einmalige <see cref="FinalConstruct"/>, das <see cref="SyntaxTree"/> und <see cref="Parent"/>
+/// nachträgt und den Knoten einfriert. Danach sind alle Zugriffe lesend.
+/// </summary>
 [Serializable]
 [DebuggerDisplay("{" + nameof(ToDebuggerDisplayString) + "(), nq}")]
 public abstract partial class SyntaxNode: IExtent {
 
-    List<SyntaxNode> _childNodes;
-    SyntaxTree       _syntaxTree;
-    SyntaxNode       _parent;
+    List<SyntaxNode>? _childNodes;
+    SyntaxToken[]?    _childTokens;
+    SyntaxTree?       _syntaxTree;
+    SyntaxNode?       _parent;
 
+    /// <summary>
+    /// Erzeugt einen Knoten mit seinem Quelltext-<paramref name="extent"/>. Der Knoten ist danach noch im
+    /// Aufbau-Modus (kein <see cref="SyntaxTree"/>, kein <see cref="Parent"/>) — beides setzt erst
+    /// <see cref="FinalConstruct"/>.
+    /// </summary>
     internal SyntaxNode(TextExtent extent) {
         Extent = extent;
     }
 
-    internal void FinalConstruct(SyntaxTree syntaxTree, SyntaxNode parent) {
+    /// <summary>
+    /// Schließt den Aufbau des Knotens ab: trägt <paramref name="syntaxTree"/> und <paramref name="parent"/>
+    /// nach und ruft sich rekursiv für alle Kindknoten auf. Danach ist der Knoten eingefroren und nur noch
+    /// lesend benutzbar. Darf je Knoten genau einmal aufgerufen werden.
+    /// </summary>
+    internal void FinalConstruct(SyntaxTree syntaxTree, SyntaxNode? parent) {
 
         EnsureConstructionMode();
 
@@ -41,59 +59,112 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
+    /// <summary>Die Startposition dieses Knotens im Quelltext (inklusiv).</summary>
     public int Start  => Extent.Start;
+
+    /// <summary>Die Endposition dieses Knotens im Quelltext (exklusiv).</summary>
     public int End    => Extent.End;
+
+    /// <summary>Die Länge dieses Knotens in Zeichen.</summary>
     public int Length => Extent.Length;
 
+    /// <summary>Der Quelltext-Ausschnitt, den dieser Knoten abdeckt (ohne umgebende Trivia; ≙ Roslyn <c>Span</c>).</summary>
     public TextExtent Extent { get; }
 
-    [CanBeNull]
-    public SyntaxNode Parent {
+    /// <summary>
+    /// Der Quelltext-Ausschnitt dieses Knotens samt umgebender Trivia (≙ Roslyn <c>FullSpan</c>) — das
+    /// Gegenstück zum trivia-freien <see cref="Extent"/> (≙ Roslyn <c>Span</c>). Reicht von der Leading-
+    /// bis zur Trailing-Trivia, wobei auch Kommentare als Trivia zählen. Wer Kommentare stattdessen als
+    /// Grenze behandeln will, nutzt <see cref="GetFullExtent"/> mit <c>onlyWhiteSpace: true</c>.
+    /// </summary>
+    public TextExtent FullExtent => GetFullExtent();
+
+    /// <summary>
+    /// Der übergeordnete Knoten, oder <c>null</c> für die Wurzel des Baums. Erst nach
+    /// <see cref="FinalConstruct"/> verfügbar.
+    /// </summary>
+    public SyntaxNode? Parent {
         get {
             EnsureConstructed();
             return _parent;
         }
     }
 
+    /// <summary>Die <see cref="Location"/> (Datei + Zeilen-/Spaltenbereich) dieses Knotens.</summary>
     public Location GetLocation() {
         EnsureConstructed();
         return SyntaxTree.SourceText.GetLocation(Extent);
     }
 
-    [NotNull]
-    public IEnumerable<SyntaxToken> ChildTokens() {
-        return SyntaxTree.Tokens[Extent].Where(token => token.Parent == this);
+    /// <summary>
+    /// Die diesem Knoten <b>direkt</b> zugeordneten Token (die der Parser hier konsumiert und angehängt hat) —
+    /// in Quelltext-Reihenfolge. Token tiefer liegender Kindknoten gehören nicht dazu; Trivia steht nicht im
+    /// flachen Strom und erscheint hier nie (sie hängt an den Token, siehe
+    /// <see cref="SyntaxToken.LeadingTrivia"/>/<see cref="SyntaxToken.TrailingTrivia"/>). Knoten, deren Token
+    /// nicht im flachen <see cref="SyntaxTree.Tokens"/>-Strom stehen (etwa strukturierte Trivia),
+    /// überschreiben diese Methode.
+    /// </summary>
+    public virtual IEnumerable<SyntaxToken> ChildTokens() {
+        // Nach FinalConstruct ist der Knoten eingefroren -> das Ergebnis ist unveränderlich und wird einmalig
+        // materialisiert gecacht. Bewusst kein LINQ (Where erzeugte pro Aufruf einen Iterator samt Closure),
+        // da die Token-Property-Accessoren der Knoten diese Methode auf dem heißen Pfad sehr oft aufrufen.
+        if (_childTokens == null) {
+            List<SyntaxToken>? tokens = null;
+            foreach (var token in SyntaxTree.Tokens[Extent]) {
+                if (token.Parent == this) {
+                    (tokens ??= new List<SyntaxToken>()).Add(token);
+                }
+            }
+
+            _childTokens = tokens?.ToArray() ?? Array.Empty<SyntaxToken>();
+        }
+
+        return _childTokens;
     }
 
     static readonly IReadOnlyList<SyntaxNode> EmptyNodeList = new List<SyntaxNode>();
 
-    [NotNull]
+    /// <summary>Die unmittelbaren Kindknoten dieses Knotens (eine Ebene tief), in Quelltext-Reihenfolge.</summary>
     public IReadOnlyList<SyntaxNode> ChildNodes() {
         EnsureConstructed();
         return _childNodes ?? EmptyNodeList;
     }
 
-    [NotNull]
+    /// <summary>
+    /// Alle Nachfahren dieses Knotens (rekursiv, ohne den Knoten selbst) in Tiefendurchlauf-Reihenfolge.
+    /// </summary>
     public IEnumerable<SyntaxNode> DescendantNodes() {
         return DescendantNodes<SyntaxNode>();
     }
 
-    [NotNull]
+    /// <summary>
+    /// Dieser Knoten und alle seine Nachfahren (rekursiv) in Tiefendurchlauf-Reihenfolge.
+    /// </summary>
     public IEnumerable<SyntaxNode> DescendantNodesAndSelf() {
         return DescendantNodesAndSelf<SyntaxNode>();
     }
 
-    [NotNull]
+    /// <summary>
+    /// Alle Nachfahren vom Typ <typeparamref name="T"/> (rekursiv, ohne den Knoten selbst) in
+    /// Tiefendurchlauf-Reihenfolge.
+    /// </summary>
     public IEnumerable<T> DescendantNodes<T>() where T : SyntaxNode {
         return DescendantNodesAndSelfImpl<T>(includeSelf: false);
     }
 
-    [NotNull]
+    /// <summary>
+    /// Dieser Knoten (sofern vom Typ <typeparamref name="T"/>) und alle seine Nachfahren vom Typ
+    /// <typeparamref name="T"/> (rekursiv) in Tiefendurchlauf-Reihenfolge.
+    /// </summary>
     public IEnumerable<T> DescendantNodesAndSelf<T>() where T : SyntaxNode {
         return DescendantNodesAndSelfImpl<T>(includeSelf: true);
     }
 
-    [NotNull]
+    /// <summary>
+    /// Gemeinsame Implementierung der Nachfahren-Durchläufe: liefert optional zuerst den Knoten selbst
+    /// (sofern vom Typ <typeparamref name="T"/>) und steigt dann in die Kindknoten ab. Kann über
+    /// <see cref="PromiseNoDescendantNodeOfSameType"/> den Abstieg vorzeitig abbrechen.
+    /// </summary>
     IEnumerable<T> DescendantNodesAndSelfImpl<T>(bool includeSelf) where T : SyntaxNode {
         EnsureConstructed();
         if (includeSelf && this is T) {
@@ -110,36 +181,53 @@ public abstract partial class SyntaxNode: IExtent {
     }
 
     /// <summary>
-    /// F�r Knoten, die sehr weit "oben" liegen, kann die Implementierung von DescendantNodes&lt;T&gt;
-    /// massiv beschleunigt werden, wenn sichergestellt werden kann, dass ein Knoten keine untergeordnenten 
+    /// Für Knoten, die sehr weit "oben" liegen, kann die Implementierung von DescendantNodes&lt;T&gt;
+    /// massiv beschleunigt werden, wenn sichergestellt werden kann, dass ein Knoten keine untergeordneten
     /// Knoten vom selben Typ haben kann, und deshalb die Suche in den Kindknoten vorzeitig abgebrochen
     /// werden kann.
-    /// Eigentlich m�sste diese Eigenschaft systematisch �berschrieben werden. Bisweilen werden hiermit nur
+    /// Eigentlich müsste diese Eigenschaft systematisch überschrieben werden. Bisweilen werden hiermit nur
     /// die Hotspots optimiert.
     /// </summary>
     private protected virtual bool PromiseNoDescendantNodeOfSameType => false;
 
     /// <summary>
-    /// Gets a list of ancestor nodes
+    /// Die Vorfahren dieses Knotens — vom <see cref="Parent"/> aufwärts bis zur Wurzel.
     /// </summary>
     public IEnumerable<SyntaxNode> Ancestors() {
         return Parent?.AncestorsAndSelf() ?? Enumerable.Empty<SyntaxNode>();
     }
 
     /// <summary>
-    /// Gets a list of ancestor nodes (including this node) 
+    /// Dieser Knoten und seine Vorfahren — von ihm selbst aufwärts bis zur Wurzel.
     /// </summary>
     public IEnumerable<SyntaxNode> AncestorsAndSelf() {
-        for (var node = this; node != null; node = node.Parent) {
+        for (SyntaxNode? node = this; node != null; node = node.Parent) {
             yield return node;
         }
     }
 
+    /// <summary>
+    /// Das Token, zu dem die angegebene <paramref name="position"/> gehört — nach Roslyn-Vorbild: liegt die
+    /// Position auf dem Extent eines Tokens, ist es dieses; liegt sie in angehängter Trivia
+    /// (Whitespace/Zeilenende/Kommentar), ist es das <b>signifikante Token, an dem die Trivia hängt</b>. Im
+    /// gültigen Bereich wird also nie eine Trivia-Position als „leer" zurückgegeben; außerhalb (oder ohne
+    /// tragendes Token) ist das Ergebnis <see cref="SyntaxToken.Missing"/>.
+    /// </summary>
+    /// <remarks>
+    /// Wer das Token <b>exakt</b> an der Position braucht (und an einer Trivia-Position bewusst nichts
+    /// erhalten will), nutzt <see cref="SyntaxTokenList.FindAtPosition"/>. Ein <c>findInsideTrivia</c>-Pendant
+    /// (Abstieg in strukturierte <see cref="SyntaxTokenType.DirectiveTrivia"/> und deren lokale Token) gibt es
+    /// nicht — die Token einer Direktive erreicht man über <see cref="SyntaxTrivia.GetStructure"/>.
+    /// </remarks>
     public SyntaxToken FindToken(int position) {
-        return SyntaxTree.Tokens.FindAtPosition(position);          
+        return SyntaxTree.Tokens.FindOwningToken(position);
     }
 
-    public SyntaxNode FindNode(int position) {
+    /// <summary>
+    /// Der Knoten, dem das Token an der angegebenen <paramref name="position"/> zugeordnet ist — sofern
+    /// dieses Token innerhalb des <see cref="Extent"/> dieses Knotens liegt; sonst <c>null</c>.
+    /// </summary>
+    public SyntaxNode? FindNode(int position) {
         var token = SyntaxTree.Tokens.FindAtPosition(position);
         if (token.IsMissing) {
             return null;
@@ -152,59 +240,152 @@ public abstract partial class SyntaxNode: IExtent {
         return null;
     }
 
+    /// <summary>
+    /// Der <see cref="Extent"/> dieses Knotens samt umgebender Trivia — von der Leading- bis zur
+    /// Trailing-Trivia (siehe <see cref="GetLeadingTriviaExtent"/> / <see cref="GetTrailingTriviaExtent"/>).
+    /// Das parameterlose Standard-Gegenstück (Kommentare zählen als Trivia) ist die Property
+    /// <see cref="FullExtent"/> (≙ Roslyn <c>FullSpan</c>).
+    /// </summary>
+    /// <param name="onlyWhiteSpace">
+    /// Steuert, was als zugehörige Trivia gilt — und damit, wie weit der Ausschnitt über den
+    /// <see cref="Extent"/> hinausreicht:
+    /// <list type="bullet">
+    /// <item><description><c>false</c> (Standard): Kommentare zählen als Trivia und werden mit
+    /// eingeschlossen. Der Ausschnitt umfasst also auch unmittelbar vor- bzw. nachstehende
+    /// Kommentar(zeilen) — gedacht, um einen Knoten <i>samt seiner zugehörigen Kommentare</i> zu erfassen
+    /// (etwa beim Ausschneiden/Verschieben eines Knotens).</description></item>
+    /// <item><description><c>true</c>: nur Whitespace (Leerzeichen, Tabs, Zeilenenden) zählt als Trivia;
+    /// Kommentare <i>begrenzen</i> den Ausschnitt. Leading reicht dann nur bis hinter den letzten
+    /// Kommentar zurück (vorangehende Kommentare bleiben außen vor), und ein Kommentar in der
+    /// Trailing-Zeile beendet den Ausschnitt. Gedacht, wenn nur die reine Leerraum-/Einrückungs-Umgebung
+    /// des Knotens interessiert, nicht seine Kommentare.</description></item>
+    /// </list>
+    /// </param>
     public TextExtent GetFullExtent(bool onlyWhiteSpace = false) {
         return TextExtent.FromBounds(GetLeadingTriviaExtent(onlyWhiteSpace).Start, GetTrailingTriviaExtent(onlyWhiteSpace).End);
     }
 
+    /// <summary>
+    /// Die Leading-Trivia dieses Knotens — abgeleitet aus dem <b>ersten</b> signifikanten Token (echtes
+    /// Roslyn-Modell). Das ist das Token an <see cref="Start"/>; bei zusammengesetzten Knoten gehört es
+    /// einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten Extent,
+    /// ist sie leer.
+    /// </summary>
+    public SyntaxTriviaList GetLeadingTrivia() {
+        if (Extent.IsMissing) {
+            return SyntaxTriviaList.Empty;
+        }
+
+        var first = SyntaxTree.Tokens.FindAtPosition(Start);
+        return first.IsMissing ? SyntaxTriviaList.Empty : first.LeadingTrivia;
+    }
+
+    /// <summary>
+    /// Die Trailing-Trivia dieses Knotens — abgeleitet aus dem <b>letzten</b> signifikanten Token (echtes
+    /// Roslyn-Modell). Das ist das Token, das an <see cref="End"/> endet; bei zusammengesetzten Knoten
+    /// gehört es einem Nachfahren, liegt aber über die Position eindeutig fest. Hat der Knoten keinen echten
+    /// Extent, ist sie leer.
+    /// </summary>
+    public SyntaxTriviaList GetTrailingTrivia() {
+        if (Extent.IsMissing) {
+            return SyntaxTriviaList.Empty;
+        }
+
+        var last = SyntaxTree.Tokens.FindAtPosition(End - 1);
+        return last.IsMissing ? SyntaxTriviaList.Empty : last.TrailingTrivia;
+    }
+
+    /// <summary>
+    /// Der Ausschnitt der Leading-Trivia vor diesem Knoten: die Einrückung seiner eigenen Zeile sowie alle
+    /// unmittelbar darüber liegenden Zeilen, die ausschließlich aus Trivia bestehen. Steht vor dem Knoten in
+    /// seiner Zeile bereits etwas Nicht-Trivia, ist der Ausschnitt leer (nullbreit am Knotenanfang).
+    /// </summary>
+    /// <param name="onlyWhiteSpace">Wenn <c>true</c>, zählt nur Whitespace als Trivia; Kommentare begrenzen
+    /// den Ausschnitt dann.</param>
     public TextExtent GetLeadingTriviaExtent(bool onlyWhiteSpace = false) {
-        var isTrivia      = GetIsTriviaFunc(onlyWhiteSpace);
-        var nodeStartLine = SyntaxTree.SourceText.GetTextLineAtPosition(Start);
-        var leadingExtent = TextExtent.FromBounds(nodeStartLine.Extent.Start, Start);
 
-        var start = Start;
-        // Wenn  bis zum Zeilenanfang nur Trivia Tokens, werden alle vorigen Zeilen, die nur aus Trivias bestehen, auch mit dazu genommen
-        if (SyntaxTree.Tokens[leadingExtent].All(token => isTrivia(token.Classification))) {
-            // Trivia geht mindestens zum Zeilenanfang der Node
-            start = leadingExtent.Start;
-            // Jetzt alle vorigen Zeilen durchlaufen
-            var line = nodeStartLine.Line - 1;
-            while (line >= 0) {
+        // Abgeleitet aus der am ersten signifikanten Token angehängten Leading-Trivia (Roslyn-Modell).
+        var leadingTrivia = GetLeadingTrivia();
+        if (leadingTrivia.IsEmpty) {
+            return TextExtent.FromBounds(Start, Start);
+        }
 
-                var lineExtent = SyntaxTree.SourceText.TextLines[line].Extent;
-                if (!SyntaxTree.Tokens[lineExtent].All(token => isTrivia(token.Classification))) {
-                    // Zeile besteht nicht nur aus Trivias
-                    break;
+        int start;
+        if (!onlyWhiteSpace) {
+            // Kommentare zählen als Trivia: der gesamte angehängte Vorlauf gehört dazu.
+            start = leadingTrivia[0].Start;
+        } else {
+            // Nur Whitespace zählt: der letzte Kommentar begrenzt den Ausschnitt. Alles bis
+            // einschließlich des Zeilenendes nach dem letzten Kommentar gehört zu einer
+            // kommentar-behafteten Zeile und zählt nicht mehr; erst die anschließende reine
+            // Whitespace-Strecke (Leerzeilen + Einrückung der Knotenzeile) ist Trivia.
+            var lastComment = -1;
+            for (var i = 0; i < leadingTrivia.Length; i++) {
+                if (SyntaxFacts.IsCommentTrivia(leadingTrivia[i].Type)) {
+                    lastComment = i;
+                }
+            }
+
+            if (lastComment < 0) {
+                start = leadingTrivia[0].Start;
+            } else {
+                var newLineAfterComment = -1;
+                for (var i = lastComment + 1; i < leadingTrivia.Length; i++) {
+                    if (leadingTrivia[i].Type == SyntaxTokenType.NewLine) {
+                        newLineAfterComment = i;
+                        break;
+                    }
                 }
 
-                start =  lineExtent.Start;
-                line  -= 1;
+                if (newLineAfterComment < 0) {
+                    // Der letzte Kommentar steht in der Knotenzeile selbst → kein reiner Whitespace-Vorlauf.
+                    return TextExtent.FromBounds(Start, Start);
+                }
+
+                start = leadingTrivia[newLineAfterComment].End;
             }
+        }
+
+        // Zeilen-Guard (Parität zur zeilenbasierten Vorgänger-Heuristik): der Ausschnitt darf nur dann vor
+        // den Anfang der Knotenzeile zurückreichen, wenn er an einer Zeilengrenze beginnt. Beginnt er mitten
+        // in einer Zeile — etwa weil ein übersprungenes Zeichen oder eine Direktive vorausgeht (solche Trenner
+        // tragen keine angehängte Trivia) —, besteht der Zeilen-Präfix nicht ausschließlich aus Trivia und der
+        // Ausschnitt ist leer.
+        var lineStart = SyntaxTree.SourceText.GetTextLineAtPosition(Start).Extent.Start;
+        if (start > lineStart) {
+            return TextExtent.FromBounds(Start, Start);
         }
 
         return TextExtent.FromBounds(start, Start);
     }
 
-    // Die Trailing Trivias gehen bis zum n�chsten Token, respektive zum Ende der Zeile
+    /// <summary>
+    /// Der Ausschnitt der Trailing-Trivia nach diesem Knoten: vom Knotenende bis zum nächsten Token,
+    /// respektive bis zum Ende der Zeile (das Zeilenende eingeschlossen), falls in dieser Zeile kein
+    /// weiteres Token mehr folgt.
+    /// </summary>
+    /// <param name="onlyWhiteSpace">Wenn <c>true</c>, zählt nur Whitespace als Trivia; ein Kommentar in der
+    /// Zeile begrenzt den Ausschnitt dann.</param>
     public TextExtent GetTrailingTriviaExtent(bool onlyWhiteSpace = false) {
 
-        var isTrivia       = GetIsTriviaFunc(onlyWhiteSpace);
-        var nodeEndLine    = SyntaxTree.SourceText.GetTextLineAtPosition(End);
-        var trailingExtent = TextExtent.FromBounds(End, nodeEndLine.Extent.End);
+        // Abgeleitet aus der am letzten signifikanten Token angehängten Trailing-Trivia (Roslyn-Modell):
+        // diese reicht ohnehin höchstens bis einschließlich des ersten Zeilenendes bzw. bis zum nächsten
+        // Token. Im onlyWhiteSpace-Modus begrenzt der erste Kommentar den Ausschnitt.
+        var trailingTrivia = GetTrailingTrivia();
 
-        var endToken = SyntaxTree.Tokens[trailingExtent]
-                                 .SkipWhile(token => isTrivia(token.Classification))
-                                 .FirstOrDefault();
+        var end = End;
+        foreach (var trivia in trailingTrivia) {
+            if (onlyWhiteSpace && SyntaxFacts.IsCommentTrivia(trivia.Type)) {
+                break;
+            }
 
-        var end = endToken.IsMissing ? nodeEndLine.Extent.End : endToken.Start;
+            end = trivia.End;
+        }
 
         return TextExtent.FromBounds(End, end);
     }
 
-    static Func<TextClassification, bool> GetIsTriviaFunc(bool onlyWhiteSpace = false) {
-        return onlyWhiteSpace ? (c => c == TextClassification.Whitespace) : new Func<TextClassification, bool>(SyntaxFacts.IsTrivia);
-    }
-
-    [NotNull]
+    /// <summary>Der <see cref="SyntaxTree"/>, zu dem dieser Knoten gehört. Erst nach <see cref="FinalConstruct"/> verfügbar.</summary>
     public SyntaxTree SyntaxTree {
         get {
             EnsureConstructed();
@@ -212,7 +393,11 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
-    protected void AddChildNode(SyntaxNode syntaxNode) {
+    /// <summary>
+    /// Fügt — nur während des Aufbaus — einen Kindknoten an. <c>null</c> wird ignoriert. Nach
+    /// <see cref="FinalConstruct"/> nicht mehr erlaubt.
+    /// </summary>
+    protected void AddChildNode(SyntaxNode? syntaxNode) {
         EnsureConstructionMode();
         EnsureChildNodes();
         if (syntaxNode != null) {
@@ -220,6 +405,9 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
+    /// <summary>
+    /// Fügt — nur während des Aufbaus — mehrere Kindknoten an (siehe <see cref="AddChildNode"/>).
+    /// </summary>
     protected void AddChildNodes(IEnumerable<SyntaxNode> syntaxNodes) {
         EnsureConstructionMode();
         EnsureChildNodes();
@@ -228,12 +416,16 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
+    /// <summary>Wirft, wenn der Knoten noch im Aufbau ist (kein <see cref="SyntaxTree"/> gesetzt).</summary>
+    [MemberNotNull(nameof(_syntaxTree))]
     void EnsureConstructed() {
         if (_syntaxTree == null) {
             throw new InvalidOperationException();
         }
     }
 
+    /// <summary>Legt die Kindknoten-Liste bei Bedarf an (nur im Aufbau-Modus).</summary>
+    [MemberNotNull(nameof(_childNodes))]
     void EnsureChildNodes() {
         if (_childNodes == null) {
             EnsureConstructionMode();
@@ -241,16 +433,27 @@ public abstract partial class SyntaxNode: IExtent {
         }
     }
 
+    /// <summary>Wirft, wenn der Knoten bereits eingefroren ist (<see cref="FinalConstruct"/> gelaufen).</summary>
     void EnsureConstructionMode() {
         if (_syntaxTree != null) {
             throw new InvalidOperationException();
         }
     }
 
+    /// <summary>
+    /// Der Quelltext dieses Knotens (sein <see cref="Extent"/>, ohne umgebende Trivia). Für einen
+    /// Knoten, der nur aus Missing-Token besteht (Parser-Recovery auf kaputtem Source), ist der
+    /// Extent selbst Missing — dann leer statt Absturz, wie bei <see cref="SyntaxToken.ToString"/>.
+    /// </summary>
     public override string ToString() {
+        if (Extent.IsMissing) {
+            return String.Empty;
+        }
+
         return SyntaxTree.SourceText.Substring(Start, Length);
     }
 
+    /// <summary>Kompakte Debug-Darstellung: Ausschnitt und konkreter Knotentyp.</summary>
     public string ToDebuggerDisplayString() {
         return $"{Extent} {GetType().Name}";
     }

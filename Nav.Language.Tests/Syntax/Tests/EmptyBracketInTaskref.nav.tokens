@@ -1,0 +1,13 @@
+﻿    0    7  TaskrefKeyword          Keyword                      TaskDeclarationSyntax
+    8    2  Identifier              TaskName                     TaskDeclarationSyntax
+   14    1  OpenBrace               Punctuation                  TaskDeclarationSyntax
+   20    4  InitKeyword             Keyword                      InitNodeDeclarationSyntax
+   25    2  Identifier              Identifier                   InitNodeDeclarationSyntax
+   27    1  Semicolon               Punctuation                  InitNodeDeclarationSyntax
+   33    4  ExitKeyword             Keyword                      ExitNodeDeclarationSyntax
+   38    2  Identifier              Identifier                   ExitNodeDeclarationSyntax
+   40    1  Semicolon               Punctuation                  ExitNodeDeclarationSyntax
+   46    3  EndKeyword              Keyword                      EndNodeDeclarationSyntax
+   49    1  Semicolon               Punctuation                  EndNodeDeclarationSyntax
+   51    1  CloseBrace              Punctuation                  TaskDeclarationSyntax
+   53    0  EndOfFile               Whitespace                   CodeGenerationUnitSyntax

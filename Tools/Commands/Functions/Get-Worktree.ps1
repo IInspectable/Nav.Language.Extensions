@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Liefert alle Git-Worktrees des Repos als Objekte { Branch; Path }.
 

@@ -36,10 +36,15 @@ public class SyntaxFactsTest {
         "notimplemented",
         "abstractmethod",
         "-->",
-        "*->",
         "o->",
         "==>",
         "code"
+    };
+
+    // Continuation-Kanten sind bewusst NICHT Teil von SyntaxFacts.Keywords (eigene Kategorie).
+    static readonly string[] ExpectedContinuationEdgeKeywords = {
+        "--^",
+        "o-^"
     };
 
     static readonly char[] ExpectedPunctuations = {
@@ -53,7 +58,8 @@ public class SyntaxFactsTest {
         '}',
         '{',
         ']',
-        '['
+        '[',
+        '?'
     };
 
     static readonly char[] ExpectedIdentifierCharacters = {
@@ -64,7 +70,7 @@ public class SyntaxFactsTest {
         'ß', '.', '_'
     };
 
-    static readonly char[] SomeExpectedNonIdentifierCharacters = new char[] {
+    static readonly char[] SomeExpectedNonIdentifierCharacters = {
         '-', ' ', ';', '"', '\r', '\n', '\\', '/', '=', '*'
     };
 
@@ -218,13 +224,32 @@ public class SyntaxFactsTest {
     }
 
     [Test]
-    public void ModalEdgeKeywordAltTest() {
-        Assert.That(SyntaxFacts.ModalEdgeKeywordAlt, Is.EqualTo("*->"));
+    public void NonModalEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.NonModalEdgeKeyword, Is.EqualTo("==>"));
     }
 
     [Test]
-    public void NonModalEdgeKeywordTest() {
-        Assert.That(SyntaxFacts.NonModalEdgeKeyword, Is.EqualTo("==>"));
+    public void ContinuationGoToEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.ContinuationGoToEdgeKeyword, Is.EqualTo("--^"));
+    }
+
+    [Test]
+    public void ContinuationModalEdgeKeywordTest() {
+        Assert.That(SyntaxFacts.ContinuationModalEdgeKeyword, Is.EqualTo("o-^"));
+    }
+
+    [Test]
+    public void ContinuationEdgeKeywordsTest() {
+        Assert.That(SyntaxFacts.ContinuationEdgeKeywords, Is.EquivalentTo(ExpectedContinuationEdgeKeywords));
+    }
+
+    [Test]
+    [TestCaseSource(nameof(ExpectedContinuationEdgeKeywords))]
+    public void IsContinuationEdgeKeywordTest(string value) {
+        Assert.That(SyntaxFacts.IsContinuationEdgeKeyword(value), Is.True, $"'{value}' should be a continuation edge keyword");
+        // Continuation-Kanten sind KEINE regulären Edge-Keywords und keine Nav-Keywords.
+        Assert.That(SyntaxFacts.IsEdgeKeyword(value), Is.False, $"'{value}' should NOT be a regular edge keyword");
+        Assert.That(SyntaxFacts.IsKeyword(value),     Is.False, $"'{value}' should NOT be in Keywords");
     }
 
     [Test]
@@ -310,6 +335,72 @@ public class SyntaxFactsTest {
 
         var notAKeyword = "Max";
         Assert.That(SyntaxFacts.IsKeyword(notAKeyword), Is.False, $"'{notAKeyword}' should NOT be a keyword");
+    }
+
+    // Jedes Keyword — inkl. der Edge-Operatoren — trägt eine Beschreibung; verhindert, dass ein neu
+    // ergänztes Keyword ohne Erläuterung durchrutscht.
+    [Test]
+    [TestCaseSource(nameof(ExpectedKeywords))]
+    public void KeywordHasDescription(string keyword) {
+        Assert.That(SyntaxFacts.GetKeywordDescription(keyword), Is.Not.Empty, $"Keyword '{keyword}' should have a description");
+    }
+
+    // Auch die Continuation-Kanten (--^/o-^) — nicht Teil von SyntaxFacts.Keywords — tragen ihre Bedeutung.
+    [Test]
+    [TestCaseSource(nameof(ExpectedContinuationEdgeKeywords))]
+    public void ContinuationEdgeKeywordHasDescription(string keyword) {
+        Assert.That(SyntaxFacts.GetKeywordDescription(keyword), Is.Not.Empty, $"Continuation edge '{keyword}' should have a description");
+    }
+
+    [Test]
+    public void DirectiveKeywordsHaveDescription() {
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.VersionDirectiveKeyword), Is.Not.Empty);
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.PragmaDirectiveKeyword),  Is.Not.Empty);
+    }
+
+    [Test]
+    public void GetKeywordDescriptionForNonKeywordIsEmpty() {
+        Assert.That(SyntaxFacts.GetKeywordDescription("Max"), Is.Empty);
+    }
+
+    [Test]
+    public void GetKeywordDescription_IsHostSpecific_ForParamsAndResult() {
+
+        // `params`/`result` sind wirt-abhängig — je Code-Block-Wirt eine eigene Bedeutung.
+        var taskParams   = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.TaskDefinition);
+        var initParams   = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.InitNode);
+        var choiceParams = SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.ChoiceNode);
+
+        Assert.That(new[] {taskParams, initParams, choiceParams}, Is.Unique);
+        Assert.That(initParams, Does.Contain("Init"));
+        Assert.That(choiceParams, Does.Contain("Choice"));
+
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskDefinition),
+                    Is.Not.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ResultKeyword, CodeBlockHost.TaskRef)));
+    }
+
+    [Test]
+    public void GetKeywordDescription_IsHostSpecific_ForTask() {
+
+        // `task` meint am Definitionskopf und am Task-Knoten Verschiedenes.
+        var taskDefinition = SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword, CodeBlockHost.TaskDefinition);
+        var taskNode       = SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword, CodeBlockHost.TaskNode);
+
+        Assert.That(taskNode, Is.Not.EqualTo(taskDefinition));
+        // Der Definitionskopf hat keinen Override → host-neutraler Fallback.
+        Assert.That(taskDefinition, Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.TaskKeyword)));
+    }
+
+    [Test]
+    public void GetKeywordDescription_FallsBackToHostNeutral_WhenNoHostOverride() {
+
+        // Wirt ohne Override (`params` gibt es am Datei-Kopf nicht) → host-neutraler Fallback.
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword, CodeBlockHost.CompilationUnit),
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.ParamsKeyword)));
+
+        // Host-unabhängiges Keyword bleibt in jedem Wirt bei seiner einen Bedeutung.
+        Assert.That(SyntaxFacts.GetKeywordDescription(SyntaxFacts.BaseKeyword, CodeBlockHost.TaskDefinition),
+                    Is.EqualTo(SyntaxFacts.GetKeywordDescription(SyntaxFacts.BaseKeyword)));
     }
 
         
