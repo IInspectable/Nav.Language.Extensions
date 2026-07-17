@@ -458,6 +458,10 @@ ggf. mit der versionierten Such-Strategie-Schnittstelle.
    (`ContinuationFlow`, S6), Choice-mit-3-Quellen (`ChoiceFlow`, S7) **und** die isolierten Sonderformen
    (`NotImplementedFlow`/`DoNotInjectFlow`, S8) liegen als Golden vor. Der Backbone der gestaffelten
    Goldens (§7) steht komplett; nichts mehr offen.
+3. **`cancel`-Keyword + V2-only-Cancel-Gating — eigenes Vorhaben, noch nicht umgesetzt.** In V2 soll die
+   `Cancel()`-Aufruffläche nur emittiert werden, wenn die Quelle einen `cancel`-Ausgang deklariert
+   (Choice-Arm oder direkte Init-/Trigger-Kante); V1 bleibt unbedingt. Entscheidungen, verifizierte
+   Fakten und Step-Plan in **`doc/nav-cancel-keyword-status.md`**.
 
 ## Verifikation (Wiederholrezept)
 
