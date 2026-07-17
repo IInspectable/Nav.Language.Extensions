@@ -94,20 +94,47 @@ Vorbehalte: (1) für nicht-durchgereichte Features schreibt man weiterhin das **
 Neu-Anfrage bei `TagsChanged`). (3) Dieser Custom-RPC-Kanal ist der **Dreh- und Angelpunkt** und in der
 Recherche **nicht bestätigt** → zuerst absichern.
 
-### 5b. Workspace-Root + Change-Tracking ohne Folder-Mode
+### 5b. Workspace-Root im Solution-Modus — die zentrale Herausforderung
 
-Wir machen uns von VS' Folder-Orientierung **unabhängig**:
+Wir arbeiten **ausschließlich solution-basiert**, und die **solution-weite Analyse ist einer der
+Hauptvorteile** des LSP. Der Workspace-Root ist damit kein Randthema, sondern die Bedingung, unter der
+sich die Migration überhaupt lohnt: **ohne Root kein Cross-File-Modell** — und VS' LSP-Support ist
+folder-orientiert. Den Root im Solution-Modus zuverlässig zum Server zu bringen ist deshalb *die*
+Aufgabe.
 
+**Gute Nachricht: das Root-Modell beider Seiten ist bereits identisch.** Die heutige VS-Extension
+ermittelt ihren Root über `IVsSolution.GetSolutionInfo` → `solutionDirectory` und schiebt genau dieses
+Verzeichnis in **dieselbe** Engine-Funktion, die auch der LSP nutzt
+(`NavSolutionProvider.cs:276` → `NavSolution.FromDirectoryAsync`; LSP: `NavWorkspaceCore.LoadAsync`).
+Beide Hosts meinen mit „Solution" dasselbe: *ein Verzeichnis, rekursiv nach `*.nav` durchsucht*. Es ist
+also **kein Modell zu überbrücken, nur ein Wert zu transportieren** — und dieser Wert ist in der
+Extension seit Jahren produktiv erprobt.
+
+**Korrektur eines früheren Trugschlusses:** „Die Engine entdeckt ihren Root selbst aus einem Dateipfad,
+indem sie die Hierarchie hochläuft" — **das tut sie nicht.** `NavSolution.FromDirectoryAsync` bekommt ein
+Verzeichnis und globbt **abwärts**; eine Aufwärtssuche existiert nirgends im Repo (nur `NavIgnore` läuft
+für `.navignore`-Dateien hoch, was nichts mit Root-Findung zu tun hat). Es gibt damit **kein
+engine-seitiges Sicherheitsnetz**: bleibt der Root leer, greift in `NavWorkspaceCore.LoadAsync` der
+`Directory.Exists`-Guard, die Solution ist leer, und es gibt **keine Diagnostics und keine Cross-File-
+Analyse**. Der Kanal Host→Server ist einkanalig und muss sitzen.
+
+- **Transport (der Kern):** Der Host gibt das `solutionDirectory` über **`ILanguageClient.InitializationOptions`**
+  mit — clientseitig laut Recherche vorhanden (§4). **Serverseitig fehlt das noch:** `ResolveRootPath`
+  (`NavLanguageServer.cs:112`) liest heute ausschließlich `RootUri` und das deprecatete `RootPath`, **nicht**
+  `InitializationOptions`. Das ist die erste echte Server-Änderung der Migration — klein, aber ohne sie
+  trägt nichts.
+- **Rückfallebene**, falls `InitializationOptions` im Solution-Modus wider Erwarten nicht durchkommt: über
+  `ILanguageClientCustomMessage2`/MiddleLayer die ausgehende `initialize`-Nachricht abfangen und `rootUri`
+  selbst setzen. Zu verifizieren, aber der Custom-RPC-Kanal ist ohnehin der Linchpin (§5a).
+- **Solution-Wechsel** ist gratis geregelt: VS bindet die Server-Lebensdauer an die Solution (§4,
+  bestätigt) — andere Solution ⇒ neuer Server ⇒ neues `initialize` mit neuem Root. Kein Reload-Protokoll
+  nötig.
 - **Offene Dokumente:** `didOpen`/`didChange`/`didClose` laufen im Solution-Modus automatisch (bestätigt,
-  content-type-getrieben). Das ist der Overlay-/unsaved-Teil.
-- **Workspace-Root:** **nicht** auf VS' `rootUri` verlassen. Die Engine entdeckt ihren Solution-Root
-  selbst aus einem Dateipfad (`NavSolution.FromDirectory`, läuft die Hierarchie hoch); zusätzlich kann
-  der VS-Host den Solution-Pfad über **`InitializationOptions`** explizit mitgeben (kennt ihn via
-  `NavSolutionProvider`/`IVsSolution`). Doppelt abgesichert, folder-unabhängig.
-- **Geschlossene Include-Dateien:** kein `didChange`. Sauberster Weg: der **Server überwacht seinen
-  selbst-entdeckten Root per `FileSystemWatcher`** (er liest Includes ohnehin von Platte). Genau das
-  modelliert der `OverlaySyntaxProvider` schon: **Overlay (offen, von VS) über Platte (geschlossen, vom
-  Server überwacht)**. Cross-File-Frische hängt damit an keiner VS-Folder-Funktion.
+  content-type-getrieben). Das ist der Overlay-/unsaved-Teil — der ist unabhängig vom Root-Problem.
+- **Geschlossene Include-Dateien:** kein `didChange`. Sauberster Weg: der **Server überwacht seinen Root
+  per `FileSystemWatcher`** (er liest Includes ohnehin von Platte). Genau das modelliert der
+  `OverlaySyntaxProvider` schon: **Overlay (offen, von VS) über Platte (geschlossen, vom Server
+  überwacht)**.
 
 ### 5c. Koexistenz / Rückbau
 
@@ -162,14 +189,17 @@ dem VS-Prozess in den LSP, während die roslyn-abhängigen Teile bleiben, wo der
 
 1. **Reicht VS `foldingRange`, `semanticTokens`/Classification, `callHierarchy`, `inlayHint` an die UI
    durch?** (Fehlen in der bestätigten Support-Tabelle.) Entscheidet den Rückbau-Umfang. Primärquelle.
-2. Was kommt im **Solution-Modus** exakt bei `initialize` an (`rootUri`/`workspaceFolders`/
-   `InitializationOptions`)? Empfohlenes Custom-Init-Muster? — **empirisch im Spike**.
+2. **Kommt der Solution-Root im Solution-Modus beim Server an?** Was genau trifft bei `initialize` ein
+   (`rootUri`/`workspaceFolders`/`InitializationOptions`)? Die **wichtigste** offene Frage — ohne Root
+   keine solution-weite Analyse und damit kein Migrationsgrund (§5b). — **empirisch im Spike**.
 3. Funktioniert der **Custom-RPC-Kanal** (`ILanguageClientCustomMessage2`) zuverlässig im Solution-Modus?
-   — Primärquelle + **Spike**. Linchpin für 5a **und** die Roslyn-Brücke.
-4. **In-Proc `ILanguageClient` vs. Out-of-Proc `LanguageServerProvider`** für VS 2026? Betrifft
-   `workspace/configuration` (Out-of-Proc-Lücke) u.ä. — **nicht** aber den Roslyn-Zugriff (siehe unten).
-   Randnotiz: `nav.lsp` ist **net10.0**, die VS-Extension **net472** → ein echter In-Proc-Server in der
-   VS-AppDomain ist ohnehin ausgeschlossen; `nav.lsp` läuft zwangsläufig out-of-proc.
+   — Primärquelle + **Spike**. Linchpin für 5a, die Roslyn-Brücke **und** die Root-Rückfallebene (§5b).
+4. ~~In-Proc vs. Out-of-Proc~~ — **entschieden: klassischer In-Proc-`ILanguageClient`** (net472-VSIX), der
+   den Out-of-Proc-Server `nav.lsp` (net10.0) als Prozess startet. Begründung: Die VS-nativen Satelliten
+   (§5d, Familien B und C) brauchen MEF-Tagger und den `VisualStudioWorkspace` — beides bietet das
+   Out-of-Proc-Modell `VisualStudio.Extensibility` nicht. Damit ist das Modell erzwungen, und die
+   `workspace/configuration`-Lücke des neuen Modells wird gegenstandslos. Der net10/net472-Split ist kein
+   Widerspruch: In-Proc ist der **Client**, nicht der Server.
 5. **Roslyn-Brücke** — **weitgehend geklärt (siehe §5d)**, kein Blocker mehr. Korrektur eines früheren
    Trugschlusses: „In-Proc-LSP gäbe Roslyn-Workspace-Zugriff" trägt **nicht** — Workspace-Zugriff ist eine
    Eigenschaft von **VS-nativem MEF-/Package-Code**, nicht davon, *wo der LSP-Server läuft* (und der
@@ -183,10 +213,26 @@ Minimaler `ILanguageClient` im VSIX, der:
 - `nav.lsp` als Prozess startet und die `Connection` (stdio-Streams) zurückgibt,
 - den Content-Type `.nav` per MEF (`ContentTypeDefinition` + `FileExtensionToContentTypeDefinition`,
   Basis `CodeRemoteContentDefinition.CodeRemoteContentTypeName`) registriert,
-- das ankommende `initialize`-JSON **loggt** (Frage 6.2),
+- das ankommende `initialize`-JSON **loggt** — **bevor** irgendetwas anderes bewertet wird (Frage 6.2),
+- den **Solution-Root** via `IVsSolution.GetSolutionInfo` über `InitializationOptions` mitgibt und
+  serverseitig in `ResolveRootPath` auswertet (§5b — die einzige Server-Änderung des Spikes),
 - **Diagnostics** zeigt (nativer Auto-Pfad) **und**
 - **Classification** per selbst abgesetztem `textDocument/semanticTokens/full` in einen Test-Tagger holt
   (Custom-RPC-Beweis, Frage 6.3).
+
+**Akzeptanzkriterium ist bewusst solution-weit:** Diagnostics müssen für eine `.nav`-Datei erscheinen,
+die einen **Include aus einem anderen Verzeichnis** der Solution zieht — erst das beweist Root-Transport
+*und* Cross-File-Modell. Diagnostics auf einer isolierten Datei beweisen nichts.
+
+**Diagnose-Reihenfolge (wichtig, sonst Fehlschluss):** Bleiben Diagnostics aus, ist das **zuerst** ein
+Root-Verdacht (leerer Root ⇒ leere Solution ⇒ keine Diagnostics, §5b), **nicht** ein Beweis, dass LSP im
+Solution-Modus nicht trägt. Deshalb steht das `initialize`-Log an erster Stelle.
+
+**Provisorium im Spike:** Woher das VSIX `nav.lsp.exe` bezieht, ist noch offen — für den Spike genügt ein
+Dev-Pfad auf `Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll` (via `dotnet`). Das Produktiv-Gegenstück
+(Single-File-Publish als VSIX-Asset + Pfadauflösung zur Laufzeit + `nav publish`-Anbindung) fehlt und ist
+Folgearbeit; Vorbild ist `Publish-VsCode.ps1`, das den Server nach `vscode-nav-lsp\server\nav.lsp.exe`
+publisht.
 
 Wird im **reinen Solution-Modus** (kein Open Folder) getestet, neben bzw. mit stillgelegter nativer
 Extension. Danach ist empirisch klar, ob die Strategie trägt.
