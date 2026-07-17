@@ -1,7 +1,8 @@
 ﻿# Nav VS-LSP-Migration — Arbeitsdokument
 
-> **Status:** Sondierung/Machbarkeit abgeschlossen, noch keine Umsetzung. Lebendes Dokument, wird in
-> Folge-Sessions ausgebaut. Bezug: [nav-lsp-status.md](nav-lsp-status.md), [nav-mcp-status.md](nav-mcp-status.md).
+> **Status:** Sondierung, Recherche und Entscheidungen abgeschlossen; **Umsetzung beginnt mit Step 1**
+> (§9). Es existiert noch kein Zeile Code. Plan: §9, Fallen: §10, Stand + Verifikation: §11.
+> Lebendes Dokument. Bezug: [nav-lsp-status.md](nav-lsp-status.md), [nav-mcp-status.md](nav-mcp-status.md).
 
 ## 1. Ziel
 
@@ -351,7 +352,141 @@ Dass beide dadurch nie gleichzeitig installiert sein können, ist **gewollt** un
 - **Für den Endnutzer** bleibt es beim glatten Weg: eine Update-Installation ersetzt die alte still, kein
   manuelles Deinstallieren.
 
-## 9. Quellen (Auswahl)
+## 9. Umsetzungsplan
+
+Der Spike (§7) ist der **erste Commit der neuen Extension**, kein Wegwerf-Code — er zerfällt in vier
+Steps. Nach jedem Step: Review + Check, dann eine fertige Commit-Message; der Commit selbst bleibt beim
+Nutzer (CLAUDE.md).
+
+### Step 1 — Projekt-Gerüst + Manifest-Identität
+
+**Ergebnis:** Die Greenfield-Projekte aus §8b existieren und bauen; es entsteht ein installierbares, noch
+funktionsloses VSIX mit der Legacy-Id und git-gestempelter Version.
+
+Dateien:
+- **neu** `Nav.Language.Lsp.VisualStudio2026/` — `.csproj` (**legacy non-SDK**, Muster
+  `Nav.Language.Extension2026.csproj`: `ToolsVersion="15.0"`, MSBuild-2003-Schema,
+  `TargetFrameworkVersion v4.7.2`, Import `Microsoft.VsSDK.targets`), `source.extension.vsixmanifest`
+  (Id verbatim aus §8c), `Properties/AssemblyInfo.cs`
+- **neu** `Nav.Language.Lsp.VisualStudio2026/CustomBuild.targets` — `NavStampVsixManifest` aus
+  `Nav.Language.Extension2026/CustomBuild.targets:57` übernehmen (§8c), **mit eigenem `DeployDirectory`**
+  (Falle F1)
+- **neu** `Nav.Language.Lsp.VisualStudioShared/` — `.shproj` + `.projitems`
+- `Nav.Language.Extensions.slnx` — die Projekte auf Root-Ebene einhängen (§8b)
+- `Directory.Packages.props` — `Microsoft.VisualStudio.LanguageServer.Client` aufnehmen (CPM ist aktiv;
+  laut Recherche v17.14.60)
+
+**Entscheidung dieses Steps:** `<DeployExtension>False</DeployExtension>` im neuen Head — Begründung
+unter Falle F2.
+
+**Fertig, wenn:** `nav build` grün; das neue VSIX trägt eine gestempelte Version ≠ `0.0.0`; das VSIX der
+alten Extension unter `deploy\Vsix\` ist unversehrt; die Experimental Instance hat unverändert die alte
+Extension.
+
+Das Tests-Projekt aus §8b kommt erst, wenn es etwas zu testen gibt — nicht in Step 1.
+
+### Step 2 — `ILanguageClient` + ContentType + `initialize`-Befund (beantwortet Frage 6.2)
+
+**Ergebnis:** Beim Öffnen einer `.nav` im reinen Solution-Modus startet VS `nav.lsp`; das vollständige
+`initialize`-JSON ist protokolliert und als **Befund in §6.2 dieses Dokuments** nachgetragen.
+
+Dateien (neu, unter `…VisualStudioShared/LanguageClient/`): `NavContentTypeDefinitions.cs`,
+`NavLanguageClient.cs`, `NavServerProcess.cs`. Server-Pfad vorerst als Dev-Pfad (§7).
+
+**Fertig, wenn:** der `nav.lsp`-Prozess nachweislich läuft und `rootUri`, `workspaceFolders`,
+`initializationOptions` sowie `capabilities` aus dem Log in §6.2 dokumentiert sind. Über Diagnostics wird
+hier **noch nicht** geurteilt (Falle F4).
+
+### Step 3 — Root-Transport + solution-weite Diagnostics (beweist §5b — der eigentliche Zweck)
+
+**Ergebnis:** Der Solution-Root erreicht den Server; Diagnostics erscheinen solution-weit.
+
+Dateien:
+- **neu** `…VisualStudioShared/LanguageClient/InitializationOptionsProvider.cs` —
+  `IVsSolution.GetSolutionInfo` → `solutionDirectory`; Muster: `Nav.Language.ExtensionShared/NavSolutionProvider.cs:276`
+- `Nav.Language.Lsp/NavLanguageServer.cs` — `ResolveRootPath` (Zeile 112) um `InitializationOptions`
+  erweitern. **Die erste und einzige Server-Änderung des Spikes.**
+
+**Fertig, wenn:** für eine `.nav`, die einen Include **aus einem anderen Verzeichnis** der Solution zieht,
+Diagnostics aus dem Cross-File-Modell erscheinen (Akzeptanzkriterium §7). Kommt `InitializationOptions`
+wider Erwarten nicht durch: MiddleLayer-Rückfallebene (§5b) — **nicht** das Konzept verwerfen.
+
+### Step 4 — Custom-RPC + `semanticTokens`-Tagger (beweist Frage 6.3)
+
+**Ergebnis:** Der Linchpin ist bewiesen — ein selbst abgesetzter LSP-Request speist einen VS-Tagger.
+
+Dateien (neu): `…VisualStudioShared/CustomMessages/{NavCustomMessageTarget.cs, NavRpcClient.cs}`,
+`…VisualStudioShared/Classification/`.
+
+**Fertig, wenn:** `.nav`-Code im VS-Editor eingefärbt ist und die Farben aus
+`textDocument/semanticTokens/full` stammen (serverseitig vorhanden: `Nav.Language.Lsp/NavLanguageServer.cs:670`),
+nicht aus der nativen Classification; Snapshot-/Versions-Skew ist behandelt (§5a).
+
+### Danach (außerhalb des Spikes)
+
+Frage 6.1 empirisch schließen (was reicht VS an die UI durch) · Familie A Feature für Feature migrieren
+(§5d) · Satelliten B und C aus der Legacy übernehmen · Server-Deployment produktiv machen (das §7-Provisorium
+ablösen, Vorbild `Publish-VsCode.ps1`) · `nav publish`/`nav install` auf den neuen Head erweitern (F3).
+
+## 10. Fallen
+
+**F1 — `DeployFiles` räumt das Deploy-Verzeichnis leer.** `Nav.Language.Extension2026/CustomBuild.targets:116`
+löscht vor dem Kopieren `$(DeployDirectory)\**\*`; `DeployDirectory` ist `deploy\Vsix` (Zeile 49).
+Übernimmt der neue Head das Target verbatim, löschen sich beide Heads gegenseitig das VSIX. → **eigenes
+`DeployDirectory`** für den neuen Head.
+
+**F2 — Geteilte Id + Auto-Deploy verdrängt die alte Extension in der Exp-Instance.**
+`Nav.Language.Extension2026.csproj:62` setzt `<DeployExtension>True</DeployExtension>`, ein Solution-Build
+deployt also in die Experimental Hive. Mit der geteilten Legacy-Id (§8c) sind beide Heads für VS
+**dieselbe** Extension → wer zuletzt deployt, gewinnt, in unbestimmter Reihenfolge. → Der neue Head
+bekommt `<DeployExtension>False</DeployExtension>`; Deployen wird eine bewusste Handlung (F5 mit temporär
+`True`, oder VSIX von Hand installieren). Das ist die Build-Seite des Beschlusses „installiert ist immer
+nur eine von beiden" (§8c).
+
+**F3 — `nav install` ist auf den Legacy-Dateinamen festverdrahtet.**
+`Tools/Commands/Functions/Install-Extension.ps1:36` sucht `deploy\Vsix\Nav.Language.Extension.2026-<version>.vsix`.
+`nav install` installiert damit **nie** den neuen Head — kein Unfallrisiko, aber: der Spike wird über die
+**Experimental Instance** (F5) verifiziert, nicht über `nav install`.
+
+**F4 — Fehlende Diagnostics zuerst als Root-Problem lesen.** Leerer Root ⇒ `Directory.Exists`-Guard in
+`NavWorkspaceCore.LoadAsync` ⇒ leere Solution ⇒ keine Diagnostics (§5b). Das *sieht aus* wie „LSP trägt im
+Solution-Modus nicht", ist aber Root-Transport. Erst das `initialize`-Log (Step 2), dann urteilen.
+
+**F5 — `Microsoft.VSSDK.BuildTools` nicht auf 18.x heben.** `Directory.Packages.props:78-82` pinnt bewusst
+17.14.2142: 18.9.595 verlangt die nie veröffentlichte `SDK.Analyzers` 17.7.122, und der
+`EnableExtension`-Deploy-Schritt der 18.x-Linie scheitert unter der VS-2026-Exp-Instance (VSSDK1031). CPM
+reicht die gepinnte Version automatisch an den neuen Head durch — nicht „modernisieren".
+
+**F6 — Die VSIX-Heads brauchen `MSBuild.exe`.** `dotnet build` baut sie nicht (VSSDK) → für alles, was den
+neuen Head berührt, `nav build`. In frischer Shell zuerst `. .\Tools\Commands\Import-NavCommands.ps1`
+(CLAUDE.md).
+
+**F7 (Vermutung, nicht verifiziert) — `LanguageServer.Protocol`-Versionslinien.** Der Server nutzt 17.2.8
+(`Directory.Packages.props:41`), der VS-Client-Stack zieht vermutlich eine neuere Linie. Client und Server
+sind **getrennte Prozesse** → kein Binding-Konflikt erwartet; relevant höchstens bei der CPM-Auflösung im
+neuen Head.
+
+## 11. Stand & Verifikation
+
+**Stand:** Sondierung, Recherche und alle Entscheidungen sind abgeschlossen und committet (`9501a8f3`);
+Plan (§9) und Fallen (§10) kommen mit dem Handoff-Commit dazu. **Code existiert noch keiner** — der
+nächste Schritt ist **Step 1**.
+
+**Verifikation:**
+
+| Zweck | Kommando |
+|---|---|
+| Solution bauen (inkl. VSIX-Heads) | `nav build` — Pflicht, sobald der neue Head berührt ist (F6) |
+| Engine-/Server-Tests net472 | `nav test` — baut **nicht** selbst, vorher `nav build` |
+| Engine-/Server-Tests .NET 10 | `dotnet test Nav.Language.Tests\Nav.Language.Tests.csproj -f net10.0` |
+| LSP-Smoke (stdio) | `dotnet Nav.Language.Lsp\bin\Debug\net10.0\nav.lsp.dll` |
+| Spike (Steps 2–4) | **manuell in der Experimental Instance (F5)**, reiner Solution-Modus, kein Open Folder |
+
+Ein `Nav.Language.Lsp.Tests`-Projekt existiert **nicht** — die Server-Änderung aus Step 3
+(`ResolveRootPath`) ist heute nur per Smoke und manuell abgesichert. Ein Testprojekt dafür anzulegen ist
+eine offene Option, aber nicht Teil des Spikes.
+
+## 12. Quellen (Auswahl)
 
 - Adding an LSP extension — https://learn.microsoft.com/en-us/visualstudio/extensibility/adding-an-lsp-extension
 - Language Server Protocol (VS) — https://learn.microsoft.com/en-us/visualstudio/extensibility/language-server-protocol
