@@ -662,6 +662,16 @@ class NavLanguageServer {
 
             // Das getippte Pfeil-Token (-->, o->, *->, ==>) statt des ausgeschriebenen Verbs.
             sb.Append(call.EdgeMode.Name).Append(' ').Append(target);
+
+            // Trägt der Call eine Continuation (o-^/--^ auf einen Folge-Task), gehört sie hinter das Ziel:
+            // sie unterscheidet zwei sonst gleich aussehende Ziele desselben Knotens (z.B. dieselbe View
+            // einmal schlicht, einmal mit modaler Fehler-Box obendrauf).
+            if (call.ContinuationCall is { } continuation) {
+                var continuationTarget = string.Concat(continuation.Node.ToDisplayParts().Select(p => p.Text));
+                if (!string.IsNullOrWhiteSpace(continuationTarget)) {
+                    sb.Append("  ").Append(continuation.EdgeMode.Name).Append(' ').Append(continuationTarget);
+                }
+            }
         }
 
         return sb.Length == 0 ? null : sb.ToString();

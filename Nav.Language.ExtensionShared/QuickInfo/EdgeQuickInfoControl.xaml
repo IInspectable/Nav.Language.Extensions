@@ -26,7 +26,9 @@
                 <Grid Margin="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="20" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <imaging:CrispImage Grid.Column="0"
                                         Moniker             = "{Binding EdgeModeMoniker}"
@@ -34,8 +36,20 @@
                                         VerticalAlignment   = "Center"
                                         HorizontalAlignment = "Left"/>
 
-                    <ContentControl Grid.Column = "1" 
+                    <ContentControl Grid.Column = "1"
                                     Content     = "{Binding Node}"/>
+
+                    <!-- Continuation: eingeblendet nur, wenn der Call einen Folge-Task trägt. -->
+                    <imaging:CrispImage Grid.Column="2"
+                                        Moniker             = "{Binding ContinuationEdgeModeMoniker}"
+                                        Visibility          = "{Binding ContinuationVisibility}"
+                                        Margin              = "8, 0, 4, 0"
+                                        VerticalAlignment   = "Center"
+                                        HorizontalAlignment = "Left"/>
+
+                    <ContentControl Grid.Column = "3"
+                                    Content     = "{Binding ContinuationNode}"
+                                    Visibility  = "{Binding ContinuationVisibility}"/>
                 </Grid>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

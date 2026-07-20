@@ -81,10 +81,7 @@ partial class QuickinfoBuilderService {
                 moniker: ImageMonikers.Edge,
                 calls  : choiceNodeSymbol.ExpandCalls()
                                          .OrderBy(call => call.Node.Name)
-                                         .Select(call => new CallViewModel(
-                                                     edgeModeMoniker: ImageMonikers.FromSymbol(call.EdgeMode),
-                                                     node           : Visit(call.Node)
-                                                 )));
+                                         .Select(BuildCallViewModel));
 
             var calls = new EdgeQuickInfoControl {
                 DataContext = edgeViewModel
@@ -98,6 +95,27 @@ partial class QuickinfoBuilderService {
             panel.Children.Add(calls);
                 
             return panel;
+        }
+
+        /// <summary>
+        /// Baut das <see cref="CallViewModel"/> zu einem erreichbaren <paramref name="call"/>: Kantenmodus-Icon
+        /// plus Zielknoten und — falls der Call eine Continuation (<c>o-^</c>/<c>--^</c> auf einen Folge-Task)
+        /// trägt — deren Icon und Zielknoten. Die Continuation unterscheidet zwei sonst gleich aussehende
+        /// Ziele desselben Knotens (etwa dieselbe View einmal schlicht, einmal mit modaler Fehler-Box).
+        /// </summary>
+        CallViewModel BuildCallViewModel(Call call) {
+
+            if (call.ContinuationCall is { } continuation) {
+                return new CallViewModel(
+                    edgeModeMoniker            : ImageMonikers.FromSymbol(call.EdgeMode),
+                    node                       : Visit(call.Node),
+                    continuationEdgeModeMoniker: ImageMonikers.FromSymbol(continuation.EdgeMode),
+                    continuationNode           : Visit(continuation.Node));
+            }
+
+            return new CallViewModel(
+                edgeModeMoniker: ImageMonikers.FromSymbol(call.EdgeMode),
+                node           : Visit(call.Node));
         }
 
         /// <summary>
@@ -122,14 +140,19 @@ partial class QuickinfoBuilderService {
 
     /// <summary>
     /// View-Model eines einzelnen Calls im Choice-Fan-out: das Kantenmodus-Icon plus das aufbereitete
-    /// Zielknoten-Element. Wird im <see cref="EdgeQuickInfoControl"/> per Datenbindung dargestellt.
+    /// Zielknoten-Element und — bei einer Continuation — zusätzlich deren Kantenmodus-Icon und Ziel-Task.
+    /// Wird im <see cref="EdgeQuickInfoControl"/> per Datenbindung dargestellt; ohne Continuation bleibt
+    /// deren Teil über <see cref="ContinuationVisibility"/> ausgeblendet.
     /// </summary>
     class CallViewModel {
 
-        public CallViewModel(ImageMoniker edgeModeMoniker, object node) {
-            EdgeModeMoniker = edgeModeMoniker;
-
-            Node = node;
+        public CallViewModel(ImageMoniker edgeModeMoniker, object node,
+                             ImageMoniker continuationEdgeModeMoniker = default, object continuationNode = null) {
+            EdgeModeMoniker             = edgeModeMoniker;
+            Node                        = node;
+            ContinuationEdgeModeMoniker = continuationEdgeModeMoniker;
+            ContinuationNode            = continuationNode;
+            ContinuationVisibility      = continuationNode == null ? Visibility.Collapsed : Visibility.Visible;
         }
 
         /// <summary>Icon für den Kantenmodus dieses Calls.</summary>
@@ -139,6 +162,18 @@ partial class QuickinfoBuilderService {
         /// <summary>Das darzustellende Zielknoten-Element (bereits aufbereitetes <see cref="UIElement"/>).</summary>
         [UsedImplicitly]
         public object Node { get; }
+
+        /// <summary>Icon für den Kantenmodus der Continuation (<c>o-^</c>/<c>--^</c>); nur bei vorhandener Continuation sichtbar.</summary>
+        [UsedImplicitly]
+        public ImageMoniker ContinuationEdgeModeMoniker { get; }
+
+        /// <summary>Das Ziel-Task-Element der Continuation; <c>null</c>, wenn der Call keine Continuation trägt.</summary>
+        [UsedImplicitly]
+        public object ContinuationNode { get; }
+
+        /// <summary>Sichtbarkeit des Continuation-Teils der Zeile — <see cref="Visibility.Collapsed"/> ohne Continuation.</summary>
+        [UsedImplicitly]
+        public Visibility ContinuationVisibility { get; }
 
     }
 

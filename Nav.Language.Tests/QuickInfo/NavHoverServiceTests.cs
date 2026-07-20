@@ -130,6 +130,56 @@ public class NavHoverServiceTests {
         Assert.That(info.Calls.Select(c => c.EdgeMode.Name).ToList(), Is.All.EqualTo("-->"));
     }
 
+    //   |choice:Save|  Choice-Name 'Save' — erreicht dieselbe View transitiv über eine verschachtelte Choice.
+    // Der „Fehler"-Arm der inneren Choice trägt eine Continuation (o-^ Err): beide Wege landen auf V1,
+    // unterscheiden sich aber im Continuation-Anhang — der Fan-out muss beide getrennt zeigen.
+    static readonly NavMarkup ContinuationChoiceM = NavMarkup.Parse(
+        """
+        #version 2
+        task Flow
+        {
+            init I1;
+            exit e1;
+            view V1;
+            task Err;
+            choice |choice:Save|;
+            choice Validate;
+
+            I1       --> Validate;
+            Validate --> V1         if "Ok";
+            Validate --> V1 o-^ Err if "Fehler";
+            Save     --> e1         if "Keine";
+            Save     --> Validate   if "Ja";
+        }
+
+        """);
+
+    [Test]
+    public void Hover_OnChoiceReachingViewWithAndWithoutContinuation_ShowsBothCallsDistinctly() {
+
+        var unit  = ParseModel(ContinuationChoiceM.Source, @"n:\av\cont.nav");
+        var caret = ContinuationChoiceM.Position("choice"); // auf dem Choice-Namen 'Save'
+
+        var info = NavHoverService.GetHover(unit, caret);
+
+        Assert.That(info, Is.Not.Null);
+        Assert.That(Signature(info), Is.EqualTo("choice Save"));
+
+        // Beide Wege über die verschachtelte Choice landen auf V1 — plus der direkte Exit. Die zwei
+        // V1-Calls fallen NICHT zu einem zusammen, weil sich ihr Continuation-Anhang unterscheidet.
+        Assert.That(info.Calls.Select(c => c.Node.Name).ToList(), Is.EquivalentTo(new[] { "e1", "V1", "V1" }));
+
+        var viewCalls = info.Calls.Where(c => c.Node.Name == "V1").ToList();
+        Assert.That(viewCalls.Count,                          Is.EqualTo(2));
+        Assert.That(viewCalls.Count(c => c.ContinuationCall == null), Is.EqualTo(1), "Der „Ok“-Arm trägt keine Continuation.");
+
+        // Genau ein V1-Call trägt die Continuation auf den Folge-Task Err (o-^) — das ist die Information,
+        // die den zweiten V1-Eintrag im Tooltip von ersten unterscheidet.
+        var withContinuation = viewCalls.Single(c => c.ContinuationCall != null);
+        Assert.That(withContinuation.ContinuationCall!.Node.Name,     Is.EqualTo("Err"));
+        Assert.That(withContinuation.ContinuationCall!.EdgeMode.Name, Is.EqualTo("o-^"));
+    }
+
     [Test]
     public void Hover_OnEdgeToChoice_ShowsEdgeMeaningNotFanOut() {
 
