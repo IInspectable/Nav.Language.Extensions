@@ -47,14 +47,9 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     #endregion
     protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(CancelFlowWFSBase _wfs) {
 
-        readonly CancelFlowWFSBase _wfs;
-        internal Init1CallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -75,14 +70,9 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     protected abstract OnDecideCallContext.Result OnDecideLogic(HomeTO to,
                                                                 OnDecideCallContext next);
 
-    protected sealed class OnDecideCallContext {
+    protected sealed class OnDecideCallContext(CancelFlowWFSBase _wfs) {
 
-        readonly CancelFlowWFSBase _wfs;
-        internal OnDecideCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDecideLogic));
         }
 
@@ -106,14 +96,9 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     protected abstract OnEscapeCallContext.Result OnEscapeLogic(HomeTO to,
                                                                 OnEscapeCallContext next);
 
-    protected sealed class OnEscapeCallContext {
+    protected sealed class OnEscapeCallContext(CancelFlowWFSBase _wfs) {
 
-        readonly CancelFlowWFSBase _wfs;
-        internal OnEscapeCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEscapeLogic));
         }
 
@@ -125,14 +110,9 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     #endregion
     protected abstract Choice_ConfirmCallContext.Result Choice_ConfirmLogic(Choice_ConfirmCallContext next);
 
-    protected sealed class Choice_ConfirmCallContext {
+    protected sealed class Choice_ConfirmCallContext(CancelFlowWFSBase _wfs) {
 
-        readonly CancelFlowWFSBase _wfs;
-        internal Choice_ConfirmCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(Choice_ConfirmLogic));
         }
 

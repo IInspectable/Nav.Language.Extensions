@@ -47,14 +47,9 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     #endregion
     protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(NotImplementedFlowWFSBase _wfs) {
 
-        readonly NotImplementedFlowWFSBase _wfs;
-        internal Init1CallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -75,14 +70,9 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     protected abstract OnWarnCallContext.Result OnWarnLogic(HomeTO to,
                                                             OnWarnCallContext next);
 
-    protected sealed class OnWarnCallContext {
+    protected sealed class OnWarnCallContext(NotImplementedFlowWFSBase _wfs) {
 
-        readonly NotImplementedFlowWFSBase _wfs;
-        internal OnWarnCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnWarnLogic));
         }
 
@@ -106,14 +96,9 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
                                                               OnCloseCallContext next);
 
-    protected sealed class OnCloseCallContext {
+    protected sealed class OnCloseCallContext(NotImplementedFlowWFSBase _wfs) {
 
-        readonly NotImplementedFlowWFSBase _wfs;
-        internal OnCloseCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
         }
 

@@ -2,5 +2,5 @@
 // Von der Aufrufstelle next.BeginChild() auf die zugehörige After{Node}-Rücksprungmethode —
 // der Golden pinnt Datei + exakten Span (Anzeigename = Methoden-Bezeichner).
 
-<InitFlowWFSBase.generated.cs> (71,35)-(71,45)  "AfterChild"
+<InitFlowWFSBase.generated.cs> (66,35)-(66,45)  "AfterChild"
     protected virtual INavCommand AfterChild(bool result)

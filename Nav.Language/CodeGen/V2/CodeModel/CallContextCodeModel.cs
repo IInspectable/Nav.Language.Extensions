@@ -30,7 +30,12 @@ namespace Pharmatechnik.Nav.Language.CodeGen;
 /// </remarks>
 sealed class CallContextCodeModel {
 
-    /// <summary>Der Name des context-lokalen Backing-Felds auf die tragende <c>{Task}WFSBase</c>.</summary>
+    /// <summary>
+    /// Der Name des Rückverweises auf die tragende <c>{Task}WFSBase</c>: im <c>{Context}CallContext</c> der
+    /// Primärkonstruktor-Parameter (vom Compiler als privates Feld eingefangen), im geschachtelten
+    /// Continuation-Typ ein explizites <c>readonly</c>-Feld (dessen statischer Result-Operator es qualifiziert
+    /// über eine Fremdinstanz liest).
+    /// </summary>
     public const string WfsFieldName = "_wfs";
 
     /// <summary>Der Name des <c>ViewTO</c>-Backing-Felds im geschachtelten Continuation-Typ.</summary>

@@ -51,14 +51,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract Init1CallContext.Result BeginLogic(string message,
                                                           Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal Init1CallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -77,14 +72,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract AfterGotoSubCallContext.Result AfterGotoSubLogic(SubResult result,
                                                                         AfterGotoSubCallContext next);
 
-    protected sealed class AfterGotoSubCallContext {
+    protected sealed class AfterGotoSubCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal AfterGotoSubCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterGotoSubLogic));
         }
 
@@ -103,14 +93,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract AfterModalSubCallContext.Result AfterModalSubLogic(SubResult result,
                                                                           AfterModalSubCallContext next);
 
-    protected sealed class AfterModalSubCallContext {
+    protected sealed class AfterModalSubCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal AfterModalSubCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterModalSubLogic));
         }
 
@@ -129,14 +114,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract AfterNonModalSubCallContext.Result AfterNonModalSubLogic(SubResult result,
                                                                                 AfterNonModalSubCallContext next);
 
-    protected sealed class AfterNonModalSubCallContext {
+    protected sealed class AfterNonModalSubCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal AfterNonModalSubCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterNonModalSubLogic));
         }
 
@@ -157,14 +137,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnEndCallContext.Result OnEndLogic(HomeTO to,
                                                           OnEndCallContext next);
 
-    protected sealed class OnEndCallContext {
+    protected sealed class OnEndCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnEndCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEndLogic));
         }
 
@@ -185,14 +160,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnGotoCallContext.Result OnGotoLogic(HomeTO to,
                                                             OnGotoCallContext next);
 
-    protected sealed class OnGotoCallContext {
+    protected sealed class OnGotoCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnGotoCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnGotoLogic));
         }
 
@@ -216,14 +186,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
                                                               OnCloseCallContext next);
 
-    protected sealed class OnCloseCallContext {
+    protected sealed class OnCloseCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnCloseCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
         }
 
@@ -244,14 +209,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnModalCallContext.Result OnModalLogic(HomeTO to,
                                                               OnModalCallContext next);
 
-    protected sealed class OnModalCallContext {
+    protected sealed class OnModalCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnModalCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnModalLogic));
         }
 
@@ -275,14 +235,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnReloadCallContext.Result OnReloadLogic(HomeTO to,
                                                                 OnReloadCallContext next);
 
-    protected sealed class OnReloadCallContext {
+    protected sealed class OnReloadCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnReloadCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnReloadLogic));
         }
 
@@ -303,14 +258,9 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     protected abstract OnNonModalCallContext.Result OnNonModalLogic(HomeTO to,
                                                                     OnNonModalCallContext next);
 
-    protected sealed class OnNonModalCallContext {
+    protected sealed class OnNonModalCallContext(BasicFlowWFSBase _wfs) {
 
-        readonly BasicFlowWFSBase _wfs;
-        internal OnNonModalCallContext(BasicFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnNonModalLogic));
         }
 

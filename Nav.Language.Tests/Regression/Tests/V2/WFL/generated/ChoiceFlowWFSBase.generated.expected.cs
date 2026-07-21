@@ -54,14 +54,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract Init1CallContext.Result BeginLogic(string message,
                                                           Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal Init1CallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -83,14 +78,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract AfterACallContext.Result AfterALogic(AResult result,
                                                             AfterACallContext next);
 
-    protected sealed class AfterACallContext {
+    protected sealed class AfterACallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal AfterACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterALogic));
         }
 
@@ -113,14 +103,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract AfterMsgCallContext.Result AfterMsgLogic(MsgResult result,
                                                                 AfterMsgCallContext next);
 
-    protected sealed class AfterMsgCallContext {
+    protected sealed class AfterMsgCallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal AfterMsgCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterMsgLogic));
         }
 
@@ -141,14 +126,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract OnRetryCallContext.Result OnRetryLogic(HomeTO to,
                                                               OnRetryCallContext next);
 
-    protected sealed class OnRetryCallContext {
+    protected sealed class OnRetryCallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal OnRetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnRetryLogic));
         }
 
@@ -172,14 +152,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract OnStartACallContext.Result OnStartALogic(HomeTO to,
                                                                 OnStartACallContext next);
 
-    protected sealed class OnStartACallContext {
+    protected sealed class OnStartACallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal OnStartACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnStartALogic));
         }
 
@@ -195,14 +170,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
                                                                         Choice_RetryCallContext next);
 
-    protected sealed class Choice_RetryCallContext {
+    protected sealed class Choice_RetryCallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal Choice_RetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));
         }
 
@@ -230,14 +200,9 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     protected abstract Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
                                                                               Choice_EscalateCallContext next);
 
-    protected sealed class Choice_EscalateCallContext {
+    protected sealed class Choice_EscalateCallContext(ChoiceFlowWFSBase _wfs) {
 
-        readonly ChoiceFlowWFSBase _wfs;
-        internal Choice_EscalateCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_EscalateLogic));
         }
 

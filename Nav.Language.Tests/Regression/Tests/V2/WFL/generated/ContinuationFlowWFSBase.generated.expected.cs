@@ -53,14 +53,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     #endregion
     protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal Init1CallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -79,14 +74,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     protected abstract AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
                                                                   AfterWarnCallContext next);
 
-    protected sealed class AfterWarnCallContext {
+    protected sealed class AfterWarnCallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal AfterWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterWarnLogic));
         }
 
@@ -105,14 +95,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     protected abstract AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
                                                                     AfterDrillCallContext next);
 
-    protected sealed class AfterDrillCallContext {
+    protected sealed class AfterDrillCallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal AfterDrillCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterDrillLogic));
         }
 
@@ -133,14 +118,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
                                                               OnCloseCallContext next);
 
-    protected sealed class OnCloseCallContext {
+    protected sealed class OnCloseCallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal OnCloseCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
         }
 
@@ -161,14 +141,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     protected abstract OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
                                                                     OnShowWarnCallContext next);
 
-    protected sealed class OnShowWarnCallContext {
+    protected sealed class OnShowWarnCallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal OnShowWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnShowWarnLogic));
         }
 
@@ -199,14 +174,9 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     protected abstract OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
                                                                       OnDrillDownCallContext next);
 
-    protected sealed class OnDrillDownCallContext {
+    protected sealed class OnDrillDownCallContext(ContinuationFlowWFSBase _wfs) {
 
-        readonly ContinuationFlowWFSBase _wfs;
-        internal OnDrillDownCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDrillDownLogic));
         }
 

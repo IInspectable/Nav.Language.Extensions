@@ -47,14 +47,9 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     #endregion
     protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-    protected sealed class Init1CallContext {
+    protected sealed class Init1CallContext(DoNotInjectFlowWFSBase _wfs) {
 
-        readonly DoNotInjectFlowWFSBase _wfs;
-        internal Init1CallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<IINIT_TASK> _command;
-            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+        public readonly struct Result(System.Func<IINIT_TASK> _command) {
             internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
@@ -73,14 +68,9 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     protected abstract AfterEditCallContext.Result AfterEditLogic(EditorResult result,
                                                                   AfterEditCallContext next);
 
-    protected sealed class AfterEditCallContext {
+    protected sealed class AfterEditCallContext(DoNotInjectFlowWFSBase _wfs) {
 
-        readonly DoNotInjectFlowWFSBase _wfs;
-        internal AfterEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterEditLogic));
         }
 
@@ -101,14 +91,9 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     protected abstract OnEditCallContext.Result OnEditLogic(HomeTO to,
                                                             OnEditCallContext next);
 
-    protected sealed class OnEditCallContext {
+    protected sealed class OnEditCallContext(DoNotInjectFlowWFSBase _wfs) {
 
-        readonly DoNotInjectFlowWFSBase _wfs;
-        internal OnEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEditLogic));
         }
 
@@ -132,14 +117,9 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
                                                               OnCloseCallContext next);
 
-    protected sealed class OnCloseCallContext {
+    protected sealed class OnCloseCallContext(DoNotInjectFlowWFSBase _wfs) {
 
-        readonly DoNotInjectFlowWFSBase _wfs;
-        internal OnCloseCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-        public readonly struct Result {
-            readonly System.Func<INavCommand> _command;
-            internal Result(System.Func<INavCommand> command) => _command = command;
+        public readonly struct Result(System.Func<INavCommand> _command) {
             internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
         }
 

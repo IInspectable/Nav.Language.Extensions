@@ -213,22 +213,18 @@ static class WfsBaseEmitterV2 {
     // -- Der Call-Context einer Quelle ----------------------------------------------------------------
 
     /// <summary>
-    /// Schreibt den geschachtelten <c>protected sealed class {Context}CallContext</c>: das <c>_wfs</c>-Backing-Feld,
-    /// den <see cref="WriteResultStruct"/>-Ergebnistyp und je Callable die Aufrufmethode — schlichte
+    /// Schreibt den geschachtelten <c>protected sealed class {Context}CallContext</c>: der <c>_wfs</c>-Rückverweis
+    /// als Primärkonstruktor-Parameter, den <see cref="WriteResultStruct"/>-Ergebnistyp und je Callable die Aufrufmethode — schlichte
     /// <c>public Result … => new(() =&gt; {Thunk});</c> (mit ggf. <c>NavInitCall</c>-/<c>NavChoiceCall</c>-Annotation)
     /// bzw. eine Continuation-Aufruffläche (<see cref="WriteShowContinuation"/>).
     /// </summary>
     static void WriteCallContext(CodeBuilder cb, WfsBaseCodeModelV2 model, CallContextCodeModel context) {
 
-        cb.Write($"protected sealed class {context.ContextTypeName} ");
+        // Der Rückverweis auf die tragende {Task}WFSBase ist ein Primärkonstruktor-Parameter (eingefangen
+        // als privates Feld _wfs); eine eigene Feld-/Konstruktor-Zeile entfällt.
+        cb.Write($"protected sealed class {context.ContextTypeName}({model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName}) ");
         using (cb.Block()) {
 
-            cb.WriteLine();
-
-            cb.WriteLine($"""
-                          readonly {model.WfsBaseTypeName} {CallContextCodeModel.WfsFieldName};
-                          internal {context.ContextTypeName}({model.WfsBaseTypeName} wfs) => {CallContextCodeModel.WfsFieldName} = wfs;
-                          """);
             cb.WriteLine();
 
             WriteResultStruct(cb, context);
@@ -270,6 +266,11 @@ static class WfsBaseEmitterV2 {
         // Einstieg auf dem Context: Show{Node} liefert den Continuation-Typ (kein Result).
         cb.WriteLine($"public {continuation.ContinuationTypeName} {continuation.EntryMethodSignature} => new({CallContextCodeModel.WfsFieldName}, {CallContextCodeModel.ToParameterName});");
 
+        // Explizite Felder (kein Primärkonstruktor): der statische implizite Result-Operator liest die
+        // Felder qualifiziert über eine andere Instanz (v._wfs/v._to) — ein per Primärkonstruktor
+        // eingefangener Parameter wäre so nicht erreichbar (kein benannter Member, nur unqualifiziert
+        // im Instanz-Rumpf zugreifbar). Anders als CallContext/Result braucht die Continuation die
+        // Felder daher als echte Member.
         cb.Write($"public sealed class {continuation.ContinuationTypeName} ");
         using (cb.Block()) {
 
@@ -311,11 +312,9 @@ static class WfsBaseEmitterV2 {
         // und erreicht dessen private Member NICHT (§3.2). Der Null-/default-Guard sitzt einmalig in
         // {Task}WFSBase.UnwrapOrThrow (kein pro-Context-Duplikat); nameof benennt das Logic-Override,
         // das beim Wurf nicht mehr auf dem Stack steht.
-        cb.Write("public readonly struct Result ");
+        cb.Write($"public readonly struct Result(System.Func<{commandType}> _command) ");
         using (cb.Block()) {
             cb.Write($"""
-                      readonly System.Func<{commandType}> _command;
-                      internal Result(System.Func<{commandType}> command) => _command = command;
                       internal {commandType} Unwrap() => {UnwrapHelperName}(_command, nameof({context.LogicMethodName}));
                       """);
         }
