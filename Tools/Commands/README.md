@@ -36,6 +36,7 @@ nav build -Configuration Release   # benannte Parameter/Switches werden durchger
 | `test`           | Invoke-Test            | Tests über den NUnit-Console-Runner ausführen.                      |
 | `incminor`       | Invoke-IncreaseMinor   | Minor-Tag `vX.(Y+1).0` auf HEAD anlegen (`-Push`/`-Force`).         |
 | `incmajor`       | Invoke-IncreaseMajor   | Major-Tag `v(X+1).0.0` auf HEAD anlegen (`-Push`/`-Force`).         |
+| `release`        | Invoke-Release         | Aktuelle Version als `v<Version>`-Tag auf HEAD pinnen und pushen → CI-Release-Build (`-Force`). |
 | `publish`        | Invoke-Publish         | Solution (Debug) bauen und alles unter `deploy\` bereitstellen: Build Tools, VS-Code-Extension (mit LSP), MCP-Single-File. |
 | `install`        | Install-Extension      | VS-2026-Extension (VSIX) in Visual Studio installieren.              |
 | `deploy`         | Invoke-Deploy          | Bauen und Build Tools ins XTplus-Verzeichnis kopieren.              |
@@ -63,7 +64,11 @@ Die Version wird **git-abgeleitet** (`git describe`) — kein `Version.props` me
 ist `Major.Minor.(Patch des letzten vX.Y.Z-Tags + Commits seit Tag)`. Major/Minor werden über Tags
 gesteuert: `incminor`/`incmajor` legen das nächste `vX.Y.0`-Tag auf HEAD an (Clean-Tree-Check,
 Monotonie-Absicherung, Bestätigung, optional `-Push`); der Patch zählt automatisch — ein `incbuild`
-gibt es nicht mehr. Berechnet wird die Version an genau einer Stelle: im MSBuild-Target
+gibt es nicht mehr. `release` dagegen *erhöht nichts*, sondern pinnt die **aktuelle** Version
+(`Major.Minor.(TagPatch + Commits seit Tag)`) exakt als `v<Version>`-Tag auf HEAD und pusht ihn —
+das ist versions-stabil (danach liefert `git describe --long` dort `v<Version>-0-g…`) und triggert
+den GitHub-Actions-Release-Build (dessen Release-Schritte nur bei `refs/tags/v*` laufen).
+Berechnet wird die Version an genau einer Stelle: im MSBuild-Target
 `ComputeGitVersion` (`Build\Version.targets`, via `Directory.Build.props` in jedem Build-Pfad
 aktiv). `build`/`publish` reichen **nichts** durch — der Build rechnet selbst; `Get-ProductVersion`
 **liest** die Werte nur per `dotnet msbuild … -getProperty`. Die `version` in

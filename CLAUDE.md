@@ -102,6 +102,7 @@ z.B. `nav.lsp`) — Namespaces im Code bleiben dadurch stabil.
 | `nav install` | VS-2026-Extension-VSIX in Visual Studio installieren. |
 | `nav snapshot` | Regression-Snapshots (`.expected.cs`) neu erzeugen. |
 | `nav incminor` / `incmajor` | Nächstes Minor-/Major-Version-Tag (`vX.Y.0`) auf HEAD anlegen (`-Push`/`-Force`). Der Patch zählt automatisch — kein `incbuild` mehr. |
+| `nav release` | Aktuelle Version (`Major.Minor.(TagPatch+Commits)`) als `v<Version>`-Tag auf HEAD pinnen und nach origin pushen (Clean-Tree-Check + Sicherheitsabfrage, `-Force`) → löst den CI-Release-Build aus. |
 | `nav newbranch <name>` / `rmbranch` | Branch + Geschwister-Worktree anlegen/entfernen. |
 | `nav fixenc [-Path <dir>]` | Quelldateien auf UTF-8 **mit** BOM konvertieren (Nicht-UTF-8 wird als Windows-1252 gelesen; idempotent). Wartungswerkzeug. |
 | `nav help` / `nav` | Übersicht / interaktives Menü. |
