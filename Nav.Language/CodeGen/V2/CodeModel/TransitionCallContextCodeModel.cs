@@ -63,7 +63,12 @@ sealed class TransitionCallContextCodeModel {
     public TransitionAnnotationKind          AnnotationKind            { get; }
     /// <summary>Der Name des Quell-Knotens bzw. Triggers (Inhalt der Nav-Annotation).</summary>
     public string                            AnnotationName            { get; }
-    /// <summary>Zugriffsmodifikator der Maschinerie-Methode (<c>public</c> für Init/Trigger, <c>protected</c> für Exit).</summary>
+    /// <summary>
+    /// Zugriffsmodifikator der Maschinerie-Methode: <c>public</c> für Init/Trigger (Interface-Member),
+    /// <c>protected</c> für eine <c>[abstract]</c>-Exit-Quelle (der Nutzer überschreibt die Maschinerie
+    /// selbst) und andernfalls leer = <c>private</c> für die konkrete <c>After{Node}</c>-Maschinerie (nur
+    /// die geschachtelten Call-Contexts rufen sie intern auf).
+    /// </summary>
     public string                            AccessModifier            { get; }
     /// <summary>Rückgabetyp der Maschinerie-Methode (<see cref="InitCommandType"/> bei Init, sonst <see cref="TransitionCommandType"/>).</summary>
     public string                            ReturnType                { get; }
@@ -123,8 +128,10 @@ sealed class TransitionCallContextCodeModel {
 
     /// <summary>
     /// Baut die Exit-Transition aus einem <see cref="ITaskNodeSymbol"/> (Rücksprung eines Sub-Tasks): die
-    /// <c>protected INavCommand After{Node}({SubTaskResult})</c>-Methode. Ist der Task-Knoten <c>[abstract]</c>,
-    /// entfällt der Context; <paramref name="taskResult"/> ist das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Factory).
+    /// <c>INavCommand After{Node}({SubTaskResult})</c>-Maschinerie (im Regelfall <c>private</c> — nur die
+    /// geschachtelten Call-Contexts rufen sie). Ist der Task-Knoten <c>[abstract]</c>, entfällt der Context und
+    /// die Methode wird <c>protected abstract</c> (vom Nutzer überschrieben); <paramref name="taskResult"/> ist
+    /// das Ergebnis des umgebenden Tasks (für die <c>Exit</c>-Factory).
     /// </summary>
     public static TransitionCallContextCodeModel FromExit(ITaskNodeSymbol taskNode, ParameterCodeModel taskResult) {
 
@@ -147,7 +154,11 @@ sealed class TransitionCallContextCodeModel {
         return new TransitionCallContextCodeModel(
             annotationKind           : TransitionAnnotationKind.Exit,
             annotationName           : taskNode.Name,
-            accessModifier           : "protected",
+            // Konkrete After{Node}-Maschinerie ist private (leerer Modifier) — nur die geschachtelten
+            // Call-Contexts rufen sie als _wfs.After{Node} (Nested Types sehen private Member der Hülle).
+            // Bei [abstract]-Quelle überschreibt der Nutzer die Maschinerie selbst → protected (private
+            // abstract ist unzulässig, CS0621).
+            accessModifier           : generateAbstract ? "protected" : "",
             returnType               : TransitionCommandType,
             machineryName            : machineryName,
             parameters               : ImmutableList.Create(subTaskResult),

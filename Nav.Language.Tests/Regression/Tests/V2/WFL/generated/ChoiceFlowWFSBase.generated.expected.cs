@@ -45,7 +45,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public virtual IINIT_TASK Begin(string message)
+    public IINIT_TASK Begin(string message)
         => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -69,7 +69,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>A</NavExit>
     #endregion
-    protected virtual INavCommand AfterA(AResult result)
+    INavCommand AfterA(AResult result)
         => AfterALogic(result, new AfterACallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -94,7 +94,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>Msg</NavExit>
     #endregion
-    protected virtual INavCommand AfterMsg(MsgResult result)
+    INavCommand AfterMsg(MsgResult result)
         => AfterMsgLogic(result, new AfterMsgCallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -115,7 +115,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnRetry</NavTrigger>
     #endregion
-    public virtual INavCommand OnRetry(HomeTO to) {
+    public INavCommand OnRetry(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnRetryLogic(to, new OnRetryCallContext(this)).Unwrap();
     }
@@ -141,7 +141,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnStartA</NavTrigger>
     #endregion
-    public virtual INavCommand OnStartA(HomeTO to) {
+    public INavCommand OnStartA(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnStartALogic(to, new OnStartACallContext(this)).Unwrap();
     }

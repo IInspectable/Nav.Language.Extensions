@@ -39,7 +39,7 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public virtual IINIT_TASK Begin()
+    public IINIT_TASK Begin()
         => BeginLogic(new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -59,7 +59,7 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>Edit</NavExit>
     #endregion
-    protected virtual INavCommand AfterEdit(EditorResult result)
+    INavCommand AfterEdit(EditorResult result)
         => AfterEditLogic(result, new AfterEditCallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -80,7 +80,7 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnEdit</NavTrigger>
     #endregion
-    public virtual INavCommand OnEdit(HomeTO to) {
+    public INavCommand OnEdit(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnEditLogic(to, new OnEditCallContext(this)).Unwrap();
     }
@@ -106,7 +106,7 @@ public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnClose</NavTrigger>
     #endregion
-    public virtual INavCommand OnClose(HomeTO to) {
+    public INavCommand OnClose(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
     }

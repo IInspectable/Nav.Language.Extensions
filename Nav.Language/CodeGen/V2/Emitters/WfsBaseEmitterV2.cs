@@ -139,9 +139,12 @@ static class WfsBaseEmitterV2 {
 
         WriteTransitionAnnotation(cb, transition);
 
+        // Zugriffsmodifikator als Präfix (leer = private → kein Auftakt-Leerzeichen vor dem Rückgabetyp).
+        var modifier = transition.AccessModifier.Length == 0 ? "" : $"{transition.AccessModifier} ";
+
         // [abstract]-Quelle: nur die Maschinerie-Methode selbst, abstrakt und vom Nutzer implementiert.
         if (transition.GenerateAbstractMachinery) {
-            cb.Write($"{transition.AccessModifier} abstract {transition.ReturnType} {transition.MachineryName}(");
+            cb.Write($"{modifier}abstract {transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.WriteLine(");");
             cb.WriteLine();
@@ -150,11 +153,14 @@ static class WfsBaseEmitterV2 {
 
         var callArguments = LogicCallArguments(transition);
 
+        // Die Maschinerie ist bewusst NICHT virtual: die Implementierung läuft ausschließlich über die
+        // abstrakte …Logic-Gegenstelle. Ein Override der Maschinerie würde den …Logic(…).Unwrap()-Pfad
+        // umgehen — genau das schließt V2 aus.
         if (transition.IsTrigger) {
             // Trigger: der BeforeTriggerLogic-Vorlauf bleibt, danach der nackte Unwrap()-Aufruf.
             var viewParamName = transition.Parameters[0].ParameterName;
 
-            cb.Write($"{transition.AccessModifier} virtual {transition.ReturnType} {transition.MachineryName}(");
+            cb.Write($"{modifier}{transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.Write(") ");
             using (cb.Block()) {
@@ -165,7 +171,7 @@ static class WfsBaseEmitterV2 {
             cb.WriteLine();
         } else {
             // Init/Exit: expression-bodied, kein Vorlauf.
-            cb.Write($"{transition.AccessModifier} virtual {transition.ReturnType} {transition.MachineryName}(");
+            cb.Write($"{modifier}{transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.WriteLine(")");
 

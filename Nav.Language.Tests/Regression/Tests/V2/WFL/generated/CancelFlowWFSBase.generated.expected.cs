@@ -39,7 +39,7 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public virtual IINIT_TASK Begin()
+    public IINIT_TASK Begin()
         => BeginLogic(new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -59,7 +59,7 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnDecide</NavTrigger>
     #endregion
-    public virtual INavCommand OnDecide(HomeTO to) {
+    public INavCommand OnDecide(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnDecideLogic(to, new OnDecideCallContext(this)).Unwrap();
     }
@@ -85,7 +85,7 @@ public abstract partial class CancelFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnEscape</NavTrigger>
     #endregion
-    public virtual INavCommand OnEscape(HomeTO to) {
+    public INavCommand OnEscape(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnEscapeLogic(to, new OnEscapeCallContext(this)).Unwrap();
     }

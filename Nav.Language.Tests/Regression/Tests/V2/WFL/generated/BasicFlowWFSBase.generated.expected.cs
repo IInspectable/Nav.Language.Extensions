@@ -42,7 +42,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public virtual IINIT_TASK Begin(string message)
+    public IINIT_TASK Begin(string message)
         => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -63,7 +63,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>GotoSub</NavExit>
     #endregion
-    protected virtual INavCommand AfterGotoSub(SubResult result)
+    INavCommand AfterGotoSub(SubResult result)
         => AfterGotoSubLogic(result, new AfterGotoSubCallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -84,7 +84,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>ModalSub</NavExit>
     #endregion
-    protected virtual INavCommand AfterModalSub(SubResult result)
+    INavCommand AfterModalSub(SubResult result)
         => AfterModalSubLogic(result, new AfterModalSubCallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -105,7 +105,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavExit>NonModalSub</NavExit>
     #endregion
-    protected virtual INavCommand AfterNonModalSub(SubResult result)
+    INavCommand AfterNonModalSub(SubResult result)
         => AfterNonModalSubLogic(result, new AfterNonModalSubCallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -126,7 +126,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnEnd</NavTrigger>
     #endregion
-    public virtual INavCommand OnEnd(HomeTO to) {
+    public INavCommand OnEnd(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnEndLogic(to, new OnEndCallContext(this)).Unwrap();
     }
@@ -149,7 +149,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnGoto</NavTrigger>
     #endregion
-    public virtual INavCommand OnGoto(HomeTO to) {
+    public INavCommand OnGoto(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnGotoLogic(to, new OnGotoCallContext(this)).Unwrap();
     }
@@ -175,7 +175,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnClose</NavTrigger>
     #endregion
-    public virtual INavCommand OnClose(HomeTO to) {
+    public INavCommand OnClose(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
     }
@@ -198,7 +198,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnModal</NavTrigger>
     #endregion
-    public virtual INavCommand OnModal(HomeTO to) {
+    public INavCommand OnModal(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnModalLogic(to, new OnModalCallContext(this)).Unwrap();
     }
@@ -224,7 +224,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnReload</NavTrigger>
     #endregion
-    public virtual INavCommand OnReload(HomeTO to) {
+    public INavCommand OnReload(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnReloadLogic(to, new OnReloadCallContext(this)).Unwrap();
     }
@@ -247,7 +247,7 @@ public abstract partial class BasicFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnNonModal</NavTrigger>
     #endregion
-    public virtual INavCommand OnNonModal(HomeTO to) {
+    public INavCommand OnNonModal(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnNonModalLogic(to, new OnNonModalCallContext(this)).Unwrap();
     }
