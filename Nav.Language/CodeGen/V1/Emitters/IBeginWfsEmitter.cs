@@ -18,7 +18,8 @@ static class IBeginWfsEmitter {
 
     /// <summary>
     /// Erzeugt die vollständige <c>IBegin{Task}WFS.cs</c>-Datei aus dem <see cref="IBeginWfsCodeModel"/>:
-    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen samt <c>#pragma warning disable 0108</c>
+    /// Dateikopf, Using-Direktiven, die file-scoped Namespace-Deklaration samt
+    /// <c>#pragma warning disable 0108</c>
     /// (Redeklaration ererbter Begins ohne <c>new</c>), die nutzerdeklarierten <c>code</c>-Blöcke
     /// (<see cref="IBeginWfsCodeModel.CodeDeclarations"/>) sowie das eigentliche
     /// <c>public interface IBegin{Task}WFS</c> mit je einer <c>Begin</c>-Methode pro Init-Transition.
@@ -31,31 +32,25 @@ static class IBeginWfsEmitter {
         EmitterCommon.WriteFileHeader(cb, context);
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
 
-        cb.Write($"""
+        EmitterCommon.WriteNamespace(cb, model.Namespace);
 
-                  namespace {model.Namespace} 
-                  """);
+        cb.WriteLine("""
+                     // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
+                     #pragma warning disable 0108
+
+                     """);
+
+        if (model.CodeDeclarations.Count > 0) {
+            cb.WriteJoin(model.CodeDeclarations, decl => cb.Write(decl), separator: cb.NewLine);
+            cb.WriteLine();
+            cb.WriteLine();
+        }
+
+        EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
+        cb.Write($"public interface {CodeGenInvariants.BeginInterfacePrefix}{model.Task.TaskNamePascalcase}{CodeGenInvariants.InterfaceSuffix}: {model.BaseInterfaceName} ");
+
         using (cb.Block()) {
-
-            cb.WriteLine("""
-
-                         // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
-                         #pragma warning disable 0108
-
-                         """);
-
-            if (model.CodeDeclarations.Count > 0) {
-                cb.WriteJoin(model.CodeDeclarations, decl => cb.Write(decl), separator: cb.NewLine);
-                cb.WriteLine();
-                cb.WriteLine();
-            }
-
-            EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
-            cb.Write($"public interface {CodeGenInvariants.BeginInterfacePrefix}{model.Task.TaskNamePascalcase}{CodeGenInvariants.InterfaceSuffix}: {model.BaseInterfaceName} ");
-
-            using (cb.Block()) {
-                WriteBeginMethodDeclarations(cb, model.InitTransitions, model.Task.Facts);
-            }
+            WriteBeginMethodDeclarations(cb, model.InitTransitions, model.Task.Facts);
         }
 
         return cb.ToString();

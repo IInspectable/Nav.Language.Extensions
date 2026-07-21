@@ -15,227 +15,227 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Cont.WFL {
+namespace Nav.Language.Tests.Regression.V2.Cont.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\ContinuationFlow.nav</NavFile>
+/// <NavTask>ContinuationFlow</NavTask>
+#endregion
+public abstract partial class ContinuationFlowWFSBase: StandardWFS {
+
+    readonly NS.V2.Cont.WFL.IBeginDetailWFS _detail = default!;
+    readonly NS.V2.Cont.WFL.IBeginMsgWFS _msg = default!;
+
+    public ContinuationFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public ContinuationFlowWFSBase(NS.V2.Cont.WFL.IBeginDetailWFS detail,
+                                   NS.V2.Cont.WFL.IBeginMsgWFS msg) {
+        _detail = detail;
+        _msg = msg;
+    }
+
+    protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
+
+    static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
+        => command is null
+            ? throw new InvalidOperationException(
+                logicMethodName + " of task 'ContinuationFlow' returned default(Result); every code path must return a navigation result via the call context.")
+            : command();
+
     #region Nav Annotations
-    /// <NavFile>..\..\ContinuationFlow.nav</NavFile>
-    /// <NavTask>ContinuationFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class ContinuationFlowWFSBase: StandardWFS {
+    public virtual IINIT_TASK Begin()
+        => BeginLogic(new Init1CallContext(this)).Unwrap();
 
-        readonly NS.V2.Cont.WFL.IBeginDetailWFS _detail = default!;
-        readonly NS.V2.Cont.WFL.IBeginMsgWFS _msg = default!;
+    #region Nav Annotations
+    /// <NavInit>Init1</NavInit>
+    #endregion
+    protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-        public ContinuationFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+    protected sealed class Init1CallContext {
 
-        public ContinuationFlowWFSBase(NS.V2.Cont.WFL.IBeginDetailWFS detail,
-                                       NS.V2.Cont.WFL.IBeginMsgWFS msg) {
-            _detail = detail;
-            _msg = msg;
+        readonly ContinuationFlowWFSBase _wfs;
+        internal Init1CallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
-        protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
-
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
-            => command is null
-                ? throw new InvalidOperationException(
-                    logicMethodName + " of task 'ContinuationFlow' returned default(Result); every code path must return a navigation result via the call context.")
-                : command();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin()
-            => BeginLogic(new Init1CallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
-
-        protected sealed class Init1CallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal Init1CallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavExit>Warn</NavExit>
-        #endregion
-        protected virtual INavCommand AfterWarn(MsgResult result)
-            => AfterWarnLogic(result, new AfterWarnCallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavExit>Warn</NavExit>
-        #endregion
-        protected abstract AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
-                                                                      AfterWarnCallContext next);
-
-        protected sealed class AfterWarnCallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal AfterWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterWarnLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavExit>Drill</NavExit>
-        #endregion
-        protected virtual INavCommand AfterDrill(DetailResult result)
-            => AfterDrillLogic(result, new AfterDrillCallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavExit>Drill</NavExit>
-        #endregion
-        protected abstract AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
-                                                                        AfterDrillCallContext next);
-
-        protected sealed class AfterDrillCallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal AfterDrillCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterDrillLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        public virtual INavCommand OnClose(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext next);
-
-        protected sealed class OnCloseCallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal OnCloseCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
-            }
-
-            public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowWarn</NavTrigger>
-        #endregion
-        public virtual INavCommand OnShowWarn(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnShowWarnLogic(to, new OnShowWarnCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowWarn</NavTrigger>
-        #endregion
-        protected abstract OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
-                                                                        OnShowWarnCallContext next);
-
-        protected sealed class OnShowWarnCallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal OnShowWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnShowWarnLogic));
-            }
-
-            public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
-            public sealed class ShowHomeContinuation {
-                readonly ContinuationFlowWFSBase _wfs;
-                readonly HomeTO _to;
-                internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
-
-                #region Nav Annotations
-                /// <NavInitCall>NS.V2.Cont.WFL.IBeginMsgWFS</NavInitCall>
-                #endregion
-                public Result BeginWarn(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterWarn)));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDrillDown</NavTrigger>
-        #endregion
-        public virtual INavCommand OnDrillDown(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnDrillDownLogic(to, new OnDrillDownCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDrillDown</NavTrigger>
-        #endregion
-        protected abstract OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
-                                                                          OnDrillDownCallContext next);
-
-        protected sealed class OnDrillDownCallContext {
-
-            readonly ContinuationFlowWFSBase _wfs;
-            internal OnDrillDownCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDrillDownLogic));
-            }
-
-            public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
-            public sealed class ShowHomeContinuation {
-                readonly ContinuationFlowWFSBase _wfs;
-                readonly HomeTO _to;
-                internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
-
-                #region Nav Annotations
-                /// <NavInitCall>NS.V2.Cont.WFL.IBeginDetailWFS</NavInitCall>
-                #endregion
-                public Result BeginDrill(int id) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.GotoTask<DetailResult>(() => _wfs._detail.Begin(id), _wfs.AfterDrill)));
-            }
-        }
-
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\ContinuationFlow.nav</NavFile>
-    /// <NavTask>ContinuationFlow</NavTask>
+    /// <NavExit>Warn</NavExit>
     #endregion
-    public partial class ContinuationFlowWFS: ContinuationFlowWFSBase, IContinuationFlowWFS, IBeginContinuationFlowWFS {
+    protected virtual INavCommand AfterWarn(MsgResult result)
+        => AfterWarnLogic(result, new AfterWarnCallContext(this)).Unwrap();
 
-        public ContinuationFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavExit>Warn</NavExit>
+    #endregion
+    protected abstract AfterWarnCallContext.Result AfterWarnLogic(MsgResult result,
+                                                                  AfterWarnCallContext next);
 
-        public ContinuationFlowWFS(NS.V2.Cont.WFL.IBeginDetailWFS detail,
-                                   NS.V2.Cont.WFL.IBeginMsgWFS msg)
-            :base(detail,
-                  msg) {
+    protected sealed class AfterWarnCallContext {
+
+        readonly ContinuationFlowWFSBase _wfs;
+        internal AfterWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterWarnLogic));
         }
+
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+    }
+
+    #region Nav Annotations
+    /// <NavExit>Drill</NavExit>
+    #endregion
+    protected virtual INavCommand AfterDrill(DetailResult result)
+        => AfterDrillLogic(result, new AfterDrillCallContext(this)).Unwrap();
+
+    #region Nav Annotations
+    /// <NavExit>Drill</NavExit>
+    #endregion
+    protected abstract AfterDrillCallContext.Result AfterDrillLogic(DetailResult result,
+                                                                    AfterDrillCallContext next);
+
+    protected sealed class AfterDrillCallContext {
+
+        readonly ContinuationFlowWFSBase _wfs;
+        internal AfterDrillCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterDrillLogic));
+        }
+
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    public virtual INavCommand OnClose(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
+                                                              OnCloseCallContext next);
+
+    protected sealed class OnCloseCallContext {
+
+        readonly ContinuationFlowWFSBase _wfs;
+        internal OnCloseCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
+        }
+
+        public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowWarn</NavTrigger>
+    #endregion
+    public virtual INavCommand OnShowWarn(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnShowWarnLogic(to, new OnShowWarnCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowWarn</NavTrigger>
+    #endregion
+    protected abstract OnShowWarnCallContext.Result OnShowWarnLogic(HomeTO to,
+                                                                    OnShowWarnCallContext next);
+
+    protected sealed class OnShowWarnCallContext {
+
+        readonly ContinuationFlowWFSBase _wfs;
+        internal OnShowWarnCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnShowWarnLogic));
+        }
+
+        public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+        public sealed class ShowHomeContinuation {
+            readonly ContinuationFlowWFSBase _wfs;
+            readonly HomeTO _to;
+            internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
+
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Cont.WFL.IBeginMsgWFS</NavInitCall>
+            #endregion
+            public Result BeginWarn(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterWarn)));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnDrillDown</NavTrigger>
+    #endregion
+    public virtual INavCommand OnDrillDown(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnDrillDownLogic(to, new OnDrillDownCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnDrillDown</NavTrigger>
+    #endregion
+    protected abstract OnDrillDownCallContext.Result OnDrillDownLogic(HomeTO to,
+                                                                      OnDrillDownCallContext next);
+
+    protected sealed class OnDrillDownCallContext {
+
+        readonly ContinuationFlowWFSBase _wfs;
+        internal OnDrillDownCallContext(ContinuationFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDrillDownLogic));
+        }
+
+        public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+        public sealed class ShowHomeContinuation {
+            readonly ContinuationFlowWFSBase _wfs;
+            readonly HomeTO _to;
+            internal ShowHomeContinuation(ContinuationFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
+
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Cont.WFL.IBeginDetailWFS</NavInitCall>
+            #endregion
+            public Result BeginDrill(int id) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.GotoTask<DetailResult>(() => _wfs._detail.Begin(id), _wfs.AfterDrill)));
+        }
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\ContinuationFlow.nav</NavFile>
+/// <NavTask>ContinuationFlow</NavTask>
+#endregion
+public partial class ContinuationFlowWFS: ContinuationFlowWFSBase, IContinuationFlowWFS, IBeginContinuationFlowWFS {
+
+    public ContinuationFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public ContinuationFlowWFS(NS.V2.Cont.WFL.IBeginDetailWFS detail,
+                               NS.V2.Cont.WFL.IBeginMsgWFS msg)
+        :base(detail,
+              msg) {
     }
 }

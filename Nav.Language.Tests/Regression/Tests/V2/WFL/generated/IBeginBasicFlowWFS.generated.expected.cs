@@ -14,19 +14,18 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Basic.WFL {
+namespace Nav.Language.Tests.Regression.V2.Basic.WFL;
 
-    // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
-    #pragma warning disable 0108
+// Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
+#pragma warning disable 0108
 
+#region Nav Annotations
+/// <NavFile>..\..\BasicFlow.nav</NavFile>
+/// <NavTask>BasicFlow</NavTask>
+#endregion
+public interface IBeginBasicFlowWFS: IBeginWFService {
     #region Nav Annotations
-    /// <NavFile>..\..\BasicFlow.nav</NavFile>
-    /// <NavTask>BasicFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public interface IBeginBasicFlowWFS: IBeginWFService {
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        IINIT_TASK Begin(string message);
-    }
+    IINIT_TASK Begin(string message);
 }

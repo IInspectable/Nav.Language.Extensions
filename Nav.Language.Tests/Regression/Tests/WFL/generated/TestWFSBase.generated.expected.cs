@@ -17,537 +17,537 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.WFL {
+namespace Nav.Language.Tests.Regression.Test1.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\Test.nav</NavFile>
+/// <NavTask>Test</NavTask>
+#endregion
+public abstract partial class TestWFSBase: StandardWFS {
+
+    const string FooNodeName = "Foo";
+    const string MsgExitNodeName = "MsgExit";
+    const string NoResultsNodeName = "NoResults";
+    const string MsgNonModalNodeName = "MsgNonModal";
+    const string MsgContinueNodeName = "MsgContinue";
+    const string MsgAbstractNodeName = "MsgAbstract";
+    const string DoSomethingNodeName = "DoSomething";
+
+    readonly NS.2.WFL.IBeginMessageboxConinueWFS _messageboxConinue = default!;
+    readonly NS.2.WFL.IBeginMessageboxOkWFS _messageboxOk = default!;
+
+    public TestWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public TestWFSBase(NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue,
+                       NS.2.WFL.IBeginMessageboxOkWFS messageboxOk) {
+        _messageboxConinue = messageboxConinue;
+        _messageboxOk = messageboxOk;
+    }
+
+    protected virtual ViewTO BeforeTriggerLogic(ViewTO to) => to;
+
     #region Nav Annotations
-    /// <NavFile>..\..\Test.nav</NavFile>
-    /// <NavTask>Test</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class TestWFSBase: StandardWFS {
-
-        const string FooNodeName = "Foo";
-        const string MsgExitNodeName = "MsgExit";
-        const string NoResultsNodeName = "NoResults";
-        const string MsgNonModalNodeName = "MsgNonModal";
-        const string MsgContinueNodeName = "MsgContinue";
-        const string MsgAbstractNodeName = "MsgAbstract";
-        const string DoSomethingNodeName = "DoSomething";
-
-        readonly NS.2.WFL.IBeginMessageboxConinueWFS _messageboxConinue = default!;
-        readonly NS.2.WFL.IBeginMessageboxOkWFS _messageboxOk = default!;
-
-        public TestWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
-
-        public TestWFSBase(NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue,
-                           NS.2.WFL.IBeginMessageboxOkWFS messageboxOk) {
-            _messageboxConinue = messageboxConinue;
-            _messageboxOk = messageboxOk;
+    public virtual IINIT_TASK Begin(TestInitParams p1,
+                                    int? nullableParam) {
+        var body = BeginLogic(p1, nullableParam, _messageboxOk);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == NoResultsNodeName:
+                return GotoTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterNoResults);
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), body));
         }
-
-        protected virtual ViewTO BeforeTriggerLogic(ViewTO to) => to;
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin(TestInitParams p1,
-                                        int? nullableParam) {
-            var body = BeginLogic(p1, nullableParam, _messageboxOk);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == NoResultsNodeName:
-                    return GotoTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterNoResults);
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract INavCommandBody BeginLogic(TestInitParams p1,
-                                                      int? nullableParam,
-                                                      NS.2.WFL.IBeginMessageboxOkWFS messageboxOk);
-
-        #region Nav Annotations
-        /// <NavInit>Init2</NavInit>
-        #endregion
-        public abstract IINIT_TASK Begin();
-
-        #region Nav Annotations
-        /// <NavExit>MsgExit</NavExit>
-        #endregion
-        protected virtual INavCommand AfterMsgExit(MessageboxOkResult result) {
-            var body = AfterMsgExitLogic(result);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case TASK_RESULT taskResult:
-                    return taskResult;
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgExitLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavExit>MsgExit</NavExit>
-        #endregion
-        protected abstract INavCommandBody AfterMsgExitLogic(MessageboxOkResult result);
-
-        #region Nav Annotations
-        /// <NavExit>NoResults</NavExit>
-        #endregion
-        protected virtual INavCommand AfterNoResults(MessageboxOkResult result) {
-            var body = AfterNoResultsLogic(result);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case TASK_RESULT taskResult:
-                    return taskResult;
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterNoResultsLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavExit>NoResults</NavExit>
-        #endregion
-        protected abstract INavCommandBody AfterNoResultsLogic(MessageboxOkResult result);
-
-        #region Nav Annotations
-        /// <NavExit>MsgNonModal</NavExit>
-        #endregion
-        protected virtual INavCommand AfterMsgNonModal(MessageboxOkResult result) {
-            var body = AfterMsgNonModalLogic(result);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgNonModalLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavExit>MsgNonModal</NavExit>
-        #endregion
-        protected abstract INavCommandBody AfterMsgNonModalLogic(MessageboxOkResult result);
-
-        #region Nav Annotations
-        /// <NavExit>MsgContinue</NavExit>
-        #endregion
-        protected virtual INavCommand AfterMsgContinue(MessageboxOkResult result) {
-            var body = AfterMsgContinueLogic(result);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgContinueLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavExit>MsgContinue</NavExit>
-        #endregion
-        protected abstract INavCommandBody AfterMsgContinueLogic(MessageboxOkResult result);
-
-        #region Nav Annotations
-        /// <NavExit>MsgAbstract</NavExit>
-        #endregion
-        protected abstract INavCommand AfterMsgAbstractLogic(MessageboxOkResult result);
-
-        #region Nav Annotations
-        /// <NavExit>DoSomething</NavExit>
-        #endregion
-        protected virtual INavCommand AfterDoSomething(bool result) {
-            var body = AfterDoSomethingLogic(result);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterDoSomethingLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavExit>DoSomething</NavExit>
-        #endregion
-        protected abstract INavCommandBody AfterDoSomethingLogic(bool result);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEnd</NavTrigger>
-        #endregion
-        public virtual INavCommand OnEnd(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnEndLogic(to);
-            switch(body) {
-                case END _:
-                    return EndNonModal();
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnEndLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEnd</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnEndLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnContinue</NavTrigger>
-        #endregion
-        public virtual INavCommand OnContinue(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnContinueLogic(to, _messageboxConinue);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == MsgContinueNodeName:
-                    return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgContinue);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnContinueLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnContinue</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnContinueLogic(ViewTO to,
-                                                           NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnExitClick</NavTrigger>
-        #endregion
-        public virtual INavCommand OnExitClick(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnExitClickLogic(to, _messageboxOk);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == MsgExitNodeName:
-                    return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgExit);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnExitClickLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnExitClick</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnExitClickLogic(ViewTO to,
-                                                            NS.2.WFL.IBeginMessageboxOkWFS messageboxOk);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDoSomething</NavTrigger>
-        #endregion
-        public virtual INavCommand OnDoSomething(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnDoSomethingLogic(to);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == DoSomethingNodeName:
-                    return OpenModalTask<bool>(taskCall.BeginWrapper, AfterDoSomething);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnDoSomethingLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDoSomething</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnDoSomethingLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgAbstract</NavTrigger>
-        #endregion
-        public virtual INavCommand OnMsgAbstract(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnMsgAbstractLogic(to, _messageboxConinue);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == MsgAbstractNodeName:
-                    return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgAbstract);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnMsgAbstractLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgAbstract</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnMsgAbstractLogic(ViewTO to,
-                                                              NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgNonModal</NavTrigger>
-        #endregion
-        public virtual INavCommand OnMsgNonModal(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnMsgNonModalLogic(to, _messageboxConinue);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == MsgNonModalNodeName:
-                    return StartNonModalTask(taskCall.BeginWrapper, AfterMsgNonModal);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnMsgNonModalLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgNonModal</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnMsgNonModalLogic(ViewTO to,
-                                                              NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnReloadClick</NavTrigger>
-        #endregion
-        public virtual INavCommand OnReloadClick(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnReloadClickLogic(to);
-            switch(body) {
-                case ViewTO viewTO:
-                    return GotoGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnReloadClickLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnReloadClick</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnReloadClickLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeModal</NavTrigger>
-        #endregion
-        public virtual INavCommand OnShowMeModal(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnShowMeModalLogic(to);
-            switch(body) {
-                case ViewTO viewTO:
-                    return OpenModalGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnShowMeModalLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeModal</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnShowMeModalLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeNonModal</NavTrigger>
-        #endregion
-        public virtual INavCommand OnShowMeNonModal(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnShowMeNonModalLogic(to);
-            switch(body) {
-                case ViewTO viewTO:
-                    return StartNonModalGUI(viewTO);
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnShowMeNonModalLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeNonModal</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnShowMeNonModalLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnNonNotImplemented</NavTrigger>
-        #endregion
-        public virtual INavCommand OnNonNotImplemented(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnNonNotImplementedLogic(to);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == FooNodeName:
-                    throw new NotImplementedException("Task Foo is specified as [notimplemented]");
-
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnNonNotImplementedLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnNonNotImplemented</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnNonNotImplementedLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
-        #endregion
-        public virtual INavCommand OnGoToNotImplemented(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnGoToNotImplementedLogic(to);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == FooNodeName:
-                    throw new NotImplementedException("Task Foo is specified as [notimplemented]");
-
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnGoToNotImplementedLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnGoToNotImplementedLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavTrigger>OnModalNotImplemented</NavTrigger>
-        #endregion
-        public virtual INavCommand OnModalNotImplemented(ViewTO to) {
-            to = BeforeTriggerLogic(to);
-            var body = OnModalNotImplementedLogic(to);
-            switch(body) {
-                case TaskCall taskCall when taskCall.NodeName == FooNodeName:
-                    throw new NotImplementedException("Task Foo is specified as [notimplemented]");
-
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnModalNotImplementedLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnModalNotImplemented</NavTrigger>
-        #endregion
-        protected abstract INavCommandBody OnModalNotImplementedLogic(ViewTO to);
-
-        #region Nav Annotations
-        /// <NavInitCall>IWFService</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginFoo(IWFService wfs) {
-            return new TaskCall(FooNodeName, null);
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>IWFService</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginFoo(IWFService wfs) {
-            return new TaskCall(FooNodeName, null);
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginMsgExit(NS.2.WFL.IBeginMessageboxOkWFS wfs,
-                                               string text,
-                                               MessageboxIcon icon) {
-            return new TaskCall(MsgExitNodeName, () => wfs.Begin(text, icon));
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginMsgExit(NS.2.WFL.IBeginMessageboxOkWFS wfs,
-                                               string text,
-                                               string? title,
-                                               MessageboxIcon icon) {
-            return new TaskCall(MsgExitNodeName, () => wfs.Begin(text, title, icon));
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginNoResults(NS.2.WFL.IBeginMessageboxOkWFS wfs,
-                                                 string text,
-                                                 MessageboxIcon icon) {
-            return new TaskCall(NoResultsNodeName, () => wfs.Begin(text, icon));
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginNoResults(NS.2.WFL.IBeginMessageboxOkWFS wfs,
-                                                 string text,
-                                                 string? title,
-                                                 MessageboxIcon icon) {
-            return new TaskCall(NoResultsNodeName, () => wfs.Begin(text, title, icon));
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginMsgNonModal(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
-            return new TaskCall(MsgNonModalNodeName, () => wfs.Begin());
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginMsgContinue(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
-            return new TaskCall(MsgContinueNodeName, () => wfs.Begin());
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginMsgAbstract(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
-            return new TaskCall(MsgAbstractNodeName, () => wfs.Begin());
-        }
-
-        #region Nav Annotations
-        /// <NavInitCall>NS.3.WFL.IBeginShowSomethingWFS</NavInitCall>
-        #endregion
-        protected INavCommandBody BeginDoSomething(NS.3.WFL.IBeginShowSomethingWFS wfs) {
-            return new TaskCall(DoSomethingNodeName, () => wfs.Begin());
-        }
-
-        protected INavCommandBody TaskResult(bool? par) {
-            return InternalTaskResult(par);
-        }
-
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\Test.nav</NavFile>
-    /// <NavTask>Test</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public partial class TestWFS: TestWFSBase, ITestWFS, IBeginTestWFS {
+    protected abstract INavCommandBody BeginLogic(TestInitParams p1,
+                                                  int? nullableParam,
+                                                  NS.2.WFL.IBeginMessageboxOkWFS messageboxOk);
 
-        readonly ITestBS _testBS = default!;
-        readonly ISozFactory _SOZFactory = default!;
+    #region Nav Annotations
+    /// <NavInit>Init2</NavInit>
+    #endregion
+    public abstract IINIT_TASK Begin();
 
-        public TestWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
-
-        public TestWFS(NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue,
-                       NS.2.WFL.IBeginMessageboxOkWFS messageboxOk,
-                       ITestBS testBS,
-                       ISozFactory SOZFactory)
-            :base(messageboxConinue,
-                  messageboxOk) {
-            _testBS = testBS;
-            _SOZFactory = SOZFactory;
+    #region Nav Annotations
+    /// <NavExit>MsgExit</NavExit>
+    #endregion
+    protected virtual INavCommand AfterMsgExit(MessageboxOkResult result) {
+        var body = AfterMsgExitLogic(result);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case TASK_RESULT taskResult:
+                return taskResult;
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgExitLogic), body));
         }
+    }
+
+    #region Nav Annotations
+    /// <NavExit>MsgExit</NavExit>
+    #endregion
+    protected abstract INavCommandBody AfterMsgExitLogic(MessageboxOkResult result);
+
+    #region Nav Annotations
+    /// <NavExit>NoResults</NavExit>
+    #endregion
+    protected virtual INavCommand AfterNoResults(MessageboxOkResult result) {
+        var body = AfterNoResultsLogic(result);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case TASK_RESULT taskResult:
+                return taskResult;
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterNoResultsLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavExit>NoResults</NavExit>
+    #endregion
+    protected abstract INavCommandBody AfterNoResultsLogic(MessageboxOkResult result);
+
+    #region Nav Annotations
+    /// <NavExit>MsgNonModal</NavExit>
+    #endregion
+    protected virtual INavCommand AfterMsgNonModal(MessageboxOkResult result) {
+        var body = AfterMsgNonModalLogic(result);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgNonModalLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavExit>MsgNonModal</NavExit>
+    #endregion
+    protected abstract INavCommandBody AfterMsgNonModalLogic(MessageboxOkResult result);
+
+    #region Nav Annotations
+    /// <NavExit>MsgContinue</NavExit>
+    #endregion
+    protected virtual INavCommand AfterMsgContinue(MessageboxOkResult result) {
+        var body = AfterMsgContinueLogic(result);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterMsgContinueLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavExit>MsgContinue</NavExit>
+    #endregion
+    protected abstract INavCommandBody AfterMsgContinueLogic(MessageboxOkResult result);
+
+    #region Nav Annotations
+    /// <NavExit>MsgAbstract</NavExit>
+    #endregion
+    protected abstract INavCommand AfterMsgAbstractLogic(MessageboxOkResult result);
+
+    #region Nav Annotations
+    /// <NavExit>DoSomething</NavExit>
+    #endregion
+    protected virtual INavCommand AfterDoSomething(bool result) {
+        var body = AfterDoSomethingLogic(result);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(AfterDoSomethingLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavExit>DoSomething</NavExit>
+    #endregion
+    protected abstract INavCommandBody AfterDoSomethingLogic(bool result);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEnd</NavTrigger>
+    #endregion
+    public virtual INavCommand OnEnd(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnEndLogic(to);
+        switch(body) {
+            case END _:
+                return EndNonModal();
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnEndLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEnd</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnEndLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnContinue</NavTrigger>
+    #endregion
+    public virtual INavCommand OnContinue(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnContinueLogic(to, _messageboxConinue);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == MsgContinueNodeName:
+                return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgContinue);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnContinueLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnContinue</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnContinueLogic(ViewTO to,
+                                                       NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnExitClick</NavTrigger>
+    #endregion
+    public virtual INavCommand OnExitClick(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnExitClickLogic(to, _messageboxOk);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == MsgExitNodeName:
+                return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgExit);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnExitClickLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnExitClick</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnExitClickLogic(ViewTO to,
+                                                        NS.2.WFL.IBeginMessageboxOkWFS messageboxOk);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnDoSomething</NavTrigger>
+    #endregion
+    public virtual INavCommand OnDoSomething(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnDoSomethingLogic(to);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == DoSomethingNodeName:
+                return OpenModalTask<bool>(taskCall.BeginWrapper, AfterDoSomething);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnDoSomethingLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnDoSomething</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnDoSomethingLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgAbstract</NavTrigger>
+    #endregion
+    public virtual INavCommand OnMsgAbstract(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnMsgAbstractLogic(to, _messageboxConinue);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == MsgAbstractNodeName:
+                return OpenModalTask<MessageboxOkResult>(taskCall.BeginWrapper, AfterMsgAbstract);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnMsgAbstractLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgAbstract</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnMsgAbstractLogic(ViewTO to,
+                                                          NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgNonModal</NavTrigger>
+    #endregion
+    public virtual INavCommand OnMsgNonModal(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnMsgNonModalLogic(to, _messageboxConinue);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == MsgNonModalNodeName:
+                return StartNonModalTask(taskCall.BeginWrapper, AfterMsgNonModal);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnMsgNonModalLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgNonModal</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnMsgNonModalLogic(ViewTO to,
+                                                          NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnReloadClick</NavTrigger>
+    #endregion
+    public virtual INavCommand OnReloadClick(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnReloadClickLogic(to);
+        switch(body) {
+            case ViewTO viewTO:
+                return GotoGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnReloadClickLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnReloadClick</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnReloadClickLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeModal</NavTrigger>
+    #endregion
+    public virtual INavCommand OnShowMeModal(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnShowMeModalLogic(to);
+        switch(body) {
+            case ViewTO viewTO:
+                return OpenModalGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnShowMeModalLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeModal</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnShowMeModalLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeNonModal</NavTrigger>
+    #endregion
+    public virtual INavCommand OnShowMeNonModal(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnShowMeNonModalLogic(to);
+        switch(body) {
+            case ViewTO viewTO:
+                return StartNonModalGUI(viewTO);
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnShowMeNonModalLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeNonModal</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnShowMeNonModalLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnNonNotImplemented</NavTrigger>
+    #endregion
+    public virtual INavCommand OnNonNotImplemented(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnNonNotImplementedLogic(to);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == FooNodeName:
+                throw new NotImplementedException("Task Foo is specified as [notimplemented]");
+
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnNonNotImplementedLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnNonNotImplemented</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnNonNotImplementedLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
+    #endregion
+    public virtual INavCommand OnGoToNotImplemented(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnGoToNotImplementedLogic(to);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == FooNodeName:
+                throw new NotImplementedException("Task Foo is specified as [notimplemented]");
+
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnGoToNotImplementedLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnGoToNotImplementedLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavTrigger>OnModalNotImplemented</NavTrigger>
+    #endregion
+    public virtual INavCommand OnModalNotImplemented(ViewTO to) {
+        to = BeforeTriggerLogic(to);
+        var body = OnModalNotImplementedLogic(to);
+        switch(body) {
+            case TaskCall taskCall when taskCall.NodeName == FooNodeName:
+                throw new NotImplementedException("Task Foo is specified as [notimplemented]");
+
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(OnModalNotImplementedLogic), body));
+        }
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnModalNotImplemented</NavTrigger>
+    #endregion
+    protected abstract INavCommandBody OnModalNotImplementedLogic(ViewTO to);
+
+    #region Nav Annotations
+    /// <NavInitCall>IWFService</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginFoo(IWFService wfs) {
+        return new TaskCall(FooNodeName, null);
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>IWFService</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginFoo(IWFService wfs) {
+        return new TaskCall(FooNodeName, null);
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginMsgExit(NS.2.WFL.IBeginMessageboxOkWFS wfs,
+                                           string text,
+                                           MessageboxIcon icon) {
+        return new TaskCall(MsgExitNodeName, () => wfs.Begin(text, icon));
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginMsgExit(NS.2.WFL.IBeginMessageboxOkWFS wfs,
+                                           string text,
+                                           string? title,
+                                           MessageboxIcon icon) {
+        return new TaskCall(MsgExitNodeName, () => wfs.Begin(text, title, icon));
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginNoResults(NS.2.WFL.IBeginMessageboxOkWFS wfs,
+                                             string text,
+                                             MessageboxIcon icon) {
+        return new TaskCall(NoResultsNodeName, () => wfs.Begin(text, icon));
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxOkWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginNoResults(NS.2.WFL.IBeginMessageboxOkWFS wfs,
+                                             string text,
+                                             string? title,
+                                             MessageboxIcon icon) {
+        return new TaskCall(NoResultsNodeName, () => wfs.Begin(text, title, icon));
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginMsgNonModal(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
+        return new TaskCall(MsgNonModalNodeName, () => wfs.Begin());
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginMsgContinue(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
+        return new TaskCall(MsgContinueNodeName, () => wfs.Begin());
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.2.WFL.IBeginMessageboxConinueWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginMsgAbstract(NS.2.WFL.IBeginMessageboxConinueWFS wfs) {
+        return new TaskCall(MsgAbstractNodeName, () => wfs.Begin());
+    }
+
+    #region Nav Annotations
+    /// <NavInitCall>NS.3.WFL.IBeginShowSomethingWFS</NavInitCall>
+    #endregion
+    protected INavCommandBody BeginDoSomething(NS.3.WFL.IBeginShowSomethingWFS wfs) {
+        return new TaskCall(DoSomethingNodeName, () => wfs.Begin());
+    }
+
+    protected INavCommandBody TaskResult(bool? par) {
+        return InternalTaskResult(par);
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\Test.nav</NavFile>
+/// <NavTask>Test</NavTask>
+#endregion
+public partial class TestWFS: TestWFSBase, ITestWFS, IBeginTestWFS {
+
+    readonly ITestBS _testBS = default!;
+    readonly ISozFactory _SOZFactory = default!;
+
+    public TestWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public TestWFS(NS.2.WFL.IBeginMessageboxConinueWFS messageboxConinue,
+                   NS.2.WFL.IBeginMessageboxOkWFS messageboxOk,
+                   ITestBS testBS,
+                   ISozFactory SOZFactory)
+        :base(messageboxConinue,
+              messageboxOk) {
+        _testBS = testBS;
+        _SOZFactory = SOZFactory;
     }
 }

@@ -17,54 +17,54 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.WFL {
-    #region Nav Annotations
-    /// <NavFile>..\..\SimpleTask.nav</NavFile>
-    /// <NavTask>SimpleTask</NavTask>
-    #endregion
-    public abstract partial class SimpleTaskWFSBase: StandardWFS {
+namespace Nav.Language.Tests.Regression.Test1.WFL;
 
-        public SimpleTaskWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+#region Nav Annotations
+/// <NavFile>..\..\SimpleTask.nav</NavFile>
+/// <NavTask>SimpleTask</NavTask>
+#endregion
+public abstract partial class SimpleTaskWFSBase: StandardWFS {
 
-        public SimpleTaskWFSBase() {
-        }
+    public SimpleTaskWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
 
-        #region Nav Annotations
-        /// <NavInit>Init</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin() {
-            var body = BeginLogic();
-            switch(body) {
-                case TASK_RESULT taskResult:
-                    return taskResult;
-                case CANCEL cancel:
-                    return cancel;
-                default:
-                    throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), body));
-            }
-        }
-
-        #region Nav Annotations
-        /// <NavInit>Init</NavInit>
-        #endregion
-        protected abstract INavCommandBody BeginLogic();
-
-        protected INavCommandBody TaskResult(bool par) {
-            return InternalTaskResult(par);
-        }
-
+    public SimpleTaskWFSBase() {
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\SimpleTask.nav</NavFile>
-    /// <NavTask>SimpleTask</NavTask>
+    /// <NavInit>Init</NavInit>
     #endregion
-    public partial class SimpleTaskWFS: SimpleTaskWFSBase, ISimpleTaskWFS, IBeginSimpleTaskWFS {
-
-        public SimpleTaskWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
-
-        public SimpleTaskWFS()
-            :base() {
+    public virtual IINIT_TASK Begin() {
+        var body = BeginLogic();
+        switch(body) {
+            case TASK_RESULT taskResult:
+                return taskResult;
+            case CANCEL cancel:
+                return cancel;
+            default:
+                throw new InvalidOperationException(NavCommandBody.ComposeUnexpectedTransitionMessage(nameof(BeginLogic), body));
         }
+    }
+
+    #region Nav Annotations
+    /// <NavInit>Init</NavInit>
+    #endregion
+    protected abstract INavCommandBody BeginLogic();
+
+    protected INavCommandBody TaskResult(bool par) {
+        return InternalTaskResult(par);
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\SimpleTask.nav</NavFile>
+/// <NavTask>SimpleTask</NavTask>
+#endregion
+public partial class SimpleTaskWFS: SimpleTaskWFSBase, ISimpleTaskWFS, IBeginSimpleTaskWFS {
+
+    public SimpleTaskWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public SimpleTaskWFS()
+        :base() {
     }
 }

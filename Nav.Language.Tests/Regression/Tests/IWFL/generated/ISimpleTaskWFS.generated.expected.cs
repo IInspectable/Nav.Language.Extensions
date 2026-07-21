@@ -15,11 +15,11 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.IWFL {
-    #region Nav Annotations
-    /// <NavFile>..\..\SimpleTask.nav</NavFile>
-    /// <NavTask>SimpleTask</NavTask>
-    #endregion
-    public interface ISimpleTaskWFS: IWFServiceBase {
-    }
+namespace Nav.Language.Tests.Regression.Test1.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\SimpleTask.nav</NavFile>
+/// <NavTask>SimpleTask</NavTask>
+#endregion
+public interface ISimpleTaskWFS: IWFServiceBase {
 }

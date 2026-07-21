@@ -15,142 +15,142 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Cancel.WFL {
+namespace Nav.Language.Tests.Regression.V2.Cancel.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\CancelFlow.nav</NavFile>
+/// <NavTask>CancelFlow</NavTask>
+#endregion
+public abstract partial class CancelFlowWFSBase: StandardWFS {
+
+    public CancelFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public CancelFlowWFSBase() {
+    }
+
+    protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
+
+    static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
+        => command is null
+            ? throw new InvalidOperationException(
+                logicMethodName + " of task 'CancelFlow' returned default(Result); every code path must return a navigation result via the call context.")
+            : command();
+
     #region Nav Annotations
-    /// <NavFile>..\..\CancelFlow.nav</NavFile>
-    /// <NavTask>CancelFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class CancelFlowWFSBase: StandardWFS {
+    public virtual IINIT_TASK Begin()
+        => BeginLogic(new Init1CallContext(this)).Unwrap();
 
-        public CancelFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavInit>Init1</NavInit>
+    #endregion
+    protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-        public CancelFlowWFSBase() {
+    protected sealed class Init1CallContext {
+
+        readonly CancelFlowWFSBase _wfs;
+        internal Init1CallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
-        protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
-
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
-            => command is null
-                ? throw new InvalidOperationException(
-                    logicMethodName + " of task 'CancelFlow' returned default(Result); every code path must return a navigation result via the call context.")
-                : command();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin()
-            => BeginLogic(new Init1CallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
-
-        protected sealed class Init1CallContext {
-
-            readonly CancelFlowWFSBase _wfs;
-            internal Init1CallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDecide</NavTrigger>
-        #endregion
-        public virtual INavCommand OnDecide(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnDecideLogic(to, new OnDecideCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnDecide</NavTrigger>
-        #endregion
-        protected abstract OnDecideCallContext.Result OnDecideLogic(HomeTO to,
-                                                                    OnDecideCallContext next);
-
-        protected sealed class OnDecideCallContext {
-
-            readonly CancelFlowWFSBase _wfs;
-            internal OnDecideCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDecideLogic));
-            }
-
-            #region Nav Annotations
-            /// <NavChoiceCall>Choice_Confirm</NavChoiceCall>
-            #endregion
-            public Result Choice_Confirm() => new(() => _wfs.Choice_ConfirmLogic(new(_wfs)).Unwrap());
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEscape</NavTrigger>
-        #endregion
-        public virtual INavCommand OnEscape(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnEscapeLogic(to, new OnEscapeCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEscape</NavTrigger>
-        #endregion
-        protected abstract OnEscapeCallContext.Result OnEscapeLogic(HomeTO to,
-                                                                    OnEscapeCallContext next);
-
-        protected sealed class OnEscapeCallContext {
-
-            readonly CancelFlowWFSBase _wfs;
-            internal OnEscapeCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEscapeLogic));
-            }
-
-            public Result Cancel() => new(() => _wfs.Cancel());
-        }
-
-        #region Nav Annotations
-        /// <NavChoice>Choice_Confirm</NavChoice>
-        #endregion
-        protected abstract Choice_ConfirmCallContext.Result Choice_ConfirmLogic(Choice_ConfirmCallContext next);
-
-        protected sealed class Choice_ConfirmCallContext {
-
-            readonly CancelFlowWFSBase _wfs;
-            internal Choice_ConfirmCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(Choice_ConfirmLogic));
-            }
-
-            public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-            public Result Cancel() => new(() => _wfs.Cancel());
-        }
-
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\CancelFlow.nav</NavFile>
-    /// <NavTask>CancelFlow</NavTask>
+    /// <NavTrigger>OnDecide</NavTrigger>
     #endregion
-    public partial class CancelFlowWFS: CancelFlowWFSBase, ICancelFlowWFS, IBeginCancelFlowWFS {
+    public virtual INavCommand OnDecide(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnDecideLogic(to, new OnDecideCallContext(this)).Unwrap();
+    }
 
-        public CancelFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavTrigger>OnDecide</NavTrigger>
+    #endregion
+    protected abstract OnDecideCallContext.Result OnDecideLogic(HomeTO to,
+                                                                OnDecideCallContext next);
 
-        public CancelFlowWFS()
-            :base() {
+    protected sealed class OnDecideCallContext {
+
+        readonly CancelFlowWFSBase _wfs;
+        internal OnDecideCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnDecideLogic));
         }
+
+        #region Nav Annotations
+        /// <NavChoiceCall>Choice_Confirm</NavChoiceCall>
+        #endregion
+        public Result Choice_Confirm() => new(() => _wfs.Choice_ConfirmLogic(new(_wfs)).Unwrap());
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEscape</NavTrigger>
+    #endregion
+    public virtual INavCommand OnEscape(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnEscapeLogic(to, new OnEscapeCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEscape</NavTrigger>
+    #endregion
+    protected abstract OnEscapeCallContext.Result OnEscapeLogic(HomeTO to,
+                                                                OnEscapeCallContext next);
+
+    protected sealed class OnEscapeCallContext {
+
+        readonly CancelFlowWFSBase _wfs;
+        internal OnEscapeCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEscapeLogic));
+        }
+
+        public Result Cancel() => new(() => _wfs.Cancel());
+    }
+
+    #region Nav Annotations
+    /// <NavChoice>Choice_Confirm</NavChoice>
+    #endregion
+    protected abstract Choice_ConfirmCallContext.Result Choice_ConfirmLogic(Choice_ConfirmCallContext next);
+
+    protected sealed class Choice_ConfirmCallContext {
+
+        readonly CancelFlowWFSBase _wfs;
+        internal Choice_ConfirmCallContext(CancelFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(Choice_ConfirmLogic));
+        }
+
+        public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
+        public Result Cancel() => new(() => _wfs.Cancel());
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\CancelFlow.nav</NavFile>
+/// <NavTask>CancelFlow</NavTask>
+#endregion
+public partial class CancelFlowWFS: CancelFlowWFSBase, ICancelFlowWFS, IBeginCancelFlowWFS {
+
+    public CancelFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public CancelFlowWFS()
+        :base() {
     }
 }

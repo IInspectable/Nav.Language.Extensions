@@ -13,23 +13,23 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Cont.IWFL {
+namespace Nav.Language.Tests.Regression.V2.Cont.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\ContinuationFlow.nav</NavFile>
+/// <NavTask>ContinuationFlow</NavTask>
+#endregion
+public interface IContinuationFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\ContinuationFlow.nav</NavFile>
-    /// <NavTask>ContinuationFlow</NavTask>
+    /// <NavTrigger>OnClose</NavTrigger>
     #endregion
-    public interface IContinuationFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        INavCommand OnClose(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnShowWarn</NavTrigger>
-        #endregion
-        INavCommand OnShowWarn(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnDrillDown</NavTrigger>
-        #endregion
-        INavCommand OnDrillDown(HomeTO to);
-    }
+    INavCommand OnClose(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnShowWarn</NavTrigger>
+    #endregion
+    INavCommand OnShowWarn(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnDrillDown</NavTrigger>
+    #endregion
+    INavCommand OnDrillDown(HomeTO to);
 }

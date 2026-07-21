@@ -23,7 +23,8 @@ static class WfsBaseEmitter {
 
     /// <summary>
     /// Erzeugt die vollständige <c>{Task}WFSBase.cs</c>-Datei aus dem <see cref="WfsBaseCodeModel"/>:
-    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen und darin — durch eine Leerzeile getrennt —
+    /// Dateikopf, Using-Direktiven, die file-scoped Namespace-Deklaration und — durch eine Leerzeile
+    /// getrennt —
     /// die abstrakte Basisklasse <c>{Task}WFSBase</c> (<see cref="WriteBaseClass"/>) samt der partiellen
     /// Implementierungsklasse <c>{Task}WFS</c> (<see cref="WriteWfsClass"/>). Liefert den fertigen
     /// Quelltext als Zeichenkette.
@@ -36,19 +37,14 @@ static class WfsBaseEmitter {
         EmitterCommon.WriteFileHeader(cb, context);
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
 
-        cb.Write($"""
+        EmitterCommon.WriteNamespace(cb, model.WflNamespace);
 
-                  namespace {model.WflNamespace} 
-                  """);
-        using (cb.Block()) {
+        WriteBaseClass(cb, model, facts);
 
-            WriteBaseClass(cb, model, facts);
+        cb.WriteLine();
+        cb.WriteLine();
 
-            cb.WriteLine();
-            cb.WriteLine();
-
-            WriteWfsClass(cb, model);
-        }
+        WriteWfsClass(cb, model);
 
         return cb.ToString();
     }

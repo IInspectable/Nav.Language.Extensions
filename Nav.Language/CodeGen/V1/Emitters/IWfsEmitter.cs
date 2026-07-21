@@ -19,7 +19,8 @@ static class IWfsEmitter {
 
     /// <summary>
     /// Erzeugt die vollständige <c>I{Task}WFS.cs</c>-Datei aus dem <see cref="IWfsCodeModel"/>:
-    /// Dateikopf, Using-Direktiven, den Namespace-Rahmen und das <c>public interface I{Task}WFS</c> mit
+    /// Dateikopf, Using-Direktiven, die file-scoped Namespace-Deklaration und das
+    /// <c>public interface I{Task}WFS</c> mit
     /// je einer <c>INavCommand</c>-Methode pro Trigger-Transition. Liefert den fertigen Quelltext als
     /// Zeichenkette.
     /// </summary>
@@ -30,18 +31,13 @@ static class IWfsEmitter {
         EmitterCommon.WriteFileHeader(cb, context);
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
 
-        cb.Write($"""
+        EmitterCommon.WriteNamespace(cb, model.Namespace);
 
-                  namespace {model.Namespace} 
-                  """);
+        EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
+        cb.Write($"public interface {model.InterfaceName}: {model.BaseInterfaceName} ");
+
         using (cb.Block()) {
-
-            EmitterCommon.WriteTaskAnnotation(cb, model.RelativeSyntaxFileName, model.Task.TaskName);
-            cb.Write($"public interface {model.InterfaceName}: {model.BaseInterfaceName} ");
-
-            using (cb.Block()) {
-                WriteTriggerMethodDeclarations(cb, model.TriggerTransitions);
-            }
+            WriteTriggerMethodDeclarations(cb, model.TriggerTransitions);
         }
 
         return cb.ToString();

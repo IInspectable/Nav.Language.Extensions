@@ -13,19 +13,19 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.NotImpl.IWFL {
+namespace Nav.Language.Tests.Regression.V2.NotImpl.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
+/// <NavTask>NotImplementedFlow</NavTask>
+#endregion
+public interface INotImplementedFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
-    /// <NavTask>NotImplementedFlow</NavTask>
+    /// <NavTrigger>OnWarn</NavTrigger>
     #endregion
-    public interface INotImplementedFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnWarn</NavTrigger>
-        #endregion
-        INavCommand OnWarn(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        INavCommand OnClose(HomeTO to);
-    }
+    INavCommand OnWarn(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    INavCommand OnClose(HomeTO to);
 }

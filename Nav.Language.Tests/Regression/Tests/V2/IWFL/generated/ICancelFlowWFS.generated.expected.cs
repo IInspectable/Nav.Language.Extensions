@@ -13,19 +13,19 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Cancel.IWFL {
+namespace Nav.Language.Tests.Regression.V2.Cancel.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\CancelFlow.nav</NavFile>
+/// <NavTask>CancelFlow</NavTask>
+#endregion
+public interface ICancelFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\CancelFlow.nav</NavFile>
-    /// <NavTask>CancelFlow</NavTask>
+    /// <NavTrigger>OnDecide</NavTrigger>
     #endregion
-    public interface ICancelFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnDecide</NavTrigger>
-        #endregion
-        INavCommand OnDecide(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnEscape</NavTrigger>
-        #endregion
-        INavCommand OnEscape(HomeTO to);
-    }
+    INavCommand OnDecide(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnEscape</NavTrigger>
+    #endregion
+    INavCommand OnEscape(HomeTO to);
 }

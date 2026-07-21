@@ -15,148 +15,148 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL {
+namespace Nav.Language.Tests.Regression.V2.DoNotInject.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
+/// <NavTask>DoNotInjectFlow</NavTask>
+#endregion
+public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
+
+    public DoNotInjectFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public DoNotInjectFlowWFSBase() {
+    }
+
+    protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
+
+    static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
+        => command is null
+            ? throw new InvalidOperationException(
+                logicMethodName + " of task 'DoNotInjectFlow' returned default(Result); every code path must return a navigation result via the call context.")
+            : command();
+
     #region Nav Annotations
-    /// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
-    /// <NavTask>DoNotInjectFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class DoNotInjectFlowWFSBase: StandardWFS {
+    public virtual IINIT_TASK Begin()
+        => BeginLogic(new Init1CallContext(this)).Unwrap();
 
-        public DoNotInjectFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavInit>Init1</NavInit>
+    #endregion
+    protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-        public DoNotInjectFlowWFSBase() {
+    protected sealed class Init1CallContext {
+
+        readonly DoNotInjectFlowWFSBase _wfs;
+        internal Init1CallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
-        protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
-
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
-            => command is null
-                ? throw new InvalidOperationException(
-                    logicMethodName + " of task 'DoNotInjectFlow' returned default(Result); every code path must return a navigation result via the call context.")
-                : command();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin()
-            => BeginLogic(new Init1CallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
-
-        protected sealed class Init1CallContext {
-
-            readonly DoNotInjectFlowWFSBase _wfs;
-            internal Init1CallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavExit>Edit</NavExit>
-        #endregion
-        protected virtual INavCommand AfterEdit(EditorResult result)
-            => AfterEditLogic(result, new AfterEditCallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavExit>Edit</NavExit>
-        #endregion
-        protected abstract AfterEditCallContext.Result AfterEditLogic(EditorResult result,
-                                                                      AfterEditCallContext next);
-
-        protected sealed class AfterEditCallContext {
-
-            readonly DoNotInjectFlowWFSBase _wfs;
-            internal AfterEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterEditLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEdit</NavTrigger>
-        #endregion
-        public virtual INavCommand OnEdit(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnEditLogic(to, new OnEditCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnEdit</NavTrigger>
-        #endregion
-        protected abstract OnEditCallContext.Result OnEditLogic(HomeTO to,
-                                                                OnEditCallContext next);
-
-        protected sealed class OnEditCallContext {
-
-            readonly DoNotInjectFlowWFSBase _wfs;
-            internal OnEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEditLogic));
-            }
-
-            #region Nav Annotations
-            /// <NavInitCall>NS.V2.DoNotInject.WFL.IBeginEditorWFS</NavInitCall>
-            #endregion
-            public Result BeginEdit(NS.V2.DoNotInject.WFL.IBeginEditorWFS wfs, int id) => new(() => _wfs.OpenModalTask<EditorResult>(() => wfs.Begin(id), _wfs.AfterEdit));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        public virtual INavCommand OnClose(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext next);
-
-        protected sealed class OnCloseCallContext {
-
-            readonly DoNotInjectFlowWFSBase _wfs;
-            internal OnCloseCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
-            }
-
-            public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-        }
-
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
-    /// <NavTask>DoNotInjectFlow</NavTask>
+    /// <NavExit>Edit</NavExit>
     #endregion
-    public partial class DoNotInjectFlowWFS: DoNotInjectFlowWFSBase, IDoNotInjectFlowWFS, IBeginDoNotInjectFlowWFS {
+    protected virtual INavCommand AfterEdit(EditorResult result)
+        => AfterEditLogic(result, new AfterEditCallContext(this)).Unwrap();
 
-        public DoNotInjectFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavExit>Edit</NavExit>
+    #endregion
+    protected abstract AfterEditCallContext.Result AfterEditLogic(EditorResult result,
+                                                                  AfterEditCallContext next);
 
-        public DoNotInjectFlowWFS()
-            :base() {
+    protected sealed class AfterEditCallContext {
+
+        readonly DoNotInjectFlowWFSBase _wfs;
+        internal AfterEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterEditLogic));
         }
+
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEdit</NavTrigger>
+    #endregion
+    public virtual INavCommand OnEdit(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnEditLogic(to, new OnEditCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnEdit</NavTrigger>
+    #endregion
+    protected abstract OnEditCallContext.Result OnEditLogic(HomeTO to,
+                                                            OnEditCallContext next);
+
+    protected sealed class OnEditCallContext {
+
+        readonly DoNotInjectFlowWFSBase _wfs;
+        internal OnEditCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnEditLogic));
+        }
+
+        #region Nav Annotations
+        /// <NavInitCall>NS.V2.DoNotInject.WFL.IBeginEditorWFS</NavInitCall>
+        #endregion
+        public Result BeginEdit(NS.V2.DoNotInject.WFL.IBeginEditorWFS wfs, int id) => new(() => _wfs.OpenModalTask<EditorResult>(() => wfs.Begin(id), _wfs.AfterEdit));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    public virtual INavCommand OnClose(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
+                                                              OnCloseCallContext next);
+
+    protected sealed class OnCloseCallContext {
+
+        readonly DoNotInjectFlowWFSBase _wfs;
+        internal OnCloseCallContext(DoNotInjectFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
+        }
+
+        public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
+/// <NavTask>DoNotInjectFlow</NavTask>
+#endregion
+public partial class DoNotInjectFlowWFS: DoNotInjectFlowWFSBase, IDoNotInjectFlowWFS, IBeginDoNotInjectFlowWFS {
+
+    public DoNotInjectFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public DoNotInjectFlowWFS()
+        :base() {
     }
 }

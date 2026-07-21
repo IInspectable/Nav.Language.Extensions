@@ -13,19 +13,19 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.DoNotInject.IWFL {
+namespace Nav.Language.Tests.Regression.V2.DoNotInject.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
+/// <NavTask>DoNotInjectFlow</NavTask>
+#endregion
+public interface IDoNotInjectFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\DoNotInjectFlow.nav</NavFile>
-    /// <NavTask>DoNotInjectFlow</NavTask>
+    /// <NavTrigger>OnEdit</NavTrigger>
     #endregion
-    public interface IDoNotInjectFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnEdit</NavTrigger>
-        #endregion
-        INavCommand OnEdit(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        INavCommand OnClose(HomeTO to);
-    }
+    INavCommand OnEdit(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    INavCommand OnClose(HomeTO to);
 }

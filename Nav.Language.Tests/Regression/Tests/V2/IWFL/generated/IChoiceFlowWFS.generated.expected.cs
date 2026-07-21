@@ -13,19 +13,19 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Choice.IWFL {
+namespace Nav.Language.Tests.Regression.V2.Choice.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\ChoiceFlow.nav</NavFile>
+/// <NavTask>ChoiceFlow</NavTask>
+#endregion
+public interface IChoiceFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\ChoiceFlow.nav</NavFile>
-    /// <NavTask>ChoiceFlow</NavTask>
+    /// <NavTrigger>OnRetry</NavTrigger>
     #endregion
-    public interface IChoiceFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnRetry</NavTrigger>
-        #endregion
-        INavCommand OnRetry(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnStartA</NavTrigger>
-        #endregion
-        INavCommand OnStartA(HomeTO to);
-    }
+    INavCommand OnRetry(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnStartA</NavTrigger>
+    #endregion
+    INavCommand OnStartA(HomeTO to);
 }

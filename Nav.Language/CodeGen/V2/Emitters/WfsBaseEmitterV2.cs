@@ -38,20 +38,14 @@ static class WfsBaseEmitterV2 {
         EmitterCommon.WriteFileHeader(cb, context);
         EmitterCommon.WriteUsingDirectives(cb, model.UsingNamespaces);
 
-        cb.Write($"""
+        EmitterCommon.WriteNamespace(cb, model.WflNamespace);
 
-                  namespace {model.WflNamespace}
-                  """);
-        cb.Write(" ");
-        using (cb.Block()) {
+        WriteBaseClass(cb, model);
 
-            WriteBaseClass(cb, model);
+        cb.WriteLine();
+        cb.WriteLine();
 
-            cb.WriteLine();
-            cb.WriteLine();
-
-            WriteWfsClass(cb, model);
-        }
+        WriteWfsClass(cb, model);
 
         return cb.ToString();
     }

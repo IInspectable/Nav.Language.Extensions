@@ -441,6 +441,31 @@ entsprechend nachgezogen):
   liegt im throw-Zweig (keine Allokation im Erfolgspfad). Träger: `CallContextCodeModel.LogicMethodName`
   (gespeist aus den Fabriken für Init/Exit/Trigger/Choice).
 
+### Nachtrag: file-scoped Namespaces — generationsübergreifend
+
+**Das gesamte Generat** (V1 **und** V2, alle Artefakt-Familien inkl. TO-Stub) wird als
+**file-scoped Namespace** emittiert (`namespace X;` + genau eine Leerzeile, Inhalt eine
+Einrück-Stufe flacher). Eine ursprünglich erwogene V1/V2-Weiche (Block- vs. file-scoped-Gestalt je
+`CodeGeneratorContext.LanguageVersion`) wurde **bewusst verworfen** — zwei textuelle Gestalten ohne
+semantischen Unterschied lohnen die Verzweigung nicht. Umsetzung:
+
+- **Autorität `EmitterCommon.WriteNamespace(cb, ns)`** — die einzige Stelle, die die
+  Namespace-Gestalt des Generats kennt (Leerzeile nach den `using`s, `namespace X;`, Leerzeile;
+  Aufrufer schreiben keinen Auftakt-Abstand). Alle sieben Emitter rufen sie auf
+  (`IWfs`/`IBeginWfs`/`WfsBase`/`WfsOneShot`/`TO` der V1-Schicht, `WfsBaseEmitterV2`/
+  `WfsOneShotEmitterV2`). Die historische Auftakt-Leerzeile nach `namespace X {` im
+  `IBegin{Task}WFS` (ein `IBeginWFS.stg`-Relikt, die einzige V1-Datei mit dieser Leerzeile) ist
+  damit ebenfalls Geschichte.
+- **Konsequenz fürs Consumer-Repo:** jede `*.generated.cs` mit `WhenChanged`-Policy wird beim
+  nächsten Codegen-Lauf ihrer `.nav` einmalig neu geschrieben (Einrückung/Namespace-Zeile);
+  OneShot-/TO-Dateien (`Never`) bleiben liegen — nur Neuanlagen entstehen file-scoped.
+  **Voraussetzung: C# 10** (LangVersion ≥ 10) in den Consumer-Projekten — gilt jetzt auch für
+  V1-Units.
+
+Verifikation: beide TFMs grün (**net10 1904/0, net472 1964/0**); alle 32 Regression-Goldens
+(`nav snapshot`) sowie der Inline-TO-Golden (`CodeGenTests.ToClassOptInEmitsWriteOnceStub`)
+nachgezogen.
+
 Danach folgt — außerhalb dieses Dokuments, in `nav-codegen-versioning.md` als **Step 7** verankert —
 die **V2-Navigation end-to-end** (GoTo Nav↔C#, Rename, FindReferences, Cross-Version-`taskref`),
 ggf. mit der versionierten Such-Strategie-Schnittstelle.

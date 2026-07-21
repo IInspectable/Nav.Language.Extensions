@@ -15,122 +15,122 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL {
+namespace Nav.Language.Tests.Regression.V2.NotImpl.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
+/// <NavTask>NotImplementedFlow</NavTask>
+#endregion
+public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
+
+    public NotImplementedFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public NotImplementedFlowWFSBase() {
+    }
+
+    protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
+
+    static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
+        => command is null
+            ? throw new InvalidOperationException(
+                logicMethodName + " of task 'NotImplementedFlow' returned default(Result); every code path must return a navigation result via the call context.")
+            : command();
+
     #region Nav Annotations
-    /// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
-    /// <NavTask>NotImplementedFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
+    public virtual IINIT_TASK Begin()
+        => BeginLogic(new Init1CallContext(this)).Unwrap();
 
-        public NotImplementedFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavInit>Init1</NavInit>
+    #endregion
+    protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
 
-        public NotImplementedFlowWFSBase() {
+    protected sealed class Init1CallContext {
+
+        readonly NotImplementedFlowWFSBase _wfs;
+        internal Init1CallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
-        protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
-
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
-            => command is null
-                ? throw new InvalidOperationException(
-                    logicMethodName + " of task 'NotImplementedFlow' returned default(Result); every code path must return a navigation result via the call context.")
-                : command();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin()
-            => BeginLogic(new Init1CallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract Init1CallContext.Result BeginLogic(Init1CallContext next);
-
-        protected sealed class Init1CallContext {
-
-            readonly NotImplementedFlowWFSBase _wfs;
-            internal Init1CallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnWarn</NavTrigger>
-        #endregion
-        public virtual INavCommand OnWarn(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnWarnLogic(to, new OnWarnCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnWarn</NavTrigger>
-        #endregion
-        protected abstract OnWarnCallContext.Result OnWarnLogic(HomeTO to,
-                                                                OnWarnCallContext next);
-
-        protected sealed class OnWarnCallContext {
-
-            readonly NotImplementedFlowWFSBase _wfs;
-            internal OnWarnCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnWarnLogic));
-            }
-
-            #region Nav Annotations
-            /// <NavInitCall>IWFService</NavInitCall>
-            #endregion
-            public Result BeginWarn(string text) => new(() => throw new NotImplementedException("Task Warn is specified as [notimplemented]"));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        public virtual INavCommand OnClose(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
-                                                                  OnCloseCallContext next);
-
-        protected sealed class OnCloseCallContext {
-
-            readonly NotImplementedFlowWFSBase _wfs;
-            internal OnCloseCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
-            }
-
-            public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-        }
-
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
-    /// <NavTask>NotImplementedFlow</NavTask>
+    /// <NavTrigger>OnWarn</NavTrigger>
     #endregion
-    public partial class NotImplementedFlowWFS: NotImplementedFlowWFSBase, INotImplementedFlowWFS, IBeginNotImplementedFlowWFS {
+    public virtual INavCommand OnWarn(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnWarnLogic(to, new OnWarnCallContext(this)).Unwrap();
+    }
 
-        public NotImplementedFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavTrigger>OnWarn</NavTrigger>
+    #endregion
+    protected abstract OnWarnCallContext.Result OnWarnLogic(HomeTO to,
+                                                            OnWarnCallContext next);
 
-        public NotImplementedFlowWFS()
-            :base() {
+    protected sealed class OnWarnCallContext {
+
+        readonly NotImplementedFlowWFSBase _wfs;
+        internal OnWarnCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnWarnLogic));
         }
+
+        #region Nav Annotations
+        /// <NavInitCall>IWFService</NavInitCall>
+        #endregion
+        public Result BeginWarn(string text) => new(() => throw new NotImplementedException("Task Warn is specified as [notimplemented]"));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    public virtual INavCommand OnClose(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    protected abstract OnCloseCallContext.Result OnCloseLogic(HomeTO to,
+                                                              OnCloseCallContext next);
+
+    protected sealed class OnCloseCallContext {
+
+        readonly NotImplementedFlowWFSBase _wfs;
+        internal OnCloseCallContext(NotImplementedFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnCloseLogic));
+        }
+
+        public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\NotImplementedFlow.nav</NavFile>
+/// <NavTask>NotImplementedFlow</NavTask>
+#endregion
+public partial class NotImplementedFlowWFS: NotImplementedFlowWFSBase, INotImplementedFlowWFS, IBeginNotImplementedFlowWFS {
+
+    public NotImplementedFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public NotImplementedFlowWFS()
+        :base() {
     }
 }

@@ -15,248 +15,248 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Choice.WFL {
+namespace Nav.Language.Tests.Regression.V2.Choice.WFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\ChoiceFlow.nav</NavFile>
+/// <NavTask>ChoiceFlow</NavTask>
+#endregion
+public abstract partial class ChoiceFlowWFSBase: StandardWFS {
+
+    readonly NS.V2.Choice.WFL.IBeginAWFS _a = default!;
+    readonly NS.V2.Choice.WFL.IBeginMsgWFS _msg = default!;
+
+    public ChoiceFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+
+    public ChoiceFlowWFSBase(NS.V2.Choice.WFL.IBeginAWFS a,
+                             NS.V2.Choice.WFL.IBeginMsgWFS msg) {
+        _a = a;
+        _msg = msg;
+    }
+
+    protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
+
+    static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
+        => command is null
+            ? throw new InvalidOperationException(
+                logicMethodName + " of task 'ChoiceFlow' returned default(Result); every code path must return a navigation result via the call context.")
+            : command();
+
     #region Nav Annotations
-    /// <NavFile>..\..\ChoiceFlow.nav</NavFile>
-    /// <NavTask>ChoiceFlow</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public abstract partial class ChoiceFlowWFSBase: StandardWFS {
+    public virtual IINIT_TASK Begin(string message)
+        => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
-        readonly NS.V2.Choice.WFL.IBeginAWFS _a = default!;
-        readonly NS.V2.Choice.WFL.IBeginMsgWFS _msg = default!;
+    #region Nav Annotations
+    /// <NavInit>Init1</NavInit>
+    #endregion
+    protected abstract Init1CallContext.Result BeginLogic(string message,
+                                                          Init1CallContext next);
 
-        public ChoiceFlowWFSBase(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS) {}
+    protected sealed class Init1CallContext {
 
-        public ChoiceFlowWFSBase(NS.V2.Choice.WFL.IBeginAWFS a,
-                                 NS.V2.Choice.WFL.IBeginMsgWFS msg) {
-            _a = a;
-            _msg = msg;
-        }
+        readonly ChoiceFlowWFSBase _wfs;
+        internal Init1CallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
 
-        protected virtual HomeTO BeforeTriggerLogic(HomeTO to) => to;
-
-        static TCommand UnwrapOrThrow<TCommand>(System.Func<TCommand> command, string logicMethodName)
-            => command is null
-                ? throw new InvalidOperationException(
-                    logicMethodName + " of task 'ChoiceFlow' returned default(Result); every code path must return a navigation result via the call context.")
-                : command();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        public virtual IINIT_TASK Begin(string message)
-            => BeginLogic(message, new Init1CallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        protected abstract Init1CallContext.Result BeginLogic(string message,
-                                                              Init1CallContext next);
-
-        protected sealed class Init1CallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal Init1CallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
-            }
-
-            #region Nav Annotations
-            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
-            #endregion
-            public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(BeginLogic));
         }
 
         #region Nav Annotations
-        /// <NavExit>A</NavExit>
+        /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
         #endregion
-        protected virtual INavCommand AfterA(AResult result)
-            => AfterALogic(result, new AfterACallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavExit>A</NavExit>
-        #endregion
-        protected abstract AfterACallContext.Result AfterALogic(AResult result,
-                                                                AfterACallContext next);
-
-        protected sealed class AfterACallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal AfterACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterALogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-            #region Nav Annotations
-            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
-            #endregion
-            public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
-        }
-
-        #region Nav Annotations
-        /// <NavExit>Msg</NavExit>
-        #endregion
-        protected virtual INavCommand AfterMsg(MsgResult result)
-            => AfterMsgLogic(result, new AfterMsgCallContext(this)).Unwrap();
-
-        #region Nav Annotations
-        /// <NavExit>Msg</NavExit>
-        #endregion
-        protected abstract AfterMsgCallContext.Result AfterMsgLogic(MsgResult result,
-                                                                    AfterMsgCallContext next);
-
-        protected sealed class AfterMsgCallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal AfterMsgCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterMsgLogic));
-            }
-
-            public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnRetry</NavTrigger>
-        #endregion
-        public virtual INavCommand OnRetry(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnRetryLogic(to, new OnRetryCallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnRetry</NavTrigger>
-        #endregion
-        protected abstract OnRetryCallContext.Result OnRetryLogic(HomeTO to,
-                                                                  OnRetryCallContext next);
-
-        protected sealed class OnRetryCallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal OnRetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnRetryLogic));
-            }
-
-            #region Nav Annotations
-            /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
-            #endregion
-            public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnStartA</NavTrigger>
-        #endregion
-        public virtual INavCommand OnStartA(HomeTO to) {
-            to = BeforeTriggerLogic(to);
-            return OnStartALogic(to, new OnStartACallContext(this)).Unwrap();
-        }
-
-        #region Nav Annotations
-        /// <NavTrigger>OnStartA</NavTrigger>
-        #endregion
-        protected abstract OnStartACallContext.Result OnStartALogic(HomeTO to,
-                                                                    OnStartACallContext next);
-
-        protected sealed class OnStartACallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal OnStartACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<INavCommand> _command;
-                internal Result(System.Func<INavCommand> command) => _command = command;
-                internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnStartALogic));
-            }
-
-            #region Nav Annotations
-            /// <NavInitCall>NS.V2.Choice.WFL.IBeginAWFS</NavInitCall>
-            #endregion
-            public Result BeginA() => new(() => _wfs.OpenModalTask<AResult>(() => _wfs._a.Begin(), _wfs.AfterA));
-        }
-
-        #region Nav Annotations
-        /// <NavChoice>Choice_Retry</NavChoice>
-        #endregion
-        protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
-                                                                            Choice_RetryCallContext next);
-
-        protected sealed class Choice_RetryCallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal Choice_RetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));
-            }
-
-            public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
-            public sealed class ShowHomeContinuation {
-                readonly ChoiceFlowWFSBase _wfs;
-                readonly HomeTO _to;
-                internal ShowHomeContinuation(ChoiceFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
-
-                public static implicit operator Result(ShowHomeContinuation v) => new(() => v._wfs.GotoGUI(v._to));
-                #region Nav Annotations
-                /// <NavInitCall>NS.V2.Choice.WFL.IBeginMsgWFS</NavInitCall>
-                #endregion
-                public Result BeginMsg(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
-            }
-            #region Nav Annotations
-            /// <NavChoiceCall>Choice_Escalate</NavChoiceCall>
-            #endregion
-            public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());
-        }
-
-        #region Nav Annotations
-        /// <NavChoice>Choice_Escalate</NavChoice>
-        #endregion
-        protected abstract Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
-                                                                                  Choice_EscalateCallContext next);
-
-        protected sealed class Choice_EscalateCallContext {
-
-            readonly ChoiceFlowWFSBase _wfs;
-            internal Choice_EscalateCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
-
-            public readonly struct Result {
-                readonly System.Func<IINIT_TASK> _command;
-                internal Result(System.Func<IINIT_TASK> command) => _command = command;
-                internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_EscalateLogic));
-            }
-
-            public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
-        }
-
+        public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
     }
 
     #region Nav Annotations
-    /// <NavFile>..\..\ChoiceFlow.nav</NavFile>
-    /// <NavTask>ChoiceFlow</NavTask>
+    /// <NavExit>A</NavExit>
     #endregion
-    public partial class ChoiceFlowWFS: ChoiceFlowWFSBase, IChoiceFlowWFS, IBeginChoiceFlowWFS {
+    protected virtual INavCommand AfterA(AResult result)
+        => AfterALogic(result, new AfterACallContext(this)).Unwrap();
 
-        public ChoiceFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+    #region Nav Annotations
+    /// <NavExit>A</NavExit>
+    #endregion
+    protected abstract AfterACallContext.Result AfterALogic(AResult result,
+                                                            AfterACallContext next);
 
-        public ChoiceFlowWFS(NS.V2.Choice.WFL.IBeginAWFS a,
-                             NS.V2.Choice.WFL.IBeginMsgWFS msg)
-            :base(a,
-                  msg) {
+    protected sealed class AfterACallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal AfterACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterALogic));
         }
+
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+        #region Nav Annotations
+        /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
+        #endregion
+        public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+    }
+
+    #region Nav Annotations
+    /// <NavExit>Msg</NavExit>
+    #endregion
+    protected virtual INavCommand AfterMsg(MsgResult result)
+        => AfterMsgLogic(result, new AfterMsgCallContext(this)).Unwrap();
+
+    #region Nav Annotations
+    /// <NavExit>Msg</NavExit>
+    #endregion
+    protected abstract AfterMsgCallContext.Result AfterMsgLogic(MsgResult result,
+                                                                AfterMsgCallContext next);
+
+    protected sealed class AfterMsgCallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal AfterMsgCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(AfterMsgLogic));
+        }
+
+        public Result ShowHome(HomeTO to) => new(() => _wfs.GotoGUI(to));
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnRetry</NavTrigger>
+    #endregion
+    public virtual INavCommand OnRetry(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnRetryLogic(to, new OnRetryCallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnRetry</NavTrigger>
+    #endregion
+    protected abstract OnRetryCallContext.Result OnRetryLogic(HomeTO to,
+                                                              OnRetryCallContext next);
+
+    protected sealed class OnRetryCallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal OnRetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnRetryLogic));
+        }
+
+        #region Nav Annotations
+        /// <NavChoiceCall>Choice_Retry</NavChoiceCall>
+        #endregion
+        public Result Choice_Retry(string reason) => new(() => _wfs.Choice_RetryLogic(reason, new(_wfs)).Unwrap());
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnStartA</NavTrigger>
+    #endregion
+    public virtual INavCommand OnStartA(HomeTO to) {
+        to = BeforeTriggerLogic(to);
+        return OnStartALogic(to, new OnStartACallContext(this)).Unwrap();
+    }
+
+    #region Nav Annotations
+    /// <NavTrigger>OnStartA</NavTrigger>
+    #endregion
+    protected abstract OnStartACallContext.Result OnStartALogic(HomeTO to,
+                                                                OnStartACallContext next);
+
+    protected sealed class OnStartACallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal OnStartACallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<INavCommand> _command;
+            internal Result(System.Func<INavCommand> command) => _command = command;
+            internal INavCommand Unwrap() => UnwrapOrThrow(_command, nameof(OnStartALogic));
+        }
+
+        #region Nav Annotations
+        /// <NavInitCall>NS.V2.Choice.WFL.IBeginAWFS</NavInitCall>
+        #endregion
+        public Result BeginA() => new(() => _wfs.OpenModalTask<AResult>(() => _wfs._a.Begin(), _wfs.AfterA));
+    }
+
+    #region Nav Annotations
+    /// <NavChoice>Choice_Retry</NavChoice>
+    #endregion
+    protected abstract Choice_RetryCallContext.Result Choice_RetryLogic(string reason,
+                                                                        Choice_RetryCallContext next);
+
+    protected sealed class Choice_RetryCallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal Choice_RetryCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_RetryLogic));
+        }
+
+        public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+        public sealed class ShowHomeContinuation {
+            readonly ChoiceFlowWFSBase _wfs;
+            readonly HomeTO _to;
+            internal ShowHomeContinuation(ChoiceFlowWFSBase wfs, HomeTO to) { _wfs = wfs; _to = to; }
+
+            public static implicit operator Result(ShowHomeContinuation v) => new(() => v._wfs.GotoGUI(v._to));
+            #region Nav Annotations
+            /// <NavInitCall>NS.V2.Choice.WFL.IBeginMsgWFS</NavInitCall>
+            #endregion
+            public Result BeginMsg(string text) => new(() => _wfs.GotoGUI(_to).Concat(_wfs.OpenModalTask<MsgResult>(() => _wfs._msg.Begin(text), _wfs.AfterMsg)));
+        }
+        #region Nav Annotations
+        /// <NavChoiceCall>Choice_Escalate</NavChoiceCall>
+        #endregion
+        public Result Choice_Escalate(int level) => new(() => _wfs.Choice_EscalateLogic(level, new(_wfs)).Unwrap());
+    }
+
+    #region Nav Annotations
+    /// <NavChoice>Choice_Escalate</NavChoice>
+    #endregion
+    protected abstract Choice_EscalateCallContext.Result Choice_EscalateLogic(int level,
+                                                                              Choice_EscalateCallContext next);
+
+    protected sealed class Choice_EscalateCallContext {
+
+        readonly ChoiceFlowWFSBase _wfs;
+        internal Choice_EscalateCallContext(ChoiceFlowWFSBase wfs) => _wfs = wfs;
+
+        public readonly struct Result {
+            readonly System.Func<IINIT_TASK> _command;
+            internal Result(System.Func<IINIT_TASK> command) => _command = command;
+            internal IINIT_TASK Unwrap() => UnwrapOrThrow(_command, nameof(Choice_EscalateLogic));
+        }
+
+        public Result Exit(bool par) => new(() => _wfs.InternalTaskResult(par));
+    }
+
+}
+
+#region Nav Annotations
+/// <NavFile>..\..\ChoiceFlow.nav</NavFile>
+/// <NavTask>ChoiceFlow</NavTask>
+#endregion
+public partial class ChoiceFlowWFS: ChoiceFlowWFSBase, IChoiceFlowWFS, IBeginChoiceFlowWFS {
+
+    public ChoiceFlowWFS(Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL.IClientSideWFS clientSideWFS): base(clientSideWFS) {}
+
+    public ChoiceFlowWFS(NS.V2.Choice.WFL.IBeginAWFS a,
+                         NS.V2.Choice.WFL.IBeginMsgWFS msg)
+        :base(a,
+              msg) {
     }
 }

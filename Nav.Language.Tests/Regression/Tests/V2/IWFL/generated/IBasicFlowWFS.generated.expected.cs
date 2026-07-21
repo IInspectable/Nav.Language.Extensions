@@ -13,35 +13,35 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.V2.Basic.IWFL {
+namespace Nav.Language.Tests.Regression.V2.Basic.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\BasicFlow.nav</NavFile>
+/// <NavTask>BasicFlow</NavTask>
+#endregion
+public interface IBasicFlowWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\BasicFlow.nav</NavFile>
-    /// <NavTask>BasicFlow</NavTask>
+    /// <NavTrigger>OnEnd</NavTrigger>
     #endregion
-    public interface IBasicFlowWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnEnd</NavTrigger>
-        #endregion
-        INavCommand OnEnd(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnGoto</NavTrigger>
-        #endregion
-        INavCommand OnGoto(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnClose</NavTrigger>
-        #endregion
-        INavCommand OnClose(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnModal</NavTrigger>
-        #endregion
-        INavCommand OnModal(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnReload</NavTrigger>
-        #endregion
-        INavCommand OnReload(HomeTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnNonModal</NavTrigger>
-        #endregion
-        INavCommand OnNonModal(HomeTO to);
-    }
+    INavCommand OnEnd(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnGoto</NavTrigger>
+    #endregion
+    INavCommand OnGoto(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnClose</NavTrigger>
+    #endregion
+    INavCommand OnClose(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnModal</NavTrigger>
+    #endregion
+    INavCommand OnModal(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnReload</NavTrigger>
+    #endregion
+    INavCommand OnReload(HomeTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnNonModal</NavTrigger>
+    #endregion
+    INavCommand OnNonModal(HomeTO to);
 }

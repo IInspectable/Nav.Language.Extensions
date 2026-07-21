@@ -15,59 +15,59 @@ using Pharmatechnik.Apotheke.XTplus.Framework.Core.IWFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.IWFL {
+namespace Nav.Language.Tests.Regression.Test1.IWFL;
+
+#region Nav Annotations
+/// <NavFile>..\..\Test.nav</NavFile>
+/// <NavTask>Test</NavTask>
+#endregion
+public interface ITestWFS: IWFServiceBase {
     #region Nav Annotations
-    /// <NavFile>..\..\Test.nav</NavFile>
-    /// <NavTask>Test</NavTask>
+    /// <NavTrigger>OnEnd</NavTrigger>
     #endregion
-    public interface ITestWFS: IWFServiceBase {
-        #region Nav Annotations
-        /// <NavTrigger>OnEnd</NavTrigger>
-        #endregion
-        INavCommand OnEnd(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnContinue</NavTrigger>
-        #endregion
-        INavCommand OnContinue(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnExitClick</NavTrigger>
-        #endregion
-        INavCommand OnExitClick(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnDoSomething</NavTrigger>
-        #endregion
-        INavCommand OnDoSomething(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgAbstract</NavTrigger>
-        #endregion
-        INavCommand OnMsgAbstract(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnMsgNonModal</NavTrigger>
-        #endregion
-        INavCommand OnMsgNonModal(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnReloadClick</NavTrigger>
-        #endregion
-        INavCommand OnReloadClick(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeModal</NavTrigger>
-        #endregion
-        INavCommand OnShowMeModal(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnShowMeNonModal</NavTrigger>
-        #endregion
-        INavCommand OnShowMeNonModal(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnNonNotImplemented</NavTrigger>
-        #endregion
-        INavCommand OnNonNotImplemented(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
-        #endregion
-        INavCommand OnGoToNotImplemented(ViewTO to);
-        #region Nav Annotations
-        /// <NavTrigger>OnModalNotImplemented</NavTrigger>
-        #endregion
-        INavCommand OnModalNotImplemented(ViewTO to);
-    }
+    INavCommand OnEnd(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnContinue</NavTrigger>
+    #endregion
+    INavCommand OnContinue(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnExitClick</NavTrigger>
+    #endregion
+    INavCommand OnExitClick(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnDoSomething</NavTrigger>
+    #endregion
+    INavCommand OnDoSomething(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgAbstract</NavTrigger>
+    #endregion
+    INavCommand OnMsgAbstract(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnMsgNonModal</NavTrigger>
+    #endregion
+    INavCommand OnMsgNonModal(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnReloadClick</NavTrigger>
+    #endregion
+    INavCommand OnReloadClick(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeModal</NavTrigger>
+    #endregion
+    INavCommand OnShowMeModal(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnShowMeNonModal</NavTrigger>
+    #endregion
+    INavCommand OnShowMeNonModal(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnNonNotImplemented</NavTrigger>
+    #endregion
+    INavCommand OnNonNotImplemented(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnGoToNotImplemented</NavTrigger>
+    #endregion
+    INavCommand OnGoToNotImplemented(ViewTO to);
+    #region Nav Annotations
+    /// <NavTrigger>OnModalNotImplemented</NavTrigger>
+    #endregion
+    INavCommand OnModalNotImplemented(ViewTO to);
 }

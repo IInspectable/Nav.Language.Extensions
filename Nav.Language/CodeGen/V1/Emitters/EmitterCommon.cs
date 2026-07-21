@@ -53,6 +53,19 @@ static class EmitterCommon {
     }
 
     /// <summary>
+    /// Schreibt die Namespace-Deklaration einer generierten Datei — eine Leerzeile nach den
+    /// Using-Direktiven, dann generationsübergreifend die <b>file-scoped</b> Gestalt
+    /// (<c>namespace X;</c>), gefolgt von genau einer Leerzeile. Der Datei-Inhalt beginnt danach
+    /// uneingerückt; Aufrufer schreiben selbst keinen Auftakt-Abstand. Die Methode ist die Autorität
+    /// für die Namespace-Gestalt des Generats.
+    /// </summary>
+    public static void WriteNamespace(CodeBuilder cb, string namespaceName) {
+        cb.WriteLine();
+        cb.WriteLine($"namespace {namespaceName};");
+        cb.WriteLine();
+    }
+
+    /// <summary>
     /// Schreibt die Task-Annotation (<c>NavFile</c>/<c>NavTask</c>), über die der
     /// <c>AnnotationReader</c> vom generierten Code auf die <c>.nav</c>-Quelle und den Task
     /// zurückfindet.

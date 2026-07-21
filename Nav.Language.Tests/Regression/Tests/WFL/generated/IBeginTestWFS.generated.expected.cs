@@ -16,29 +16,28 @@ using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.WFL;
 using Pharmatechnik.Apotheke.XTplus.Framework.NavigationEngine.IWFL;
 #endregion
 
-namespace Nav.Language.Tests.Regression.Test1.WFL {
+namespace Nav.Language.Tests.Regression.Test1.WFL;
 
-    // Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
-    #pragma warning disable 0108
+// Redeklarationen von Methoden ohne new sind ok - um in manuell erstellten Oberinterfaces Begins definieren zu können
+#pragma warning disable 0108
 
-    public enum TestReturnCode {
-        OK,
-        Abbrechen
-    }
+public enum TestReturnCode {
+    OK,
+    Abbrechen
+}
 
+#region Nav Annotations
+/// <NavFile>..\..\Test.nav</NavFile>
+/// <NavTask>Test</NavTask>
+#endregion
+public interface IBeginTestWFS: IBeginWFService {
     #region Nav Annotations
-    /// <NavFile>..\..\Test.nav</NavFile>
-    /// <NavTask>Test</NavTask>
+    /// <NavInit>Init1</NavInit>
     #endregion
-    public interface IBeginTestWFS: IBeginWFService {
-        #region Nav Annotations
-        /// <NavInit>Init1</NavInit>
-        #endregion
-        IINIT_TASK Begin(TestInitParams p1,
-                         int? nullableParam);
-        #region Nav Annotations
-        /// <NavInit>Init2</NavInit>
-        #endregion
-        IINIT_TASK Begin();
-    }
+    IINIT_TASK Begin(TestInitParams p1,
+                     int? nullableParam);
+    #region Nav Annotations
+    /// <NavInit>Init2</NavInit>
+    #endregion
+    IINIT_TASK Begin();
 }
