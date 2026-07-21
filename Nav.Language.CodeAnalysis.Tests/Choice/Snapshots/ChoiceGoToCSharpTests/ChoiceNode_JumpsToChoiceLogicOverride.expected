@@ -2,5 +2,5 @@
 // F12 auf `choice Choice_Retry` landet auf dem Override Choice_RetryLogic im konkreten WFS —
 // der Golden pinnt Datei + exakten Span (nicht nur „irgendwo steht Choice_RetryLogic").
 
-<ChoiceFlowWFS.cs> (37,59)-(37,76)  "Choice_RetryLogic"
+<ChoiceFlowWFS.cs> (38,55)-(38,72)  "Choice_RetryLogic"
     protected override Choice_RetryCallContext.Result Choice_RetryLogic(string reason,

@@ -2,5 +2,5 @@
 // F12 auf `task TaskFlow` landet auf der konkreten TaskFlowWFS (nicht der .generated.cs-Basis) —
 // der Golden pinnt Datei + exakten Span der Klassendeklaration.
 
-<TaskFlowWFS.cs> (11,26)-(11,37)  "TaskFlowWFS"
+<TaskFlowWFS.cs> (12,22)-(12,33)  "TaskFlowWFS"
     public partial class TaskFlowWFS {

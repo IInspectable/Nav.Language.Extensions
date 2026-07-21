@@ -2,5 +2,5 @@
 // F12 auf `init Init1` landet auf der zugehörigen BeginLogic (via <NavInit>Init1) im konkreten
 // WFS — der Golden pinnt Datei + exakten Span, nicht bloß irgendein BeginLogic-Overload.
 
-<InitFlowWFS.cs> (12,52)-(12,62)  "BeginLogic"
+<InitFlowWFS.cs> (13,48)-(13,58)  "BeginLogic"
     protected override Init1CallContext.Result BeginLogic(string message,

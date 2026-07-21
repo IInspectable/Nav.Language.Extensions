@@ -2,5 +2,5 @@
 // Von der Aufrufstelle BeginOverChild(wfs, "hi") auf den kürzeren Overload
 // BeginLogic(string) — bei gleichem MatchCount entscheidet der ParameterCount-Tiebreak.
 
-<OverChildWFS.cs> (12,44)-(12,54)  "BeginLogic"
+<OverChildWFS.cs> (13,40)-(13,50)  "BeginLogic"
     protected override INavCommandBody BeginLogic(string text) {

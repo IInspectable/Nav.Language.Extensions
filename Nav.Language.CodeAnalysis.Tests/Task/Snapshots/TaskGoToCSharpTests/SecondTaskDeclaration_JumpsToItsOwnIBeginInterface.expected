@@ -1,5 +1,5 @@
 ﻿// Nav → C#
 // F12 auf die zweite `task Helper`-Deklaration findet zielgenau IBeginHelperWFS (nicht IBeginTaskFlowWFS).
 
-<IBeginHelperWFS.generated.cs> (26,22)-(26,37)  "IBeginHelperWFS"
+<IBeginHelperWFS.generated.cs> (26,18)-(26,33)  "IBeginHelperWFS"
     public interface IBeginHelperWFS: IBeginWFService {

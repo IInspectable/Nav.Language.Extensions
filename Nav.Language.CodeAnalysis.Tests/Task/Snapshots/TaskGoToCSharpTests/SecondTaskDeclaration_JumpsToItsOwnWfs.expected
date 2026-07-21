@@ -1,5 +1,5 @@
 ﻿// Nav → C#
 // F12 auf die zweite `task Helper`-Deklaration springt zielgenau auf HelperWFS (nicht TaskFlowWFS).
 
-<HelperWFS.cs> (11,26)-(11,35)  "HelperWFS"
+<HelperWFS.cs> (12,22)-(12,31)  "HelperWFS"
     public partial class HelperWFS {

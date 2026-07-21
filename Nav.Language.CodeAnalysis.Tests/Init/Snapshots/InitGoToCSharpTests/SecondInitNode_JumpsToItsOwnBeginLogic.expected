@@ -1,5 +1,5 @@
 ﻿// Nav → C#
 // F12 auf den zweiten `init Begin`-Knoten springt zielgenau auf die BeginLogic der ChildWFS (nicht InitFlowWFS).
 
-<ChildWFS.cs> (12,52)-(12,62)  "BeginLogic"
+<ChildWFS.cs> (13,48)-(13,58)  "BeginLogic"
     protected override BeginCallContext.Result BeginLogic(BeginCallContext next) {
