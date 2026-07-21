@@ -39,6 +39,7 @@ sealed class TransitionCallContextCodeModel {
     TransitionCallContextCodeModel(TransitionAnnotationKind annotationKind,
                                    string annotationName,
                                    string accessModifier,
+                                   string inheritanceModifier,
                                    string returnType,
                                    string machineryName,
                                    ImmutableList<ParameterCodeModel> parameters,
@@ -50,6 +51,7 @@ sealed class TransitionCallContextCodeModel {
         AnnotationKind            = annotationKind;
         AnnotationName            = annotationName;
         AccessModifier            = accessModifier;
+        InheritanceModifier       = inheritanceModifier;
         ReturnType                = returnType;
         MachineryName             = machineryName;
         Parameters                = parameters;
@@ -70,6 +72,22 @@ sealed class TransitionCallContextCodeModel {
     /// die geschachtelten Call-Contexts rufen sie intern auf).
     /// </summary>
     public string                            AccessModifier            { get; }
+    /// <summary>
+    /// Vererbungs-/Überschreibbarkeits-Schlüsselwort der Maschinerie-Methode (mit Abschluss-Leerzeichen,
+    /// sonst leer) — die zweite, von <see cref="AccessModifier"/> unabhängige Modifikator-Achse:
+    /// <list type="bullet">
+    /// <item><c>"virtual "</c> für Init/Trigger — Interface-Member, die der Framework-Proxy-Generator
+    /// (<c>IxosRoslynGenerator InjectGenerator</c>) im Consumer-Repo per <c>override</c> injiziert; ohne
+    /// <c>virtual</c> bricht der Consumer-Build mit CS0506.</item>
+    /// <item><c>"abstract "</c> für eine <c>[abstract]</c>-Quelle — der Nutzer implementiert die
+    /// Maschinerie-Methode selbst (Logic/Context entfallen, siehe <see cref="GenerateAbstractMachinery"/>).</item>
+    /// <item>leer für die konkrete <c>After{Node}</c>-Maschinerie — <c>private</c> und versiegelt (nicht
+    /// überschreibbar); die Implementierung läuft ausschließlich über die abstrakte <c>…Logic</c>-Gegenstelle.</item>
+    /// </list>
+    /// Damit entscheidet die Fabrik (die auch <see cref="AccessModifier"/> setzt) über die Überschreibbarkeit;
+    /// der Emitter setzt das Schlüsselwort nur noch zusammen und leitet es nicht aus <see cref="AnnotationKind"/> ab.
+    /// </summary>
+    public string                            InheritanceModifier       { get; }
     /// <summary>Rückgabetyp der Maschinerie-Methode (<see cref="InitCommandType"/> bei Init, sonst <see cref="TransitionCommandType"/>).</summary>
     public string                            ReturnType                { get; }
     /// <summary>Name der Maschinerie-Methode (<c>Begin</c>, <c>After{Node}</c> bzw. der Trigger-Name).</summary>
@@ -115,6 +133,8 @@ sealed class TransitionCallContextCodeModel {
             annotationKind           : TransitionAnnotationKind.Init,
             annotationName           : initNode.Name,
             accessModifier           : "public",
+            // Interface-Member (IBegin{Task}WFS) → virtual (Proxy überschreibt); [abstract]-Init → abstract.
+            inheritanceModifier      : generateAbstract ? "abstract " : "virtual ",
             returnType               : InitCommandType,
             machineryName            : CodeGenFacts.BeginMethodPrefix,
             parameters               : parameters,
@@ -159,6 +179,9 @@ sealed class TransitionCallContextCodeModel {
             // Bei [abstract]-Quelle überschreibt der Nutzer die Maschinerie selbst → protected (private
             // abstract ist unzulässig, CS0621).
             accessModifier           : generateAbstract ? "protected" : "",
+            // Konkretes After{Node} ist versiegelt (kein virtual — kein Interface-Member, nicht
+            // proxy-überschrieben); [abstract]-Exit → abstract (Nutzer implementiert selbst).
+            inheritanceModifier      : generateAbstract ? "abstract " : "",
             returnType               : TransitionCommandType,
             machineryName            : machineryName,
             parameters               : ImmutableList.Create(subTaskResult),
@@ -198,6 +221,8 @@ sealed class TransitionCallContextCodeModel {
                 annotationKind           : TransitionAnnotationKind.Trigger,
                 annotationName           : triggerName,
                 accessModifier           : "public",
+                // Interface-Member (I{Task}WFS) → virtual (Proxy überschreibt); ein Trigger ist nie [abstract].
+                inheritanceModifier      : "virtual ",
                 returnType               : TransitionCommandType,
                 machineryName            : triggerName,
                 parameters               : ImmutableList.Create(viewParameter),

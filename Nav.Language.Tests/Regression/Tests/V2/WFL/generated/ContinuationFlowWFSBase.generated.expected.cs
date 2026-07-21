@@ -45,7 +45,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public IINIT_TASK Begin()
+    public virtual IINIT_TASK Begin()
         => BeginLogic(new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -107,7 +107,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnClose</NavTrigger>
     #endregion
-    public INavCommand OnClose(HomeTO to) {
+    public virtual INavCommand OnClose(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
     }
@@ -130,7 +130,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnShowWarn</NavTrigger>
     #endregion
-    public INavCommand OnShowWarn(HomeTO to) {
+    public virtual INavCommand OnShowWarn(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnShowWarnLogic(to, new OnShowWarnCallContext(this)).Unwrap();
     }
@@ -164,7 +164,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnDrillDown</NavTrigger>
     #endregion
-    public INavCommand OnDrillDown(HomeTO to) {
+    public virtual INavCommand OnDrillDown(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnDrillDownLogic(to, new OnDrillDownCallContext(this)).Unwrap();
     }

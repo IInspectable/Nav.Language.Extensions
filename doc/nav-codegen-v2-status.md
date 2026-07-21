@@ -502,3 +502,109 @@ ggf. mit der versionierten Such-Strategie-Schnittstelle.
 - **Dispatcher-Invariante:** V1-Units bleiben byte-/verhaltensidentisch (bestehende Regression
   unverändert grün); V2 greift nur für die neuen Fälle.
 - Fallstrick: `nav test` **baut nicht** — bei Engine-Änderungen erst `nav build`.
+
+## Nachtrag (Handoff): Sichtbarkeit/Versiegelung der Maschinerie-Methoden
+
+> **Abgeschlossen.** Ziel war, die V2-Maschinerie so abzudichten, dass die Implementierung
+> ausschließlich über die abstrakten `…Logic`-Methoden läuft. Ergebnis: nur teilweise möglich — der
+> **Framework-Proxy-Generator erzwingt `virtual`** auf den Interface-Membern (`Begin` + Trigger).
+> Versiegelt ist die interne `After{Node}`-Maschinerie (`private`, verifiziert: nicht proxy-überschrieben).
+> Die Überschreibbarkeit entscheidet jetzt sauber die Modell-Achse `InheritanceModifier` in den Fabriken —
+> nicht mehr eine `AnnotationKind`-Ableitung im Emitter.
+
+### Ziel
+
+Die V2-Maschinerie-Methoden in `{Task}WFSBase` sollen nicht als Umgehung der `…Logic`-Gegenstelle
+überschreibbar sein. Endzustand: `Begin` (Init) und die Trigger-Methoden bleiben `public virtual`
+(technisch erzwungen, s.u.); `After{Node}` ist versiegelt (`private`, nicht `virtual`).
+
+### Entscheidungen (mit Begründung)
+
+- **E1 — `Begin` (Init) und Trigger bleiben `public virtual`.** Der Framework-Proxy-Generator
+  `IxosRoslynGenerator` `InjectGenerator` erzeugt im **Consumer-Repo** (`D:\tfs\…\XTplusApplication`)
+  eine `{Task}WFS__Proxy`-Subklasse, die `Begin` **und** jede Trigger-Methode per `override` injiziert.
+  Ohne `virtual` bricht der Consumer-Build mit **CS0506** („kann nicht überschrieben werden, da nicht
+  virtual/abstract/override"). Empirisch belegt am Dialog `AbgabedatumProVerordnungDialog`
+  (`XTplus.Verkauf.csproj`, net48): Proxy überschrieb `Begin` + 4 Trigger (`Ok`, `Abbrechen`,
+  `PreiseUmschalten`, `AbgabedatumGeändert`).
+  - **Verworfen: Nicht-virtual (ursprüngliche Option A).** Dichtet zwar den Override ab, bricht aber den
+    Consumer-Build. **Verworfen: Explicit Interface Implementation (Option B).** EII ist implizit sealed
+    → nimmt dem Proxy die Override-Fähigkeit **genauso** → dieselbe Inkompatibilität. Für die
+    Interface-Member ist eine Versiegelung mit der Proxy-Architektur schlicht **nicht vereinbar**.
+- **E2 — `After{Node}` (konkret) ist `private`, nicht `virtual`.** Kein Interface-Member; nur die
+  geschachtelten Call-Contexts rufen es als `_wfs.After{Node}` (Nested Types sehen private Member der
+  Hülle — belegt durch die `_wfs._x`-Felder, die bereits so funktionieren). Der Proxy überschreibt es
+  **nicht** (in den CS0506-Fehlern nicht enthalten). Bei einer `[abstract]`-Task-Quelle bleibt `After`
+  dagegen `protected abstract` (der Nutzer implementiert die Maschinerie selbst; `private abstract` ist
+  unzulässig, CS0621).
+
+### Verifizierte Fakten (`Pfad:Zeile`)
+
+- **Modell** `Nav.Language/CodeGen/V2/CodeModel/TransitionCallContextCodeModel.cs` ist **alleinige
+  Autorität** für die Maschinerie-Modifikatoren — zwei unabhängige Achsen, in der jeweiligen Fabrik
+  gesetzt: `AccessModifier` (`public`/`protected`/leer=`private`) **und** der neue
+  `InheritanceModifier` (`"virtual "`/`"abstract "`/leer=versiegelt). `FromInit` `public` +
+  `generateAbstract ? "abstract " : "virtual "`; `FromExit` `generateAbstract ? "protected" : ""` +
+  `generateAbstract ? "abstract " : ""`; `FromTrigger` `public` + `"virtual "`.
+- **Emitter** `Nav.Language/CodeGen/V2/Emitters/WfsBaseEmitterV2.cs`: setzt in `WriteTransition` nur noch
+  `modifiers = AccessModifier + InheritanceModifier` zusammen und verzweigt ausschließlich über die
+  **Struktur** (abstract = nur Deklaration / Trigger = `BeforeTriggerLogic`-Vorlauf / sonst
+  Unwrap()-Ausdruck) — **keine** Ableitung mehr aus `AnnotationKind` (die frühere Zeile
+  `virtualKeyword = AnnotationKind == Exit ? "" : "virtual "` ist ersatzlos entfallen). `AnnotationKind`
+  dient jetzt nur noch der Nav-Annotation (`WriteTransitionAnnotation`). `BeforeTriggerLogic` ist separat
+  `protected virtual` (`:84`) — bewusster Nutzer-Hook, unverändert. **Ausgabe byte-identisch** (alle 32
+  Regression-Goldens unverändert grün).
+- **OneShot** `WfsOneShotEmitterV2.cs:91` nutzt weiter `AccessModifier` (plain) für den
+  `{public|protected} override`-Stub der `[abstract]`-Maschinerie — die zweite Achse (`InheritanceModifier`)
+  gehört nur in die Base.
+- **CodeAnalysis-GoTo-Golden** `Nav.Language.CodeAnalysis.Tests/Init/Snapshots/InitGoToCSharpTests/InitCallSite_JumpsToAfterMethod.expected`:
+  auf Span `(66,17)-(66,27) "AfterChild"` + Zeile `INavCommand AfterChild(bool result)` angepasst (die
+  Navigation landet unverändert auf `AfterChild`, nur der Span wanderte, da `protected virtual ` entfällt).
+- **Verifizierter Fakt (Step 1 erledigt):** Der `InjectGenerator` überschreibt `After{Node}`
+  **nicht** — er proxyt ausschließlich die **Interface-Fläche** (`Begin` + Trigger). Beleg per
+  Reflexion über das **kompilierte** Consumer-Assembly `D:\tfs\main\bin\Debug\XTplus.KST.AbdaAktuelleInfo.dll`:
+  die in-memory erzeugten `{Task}WFS__Proxy`-Typen deklarieren als `override` nur `Begin` und die Trigger
+  (z.B. `AbdaAktuelleInfoSuchbegriffeWFS__Proxy` → exakt `Begin`, `EscapeTask`, `Schliessen` = alle seine
+  Interface-Member). `AbdaAktuelleInfoErweiterteSucheWFS` hat **5 `After{Node}`-Methoden** (in V1
+  `protected virtual`, also überschreibbar) — der Proxy überschreibt **keine** davon. Damit ist die
+  Regel „nur Interface-Member" unabhängig von Injection-Bedarf bestätigt; ein `private`/versiegeltes
+  `After{Node}` in V2 kann **kein** CS0506 auslösen. Das ist **stärker** als der geplante
+  Consumer-Build-Test (realer Task mit 5 After-Methoden, 0 proxy-überschrieben). **Ergebnis: der aktuelle
+  Arbeitsbaum ist final; Step 2 entfällt.**
+
+### Fallen
+
+- **Consumer-Build ist die einzige Autorität für E1/E2.** Der CS0506 tritt nur im Framework-Repo
+  (`D:\tfs\…`) auf, nicht in dieser Solution — hier baut/testet alles grün, auch mit falschem Modifier.
+- **Solution-Build übersetzt `.nav` nicht neu** (inkrementell am `.nav`-Zeitstempel, nicht an der
+  Engine-Version). Goldens daher via `RegressionTests` regenerieren (die TestCaseSource `GetFileTestCases`
+  ruft `GenerateNavCode()`), **dann** `nav snapshot`. `nav snapshot` **generiert nicht**, es kopiert nur
+  `*.cs` → `*.expected.cs`.
+- **`Nav.Language.CodeAnalysis.Tests` + `Nav.Language.Extension.Tests` sind net472-only** — sie laufen
+  **nicht** unter `dotnet test … -f net10.0`, nur über `nav test` / den NUnit-Console-Runner. Die
+  `After`-Positionsänderung schlug **ausschließlich** dort auf (1 Test), war unter net10 unsichtbar.
+- **`GoldenAssert` (CodeAnalysis) schreibt bei `NAV_UPDATE_GOLDEN=1` LF-only** → CRLF+BOM-Churn über die
+  ganze Datei. Besser die betroffenen 1–2 Zeilen von Hand ersetzen und CRLF+BOM erhalten.
+
+### Stand (abgeschlossen)
+
+- **`ecdee6ff` (committet)** war ursprüngliche Option A (Begin/Trigger `public` **ohne** virtual, `After`
+  `private`, CodeAnalysis-Golden angepasst). Der Begin/Trigger-Teil war **falsch** (Consumer-CS0506).
+- **Korrektur + Design-Cleanup (Arbeitsbaum, committfertig):**
+  1. `WfsBaseEmitterV2.cs` gibt `Begin`+Trigger das `virtual` zurück; 6 V2-`*WFSBase.generated.expected.cs`
+     nachgezogen. `After` bleibt `private`/versiegelt.
+  2. **Design-Cleanup** (auf Nutzer-Wunsch): die Überschreibbarkeit wird nicht mehr im Emitter aus
+     `AnnotationKind` abgeleitet, sondern über die neue Modell-Achse `InheritanceModifier` neben dem
+     bereits vorhandenen `AccessModifier` in den Fabriken entschieden (s. „Verifizierte Fakten"). **Ausgabe
+     byte-identisch** — Goldens unverändert, beide TFMs grün (net10 1904/0, net472 1964/0).
+- **Step 1 erledigt** (proxy-Reflexion, s. „Verifizierte Fakten"): `After{Node}` wird nicht proxy-überschrieben
+  → der Arbeitsbaum ist **final**, **Step 2 entfällt**.
+- **Nächster Schritt:** committen (Message unten).
+
+### Verifikation (durchgeführt)
+
+- `nav build` grün.
+- `dotnet test … -f net10.0 --filter RegressionTests` → 32/32 (Goldens byte-identisch zum Cleanup).
+- Beide TFMs: `dotnet test … -f net10.0` → 1904/0; `nav test` (net472, inkl. CodeAnalysis/Extension) → 1964/0.
+- Step-1-Fakt: Reflexion über `XTplus.KST.AbdaAktuelleInfo.dll` — kein `After`-Override in den `__Proxy`-Typen.
+- **Autorität für die Modifier-Entscheidung:** Consumer-Build im `D:\tfs\…`-Pfad (CS0506?).

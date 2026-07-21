@@ -139,12 +139,16 @@ static class WfsBaseEmitterV2 {
 
         WriteTransitionAnnotation(cb, transition);
 
-        // Zugriffsmodifikator als Präfix (leer = private → kein Auftakt-Leerzeichen vor dem Rückgabetyp).
-        var modifier = transition.AccessModifier.Length == 0 ? "" : $"{transition.AccessModifier} ";
+        // Die Modifikatoren kommen vollständig aus dem Modell: AccessModifier (public/protected/private)
+        // und InheritanceModifier (virtual/abstract/versiegelt) sind zwei unabhängige, in der jeweiligen
+        // Fabrik entschiedene Achsen — der Emitter setzt sie nur zusammen (leer = private → kein
+        // Auftakt-Leerzeichen) und leitet nichts mehr aus der AnnotationKind ab.
+        var access    = transition.AccessModifier.Length == 0 ? "" : $"{transition.AccessModifier} ";
+        var modifiers = $"{access}{transition.InheritanceModifier}";
 
-        // [abstract]-Quelle: nur die Maschinerie-Methode selbst, abstrakt und vom Nutzer implementiert.
+        // [abstract]-Quelle: nur die Maschinerie-Methode selbst (abstract, vom Nutzer implementiert).
         if (transition.GenerateAbstractMachinery) {
-            cb.Write($"{modifier}abstract {transition.ReturnType} {transition.MachineryName}(");
+            cb.Write($"{modifiers}{transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.WriteLine(");");
             cb.WriteLine();
@@ -153,14 +157,11 @@ static class WfsBaseEmitterV2 {
 
         var callArguments = LogicCallArguments(transition);
 
-        // Die Maschinerie ist bewusst NICHT virtual: die Implementierung läuft ausschließlich über die
-        // abstrakte …Logic-Gegenstelle. Ein Override der Maschinerie würde den …Logic(…).Unwrap()-Pfad
-        // umgehen — genau das schließt V2 aus.
         if (transition.IsTrigger) {
             // Trigger: der BeforeTriggerLogic-Vorlauf bleibt, danach der nackte Unwrap()-Aufruf.
             var viewParamName = transition.Parameters[0].ParameterName;
 
-            cb.Write($"{modifier}{transition.ReturnType} {transition.MachineryName}(");
+            cb.Write($"{modifiers}{transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.Write(") ");
             using (cb.Block()) {
@@ -170,8 +171,8 @@ static class WfsBaseEmitterV2 {
 
             cb.WriteLine();
         } else {
-            // Init/Exit: expression-bodied, kein Vorlauf.
-            cb.Write($"{modifier}{transition.ReturnType} {transition.MachineryName}(");
+            // Init (virtual) bzw. konkretes After{Node} (versiegelt) — kollabiert auf den Unwrap()-Ausdruck.
+            cb.Write($"{modifiers}{transition.ReturnType} {transition.MachineryName}(");
             WriteParameterList(cb, transition.Parameters);
             cb.WriteLine(")");
 

@@ -45,7 +45,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public IINIT_TASK Begin(string message)
+    public virtual IINIT_TASK Begin(string message)
         => BeginLogic(message, new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -115,7 +115,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnRetry</NavTrigger>
     #endregion
-    public INavCommand OnRetry(HomeTO to) {
+    public virtual INavCommand OnRetry(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnRetryLogic(to, new OnRetryCallContext(this)).Unwrap();
     }
@@ -141,7 +141,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnStartA</NavTrigger>
     #endregion
-    public INavCommand OnStartA(HomeTO to) {
+    public virtual INavCommand OnStartA(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnStartALogic(to, new OnStartACallContext(this)).Unwrap();
     }

@@ -39,7 +39,7 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavInit>Init1</NavInit>
     #endregion
-    public IINIT_TASK Begin()
+    public virtual IINIT_TASK Begin()
         => BeginLogic(new Init1CallContext(this)).Unwrap();
 
     #region Nav Annotations
@@ -59,7 +59,7 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnWarn</NavTrigger>
     #endregion
-    public INavCommand OnWarn(HomeTO to) {
+    public virtual INavCommand OnWarn(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnWarnLogic(to, new OnWarnCallContext(this)).Unwrap();
     }
@@ -85,7 +85,7 @@ public abstract partial class NotImplementedFlowWFSBase: StandardWFS {
     #region Nav Annotations
     /// <NavTrigger>OnClose</NavTrigger>
     #endregion
-    public INavCommand OnClose(HomeTO to) {
+    public virtual INavCommand OnClose(HomeTO to) {
         to = BeforeTriggerLogic(to);
         return OnCloseLogic(to, new OnCloseCallContext(this)).Unwrap();
     }
