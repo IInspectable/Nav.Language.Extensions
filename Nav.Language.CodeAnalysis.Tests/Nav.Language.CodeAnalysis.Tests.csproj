@@ -8,9 +8,6 @@
          net472 und lässt sich daher nur aus einem net472-Projekt referenzieren. Der Lauf erfolgt
          über den gebündelten NUnit-Console-Runner (`nav test`), nicht über `dotnet test`. -->
     <TargetFramework>net472</TargetFramework>
-    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): die
-         Fixtures nutzen Raw String Literals für gut lesbare, mehrzeilige .nav-Quellen. -->
-    <LangVersion>latest</LangVersion>
     <RootNamespace>Nav.Language.CodeAnalysis.Tests</RootNamespace>
     <AssemblyName>Nav.Language.CodeAnalysis.Tests</AssemblyName>
     <!-- Flach in bin\Debug\ (kein TFM-Unterordner), damit der NUnit-Console-Runner die DLL unter

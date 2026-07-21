@@ -37,9 +37,9 @@ ist entfallen — siehe Nachtrag „System.CodeDom-Referenz aufgelöst".)
 ## Weitere Voraussetzung: Sprachversion
 
 Der MCP-SDK-Sourcegenerator (der die Tool-/JSON-Metadaten erzeugt) verlangt unter Trimming
-**C# 12** und meldet sonst `error SYSLIB1102`. Das Repo ist projektweit auf `LangVersion 11.0`
-gepinnt (wegen net472/netstandard2.0). Lokal im MCP-`.csproj` (net10.0-only) ist die Anhebung
-auf `latest` unkritisch.
+**C# 12** und meldet sonst `error SYSLIB1102`. Seit das Repo projektweit auf `LangVersion 14.0`
+steht (`Directory.Build.props`), ist das erfüllt — der frühere lokale `latest`-Override im
+MCP-`.csproj` (nur wegen des damaligen 11.0-Deckels) ist entfallen.
 
 ## Entscheidungen
 
@@ -111,7 +111,6 @@ als Typargument — **nicht** die Methoden. Umbau je Tool daher minimal:
 ```xml
 <PublishTrimmed>true</PublishTrimmed>
 <TrimMode>partial</TrimMode>
-<LangVersion>latest</LangVersion>
 ```
 
 `PublishSingleFile`/RID/Kompression setzt weiterhin `Publish-Mcp.ps1` per Kommandozeile. Die

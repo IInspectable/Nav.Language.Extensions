@@ -166,7 +166,7 @@ teilen `SourceBuilder` aus dem Shared-Projekt — das validiert das Shared-Proje
 - **Namespaces** durchgängig `Pharmatechnik.Nav.Language[.*]`; `RootNamespace` je Projekt setzen (sonst
   IDE0130). Shared = `…CodeAnalysis.Shared`, Generator = `…Grammar.SourceGenerator`.
 - **CPM:** neue Pakete in `Directory.Packages.props` pinnen (PackageReference ohne Version).
-- **Generatorprojekte** pinnen eigenes `LangVersion latest`; die Engine läuft projektweit auf 11.0 (Roslyn
+- **Generatorprojekte** pinnen eigenes `LangVersion latest`; die Engine läuft projektweit auf 14.0 (Roslyn
   läuft sowohl unter `dotnet build` als auch unter `MSBuild.exe`).
 - **`NavGrammar`** ist generiert in `Pharmatechnik.Nav.Language` (Engine-Assembly): `public const string Ebnf`
   + `public static IReadOnlyDictionary<string,string> Rules`.

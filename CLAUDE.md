@@ -181,9 +181,13 @@ neue Funktion mit `.FUNCTIONALITY <token>` genügt (Tab-Completion/Menü ziehen 
   am Rand MUSS `NavUri.ToFilePath` nutzen, NIE `rootUri.LocalPath` direkt.
 - **`.nav`-Endung exakt prüfen** via `NavSolution.HasNavExtension` — Windows-`EnumerateFiles` matcht
   `*.nav` sonst auch `.navignore` (3-Zeichen-Endungs-Falle).
-- `LangVersion` ist projektweit **11.0** (`Directory.Build.props`) — u.a. für Raw-String-Literale in den
-  CodeBuilder-Codegen-Emittern (reines Compiler-Feature, trägt auf net472/netstandard2.0). NuGet via
-  Central Package Management (`Directory.Packages.props`, transitives Pinning aktiv).
+- `LangVersion` ist projektweit **14.0** (`Directory.Build.props`) — ursprünglich für Raw-String-Literale
+  (C# 11) in den CodeBuilder-Codegen-Emittern eingeführt, inzwischen auch für spätere rein compiler-seitige
+  Features (`field`-Keyword, Extension-Members); alle ohne BCL-Abhängigkeit, tragen auf
+  netstandard2.0/net472/net10. Bewusst eine **explizite** Version statt `latest` (reproduzierbar über alle
+  Toolchains + harter Stopp gegen versehentlich runtime-abhängige Features wie Inline-Arrays,
+  `System.Threading.Lock`, ref-struct-Interfaces, first-class Spans). NuGet via Central Package Management
+  (`Directory.Packages.props`, transitives Pinning aktiv).
 - **Records nie mit Primär-Konstruktor:** Records (class wie struct) deklarieren ihre Daten als
   `public required T Name { get; init; }`-Properties und werden per Objekt-Initialisierer konstruiert —
   **keine** Positional-Records (`record Foo(int X, …)`). Auf netstandard2.0/net472 liefert

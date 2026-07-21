@@ -8,10 +8,6 @@
          lässt sich daher nur aus einem net10.0-Projekt referenzieren. Der Lauf erfolgt ausschließlich
          über `dotnet test` (nicht über den net472-NUnit-Console-Runner von `nav test`). -->
     <TargetFramework>net10.0</TargetFramework>
-    <!-- Bewusste Ausnahme von der projektweiten LangVersion 11.0 (Directory.Build.props): die
-         Fixtures nutzen Raw String Literals und Collection Expressions für gut lesbare, mehrzeilige
-         .nav-Quellen — beides reine Compiler-Features. -->
-    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <RootNamespace>Nav.Language.Mcp.Tests</RootNamespace>

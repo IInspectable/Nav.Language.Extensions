@@ -28,9 +28,6 @@
          Update behebt es nicht (6.1.4 geprüft; NLog.Targets.Network 6.0.4 ist bereits neueste), ehrlich
          entfernbar ist NLog nur per eigenem Logging-Refactoring quer durch alle Hosts. Details:
          doc/nav-mcp-trimming-status.md. -->
-    <!-- Der MCP-SDK-Sourcegen verlangt unter Trimming C# 12 (sonst SYSLIB1102). Lokale Anhebung des
-         projektweit auf 11.0 gepinnten LangVersion — unkritisch, da dieses Projekt net10.0-only ist. -->
-    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

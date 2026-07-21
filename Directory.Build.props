@@ -4,12 +4,16 @@
   <Import Project="$(MSBuildThisFileDirectory)Build\Version.targets"/>
 
   <PropertyGroup>
-    <!-- Projektweit C# 11: schaltet Raw-String-Literale frei (für die CodeBuilder-basierten
-         Codegen-Emitter, die zusammenhängende Ausgabe als mehrzeilige Raw Strings schreiben).
-         Reines Compiler-Feature ohne BCL-Abhängigkeit — trägt auch auf net472/netstandard2.0.
-         Bewusst 11.0 statt `latest`, um keine runtime-abhängigen neueren Features (C# 12/13)
-         versehentlich freizuschalten. -->
-    <LangVersion>11.0</LangVersion>
+    <!-- Projektweit C# 14. Historischer Anlass waren die Raw-String-Literale (C# 11) für die
+         CodeBuilder-Codegen-Emitter (mehrzeilige Ausgabe als Raw Strings); genutzt werden inzwischen
+         auch spätere rein compiler-seitige Features (u.a. `field`-Keyword, Extension-Members). Alle
+         ohne BCL-/Runtime-Abhängigkeit — tragen daher auf netstandard2.0/net472/net10 (per `nav build`
+         + `nav test` auf allen TFMs verifiziert).
+         Bewusst eine explizite Version statt `latest`: reproduzierbar über alle Toolchains (MSBuild.exe,
+         dotnet, CI) und ein harter Stopp, damit runtime-abhängige Features (Inline-Arrays,
+         System.Threading.Lock, ref-struct-Interfaces, first-class Spans) nicht versehentlich auf
+         netstandard2.0/net472 landen, wo sie nicht (sinnvoll) tragen. -->
+    <LangVersion>14.0</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>
