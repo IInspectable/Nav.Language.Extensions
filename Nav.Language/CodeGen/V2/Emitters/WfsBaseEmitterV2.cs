@@ -265,6 +265,7 @@ static class WfsBaseEmitterV2 {
 
         // Einstieg auf dem Context: Show{Node} liefert den Continuation-Typ (kein Result).
         cb.WriteLine($"public {continuation.ContinuationTypeName} {continuation.EntryMethodSignature} => new({CallContextCodeModel.WfsFieldName}, {CallContextCodeModel.ToParameterName});");
+        cb.WriteLine();
 
         // Explizite Felder (kein Primärkonstruktor): der statische implizite Result-Operator liest die
         // Felder qualifiziert über eine andere Instanz (v._wfs/v._to) — ein per Primärkonstruktor

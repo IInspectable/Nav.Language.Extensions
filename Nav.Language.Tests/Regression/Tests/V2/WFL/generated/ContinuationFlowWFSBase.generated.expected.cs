@@ -148,6 +148,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
         }
 
         public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+
         public sealed class ShowHomeContinuation {
             readonly ContinuationFlowWFSBase _wfs;
             readonly HomeTO _to;
@@ -181,6 +182,7 @@ public abstract partial class ContinuationFlowWFSBase: StandardWFS {
         }
 
         public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+
         public sealed class ShowHomeContinuation {
             readonly ContinuationFlowWFSBase _wfs;
             readonly HomeTO _to;

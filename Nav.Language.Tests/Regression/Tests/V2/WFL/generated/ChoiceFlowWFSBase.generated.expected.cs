@@ -177,6 +177,7 @@ public abstract partial class ChoiceFlowWFSBase: StandardWFS {
         }
 
         public ShowHomeContinuation ShowHome(HomeTO to) => new(_wfs, to);
+
         public sealed class ShowHomeContinuation {
             readonly ChoiceFlowWFSBase _wfs;
             readonly HomeTO _to;
